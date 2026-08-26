@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" fill="none">
+  <circle cx="20" cy="20" r="18" stroke="url(#g)" stroke-width="3" stroke-dasharray="8 4"/>
+  <text x="20" y="25" text-anchor="middle" fill="#6366F1" font-size="14" font-weight="700" font-family="Plus Jakarta Sans,sans-serif">R</text>
+  <text x="48" y="26" fill="#FAFAFA" font-size="18" font-family="Plus Jakarta Sans,sans-serif">Smart</text>
+  <text x="106" y="26" fill="#6366F1" font-size="18" font-weight="700" font-family="Plus Jakarta Sans,sans-serif">Reps</text>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="40" y2="40">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+</svg>

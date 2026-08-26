@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs & debug
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.cursor/
+
+# Test / coverage
+coverage/
