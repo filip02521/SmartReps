@@ -3,7 +3,7 @@ import { useAppStore } from '@/stores/app-store'
 import { useWorkoutStore } from '@/stores/workout-store'
 import { cancelReminder } from '@/lib/notifications'
 
-/** Wipe IndexedDB + persisted app settings (logout / privacy). */
+/** Wipe IndexedDB + persisted app settings (logout / privacy / account switch). */
 export async function clearAllLocalData(): Promise<void> {
   cancelReminder()
   await Promise.all([
@@ -30,5 +30,7 @@ export async function clearAllLocalData(): Promise<void> {
     pendingStart: null,
     testDraft: null,
     setupQueue: [],
+    lastAuthUserId: null,
+    enabledProgramsUpdatedAt: null,
   })
 }

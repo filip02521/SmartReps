@@ -45,6 +45,10 @@ type AppStore = {
   pendingStart: PendingStart | null
   testDraft: TestDraft | null
   setupQueue: Program[]
+  /** Last Supabase user id on this device — detects account switch on shared devices. */
+  lastAuthUserId: string | null
+  /** Bumped when enabledPrograms changes — LWW sync with profiles.enabled_programs. */
+  enabledProgramsUpdatedAt: string | null
   setSettings: (partial: Partial<UserSettings>) => void
   setPendingTest: (test: PendingTest | null) => void
   clearPendingTest: () => void
@@ -74,8 +78,17 @@ export const useAppStore = create<AppStore>()(
       pendingStart: null,
       testDraft: null,
       setupQueue: [],
+      lastAuthUserId: null,
+      enabledProgramsUpdatedAt: null,
       setSettings: (partial) =>
-        set((s) => ({ settings: { ...s.settings, ...partial } })),
+        set((s) => {
+          const nextSettings = { ...s.settings, ...partial }
+          const patch: Partial<AppStore> = { settings: nextSettings }
+          if (partial.enabledPrograms) {
+            patch.enabledProgramsUpdatedAt = new Date().toISOString()
+          }
+          return patch
+        }),
       setPendingTest: (pendingTest) => set({ pendingTest }),
       clearPendingTest: () => set({ pendingTest: null }),
       setPendingStart: (pendingStart) => set({ pendingStart }),
@@ -99,8 +112,20 @@ export const useAppStore = create<AppStore>()(
         pendingTest: s.pendingTest,
         pendingStart: s.pendingStart,
         setupQueue: s.setupQueue,
+        lastAuthUserId: s.lastAuthUserId,
+        enabledProgramsUpdatedAt: s.enabledProgramsUpdatedAt,
         // testDraft is session-only — not persisted across reloads intentionally via omit
       }),
     },
   ),
 )
+
+function programsEqual(a: Program[], b: Program[]): boolean {
+  return a.length === b.length && a.every((p, i) => p === b[i])
+}
+
+useAppStore.subscribe((state, prev) => {
+  if (!programsEqual(state.settings.enabledPrograms, prev.settings.enabledPrograms)) {
+    void import('@/lib/sync').then((m) => m.pushProfileSettingsOnly())
+  }
+})

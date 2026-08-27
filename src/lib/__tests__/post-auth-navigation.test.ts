@@ -22,7 +22,8 @@ vi.mock('@/lib/program-service', () => ({
 
 import { useAppStore } from '@/stores/app-store'
 import { getProgramProgress } from '@/lib/program-service'
-import { navigateAfterAuth } from '@/lib/post-auth-navigation'
+import { navigateAfterAuth, resolvePostAuthNavigation } from '@/lib/post-auth-navigation'
+import * as setupFlow from '@/lib/setup-flow'
 
 function mockState(partial: Record<string, unknown>) {
   vi.mocked(useAppStore.getState).mockReturnValue({
@@ -118,5 +119,54 @@ describe('navigateAfterAuth', () => {
     })
     await Promise.all([p1, p2])
     expect(navigate).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('resolvePostAuthNavigation', () => {
+  const navigate = vi.fn() as unknown as NavigateFunction
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.restoreAllMocks()
+  })
+
+  it('honors returnTo when setup is complete', async () => {
+    mockState({
+      pendingStart: null,
+      settings: { enabledPrograms: ['pushups'], onboardingComplete: true },
+    })
+    vi.spyOn(setupFlow, 'hasIncompleteSetup').mockResolvedValue(false)
+
+    await resolvePostAuthNavigation(navigate, '/profile')
+
+    expect(navigate).toHaveBeenCalledWith('/profile', { replace: true })
+  })
+
+  it('rejects unsafe returnTo paths', async () => {
+    mockState({
+      pendingStart: null,
+      settings: { enabledPrograms: ['pushups', 'pullups'], onboardingComplete: true },
+    })
+    vi.spyOn(setupFlow, 'hasIncompleteSetup').mockResolvedValue(false)
+    vi.mocked(getProgramProgress).mockResolvedValue({ status: 'active' } as never)
+
+    await resolvePostAuthNavigation(navigate, '/setup/login')
+
+    expect(navigate).toHaveBeenCalledWith('/', { replace: true })
+  })
+
+  it('is single-flight for concurrent callers', async () => {
+    mockState({
+      pendingStart: null,
+      settings: { enabledPrograms: ['pushups'], onboardingComplete: true },
+    })
+    vi.spyOn(setupFlow, 'hasIncompleteSetup').mockResolvedValue(false)
+
+    const p1 = resolvePostAuthNavigation(navigate, '/profile')
+    const p2 = resolvePostAuthNavigation(navigate, '/profile')
+    await Promise.all([p1, p2])
+
+    expect(navigate).toHaveBeenCalledTimes(1)
+    expect(navigate).toHaveBeenCalledWith('/profile', { replace: true })
   })
 })

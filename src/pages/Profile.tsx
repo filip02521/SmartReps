@@ -177,9 +177,6 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
-    if (isSupabaseConfigured) {
-      supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null))
-    }
     applyTheme(settings.theme)
     applyHighContrast(settings.highContrast)
     void (async () => {
@@ -191,6 +188,16 @@ export default function ProfilePage() {
       setProgressByProgram(map)
       setDeadLetter(await getDeadLetterCount())
     })()
+
+    if (!isSupabaseConfigured) return
+
+    void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null))
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setEmail(session?.user?.email ?? null)
+    })
+
+    return () => subscription.unsubscribe()
   }, [settings.theme, settings.highContrast, settings.enabledPrograms])
 
   const logoutOnly = async () => {
@@ -279,7 +286,7 @@ export default function ProfilePage() {
         <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.account}</p>
         <p className="mt-2 text-sm">{email ?? pl.notLoggedIn}</p>
         {isSupabaseConfigured && !email && (
-          <Button className="mt-3" size="sm" fullWidth onClick={() => navigate('/setup/login')}>
+          <Button className="mt-3" size="sm" fullWidth onClick={() => navigate('/setup/login', { state: { returnTo: '/profile' } })}>
             {pl.login}
           </Button>
         )}

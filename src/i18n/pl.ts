@@ -113,6 +113,15 @@ export const pl = {
   loginSent: 'Sprawdź skrzynkę — kliknij link, aby się zalogować.',
   loginSkip: 'Pomiń — trenuję offline',
   loginInvalidEmail: 'Podaj poprawny adres e-mail.',
+  loginPwaHint:
+    'Jeśli masz SmartReps dodane do ekranu głównego, otwórz link magiczny w tej samej aplikacji — nie w osobnej karcie Safari/Chrome.',
+  loginAlreadySignedIn: 'Jesteś zalogowany jako',
+  loginContinue: 'Kontynuuj',
+  loginLogoutToSwitch: 'Wyloguj, aby użyć innego konta',
+  loginLogoutToSwitchHint: 'Wyloguj się, zanim wyślesz link na inny adres e-mail.',
+  loginLogoutToSwitchDone: 'Wylogowano — możesz zalogować się innym kontem.',
+  accountSwitchCleared:
+    'Wykryto inne konto — lokalne dane zostały wyczyszczone przed synchronizacją.',
   onboardingWelcome: 'Witaj w SmartReps',
   onboardingPickProgram: 'Wybierz program',
   onboardingRulesTitle: 'Jak to działa',

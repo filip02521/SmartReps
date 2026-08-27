@@ -8,9 +8,12 @@ import {
   type RemoteSessionRow,
 } from './sync-mappers'
 import type { Program } from '@/data/plans/types'
-import { pl } from '@/i18n/pl'
-import { showToast } from '@/stores/toast-store'
 import { legacyRestTimerFromStartedAt, reconcileRestTimerJson } from '@/lib/rest-timer-sync'
+import {
+  mergeEnabledProgramsFromProfile,
+  mergeEnabledProgramsFromProgress,
+} from '@/lib/enabled-programs-sync'
+import { useAppStore } from '@/stores/app-store'
 
 type SyncAction = 'insert' | 'update' | 'delete'
 
@@ -102,6 +105,49 @@ function mapActiveRestTimer(remote: RemoteActiveRow): string | null {
     return legacyRestTimerFromStartedAt(remote.rest_started_at)
   }
   return null
+}
+
+async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
+  const { settings, enabledProgramsUpdatedAt } = useAppStore.getState()
+  const updatedAt = enabledProgramsUpdatedAt ?? new Date().toISOString()
+  const { error } = await supabase.from('profiles').upsert(
+    {
+      id: userId,
+      enabled_programs: settings.enabledPrograms,
+      enabled_programs_updated_at: updatedAt,
+    },
+    { onConflict: 'id' },
+  )
+  if (error) throw error
+}
+
+/** Push only profile settings (e.g. after toggling enabled programs while online). */
+export async function pushProfileSettingsOnly(): Promise<SyncResult> {
+  const userId = await getUserId()
+  if (!userId) return { ok: true, errors: 0 }
+  try {
+    await upsertProfileEnabledPrograms(userId)
+    return { ok: true, errors: 0 }
+  } catch (err) {
+    console.warn('[sync] pushProfileSettingsOnly failed', err)
+    return { ok: false, errors: 1 }
+  }
+}
+
+async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('enabled_programs, enabled_programs_updated_at')
+      .eq('id', userId)
+      .maybeSingle()
+    if (error) throw error
+    mergeEnabledProgramsFromProfile(data)
+    return { ok: true, errors: 0 }
+  } catch (err) {
+    console.warn('[sync] pullProfileEnabledPrograms failed', err)
+    return { ok: false, errors: 1 }
+  }
 }
 
 async function upsertProgress(userId: string, row: LocalProgramProgress) {
@@ -239,7 +285,8 @@ export async function retryDeadLetterItems(): Promise<SyncResult> {
       await db.syncQueue.update(item.id, { attempts: 0 })
     }
   }
-  return syncWithRemote()
+  const { runAuthenticatedSync } = await import('@/lib/auth-sync')
+  return runAuthenticatedSync({ showSuccessToast: false, showFailureToast: false })
 }
 
 export async function syncAllLocalData(): Promise<SyncResult> {
@@ -249,6 +296,8 @@ export async function syncAllLocalData(): Promise<SyncResult> {
   let errors = 0
 
   try {
+    await upsertProfileEnabledPrograms(userId)
+
     const progressRows = await db.programProgress.toArray()
     for (const row of progressRows) {
       try {
@@ -410,6 +459,13 @@ async function mergeMaxTestRemote(remote: RemoteMaxTestRow) {
   })
 }
 
+async function mergeEnabledProgramsLegacyFallback(remoteProgress: RemoteProgressRow[]) {
+  const programs = remoteProgress
+    .map((row) => row.program as Program)
+    .filter((p): p is Program => p === 'pushups' || p === 'pullups')
+  if (programs.length) mergeEnabledProgramsFromProgress(programs)
+}
+
 export async function pullRemoteData(): Promise<SyncResult> {
   const userId = await getUserId()
   if (!userId) return { ok: true, errors: 0 }
@@ -417,11 +473,20 @@ export async function pullRemoteData(): Promise<SyncResult> {
   let errors = 0
 
   try {
+    const profilePull = await pullProfileEnabledPrograms(userId)
+    errors += profilePull.errors
+
     const { data: remoteProgress, error: progressError } = await supabase
       .from('program_progress')
       .select('*')
       .eq('user_id', userId)
     if (progressError) throw progressError
+
+    // Legacy fallback when profiles.enabled_programs not yet migrated
+    const { enabledProgramsUpdatedAt } = useAppStore.getState()
+    if (!enabledProgramsUpdatedAt) {
+      await mergeEnabledProgramsLegacyFallback(remoteProgress ?? [])
+    }
 
     for (const remote of remoteProgress ?? []) {
       await mergeProgressRemote(userId, remote as RemoteProgressRow)
@@ -474,25 +539,6 @@ export async function syncWithRemote(): Promise<SyncResult> {
   const flush = await syncAllLocalData()
   const errors = push.errors + pull.errors + flush.errors
   return { ok: errors === 0, errors }
-}
-
-export function setupOnlineSync() {
-  if (typeof window === 'undefined') return () => {}
-
-  const run = () => {
-    void syncWithRemote().then(({ ok }) => {
-      if (ok) showToast(pl.toastSyncDone, 'success')
-      else showToast(pl.toastSyncFailed, 'error')
-    })
-  }
-
-  const onOnline = () => run()
-
-  window.addEventListener('online', onOnline)
-  // Boot: push → pull → flush when configured + logged in (no-op without user)
-  void syncWithRemote()
-
-  return () => window.removeEventListener('online', onOnline)
 }
 
 export async function enqueueActiveWorkoutSync(program: string, state: ActiveWorkoutState | null) {
