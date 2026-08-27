@@ -1,13 +1,16 @@
-import { Link } from 'react-router-dom'
-import { LogoFull } from '@/components/brand/Logo'
+import { useNavigate, Link } from 'react-router-dom'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { pl } from '@/i18n/pl'
 
 export default function PrivacyPage() {
+  const navigate = useNavigate()
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-      <LogoFull height={36} className="mx-auto" />
-      <h1 className="mt-6 sr-text-h1">{pl.privacyTitle}</h1>
-      <div className="mt-4 space-y-4 text-sm leading-relaxed text-[var(--sr-text-secondary)]">
+      <PageHeader
+        title={pl.privacyTitle}
+        onBack={() => navigate('/')}
+      />
+      <div className="mt-2 space-y-4 text-sm leading-relaxed text-[var(--sr-text-secondary)]">
         <p>
           SmartReps to aplikacja treningowa działająca przede wszystkim lokalnie na Twoim urządzeniu
           (IndexedDB / Dexie). Postęp, sesje i ustawienia są zapisywane u Ciebie.
@@ -30,12 +33,11 @@ export default function PrivacyPage() {
         </p>
         <p>Kontakt w sprawach prywatności: poprzez issues w repozytorium SmartReps na GitHubie.</p>
       </div>
-      <Link
-        to="/"
-        className="mt-8 inline-flex min-h-11 items-center text-sm font-medium text-[var(--sr-brand-primary)]"
-      >
-        {pl.legalBack}
-      </Link>
+      <p className="mt-8 text-sm">
+        <Link to="/terms" className="font-medium text-[var(--sr-brand-primary)]">
+          {pl.termsLink}
+        </Link>
+      </p>
     </div>
   )
 }

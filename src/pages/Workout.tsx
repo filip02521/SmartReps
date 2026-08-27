@@ -17,6 +17,7 @@ import { useAppStore } from '@/stores/app-store'
 import { onSetComplete, onSetFailed, ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { ActiveWorkoutScreen } from '@/components/workout/ActiveWorkoutScreen'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { ErrorBanner, PageLoader } from '@/components/ux/Feedback'
 import {
   finalizeFailedDay,
@@ -478,9 +479,8 @@ export default function WorkoutPage() {
   if (testPendingBlocked && progress) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-        <h1 className="sr-text-h1">{pl.testPendingBlocked}</h1>
-        <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.cycleCompleteHint}</p>
-        <Button className="mt-6" fullWidth onClick={() => navigate(`/setup/test/${program}?retest=1`)}>
+        <PageHeader title={pl.testPendingBlocked} subtitle={pl.cycleCompleteHint} />
+        <Button className="mt-2" size="touch" fullWidth onClick={() => navigate(`/setup/test/${program}?retest=1`)}>
           {pl.test}
         </Button>
         <Button variant="ghost" className="mt-2" fullWidth onClick={() => navigate('/', { replace: true })}>
@@ -519,11 +519,11 @@ export default function WorkoutPage() {
     )
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-        <h1 className="sr-text-h1">{pl.restBlocked(pl.restIn(daysLeft))}</h1>
-        <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
-          {pl.restGateHint(daysLeft)}
-        </p>
-        <Button className="mt-6" fullWidth onClick={() => navigate(`/workout/${program}?force=1`, { replace: true })}>
+        <PageHeader
+          title={pl.restBlocked(pl.restIn(daysLeft))}
+          subtitle={pl.restGateHint(daysLeft)}
+        />
+        <Button className="mt-2" size="touch" fullWidth onClick={() => navigate(`/workout/${program}?force=1`, { replace: true })}>
           {pl.trainAnyway}
         </Button>
         <Button variant="ghost" className="mt-2" fullWidth onClick={() => navigate('/', { replace: true })}>

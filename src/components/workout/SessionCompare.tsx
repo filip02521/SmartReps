@@ -26,9 +26,9 @@ export function SessionCompare({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[var(--sr-text-muted)]">
-              <th className="pb-2">Seria</th>
-              <th className="pb-2">Cel</th>
-              <th className="pb-2">Ty</th>
+              <th className="pb-2">{pl.setColumn}</th>
+              <th className="pb-2">{pl.targetColumn}</th>
+              <th className="pb-2">{pl.youColumn}</th>
               <th className="pb-2">{pl.prevColumn}</th>
             </tr>
           </thead>

@@ -4,10 +4,15 @@ import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { useAppStore } from '@/stores/app-store'
 import { Button } from '@/components/ui/Button'
-import { Card, Badge } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Card'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { PageSection } from '@/components/ui/PageSection'
+import { ProgramAccentCard } from '@/components/ui/ProgramAccentCard'
+import { NestedStat } from '@/components/ui/NestedStat'
+import { CheckboxField } from '@/components/ui/TextField'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
+import { SkeletonCard } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { runAuthenticatedSync } from '@/lib/auth-sync'
 import { pl } from '@/i18n/pl'
@@ -38,11 +43,6 @@ import type { LocalProgramProgress } from '@/lib/db'
 import type { Program } from '@/data/plans/types'
 
 const appVersion = import.meta.env.VITE_APP_VERSION ?? '1.0.0'
-
-const programAccent: Record<Program, string> = {
-  pushups: 'var(--sr-pushups-accent)',
-  pullups: 'var(--sr-pullups-accent)',
-}
 
 function applyTheme(theme: 'system' | 'dark' | 'light') {
   if (theme === 'system') {
@@ -89,40 +89,33 @@ function ProgramSettingsBlock({
           ? 'error'
           : 'info'
 
+  const cycleHint =
+    progress && progress.cycleAttempt > 1 ? pl.attemptLabel(progress.cycleAttempt) : undefined
+
   return (
-    <section
-      className="overflow-hidden rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]"
-      aria-labelledby={`program-settings-${program}`}
-    >
-      <div
-        className="border-l-[3px] px-4 py-3"
-        style={{ borderLeftColor: programAccent[program] }}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3
-              id={`program-settings-${program}`}
-              className="truncate text-base font-semibold text-[var(--sr-text-primary)]"
-            >
-              {label}
-            </h3>
-            {cycle ? (
-              <p className="mt-0.5 text-sm text-[var(--sr-text-secondary)]">
-                {cycle.nameShort}
-                {progress ? ` · ${pl.dayOfTotal(progress.currentDay, cycle.days.length)}` : ''}
-                {progress && progress.cycleAttempt > 1
-                  ? ` · ${pl.attemptLabel(progress.cycleAttempt)}`
-                  : ''}
-              </p>
-            ) : (
-              <p className="mt-0.5 text-sm text-[var(--sr-text-muted)]">{pl.notConfigured}</p>
-            )}
-          </div>
-          {statusLabel && <Badge variant={badgeVariant}>{statusLabel}</Badge>}
-        </div>
+    <ProgramAccentCard program={program} aria-labelledby={`program-settings-${program}`}>
+      <div className="flex items-start justify-between gap-3">
+        <h3
+          id={`program-settings-${program}`}
+          className="truncate text-base font-semibold text-[var(--sr-text-primary)]"
+        >
+          {label}
+        </h3>
+        {statusLabel && <Badge variant={badgeVariant}>{statusLabel}</Badge>}
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] p-3">
+      {cycle ? (
+        <NestedStat
+          className="mt-3"
+          overline={cycle.nameShort}
+          value={progress ? pl.dayOfTotal(progress.currentDay, cycle.days.length) : undefined}
+          hint={cycleHint}
+        />
+      ) : (
+        <NestedStat className="mt-3" value={pl.notConfigured} />
+      )}
+
+      <div className="mt-4 flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] pt-3">
         <Button
           variant="secondary"
           size="md"
@@ -166,7 +159,7 @@ function ProgramSettingsBlock({
           </div>
         )}
       </div>
-    </section>
+    </ProgramAccentCard>
   )
 }
 
@@ -182,9 +175,14 @@ export default function ProfilePage() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [progressByProgram, setProgressByProgram] = useState<Partial<Record<Program, LocalProgramProgress>>>({})
+  const [programsReady, setProgramsReady] = useState(false)
   const [deadLetter, setDeadLetter] = useState(0)
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(() =>
+    typeof Notification !== 'undefined' ? Notification.permission : null,
+  )
   const remindersDenied =
-    typeof Notification !== 'undefined' && Notification.permission === 'denied'
+    notifPermission === 'denied' ||
+    (typeof Notification !== 'undefined' && Notification.permission === 'denied')
 
   const reloadMeta = async () => {
     const map: Partial<Record<Program, LocalProgramProgress>> = {}
@@ -194,6 +192,7 @@ export default function ProfilePage() {
     }
     setProgressByProgram(map)
     setDeadLetter(await getDeadLetterCount())
+    setProgramsReady(true)
   }
 
   useEffect(() => {
@@ -210,15 +209,7 @@ export default function ProfilePage() {
   useEffect(() => {
     applyTheme(settings.theme)
     applyHighContrast(settings.highContrast)
-    void (async () => {
-      const map: Partial<Record<Program, LocalProgramProgress>> = {}
-      for (const p of settings.enabledPrograms) {
-        const prog = await getProgramProgress(p)
-        if (prog) map[p] = prog
-      }
-      setProgressByProgram(map)
-      setDeadLetter(await getDeadLetterCount())
-    })()
+    void reloadMeta()
 
     if (!isSupabaseConfigured) return
 
@@ -229,6 +220,8 @@ export default function ProfilePage() {
     })
 
     return () => subscription.unsubscribe()
+    // reloadMeta reads settings.enabledPrograms; theme/contrast/programs drive this effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.theme, settings.highContrast, settings.enabledPrograms])
 
   const syncStatusLabel = !online
@@ -330,39 +323,61 @@ export default function ProfilePage() {
     (p) => !settings.enabledPrograms.includes(p),
   )
 
+  const showProgramsLoading =
+    !programsReady &&
+    Object.keys(progressByProgram).length === 0 &&
+    settings.enabledPrograms.length > 0
+
+  const pushDescription = !email
+    ? pl.pushNeedsLogin
+    : !isWebPushSupported() || !getVapidPublicKey()
+      ? pl.pushUnavailable
+      : pl.pushNotificationsHint
+
   return (
     <div className="mx-auto max-w-lg px-4 py-6 safe-top">
-      <PageHeader title={pl.navProfile} />
+      <PageHeader
+        title={pl.navProfile}
+        subtitle={email ? pl.accountLoggedIn(email) : pl.accountLocalOnly}
+      />
 
-      <Card className="mt-2 sr-card">
-        <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.account}</p>
-        <p className="mt-2 text-sm">{email ?? pl.notLoggedIn}</p>
-        {isSupabaseConfigured && !email && (
-          <Button className="mt-3" size="sm" fullWidth onClick={() => navigate('/setup/login', { state: { returnTo: '/profile' } })}>
-            {pl.login}
-          </Button>
-        )}
-        {isSupabaseConfigured && email && (
-          <>
-            <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{syncStatusLabel}</p>
+      <PageSection title={pl.account} className="mt-2">
+        <div className="flex flex-col gap-3">
+          <NestedStat value={email ? syncStatusLabel : pl.notLoggedIn} />
+          {isSupabaseConfigured && !email && (
             <Button
-              className="mt-3"
-              size="sm"
+              size="touch"
               fullWidth
-              disabled={!online || syncing}
-              onClick={() => void handleSyncNow()}
+              onClick={() => navigate('/setup/login', { state: { returnTo: '/profile' } })}
             >
-              {syncing ? pl.syncInProgress : pl.syncNow}
+              {pl.login}
             </Button>
-            <Button variant="ghost" className="mt-2" size="sm" fullWidth onClick={() => setShowLogoutConfirm(true)}>
-              {pl.logout}
-            </Button>
-          </>
-        )}
-      </Card>
+          )}
+          {isSupabaseConfigured && email && (
+            <>
+              <Button
+                size="touch"
+                fullWidth
+                disabled={!online || syncing}
+                onClick={() => void handleSyncNow()}
+              >
+                {syncing ? pl.syncInProgress : pl.syncNow}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                fullWidth
+                className="justify-start px-4"
+                onClick={() => setShowLogoutConfirm(true)}
+              >
+                {pl.logout}
+              </Button>
+            </>
+          )}
+        </div>
+      </PageSection>
 
-      <Card className="mt-4 sr-card">
-        <p className="mb-3 text-sm font-medium text-[var(--sr-text-secondary)]">{pl.appearance}</p>
+      <PageSection title={pl.appearance}>
         <SegmentedControl
           options={[
             { value: 'system' as const, label: pl.themeSystem },
@@ -375,43 +390,45 @@ export default function ProfilePage() {
             applyTheme(t)
           }}
         />
-        <label className="mt-4 flex min-h-11 items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            className="h-5 w-5"
-            checked={settings.highContrast}
-            onChange={(e) => { setSettings({ highContrast: e.target.checked }); applyHighContrast(e.target.checked) }}
-          />
-          {pl.highContrast}
-        </label>
-      </Card>
+        <CheckboxField
+          id="high-contrast"
+          className="mt-4"
+          label={pl.highContrast}
+          checked={settings.highContrast}
+          onChange={(checked) => {
+            setSettings({ highContrast: checked })
+            applyHighContrast(checked)
+          }}
+        />
+      </PageSection>
 
-      <Card className="mt-4 sr-card">
-        <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.trainingSettings}</p>
-        <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
-          <input type="checkbox" className="h-5 w-5" checked={settings.timerSound} onChange={(e) => setSettings({ timerSound: e.target.checked })} />
-          {pl.timerSound}
-        </label>
-        <label className="mt-1 flex min-h-11 items-center gap-3 text-sm">
-          <input type="checkbox" className="h-5 w-5" checked={settings.timerVibration} onChange={(e) => setSettings({ timerVibration: e.target.checked })} />
-          {pl.timerVibration}
-        </label>
-        <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            className="h-5 w-5"
-            checked={settings.keepScreenOn}
-            onChange={(e) => setSettings({ keepScreenOn: e.target.checked })}
+      <PageSection title={pl.trainingSettings}>
+        <div className="flex flex-col gap-1">
+          <CheckboxField
+            id="timer-sound"
+            label={pl.timerSound}
+            checked={settings.timerSound}
+            onChange={(checked) => setSettings({ timerSound: checked })}
           />
-          <span>
-            {pl.keepScreenOn}
-            <span className="mt-0.5 block text-xs font-normal text-[var(--sr-text-muted)]">{pl.keepScreenOnHint}</span>
-          </span>
-        </label>
-        <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            className="h-5 w-5"
+          <CheckboxField
+            id="timer-vibration"
+            label={pl.timerVibration}
+            checked={settings.timerVibration}
+            onChange={(checked) => setSettings({ timerVibration: checked })}
+          />
+          <CheckboxField
+            id="keep-screen-on"
+            className="mt-2"
+            label={pl.keepScreenOn}
+            description={pl.keepScreenOnHint}
+            checked={settings.keepScreenOn}
+            onChange={(checked) => setSettings({ keepScreenOn: checked })}
+          />
+          <CheckboxField
+            id="push-notifications"
+            className="mt-2"
+            label={pl.pushNotifications}
+            description={pushDescription}
             checked={settings.pushNotifications}
             disabled={
               !email ||
@@ -419,67 +436,64 @@ export default function ProfilePage() {
               !getVapidPublicKey() ||
               (remindersDenied && !settings.pushNotifications)
             }
-            onChange={async (e) => {
-              const on = e.target.checked
-              if (on) {
-                const ok = await subscribeWebPush(settings.reminderHour)
-                if (!ok) {
-                  showToast(pl.pushSubscribeFailed, 'error')
-                  return
+            onChange={(on) => {
+              void (async () => {
+                if (on) {
+                  const ok = await subscribeWebPush(settings.reminderHour)
+                  if (!ok) {
+                    if (typeof Notification !== 'undefined') {
+                      setNotifPermission(Notification.permission)
+                    }
+                    showToast(pl.pushSubscribeFailed, 'error')
+                    return
+                  }
+                  cancelReminder()
+                  setSettings({ pushNotifications: true, workoutReminders: false })
+                  track('reminder_toggle', { mode: 'push', on: true })
+                  showToast(pl.toastPushEnabled, 'success')
+                } else {
+                  await unsubscribeWebPush()
+                  setSettings({ pushNotifications: false })
+                  track('reminder_toggle', { mode: 'push', on: false })
                 }
-                cancelReminder()
-                setSettings({ pushNotifications: true, workoutReminders: false })
-                track('reminder_toggle', { mode: 'push', on: true })
-              } else {
-                await unsubscribeWebPush()
-                setSettings({ pushNotifications: false })
-                track('reminder_toggle', { mode: 'push', on: false })
-              }
+              })()
             }}
           />
-          <span>
-            {pl.pushNotifications}
-            <span className="mt-0.5 block text-xs font-normal text-[var(--sr-text-muted)]">
-              {!email
-                ? pl.pushNeedsLogin
-                : !isWebPushSupported() || !getVapidPublicKey()
-                  ? pl.pushUnavailable
-                  : pl.pushNotificationsHint}
-            </span>
-          </span>
-        </label>
-        <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            className="h-5 w-5"
+          <CheckboxField
+            id="workout-reminders"
+            className="mt-2"
+            label={pl.workoutReminders}
+            description={pl.workoutRemindersHint}
             checked={settings.workoutReminders && !settings.pushNotifications}
             disabled={
               settings.pushNotifications || (remindersDenied && !settings.workoutReminders)
             }
-            onChange={async (e) => {
-              const on = e.target.checked
-              if (on) {
-                if (typeof Notification !== 'undefined' && Notification.permission === 'denied') return
-                const granted = await requestWorkoutReminderPermission()
-                if (!granted) return
-                scheduleDailyReminder(settings.reminderHour, 0)
-              } else {
-                cancelReminder()
-              }
-              setSettings({ workoutReminders: on && Notification.permission === 'granted' })
-              track('reminder_toggle', { mode: 'in_app', on })
+            onChange={(on) => {
+              void (async () => {
+                if (on) {
+                  if (typeof Notification !== 'undefined' && Notification.permission === 'denied') return
+                  const granted = await requestWorkoutReminderPermission()
+                  if (!granted) return
+                  scheduleDailyReminder(settings.reminderHour, 0)
+                } else {
+                  cancelReminder()
+                }
+                setSettings({ workoutReminders: on && Notification.permission === 'granted' })
+                track('reminder_toggle', { mode: 'in_app', on })
+              })()
             }}
           />
-          {pl.workoutReminders}
-        </label>
-        <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.workoutRemindersHint}</p>
+        </div>
         {remindersDenied && (
-          <p className="mt-2 text-xs text-[var(--sr-warning)]">{pl.workoutRemindersDenied}</p>
+          <>
+            <p className="mt-2 text-xs text-[var(--sr-warning)]">{pl.workoutRemindersDenied}</p>
+            <p className="mt-1 text-xs text-[var(--sr-warning)]">{pl.pushOsSettingsHint}</p>
+          </>
         )}
-        <label className="mt-3 block text-sm">
+        <label className="mt-4 block text-sm">
           <span className="font-medium">{pl.reminderHourLabel}</span>
           <select
-            className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-3 text-[var(--sr-text-primary)]"
+            className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-3 text-base text-[var(--sr-text-primary)]"
             value={settings.reminderHour}
             onChange={(e) => {
               const hour = Number(e.target.value)
@@ -498,51 +512,112 @@ export default function ProfilePage() {
             ))}
           </select>
         </label>
-      </Card>
+      </PageSection>
 
-      <Card className="mt-4 sr-card">
-        <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.programs}</p>
-        <div className="mt-4 flex flex-col gap-4">
-          {settings.enabledPrograms.map((program) => (
-            <ProgramSettingsBlock
-              key={program}
-              program={program}
-              progress={progressByProgram[program]}
-              canDisable={settings.enabledPrograms.length > 1}
-              onChangeLevel={() => void changeLevel(program)}
-              onRetest={() => void retest(program)}
-              onTogglePause={() => void togglePause(program)}
-              onDisable={() => setPendingDisable(program)}
-            />
-          ))}
+      <PageSection title={pl.programs}>
+        {showProgramsLoading ? (
+          <div className="flex flex-col gap-4" aria-busy aria-label={pl.profileProgramsLoading}>
+            <SkeletonCard className="min-h-[9rem]" />
+            {settings.enabledPrograms.length > 1 && <SkeletonCard className="min-h-[9rem]" />}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {settings.enabledPrograms.map((program) => (
+              <ProgramSettingsBlock
+                key={program}
+                program={program}
+                progress={progressByProgram[program]}
+                canDisable={settings.enabledPrograms.length > 1}
+                onChangeLevel={() => void changeLevel(program)}
+                onRetest={() => void retest(program)}
+                onTogglePause={() => void togglePause(program)}
+                onDisable={() => setPendingDisable(program)}
+              />
+            ))}
 
-          {missingPrograms.length > 0 && (
-            <div className="rounded-[var(--sr-radius-md)] border border-dashed border-[var(--sr-border-strong)] bg-[var(--sr-bg-surface)]/60 p-3">
-              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
-                {pl.addProgram}
-              </p>
-              <div className="flex flex-col gap-2">
-                {missingPrograms.map((p) => (
-                  <Button
-                    key={p}
-                    variant="secondary"
-                    size="md"
-                    fullWidth
-                    className="justify-start px-4"
-                    onClick={() => void addProgram(p)}
-                  >
-                    {p === 'pushups' ? pl.addProgramPushups : pl.addProgramPullups}
-                  </Button>
-                ))}
+            {missingPrograms.length > 0 && (
+              <div className="rounded-[var(--sr-radius-md)] border border-dashed border-[var(--sr-border-strong)] bg-[var(--sr-bg-surface)]/60 p-3">
+                <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
+                  {pl.addProgram}
+                </p>
+                <div className="flex flex-col gap-2">
+                  {missingPrograms.map((p) => (
+                    <Button
+                      key={p}
+                      variant="secondary"
+                      size="md"
+                      fullWidth
+                      className="justify-start px-4"
+                      onClick={() => void addProgram(p)}
+                    >
+                      {p === 'pushups' ? pl.addProgramPushups : pl.addProgramPullups}
+                    </Button>
+                  ))}
+                </div>
               </div>
+            )}
+          </div>
+        )}
+      </PageSection>
+
+      <PageSection title={pl.dataSection}>
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="secondary"
+            size="md"
+            fullWidth
+            className="justify-start px-4"
+            onClick={async () => {
+              try {
+                // All programs with local history — not only currently enabled.
+                const chunks: string[] = []
+                for (const program of ['pushups', 'pullups'] as const) {
+                  chunks.push(await exportSessionsCsv(program))
+                }
+                const merged = mergeSessionCsvExports(chunks)
+                downloadCsv(`smartreps-export-${new Date().toISOString().slice(0, 10)}.csv`, merged)
+                showToast(pl.toastExportDone, 'success')
+              } catch {
+                showToast(pl.exportFailed, 'error')
+              }
+            }}
+          >
+            {pl.exportAllPrograms}
+          </Button>
+          {deadLetter > 0 && (
+            <div className="mt-1 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/40 bg-[var(--sr-warning)]/10 p-3">
+              <p className="text-sm text-[var(--sr-warning)]">{pl.syncDeadLetter(deadLetter)}</p>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-3 justify-start px-4"
+                fullWidth
+                onClick={async () => {
+                  const { ok } = await retryDeadLetterItems()
+                  showToast(ok ? pl.toastSyncDone : pl.toastSyncFailed, ok ? 'success' : 'error')
+                  await reloadMeta()
+                }}
+              >
+                {pl.syncRetryDead}
+              </Button>
             </div>
           )}
+          <div className="mt-2 border-t border-[var(--sr-border-subtle)] pt-3">
+            <Button
+              variant="ghost"
+              size="md"
+              fullWidth
+              className="justify-start px-4 text-[var(--sr-error)] hover:text-[var(--sr-error)]"
+              onClick={() => setShowClearConfirm(true)}
+            >
+              {pl.clearLocalData}
+            </Button>
+          </div>
         </div>
-      </Card>
+      </PageSection>
 
-      <Card className="mt-4 sr-card">
-        <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.about}</p>
-        <div className="mt-3 flex flex-col gap-2 text-sm">
+      <PageSection title={pl.about}>
+        <div className="flex flex-col gap-2 text-sm">
           <Link to="/privacy" className="text-[var(--sr-brand-primary)]">
             {pl.privacyLink}
           </Link>
@@ -550,71 +625,14 @@ export default function ProfilePage() {
             {pl.termsLink}
           </Link>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="mt-4"
-          fullWidth
-          onClick={async () => {
-            try {
-              const programs = settings.enabledPrograms
-              if (programs.length === 0) {
-                navigate('/progress')
-                return
-              }
-              const chunks: string[] = []
-              for (const program of programs) {
-                const csv = await exportSessionsCsv(program)
-                chunks.push(csv)
-              }
-              const merged = mergeSessionCsvExports(chunks)
-              downloadCsv(`smartreps-export-${new Date().toISOString().slice(0, 10)}.csv`, merged)
-              showToast(pl.toastExportDone, 'success')
-            } catch {
-              showToast(pl.exportFailed, 'error')
-            }
-          }}
-        >
-          {pl.exportHistory}
-        </Button>
-        {deadLetter > 0 && (
-          <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/40 bg-[var(--sr-warning)]/10 p-3">
-            <p className="text-sm text-[var(--sr-warning)]">{pl.syncDeadLetter(deadLetter)}</p>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="mt-3"
-              fullWidth
-              onClick={async () => {
-                const { ok } = await retryDeadLetterItems()
-                showToast(ok ? pl.toastSyncDone : pl.toastSyncFailed, ok ? 'success' : 'error')
-                await reloadMeta()
-              }}
-            >
-              {pl.syncRetryDead}
-            </Button>
-          </div>
-        )}
-        <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-3">
-          <Button
-            variant="ghost"
-            size="md"
-            fullWidth
-            className="justify-start px-0 text-[var(--sr-error)] hover:text-[var(--sr-error)]"
-            onClick={() => setShowClearConfirm(true)}
-          >
-            {pl.clearLocalData}
-          </Button>
-        </div>
         <p className="mt-4 text-sm leading-relaxed text-[var(--sr-text-secondary)]">{pl.healthDisclaimer}</p>
         <p className="mt-3 text-xs text-[var(--sr-text-muted)]">
           <a href="https://100pompek.pl" className="text-[var(--sr-brand-primary)]" target="_blank" rel="noreferrer">100pompek.pl</a>
           {' · '}
           <a href="https://podciaganie.pl" className="text-[var(--sr-brand-primary)]" target="_blank" rel="noreferrer">podciaganie.pl</a>
         </p>
-      </Card>
-
-      <p className="mt-8 text-center text-xs text-[var(--sr-text-muted)]">{pl.appVersion(appVersion)}</p>
+        <p className="mt-4 text-xs text-[var(--sr-text-muted)]">{pl.appVersion(appVersion)}</p>
+      </PageSection>
 
       {pendingChangeLevel && (
         <ConfirmSheet
@@ -649,12 +667,16 @@ export default function ProfilePage() {
       {showLogoutConfirm && (
         <ConfirmSheet
           title={pl.logout}
-          message={pl.logoutClearConfirm}
+          message={pl.logoutConfirmMessage}
           confirmLabel={pl.logoutAndClear}
-          cancelLabel={pl.logoutKeepData}
           variant="danger"
           onConfirm={() => void logoutAndClear()}
-          onCancel={() => void logoutOnly()}
+          onCancel={() => setShowLogoutConfirm(false)}
+          extraActions={
+            <Button variant="secondary" fullWidth onClick={() => void logoutOnly()}>
+              {pl.logoutKeepData}
+            </Button>
+          }
         />
       )}
       {showClearConfirm && (

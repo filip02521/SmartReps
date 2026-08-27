@@ -23,6 +23,11 @@
     <title>SmartReps</title>
     <style>
       html, body { margin: 0; min-height: 100%; background: #09090b; }
+      @media (prefers-color-scheme: light) {
+        html, body { background: #fafafa; }
+        #sr-boot-splash { background: #fafafa; }
+        #sr-boot-splash .mark { border-color: #6366f1; color: #6366f1; }
+      }
       #sr-boot-splash {
         position: fixed; inset: 0; z-index: 9999;
         display: flex; align-items: center; justify-content: center;
@@ -34,7 +39,8 @@
         width: 56px; height: 56px; border-radius: 50%;
         border: 3px dashed #6366f1;
         display: flex; align-items: center; justify-content: center;
-        color: #6366f1; font: 700 22px system-ui, sans-serif;
+        color: #6366f1;
+        font: 700 22px 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
       }
     </style>
   </head>

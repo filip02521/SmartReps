@@ -17,6 +17,8 @@ import {
   DayPlanSheet,
 } from '@/components/workout/WorkoutComponents'
 import { Button } from '@/components/ui/Button'
+import { Sheet } from '@/components/ui/Sheet'
+import { Z_REST_PILL } from '@/lib/ui-chrome'
 
 export type ActiveWorkoutScreenProps = {
   program: Program
@@ -152,27 +154,26 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
       </header>
 
       {showMenu && (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-10"
-            aria-label={pl.close}
-            onClick={onCloseMenu}
-          />
-          <div className="relative z-20 mx-4 mb-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] py-1 animate-sheet-in">
-            <button type="button" className="block min-h-11 w-full px-4 py-2 text-left text-sm" onClick={onShowPlan}>
+        <Sheet open onClose={onCloseMenu} title={pl.menuWorkout}>
+          <div className="flex flex-col gap-1 pb-2">
+            <Button variant="ghost" fullWidth className="justify-start px-3" onClick={onShowPlan}>
               {pl.previewDayPlan}
-            </button>
+            </Button>
             {showTechniqueLink && (
-              <button type="button" className="block min-h-11 w-full px-4 py-2 text-left text-sm" onClick={onShowTechnique}>
+              <Button variant="ghost" fullWidth className="justify-start px-3" onClick={onShowTechnique}>
                 {pl.helpTechniquePushups}
-              </button>
+              </Button>
             )}
-            <button type="button" className="block min-h-11 w-full px-4 py-2 text-left text-sm text-[var(--sr-error)]" onClick={onRequestCancel}>
+            <Button
+              variant="ghost"
+              fullWidth
+              className="justify-start px-3 text-[var(--sr-error)] hover:text-[var(--sr-error)]"
+              onClick={onRequestCancel}
+            >
               {pl.cancelWorkout}
-            </button>
+            </Button>
           </div>
-        </>
+        </Sheet>
       )}
 
       {cycleVariant === 'negative' && <div className="px-4"><NegativeBanner /></div>}
@@ -236,7 +237,10 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
       </div>
 
       {restTimer && restTimer.mode === 'pill' && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-base)]/95 px-4 py-3 backdrop-blur safe-bottom">
+        <div
+          className="fixed inset-x-0 bottom-0 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-base)]/95 px-4 py-3 backdrop-blur safe-bottom"
+          style={{ zIndex: Z_REST_PILL }}
+        >
           <div className="mx-auto max-w-lg">
             <RestTimerPill
               remainingSec={restTimer.remainingSec}

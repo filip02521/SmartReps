@@ -23,9 +23,9 @@ export function Badge({
   const colors = {
     default: 'bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary-hover)]',
     success: 'bg-[var(--sr-success-muted)] text-[var(--sr-success)]',
-    warning: 'bg-[rgba(251,191,36,0.15)] text-[var(--sr-warning)]',
+    warning: 'bg-[var(--sr-warning-muted)] text-[var(--sr-warning)]',
     error: 'bg-[var(--sr-error-muted)] text-[var(--sr-error)]',
-    info: 'bg-[rgba(96,165,250,0.15)] text-[var(--sr-info)]',
+    info: 'bg-[var(--sr-info-muted)] text-[var(--sr-info)]',
   }
   return (
     <span

@@ -104,6 +104,7 @@ export const pl = {
   restBetweenSets: (sec: number) => `Przerwa między seriami: ${sec}s`,
   setColumn: 'Seria',
   targetColumn: 'Cel',
+  youColumn: 'Ty',
   editPreviousSet: 'Popraw poprzednią serię',
   editPreviousSetHint: 'Wróć do ostatniej serii, żeby zmienić liczbę powtórzeń.',
   editShort: 'Zmień',
@@ -257,6 +258,7 @@ export const pl = {
     `Ostatni test: ${reps} ${unit} · wg wyniku pasuje: ${recommended}`,
   recommended: 'Dla Ciebie',
   saferStart: 'Bezpieczniejszy start',
+  higherLevelWarningTitle: 'Wyższy poziom',
   higherLevelWarning:
     'Twój wynik testu sugeruje niższy poziom. Zbyt wczesne przeskoczenie może prowadzić do niepowodzeń i restartów. Kontynuować?',
   backToRecommended: 'Wróć do rekomendacji',
@@ -369,7 +371,16 @@ export const pl = {
   newRecord: 'Rekord!',
   activityHeatmap: 'Aktywność (12 tyg.)',
   exportCsv: 'Eksport CSV',
-  toastDayComplete: 'Dzień ukończony — świetna robota!',
+  exportThisProgram: 'Eksport CSV tego programu',
+  exportAllPrograms: 'Eksport CSV wszystkich programów',
+  progressOverviewHint: 'Podsumowanie testów, sesji i nawyku dla wybranego programu.',
+  progressStatusEmpty: 'Brak sesji — czas na pierwszy trening.',
+  progressStatusStreak: (n: number) =>
+    n === 1 ? 'Seria: 1 tydzień z treningiem.' : `Seria: ${n} tyg. z treningiem.`,
+  progressStatusSessions: (n: number) =>
+    n === 1 ? '1 ukończona sesja w tym programie.' : `${n} ukończonych sesji w tym programie.`,
+  progressFilters: 'Filtry',
+  progressChartEmpty: 'Wykres pojawi się po pierwszym teście max.',
   toastExportDone: 'Historia została wyeksportowana do pliku CSV',
   toastSyncDone: 'Zsynchronizowano z chmurą',
   toastSyncFailed: 'Synchronizacja nie powiodła się. Sprawdź połączenie i spróbuj ponownie.',
@@ -378,6 +389,10 @@ export const pl = {
   totalRepsDelta: (n: number) => `${n > 0 ? '+' : ''}${n} względem poprzedniej sesji`,
 
   // Plans — resistance bands
+  plansCatalogHint:
+    'Katalog cykli — poziom i start wybierasz na Treningu lub w Profilu.',
+  plansProgramHint: 'Rozwiń cykl, aby zobaczyć cele serii w kolejnych dniach.',
+  plansDayCount: (n: number) => (n === 1 ? '1 dzień' : `${n} dni`),
   resistanceBandsTitle: 'Gumy oporowe (podciąganie)',
   resistanceBandsIntro:
     'Jeśli nie podciągasz się jeszcze samodzielnie, możesz zacząć od wariantu z gumą — tak sugeruje program podciąganie.pl.',
@@ -410,6 +425,13 @@ export const pl = {
   pushNeedsLogin: 'Zaloguj się, aby włączyć powiadomienia push.',
   pushUnavailable: 'Push niedostępny na tym urządzeniu / w tej przeglądarce (brak VAPID lub Web Push).',
   pushSubscribeFailed: 'Nie udało się włączyć powiadomień push.',
+  pushOsSettingsHint:
+    'Jeśli nie dostajesz powiadomień, sprawdź uprawnienia w ustawieniach systemu.',
+  toastPushEnabled: 'Powiadomienia push włączone.',
+  accountLoggedIn: (email: string) => `Zalogowany jako ${email}`,
+  accountLocalOnly: 'Trenujesz lokalnie na tym urządzeniu — zaloguj się, aby syncować.',
+  dataSection: 'Dane',
+  profileProgramsLoading: 'Ładowanie programów…',
   reminderHourLabel: 'Godzina przypomnienia',
   reminderHourOption: (h: number) => `${String(h).padStart(2, '0')}:00`,
   reminderNotificationTitle: 'SmartReps',
@@ -451,8 +473,8 @@ export const pl = {
   clearLocalData: 'Wyczyść lokalne dane',
   clearLocalDataConfirm:
     'Usunie postęp, sesje i ustawienia z tego urządzenia. Nie usuwa konta w chmurze. Tej operacji nie da się cofnąć.',
-  logoutClearConfirm:
-    'Wylogować i wyczyścić dane lokalne na tym urządzeniu? Zalecane na współdzielonym telefonie.',
+  logoutConfirmMessage:
+    'Wybierz sposób wylogowania: wyczyść dane lokalne (zalecane na współdzielonym telefonie) albo zostaw postęp na tym urządzeniu.',
   logoutKeepData: 'Wyloguj — zostaw dane',
   logoutAndClear: 'Wyloguj i wyczyść',
   syncDeadLetter: (n: number) =>

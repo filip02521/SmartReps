@@ -6,13 +6,16 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tool
 import { ActivityHeatmap } from '@/components/progress/ActivityHeatmap'
 import { buildActivityHeatmap, exportSessionsCsv, downloadCsv } from '@/lib/export'
 import { Button } from '@/components/ui/Button'
-import { StatTile } from '@/components/ui/StatTile'
+import { MetricStrip } from '@/components/ui/MetricStrip'
+import { NestedStat } from '@/components/ui/NestedStat'
+import { CycleDayPicker } from '@/components/ui/CycleDayPicker'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Sheet } from '@/components/ui/Sheet'
 import { LogoMark } from '@/components/brand/Logo'
 import { Card } from '@/components/ui/Card'
-import { EmptyState, PageLoader, ErrorBanner } from '@/components/ux/Feedback'
+import { Badge } from '@/components/ui/Card'
+import { EmptyState, SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
 import { formatSetTarget } from '@/lib/progress-engine'
 import { db } from '@/lib/db'
 import { getProgramProgress } from '@/lib/program-service'
@@ -28,6 +31,13 @@ import { showToast } from '@/stores/toast-store'
 
 type Tab = 'overview' | 'history' | 'cycle' | 'records'
 type HistoryDateFilter = 'all' | '30d' | '90d'
+
+const chartTooltipStyle = {
+  background: 'var(--sr-bg-elevated)',
+  border: '1px solid var(--sr-border-subtle)',
+  borderRadius: '8px',
+  color: 'var(--sr-text-primary)',
+}
 
 export default function ProgressPage() {
   const navigate = useNavigate()
@@ -49,6 +59,7 @@ export default function ProgressPage() {
   const [selectedSession, setSelectedSession] = useState<LocalWorkoutSession | null>(null)
   const [cyclePreviewDay, setCyclePreviewDay] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [reloadEpoch, setReloadEpoch] = useState(0)
 
   useEffect(() => {
     async function load() {
@@ -65,6 +76,9 @@ export default function ProgressPage() {
         if (prog) {
           setStats(await getProgramStats(program, prog))
           setMaxPerDay(await getMaxSetPerDay(program, prog.cycleId, prog.cycleAttempt))
+        } else {
+          setStats(null)
+          setMaxPerDay([])
         }
         setRecords(await getProgramRecords(program))
         setHeatmap(await buildActivityHeatmap(program))
@@ -75,7 +89,7 @@ export default function ProgressPage() {
       }
     }
     void load()
-  }, [program])
+  }, [program, reloadEpoch])
 
   const cycle = progress ? getCycleById(progress.cycleId) : undefined
   const filtersActive =
@@ -134,10 +148,20 @@ export default function ProgressPage() {
     label: p === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram,
   }))
 
+  const statusSubtitle = !stats
+    ? pl.progressOverviewHint
+    : stats.passedSessionCount === 0
+      ? pl.progressStatusEmpty
+      : stats.streakWeeks > 0
+        ? pl.progressStatusStreak(stats.streakWeeks)
+        : pl.progressStatusSessions(stats.passedSessionCount)
+
   if (loading) {
     return (
       <div className="mx-auto max-w-lg px-4 py-6 safe-top">
-        <PageLoader />
+        <PageHeader title={pl.navProgress} subtitle={pl.progressOverviewHint} />
+        <SkeletonCard className="mt-4 min-h-[8rem]" />
+        <SkeletonCard className="mt-4 min-h-[12rem]" />
       </div>
     )
   }
@@ -145,14 +169,15 @@ export default function ProgressPage() {
   if (error) {
     return (
       <div className="mx-auto max-w-lg px-4 py-6 safe-top">
-        <ErrorBanner message={error} onRetry={() => window.location.reload()} />
+        <PageHeader title={pl.navProgress} />
+        <ErrorBanner message={error} onRetry={() => setReloadEpoch((n) => n + 1)} />
       </div>
     )
   }
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 safe-top">
-      <PageHeader title={pl.navProgress} />
+      <PageHeader title={pl.navProgress} subtitle={statusSubtitle} />
 
       {programOptions.length > 1 && (
         <SegmentedControl className="mb-4" options={programOptions} value={program} onChange={setProgram} />
@@ -163,20 +188,25 @@ export default function ProgressPage() {
       {tab === 'overview' && (
         <>
           {stats && (
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <StatTile label={pl.recordTest} value={stats.maxTestRecord ?? '—'} highlight={stats.maxTestRecord !== null} />
-              <StatTile
-                label={pl.cycleDays}
-                value={
-                  progress && stats
-                    ? `${stats.completedDaysInCycle}/${stats.cycleDaysTotal}`
-                    : '—'
-                }
+            <>
+              <MetricStrip
+                className="mt-4"
+                metrics={[
+                  { value: stats.maxTestRecord ?? '—', label: pl.recordTest },
+                  {
+                    value: progress
+                      ? `${stats.completedDaysInCycle}/${stats.cycleDaysTotal}`
+                      : '—',
+                    label: pl.cycleDays,
+                  },
+                  { value: stats.streakWeeks, label: pl.streakWeeks },
+                ]}
               />
-              <StatTile label={pl.sessionsTotal} value={stats.passedSessionCount} />
-              <StatTile label={pl.totalRepsLabel} value={stats.totalRepsAllTime} />
-              <StatTile label={pl.streakWeeks} value={stats.streakWeeks} />
-            </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <NestedStat overline={pl.sessionsTotal} value={stats.passedSessionCount} />
+                <NestedStat overline={pl.totalRepsLabel} value={stats.totalRepsAllTime} />
+              </div>
+            </>
           )}
 
           {tests.length === 0 && sessions.length === 0 ? (
@@ -186,99 +216,76 @@ export default function ProgressPage() {
               action={{ label: pl.startFirstWorkout, onClick: () => void navigateToTrain(navigate, program) }}
             />
           ) : tests.length > 0 ? (
-            <Card className="mt-6 h-48 sr-card">
-              <p className="mb-2 text-sm font-medium">{pl.chartTestOverTime}</p>
+            <Card className="mt-6 h-48">
+              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">{pl.chartTestOverTime}</p>
               <ResponsiveContainer width="100%" height="85%">
                 <LineChart data={tests}>
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="var(--sr-text-muted)" />
                   <YAxis tick={{ fontSize: 10 }} stroke="var(--sr-text-muted)" />
-                  <Tooltip />
+                  <Tooltip contentStyle={chartTooltipStyle} />
                   <Line type="monotone" dataKey="reps" stroke="var(--sr-brand-primary)" strokeWidth={2} dot />
                 </LineChart>
               </ResponsiveContainer>
             </Card>
-          ) : null}
+          ) : (
+            <p className="mt-6 sr-text-body-sm text-[var(--sr-text-muted)]">{pl.progressChartEmpty}</p>
+          )}
 
           {maxPerDay.length > 0 && (
-            <Card className="mt-6 h-40 sr-card">
-              <p className="mb-2 text-sm font-medium">{pl.maxSetPerDay}</p>
+            <Card className="mt-6 h-40">
+              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">{pl.maxSetPerDay}</p>
               <ResponsiveContainer width="100%" height="80%">
                 <BarChart data={maxPerDay}>
                   <XAxis dataKey="day" tickFormatter={(d) => `D${d}`} stroke="var(--sr-text-muted)" />
                   <YAxis stroke="var(--sr-text-muted)" />
+                  <Tooltip contentStyle={chartTooltipStyle} />
                   <Bar dataKey="maxActual" fill="var(--sr-brand-primary)" radius={4} />
                 </BarChart>
               </ResponsiveContainer>
             </Card>
           )}
 
-          <Card className="mt-6 sr-card">
-            <p className="mb-3 text-sm font-medium">{pl.activityHeatmap}</p>
+          <Card className="mt-6">
+            <p className="mb-3 sr-text-overline text-[var(--sr-text-muted)]">{pl.activityHeatmap}</p>
             <ActivityHeatmap grid={heatmap} />
           </Card>
         </>
       )}
 
       {tab === 'records' && records && (
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <StatTile label={pl.recordBestTest} value={records.bestTest ?? '—'} highlight={records.bestTest !== null} />
-          <StatTile label={pl.recordBestMaxSet} value={records.bestMaxSet ?? '—'} />
-          <StatTile label={pl.recordBestSession} value={records.bestSessionTotal ?? '—'} />
-          <StatTile label={pl.recordHighestCycle} value={records.highestCycleName ?? '—'} />
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <NestedStat
+            overline={pl.recordBestTest}
+            value={records.bestTest ?? '—'}
+            highlight={records.bestTest !== null}
+          />
+          <NestedStat overline={pl.recordBestMaxSet} value={records.bestMaxSet ?? '—'} />
+          <NestedStat overline={pl.recordBestSession} value={records.bestSessionTotal ?? '—'} />
+          <NestedStat overline={pl.recordHighestCycle} value={records.highestCycleName ?? '—'} />
         </div>
       )}
 
       {tab === 'history' && (
         <div className="mt-4">
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <SegmentedControl
-              options={[
-                { value: 'all' as const, label: pl.filterAll },
-                { value: 'passed' as const, label: pl.filterPassed },
-                { value: 'failed' as const, label: pl.filterFailed },
-              ]}
-              value={historyFilter}
-              onChange={setHistoryFilter}
-            />
-            <Button size="sm" variant="secondary" onClick={() => setFiltersOpen((v) => !v)}>
-              {filtersOpen ? pl.lessFilters : pl.moreFilters}
+            <Button size="sm" variant="secondary" onClick={() => setFiltersOpen(true)}>
+              {pl.progressFilters}
+              {filtersActive ? ' ·' : ''}
             </Button>
+            {sessions.length > 0 && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  const csv = await exportSessionsCsv(program)
+                  downloadCsv(`smartreps-${program}-${new Date().toISOString().slice(0, 10)}.csv`, csv)
+                  showToast(pl.toastExportDone, 'success')
+                }}
+              >
+                {pl.exportThisProgram}
+              </Button>
+            )}
           </div>
-          {filtersOpen && (
-            <div className="mb-3 flex flex-col gap-2">
-              <SegmentedControl
-                options={[
-                  { value: 'all' as const, label: pl.filterCycleAll },
-                  { value: 'current' as const, label: pl.filterCycleCurrent },
-                ]}
-                value={historyCycleFilter}
-                onChange={setHistoryCycleFilter}
-              />
-              <SegmentedControl
-                options={[
-                  { value: 'all' as const, label: pl.filterDateAll },
-                  { value: '30d' as const, label: pl.filterDate30 },
-                  { value: '90d' as const, label: pl.filterDate90 },
-                ]}
-                value={historyDateFilter}
-                onChange={setHistoryDateFilter}
-              />
-            </div>
-          )}
-          {sessions.length > 0 && (
-            <Button
-              size="sm"
-              variant="secondary"
-              className="mb-3"
-              onClick={async () => {
-                const csv = await exportSessionsCsv(program)
-                downloadCsv(`smartreps-${program}-${new Date().toISOString().slice(0, 10)}.csv`, csv)
-                showToast(pl.toastExportDone, 'success')
-              }}
-            >
-              {pl.exportCsv}
-            </Button>
-          )}
           {filteredSessions.length === 0 ? (
             sessions.length === 0 ? (
               <EmptyState
@@ -310,16 +317,34 @@ export default function ProgressPage() {
                         : s.passed === true
                           ? pl.passedShort
                           : pl.incompleteShort
+                const badgeVariant =
+                  s.passed === true
+                    ? 'success'
+                    : s.passed === false
+                      ? 'error'
+                      : s.status === 'in_progress'
+                        ? 'info'
+                        : 'default'
                 return (
-                <Card key={s.id} className="cursor-pointer py-3 sr-card" onClick={() => setSelectedSession(s)}>
-                  <p className="text-sm font-medium">
-                    {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })} · {pl.dayLabel(s.dayNumber)}
-                    {` · ${statusLabel}`}
-                  </p>
-                  <p className="text-xs text-[var(--sr-text-muted)]">
-                    {getCycleById(s.cycleId)?.nameShort ?? s.cycleId} · {s.totalReps ?? 0} {pl.repsUnit}
-                  </p>
-                </Card>
+                  <button
+                    key={s.id}
+                    type="button"
+                    className="w-full rounded-[var(--sr-radius-lg)] bg-[var(--sr-bg-elevated)] p-4 text-left shadow-[var(--sr-shadow-card)] transition-opacity hover:opacity-90"
+                    onClick={() => setSelectedSession(s)}
+                  >
+                    <p className="sr-text-overline text-[var(--sr-text-muted)]">
+                      {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
+                    </p>
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-[var(--sr-text-primary)]">
+                        {pl.dayLabel(s.dayNumber)} · {s.totalReps ?? 0} {pl.repsUnit}
+                      </p>
+                      <Badge variant={badgeVariant}>{statusLabel}</Badge>
+                    </div>
+                    <p className="mt-1 sr-text-caption text-[var(--sr-text-muted)]">
+                      {getCycleById(s.cycleId)?.nameShort ?? s.cycleId}
+                    </p>
+                  </button>
                 )
               })}
             </div>
@@ -327,56 +352,66 @@ export default function ProgressPage() {
         </div>
       )}
 
-      {tab === 'cycle' && (
-        cycle ? (
-        <Card className="mt-4 sr-card">
-          <p className="mb-3 text-sm font-medium">{pl.cycleMapTitle(cycle.nameShort)}</p>
-          <div className="flex justify-between gap-1">
-            {cycle.days.map((d) => {
-              const dayStatus = progress
-                ? getCycleDayStatus(progress, d.dayNumber, cycle.days.length)
-                : 'future'
-              return (
-              <button
-                key={d.dayNumber}
-                type="button"
-                className="flex min-h-11 flex-1 flex-col items-center justify-center"
-                onClick={() => handleCycleDayTap(d.dayNumber)}
-              >
-                <div
-                  className="mx-auto mb-1 flex h-11 w-11 items-center justify-center rounded-full text-xs font-medium"
-                  style={{
-                    background:
-                      dayStatus === 'completed'
-                        ? 'var(--sr-success-muted)'
-                        : dayStatus === 'current'
-                          ? 'var(--sr-brand-primary-muted)'
-                          : 'var(--sr-bg-surface)',
-                    color:
-                      dayStatus === 'completed'
-                        ? 'var(--sr-success)'
-                        : dayStatus === 'current'
-                          ? 'var(--sr-brand-primary)'
-                          : 'var(--sr-text-muted)',
-                  }}
-                >
-                  {dayStatus === 'completed' ? pl.ok : d.dayNumber}
-                </div>
-                <p className="text-[10px] text-[var(--sr-text-muted)]">D{d.dayNumber}</p>
-              </button>
-              )
-            })}
-          </div>
-          <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{pl.cycleMapHint}</p>
-        </Card>
+      {tab === 'cycle' &&
+        (cycle && progress ? (
+          <Card className="mt-4">
+            <p className="mb-3 sr-text-overline text-[var(--sr-text-muted)]">
+              {pl.cycleMapTitle(cycle.nameShort)}
+            </p>
+            <CycleDayPicker
+              totalDays={cycle.days.length}
+              selectedDay={cyclePreviewDay}
+              onSelect={handleCycleDayTap}
+              days={cycle.days.map((d) => ({
+                dayNumber: d.dayNumber,
+                status: getCycleDayStatus(progress, d.dayNumber, cycle.days.length),
+              }))}
+            />
+            <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">{pl.cycleMapHint}</p>
+          </Card>
         ) : (
           <EmptyState
             icon={<LogoMark size={48} />}
             title={pl.cycleNotConfigured}
             action={{ label: pl.configureProgram, onClick: () => navigate(`/setup/test/${program}`) }}
           />
-        )
-      )}
+        ))}
+
+      <Sheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title={pl.progressFilters}>
+        <div className="flex flex-col gap-4 pb-2">
+          <SegmentedControl
+            options={[
+              { value: 'all' as const, label: pl.filterAll },
+              { value: 'passed' as const, label: pl.filterPassed },
+              { value: 'failed' as const, label: pl.filterFailed },
+            ]}
+            value={historyFilter}
+            onChange={setHistoryFilter}
+          />
+          <SegmentedControl
+            options={[
+              { value: 'all' as const, label: pl.filterCycleAll },
+              { value: 'current' as const, label: pl.filterCycleCurrent },
+            ]}
+            value={historyCycleFilter}
+            onChange={setHistoryCycleFilter}
+          />
+          <SegmentedControl
+            options={[
+              { value: 'all' as const, label: pl.filterDateAll },
+              { value: '30d' as const, label: pl.filterDate30 },
+              { value: '90d' as const, label: pl.filterDate90 },
+            ]}
+            value={historyDateFilter}
+            onChange={setHistoryDateFilter}
+          />
+          {filtersActive && (
+            <Button variant="ghost" fullWidth onClick={clearFilters}>
+              {pl.clearFilters}
+            </Button>
+          )}
+        </div>
+      </Sheet>
 
       <Sheet open={!!selectedSession} onClose={() => setSelectedSession(null)} title={pl.sessionDetails}>
         {selectedSession && (
@@ -384,12 +419,13 @@ export default function ProgressPage() {
             <p className="text-sm text-[var(--sr-text-secondary)]">
               {pl.dayLabel(selectedSession.dayNumber)} · {selectedSession.totalReps ?? 0} {pl.repsUnit}
             </p>
-            <ul className="mt-4 space-y-1 text-sm">
+            <ul className="mt-4 space-y-2">
               {selectedSession.setResults.map((r) => (
-                <li key={r.setNumber}>
-                  {pl.setColumn} {r.setNumber}: {r.actual}{' '}
-                  {r.passed ? '' : `(${pl.failedShort})`}
-                </li>
+                <NestedStat
+                  key={r.setNumber}
+                  overline={`${pl.setColumn} ${r.setNumber}`}
+                  value={`${r.actual}${r.passed ? '' : ` (${pl.failedShort})`}`}
+                />
               ))}
             </ul>
           </>
@@ -401,21 +437,26 @@ export default function ProgressPage() {
         onClose={() => setCyclePreviewDay(null)}
         title={`${pl.cycleDayPreview} ${cyclePreviewDay ?? ''}`}
       >
-        {cyclePreviewDay !== null && cycle && (() => {
-          const day = cycle.days.find((d) => d.dayNumber === cyclePreviewDay)
-          if (!day) return null
-          return (
-            <ul className="space-y-2 text-sm text-[var(--sr-text-secondary)]">
-              {day.sets.map((s, i) => (
-                <li key={i} className="flex justify-between border-b border-[var(--sr-border-subtle)] py-2">
-                  <span>{pl.setColumn} {i + 1}</span>
-                  <span>{formatSetTarget(s)}</span>
-                </li>
-              ))}
-              <li className="pt-2 text-xs text-[var(--sr-text-muted)]">{pl.restBetweenSets(day.restBetweenSetsSec)}</li>
-            </ul>
-          )
-        })()}
+        {cyclePreviewDay !== null &&
+          cycle &&
+          (() => {
+            const day = cycle.days.find((d) => d.dayNumber === cyclePreviewDay)
+            if (!day) return null
+            return (
+              <ul className="space-y-2">
+                {day.sets.map((s, i) => (
+                  <NestedStat
+                    key={i}
+                    overline={`${pl.setColumn} ${i + 1}`}
+                    value={formatSetTarget(s)}
+                  />
+                ))}
+                <p className="pt-2 sr-text-caption text-[var(--sr-text-muted)]">
+                  {pl.restBetweenSets(day.restBetweenSetsSec)}
+                </p>
+              </ul>
+            )
+          })()}
       </Sheet>
     </div>
   )

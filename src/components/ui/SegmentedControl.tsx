@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 
 export function SegmentedControl<T extends string>({
   options,
@@ -21,6 +22,7 @@ export function SegmentedControl<T extends string>({
           aria-selected={value === opt.value}
           className={cn(
             'min-h-11 rounded-[var(--sr-radius-full)] px-4 py-2.5 text-sm font-medium transition-colors',
+            FOCUS_RING,
             value === opt.value
               ? 'bg-[var(--sr-brand-primary-muted)] font-semibold text-[var(--sr-brand-primary)]'
               : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',

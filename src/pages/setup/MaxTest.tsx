@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type MouseEvent, type TouchEvent } from 'r
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { Sheet } from '@/components/ui/Sheet'
+import { CheckboxField } from '@/components/ui/TextField'
 import { SetupStepper } from '@/components/setup/SetupStepper'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { PageLoader } from '@/components/ux/Feedback'
@@ -13,21 +15,32 @@ import { getProgramProgress } from '@/lib/program-service'
 import { isWorkoutAvailable } from '@/lib/progress-engine'
 import type { Program } from '@/data/plans/types'
 
-export function HealthDisclaimer({ onAccept }: { onAccept: () => void }) {
+export function HealthDisclaimer({
+  onAccept,
+  onDismiss,
+}: {
+  onAccept: () => void
+  onDismiss: () => void
+}) {
   const [checked, setChecked] = useState(false)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--sr-bg-overlay)] p-4" role="dialog" aria-modal="true" aria-labelledby="health-title">
-      <div className="max-w-sm rounded-[var(--sr-radius-xl)] bg-[var(--sr-bg-elevated)] p-6">
-        <h2 id="health-title" className="text-lg font-semibold">{pl.healthTitle}</h2>
-        <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">{pl.healthDisclaimer}</p>
-        <label className="mt-4 flex min-h-11 items-start gap-3 text-sm">
-          <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} className="mt-1 h-5 w-5" />
-          {pl.healthAccept}
-        </label>
-        <Button className="mt-6" fullWidth disabled={!checked} onClick={onAccept}>{pl.confirm}</Button>
-      </div>
-    </div>
+    <Sheet open onClose={onDismiss} title={pl.healthTitle} showClose>
+      <p className="text-sm text-[var(--sr-text-secondary)]">{pl.healthDisclaimer}</p>
+      <CheckboxField
+        id="health-accept"
+        className="mt-4"
+        label={pl.healthAccept}
+        checked={checked}
+        onChange={setChecked}
+      />
+      <Button className="mt-6" size="touch" fullWidth disabled={!checked} onClick={onAccept}>
+        {pl.confirm}
+      </Button>
+      <Button variant="ghost" className="mt-2" fullWidth onClick={onDismiss}>
+        {pl.cancel}
+      </Button>
+    </Sheet>
   )
 }
 
@@ -100,6 +113,11 @@ export default function MaxTest() {
     setShowDisclaimer(false)
   }
 
+  const dismissDisclaimer = () => {
+    setShowDisclaimer(false)
+    navigate('/', { replace: true })
+  }
+
   const warmupComplete = warmup.every(Boolean)
 
   const handleNext = async () => {
@@ -149,7 +167,9 @@ export default function MaxTest() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-      {showDisclaimer && <HealthDisclaimer onAccept={acceptDisclaimer} />}
+      {showDisclaimer && (
+        <HealthDisclaimer onAccept={acceptDisclaimer} onDismiss={dismissDisclaimer} />
+      )}
 
       {!isRetest && <SetupStepper current="test" />}
 
@@ -174,18 +194,16 @@ export default function MaxTest() {
         <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.warmup}</p>
         <div className="mt-2 flex flex-col gap-1">
           {warmupItems.map((item, i) => (
-            <label key={item} className="flex min-h-11 items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                className="h-5 w-5 shrink-0"
-                checked={warmup[i]}
-                onChange={() => {
-                  setWarmup((w) => w.map((v, j) => (j === i ? !v : v)))
-                  setWarmupError(false)
-                }}
-              />
-              {item}
-            </label>
+            <CheckboxField
+              key={item}
+              id={`warmup-${i}`}
+              label={item}
+              checked={warmup[i]}
+              onChange={(checked) => {
+                setWarmup((w) => w.map((v, j) => (j === i ? checked : v)))
+                setWarmupError(false)
+              }}
+            />
           ))}
         </div>
       </div>
@@ -197,7 +215,7 @@ export default function MaxTest() {
       )}
 
       <div className="mt-8 flex flex-col items-center">
-        <p className="tabular-nums text-5xl font-bold sm:text-6xl">{reps}</p>
+        <p className="sr-text-display tabular-nums">{reps}</p>
         <p className="text-sm text-[var(--sr-text-muted)]">
           {program === 'pushups' ? pl.pushups : pl.pullups}
         </p>
@@ -205,7 +223,7 @@ export default function MaxTest() {
           <button
             type="button"
             aria-label={pl.lessReps}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sr-bg-surface)] select-none"
+            className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] select-none"
             {...minusPress}
           >
             <Minus />
@@ -213,7 +231,7 @@ export default function MaxTest() {
           <button
             type="button"
             aria-label={pl.moreReps}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sr-bg-surface)] select-none"
+            className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] select-none"
             {...plusPress}
           >
             <Plus />

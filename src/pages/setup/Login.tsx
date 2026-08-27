@@ -4,6 +4,7 @@ import { LogoFull } from '@/components/brand/Logo'
 import { Button } from '@/components/ui/Button'
 import { SetupStepper } from '@/components/setup/SetupStepper'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { TextField } from '@/components/ui/TextField'
 import { PageLoader } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { isSafeReturnPath, resolvePostAuthNavigation } from '@/lib/post-auth-navigation'
@@ -288,11 +289,10 @@ export default function Login() {
           </p>
 
           <div>
-            <label htmlFor="login-otp" className="block text-sm font-medium text-[var(--sr-text-secondary)]">
-              {pl.loginOtpLabel}
-            </label>
-            <input
+            <TextField
               id="login-otp"
+              label={pl.loginOtpLabel}
+              hint={pl.loginOtpHint}
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
@@ -300,9 +300,8 @@ export default function Login() {
               placeholder={pl.loginOtpPlaceholder}
               value={otpCode}
               onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, OTP_LENGTH))}
-              className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-center text-2xl tracking-[0.35em] text-[var(--sr-text-primary)]"
+              inputClassName="text-center text-2xl tracking-[0.35em]"
             />
-            <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{pl.loginOtpHint}</p>
           </div>
 
           <Button
@@ -333,17 +332,15 @@ export default function Login() {
               {pl.loginPwaCodeHint}
             </p>
           )}
-          <label htmlFor="login-email" className="mt-4 block text-sm font-medium text-[var(--sr-text-secondary)]">
-            {pl.loginEmailLabel}
-          </label>
-          <input
+          <TextField
             id="login-email"
+            className="mt-4"
+            label={pl.loginEmailLabel}
             type="email"
             autoComplete="email"
             placeholder={pl.loginEmailPlaceholder}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-[var(--sr-text-primary)]"
           />
           <Button className="mt-4" fullWidth disabled={loading || !email.trim()} onClick={() => void sendOtp()}>
             {pl.loginSendCode}

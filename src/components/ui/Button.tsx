@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 import { ButtonHTMLAttributes, forwardRef } from 'react'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
@@ -33,6 +34,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       className={cn(
         'inline-flex items-center justify-center font-medium transition-opacity disabled:opacity-50 disabled:pointer-events-none',
+        FOCUS_RING,
         variants[variant],
         sizes[size],
         fullWidth && 'w-full',

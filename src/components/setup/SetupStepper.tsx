@@ -30,7 +30,7 @@ export function SetupStepper({ current }: { current: SetupStepId }) {
               />
               <span
                 className={cn(
-                  'text-[10px] sm:text-xs',
+                  'sr-text-overline text-center normal-case tracking-normal',
                   active ? 'font-semibold text-[var(--sr-text-primary)]' : 'text-[var(--sr-text-muted)]',
                 )}
               >

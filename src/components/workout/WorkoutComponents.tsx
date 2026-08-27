@@ -6,10 +6,11 @@ import { Sheet } from '@/components/ui/Sheet'
 import { getSetLabel, getTargetReps, formatSetTarget } from '@/lib/progress-engine'
 import type { SetTarget } from '@/data/plans/types'
 import type { Program } from '@/data/plans/types'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { ProgressRing } from '@/components/ui/ProgressRing'
 import { PreviousResultBadge } from '@/components/workout/PreviousResultBadge'
+import { Z_REST_EXPANDED, Z_CELEBRATION } from '@/lib/ui-chrome'
 
 export function ConfirmSheet({
   title,
@@ -19,6 +20,7 @@ export function ConfirmSheet({
   onConfirm,
   onCancel,
   variant = 'primary',
+  extraActions,
 }: {
   title: string
   message: string
@@ -27,43 +29,26 @@ export function ConfirmSheet({
   onConfirm: () => void
   onCancel: () => void
   variant?: 'primary' | 'danger'
+  /** Optional middle actions (e.g. logout keep-data) between confirm and cancel. */
+  extraActions?: ReactNode
 }) {
-  const trapRef = useFocusTrap(true)
-
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-[var(--sr-bg-overlay)] safe-bottom"
-      role="presentation"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onCancel()
-      }}
-    >
-      <div
-        ref={trapRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="sr-confirm-title"
-        className="w-full max-w-lg rounded-t-[var(--sr-radius-xl)] bg-[var(--sr-bg-elevated)] p-6 animate-sheet-in"
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') onCancel()
-        }}
-      >
-        <h3 id="sr-confirm-title" className="text-lg font-semibold">{title}</h3>
-        <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{message}</p>
-        <div className="mt-6 flex flex-col gap-2">
-          <Button
-            fullWidth
-            variant={variant === 'danger' ? 'danger' : 'primary'}
-            onClick={onConfirm}
-          >
-            {confirmLabel ?? pl.confirm}
-          </Button>
-          <Button variant="ghost" fullWidth onClick={onCancel}>
-            {cancelLabel ?? pl.cancel}
-          </Button>
-        </div>
+    <Sheet open onClose={onCancel} title={title} showClose={false}>
+      <p className="text-sm text-[var(--sr-text-secondary)]">{message}</p>
+      <div className="mt-6 flex flex-col gap-2">
+        <Button
+          fullWidth
+          variant={variant === 'danger' ? 'danger' : 'primary'}
+          onClick={onConfirm}
+        >
+          {confirmLabel ?? pl.confirm}
+        </Button>
+        {extraActions}
+        <Button variant="ghost" fullWidth onClick={onCancel}>
+          {cancelLabel ?? pl.cancel}
+        </Button>
       </div>
-    </div>
+    </Sheet>
   )
 }
 
@@ -332,7 +317,8 @@ export function RestTimerExpanded({
   return (
     <div
       ref={trapRef}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[rgba(9,9,11,0.88)] text-[var(--sr-text-inverse)] safe-top safe-bottom"
+      className="fixed inset-0 flex flex-col items-center justify-center bg-[var(--sr-bg-overlay)] text-[var(--sr-text-primary)] safe-top safe-bottom"
+      style={{ zIndex: Z_REST_EXPANDED }}
       role="dialog"
       aria-modal="true"
       aria-label={pl.restLabel}
@@ -340,29 +326,29 @@ export function RestTimerExpanded({
     >
       <button
         type="button"
-        className="absolute right-4 top-4 min-h-11 min-w-11 rounded-[var(--sr-radius-md)] px-3 text-sm text-zinc-300"
+        className="absolute right-4 top-4 min-h-11 min-w-11 rounded-[var(--sr-radius-md)] px-3 text-sm text-[var(--sr-text-secondary)]"
         onClick={onCollapse}
       >
         {pl.collapseTimer}
       </button>
-      <p className="mb-4 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-400">
+      <p className="mb-4 sr-text-overline text-[var(--sr-text-muted)]">
         {pl.restLabel}
       </p>
       <ProgressRing progress={progress} size={220} reducedMotion={reducedMotion}>
         <span
-          className="tabular-nums text-5xl font-bold text-white"
+          className="tabular-nums text-5xl font-bold text-[var(--sr-text-primary)]"
           aria-live="polite"
         >
           {formatRestTime(remainingSec)}
         </span>
       </ProgressRing>
       {nextLabel ? (
-        <p className="mt-6 px-4 text-center text-sm text-zinc-300">{nextLabel}</p>
+        <p className="mt-6 px-4 text-center text-sm text-[var(--sr-text-secondary)]">{nextLabel}</p>
       ) : null}
       <div className="mt-8 flex flex-wrap justify-center gap-3 px-4">
         <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd15}>{pl.add15s}</Button>
         <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd30}>{pl.add30s}</Button>
-        <Button variant="ghost" size="sm" className="min-h-11 text-zinc-200" onClick={() => setShowSkipConfirm(true)}>{pl.skipRest}</Button>
+        <Button variant="ghost" size="sm" className="min-h-11" onClick={() => setShowSkipConfirm(true)}>{pl.skipRest}</Button>
       </div>
       {showSkipConfirm && (
         <ConfirmSheet
@@ -419,8 +405,10 @@ export function onSetFailed() {
 
 export function CycleCelebration({ message, onDismiss }: { message: string; onDismiss: () => void }) {
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-[var(--sr-bg-overlay)] p-6 text-center safe-top safe-bottom overflow-hidden">
-      <div className="pointer-events-none absolute inset-0">
+    <div
+      className="fixed inset-0 flex flex-col items-center justify-center bg-[var(--sr-bg-overlay)] p-6 text-center safe-top safe-bottom overflow-hidden"
+      style={{ zIndex: Z_CELEBRATION }}
+    >      <div className="pointer-events-none absolute inset-0">
         {Array.from({ length: 24 }, (_, i) => (
           <span
             key={i}

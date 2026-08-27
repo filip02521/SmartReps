@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { CycleDayRail } from '@/components/ui/CycleDayRail'
 import { CycleCelebration } from '@/components/workout/WorkoutComponents'
 import { SetupStepper } from '@/components/setup/SetupStepper'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -105,15 +106,14 @@ export default function ProgramStart() {
         <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.levelChangeHint}</p>
       )}
 
-      <div className="mt-2 flex gap-1" role="list" aria-label={pl.cycleDays}>
-        {cycle?.days.map((d) => (
-          <div
-            key={d.dayNumber}
-            className="h-1.5 flex-1 rounded-full"
-            style={{ background: d.dayNumber === 1 ? 'var(--sr-brand-primary)' : 'var(--sr-bg-surface)' }}
-          />
-        ))}
-      </div>
+      <CycleDayRail
+        className="mt-2"
+        totalDays={cycle?.days.length ?? 1}
+        days={(cycle?.days ?? []).map((d) => ({
+          dayNumber: d.dayNumber,
+          status: d.dayNumber === 1 ? 'current' : 'future',
+        }))}
+      />
       <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
         {pl.dayOfTotal(1, cycle?.days.length ?? 1)}
       </p>

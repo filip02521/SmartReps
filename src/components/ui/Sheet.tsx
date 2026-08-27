@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { pl } from '@/i18n/pl'
+import { FOCUS_RING, Z_SHEET } from '@/lib/ui-chrome'
 
 export function Sheet({
   open,
@@ -10,6 +11,7 @@ export function Sheet({
   children,
   className,
   labelledBy,
+  showClose = true,
 }: {
   open: boolean
   onClose: () => void
@@ -17,6 +19,7 @@ export function Sheet({
   children: ReactNode
   className?: string
   labelledBy?: string
+  showClose?: boolean
 }) {
   const trapRef = useFocusTrap(open)
 
@@ -33,7 +36,8 @@ export function Sheet({
 
   return (
     <div
-      className="fixed inset-0 z-[55] flex items-end justify-center bg-[var(--sr-bg-overlay)] safe-bottom"
+      className="fixed inset-0 flex items-end justify-center bg-[var(--sr-bg-overlay)] safe-bottom"
+      style={{ zIndex: Z_SHEET }}
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose()
@@ -50,17 +54,24 @@ export function Sheet({
           className,
         )}
       >
-        <div className="mb-4 flex items-center justify-between gap-3">
-          {title ? <h3 className="font-semibold">{title}</h3> : <span />}
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 min-w-11 text-sm text-[var(--sr-text-muted)]"
-            aria-label={pl.close}
-          >
-            {pl.close}
-          </button>
-        </div>
+        {(title || showClose) && (
+          <div className="mb-4 flex items-center justify-between gap-3">
+            {title ? <h3 className="font-semibold">{title}</h3> : <span />}
+            {showClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className={cn(
+                  'min-h-11 min-w-11 text-sm text-[var(--sr-text-muted)]',
+                  FOCUS_RING,
+                )}
+                aria-label={pl.close}
+              >
+                {pl.close}
+              </button>
+            )}
+          </div>
+        )}
         {children}
       </div>
     </div>

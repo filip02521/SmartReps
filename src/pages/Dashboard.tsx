@@ -91,7 +91,7 @@ export default function Dashboard() {
   const showTip = installVisible === false && !!home?.tip
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 safe-top safe-bottom">
+    <div className="mx-auto max-w-lg px-4 py-6 safe-top">
       <header className="mb-5">
         <LogoFull height={36} />
         <h1 className="sr-only">{pl.navWorkout}</h1>
@@ -99,10 +99,14 @@ export default function Dashboard() {
 
       {loading || !home ? (
         <>
-          <div className="mb-5 space-y-3">
-            <div className="h-4 w-40 animate-pulse rounded bg-[var(--sr-bg-surface)]" />
-            <div className="h-6 w-64 animate-pulse rounded bg-[var(--sr-bg-surface)]" />
-            <div className="h-16 animate-pulse rounded bg-[var(--sr-bg-surface)]" />
+          <div className="mb-5 space-y-3" aria-busy aria-label={pl.loading}>
+            <SkeletonCard className="min-h-[3.5rem]" />
+            <div className="grid grid-cols-3 gap-2">
+              <SkeletonCard className="min-h-[4.5rem]" />
+              <SkeletonCard className="min-h-[4.5rem]" />
+              <SkeletonCard className="min-h-[4.5rem]" />
+            </div>
+            <SkeletonCard className="min-h-[1.25rem]" />
           </div>
           <div className="flex flex-col gap-5">
             <SkeletonCard className="min-h-[20rem]" />
@@ -115,16 +119,24 @@ export default function Dashboard() {
         <>
           <HomeSummary summary={home.summary} onScrollToProgram={scrollToProgram} />
 
-          <InstallCoach demotePrimary onVisibilityChange={onInstallVisibility} />
+          <div
+            className={
+              installVisible === true || showTip
+                ? 'mb-4 min-h-[11rem]'
+                : undefined
+            }
+          >
+            <InstallCoach demotePrimary onVisibilityChange={onInstallVisibility} />
 
-          {showTip && home.tip && (
-            <HomeTip
-              tip={home.tip}
-              onDismiss={(id) => dismissHomeTip(id, localDayKey())}
-              onAction={(program) => void beginLevelChange(navigate, program)}
-              onScroll={scrollToProgram}
-            />
-          )}
+            {showTip && home.tip && (
+              <HomeTip
+                tip={home.tip}
+                onDismiss={(id) => dismissHomeTip(id, localDayKey())}
+                onAction={(program) => void beginLevelChange(navigate, program)}
+                onScroll={scrollToProgram}
+              />
+            )}
+          </div>
 
           {settings.enabledPrograms.length === 0 ? (
             <EmptyState

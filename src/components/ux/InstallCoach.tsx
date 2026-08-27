@@ -19,6 +19,7 @@ export function InstallCoach({
 }: {
   /** Use secondary/ghost so card CTA stays the only filled primary. */
   demotePrimary?: boolean
+  /** Called only after eligibility is resolved — never report false prematurely. */
   onVisibilityChange?: (visible: boolean) => void
 } = {}) {
   const navigate = useNavigate()
@@ -34,6 +35,8 @@ export function InstallCoach({
   const [iosHint, setIosHint] = useState(false)
   const [deferredInstall, setDeferredInstall] = useState<BeforeInstallPromptEvent | null>(null)
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null)
+  /** Do not report visibility until first eligibility pass completes. */
+  const [eligibilityReady, setEligibilityReady] = useState(false)
 
   useEffect(() => {
     const onBip = (e: Event) => {
@@ -50,6 +53,9 @@ export function InstallCoach({
       return
     }
     let cancelled = false
+    const settleAnon = window.setTimeout(() => {
+      if (!cancelled) setLoggedIn((prev) => (prev === null ? false : prev))
+    }, 2500)
     void supabase.auth.getSession().then(({ data }) => {
       if (!cancelled) setLoggedIn(!!data.session?.user)
     })
@@ -58,6 +64,7 @@ export function InstallCoach({
     })
     return () => {
       cancelled = true
+      window.clearTimeout(settleAnon)
       subscription.unsubscribe()
     }
   }, [])
@@ -65,6 +72,9 @@ export function InstallCoach({
   useEffect(() => {
     const standalone = isStandalonePwa()
     if (standalone) {
+      // Wait for auth session before deciding login coach.
+      if (isSupabaseConfigured && loggedIn === null) return
+
       const key = 'sr-tracked-standalone'
       try {
         if (!sessionStorage.getItem(key)) {
@@ -80,19 +90,31 @@ export function InstallCoach({
         setShowLoginCoach(false)
       }
       setShowInstall(false)
+      setEligibilityReady(true)
       return
     }
+
+    setShowLoginCoach(false)
+
     if (!hasCompletedFirstWorkout || hasDismissedInstallPrompt) {
       setShowInstall(false)
+      setEligibilityReady(true)
       return
     }
+
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
     if (deferredInstall) {
       setIosHint(false)
       setShowInstall(true)
+      setEligibilityReady(true)
     } else if (isIos) {
       setIosHint(true)
       setShowInstall(true)
+      setEligibilityReady(true)
+    } else {
+      // Browser may still fire BIP later; settle as hidden for now.
+      setShowInstall(false)
+      setEligibilityReady(true)
     }
   }, [
     hasCompletedFirstWorkout,
@@ -104,10 +126,13 @@ export function InstallCoach({
 
   const visible = showLoginCoach || showInstall
   useLayoutEffect(() => {
+    if (!eligibilityReady) return
     onVisibilityChange?.(visible)
-  }, [visible, onVisibilityChange])
+  }, [visible, eligibilityReady, onVisibilityChange])
 
   const primaryVariant = demotePrimary ? 'secondary' : undefined
+
+  if (!eligibilityReady) return null
 
   if (showLoginCoach) {
     return (

@@ -22,6 +22,7 @@ import { beginProgramSetup } from '@/lib/setup-flow'
 import { db } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
 import { Sheet } from '@/components/ui/Sheet'
+import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { getCelebrationBadge, formatSetTarget } from '@/lib/progress-engine'
 import type { Cycle, Program } from '@/data/plans/types'
 
@@ -350,15 +351,18 @@ export default function CyclePicker() {
       </Button>
 
       {showWarning && (
-        <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)] bg-[rgba(251,191,36,0.1)] p-4 text-sm">
-          {pl.higherLevelWarning}
-          <div className="mt-3 flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => { setShowWarning(false); setSelectedId(recommended.id) }}>
-              {pl.backToRecommended}
-            </Button>
-            <Button variant="danger" size="sm" disabled={submitting} onClick={() => void confirm()}>{pl.understandHigher}</Button>
-          </div>
-        </div>
+        <ConfirmSheet
+          title={pl.higherLevelWarningTitle}
+          message={pl.higherLevelWarning}
+          confirmLabel={pl.understandHigher}
+          cancelLabel={pl.backToRecommended}
+          variant="danger"
+          onConfirm={() => void confirm()}
+          onCancel={() => {
+            setShowWarning(false)
+            setSelectedId(recommended.id)
+          }}
+        />
       )}
 
       <Button className="mt-6" fullWidth disabled={submitting} onClick={handleStart}>
@@ -471,25 +475,18 @@ function LevelChangePicker({
       </Button>
 
       {showWarning && (
-        <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)] bg-[rgba(251,191,36,0.1)] p-4 text-sm">
-          {pl.higherLevelWarning}
-          <div className="mt-3 flex gap-2">
-            <Button variant="secondary" size="sm" onClick={onResetToBaseline}>
-              {pl.backToRecommended}
-            </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              disabled={submitting}
-              onClick={() => {
-                onHideWarning()
-                void onConfirm()
-              }}
-            >
-              {pl.understandHigher}
-            </Button>
-          </div>
-        </div>
+        <ConfirmSheet
+          title={pl.higherLevelWarningTitle}
+          message={pl.higherLevelWarning}
+          confirmLabel={pl.understandHigher}
+          cancelLabel={pl.backToRecommended}
+          variant="danger"
+          onConfirm={() => {
+            onHideWarning()
+            void onConfirm()
+          }}
+          onCancel={onResetToBaseline}
+        />
       )}
 
       <Button className="mt-6" fullWidth disabled={submitting} onClick={handleStart}>

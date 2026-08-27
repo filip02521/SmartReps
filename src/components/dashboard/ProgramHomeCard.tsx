@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MoreVertical } from 'lucide-react'
-import { Card, Badge } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { TrendIndicator } from '@/components/ui/TrendIndicator'
+import { ProgramAccentCard } from '@/components/ui/ProgramAccentCard'
+import { NestedStat } from '@/components/ui/NestedStat'
+import { CycleDayRail } from '@/components/ui/CycleDayRail'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { ErrorBanner, FeedbackBanner } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
@@ -17,6 +20,7 @@ import { abandonAllInProgress } from '@/lib/session-service'
 import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import { getCycleDayStatus } from '@/lib/cycle-progress'
 import { getCycleById } from '@/data/plans'
+import { useAppStore } from '@/stores/app-store'
 import type { ProgramCardModel, TipSuppression } from '@/lib/home-summary'
 
 function toneToBadge(
@@ -38,6 +42,7 @@ export function ProgramHomeCard({
   onReload: () => void
 }) {
   const navigate = useNavigate()
+  const enabledPrograms = useAppStore((s) => s.settings.enabledPrograms)
   const [showMenu, setShowMenu] = useState(false)
   const [trainDespiteRest, setTrainDespiteRest] = useState(false)
   const [showStaleConfirm, setShowStaleConfirm] = useState(false)
@@ -72,20 +77,16 @@ export function ProgramHomeCard({
 
   if (model.loadError) {
     return (
-      <Card className="border-l-4" style={{ borderLeftColor: model.accent }}>
+      <ProgramAccentCard program={program}>
         <p className="mb-3 font-semibold text-[var(--sr-text-primary)]">{model.label}</p>
         <ErrorBanner message={model.loadError} onRetry={onReload} />
-      </Card>
+      </ProgramAccentCard>
     )
   }
 
   if (bucket === 'unconfigured' || !progress) {
     return (
-      <Card
-        id={`program-${program}`}
-        className="scroll-mt-24 border-l-4"
-        style={{ borderLeftColor: model.accent }}
-      >
+      <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
         <p className="font-semibold text-[var(--sr-text-primary)]">{model.label}</p>
         <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.notConfigured}</p>
         <Button
@@ -96,7 +97,7 @@ export function ProgramHomeCard({
         >
           {pl.startSetup}
         </Button>
-      </Card>
+      </ProgramAccentCard>
     )
   }
 
@@ -110,11 +111,7 @@ export function ProgramHomeCard({
       : 0
 
   return (
-    <Card
-      id={`program-${program}`}
-      className="scroll-mt-24 border-l-4"
-      style={{ borderLeftColor: model.accent }}
-    >
+    <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-semibold leading-tight text-[var(--sr-text-primary)]">
@@ -193,31 +190,13 @@ export function ProgramHomeCard({
             </p>
           </div>
 
-          <div className="flex items-end gap-1.5" role="list" aria-label={pl.cycleDays}>
-            {cycle.days.map((d) => {
-              const dayStatus = getCycleDayStatus(progress, d.dayNumber, cycle.days.length)
-              const isCurrent = dayStatus === 'current'
-              return (
-                <div
-                  key={d.dayNumber}
-                  role="listitem"
-                  aria-current={isCurrent ? 'step' : undefined}
-                  aria-label={`${pl.dayOfTotal(d.dayNumber, cycle.days.length)} — ${dayStatus}`}
-                  className={`flex-1 rounded-full motion-reduce:transition-none ${
-                    isCurrent ? 'h-3 transition-[height] duration-200' : 'h-2.5'
-                  }`}
-                  style={{
-                    background:
-                      dayStatus === 'completed'
-                        ? 'var(--sr-success)'
-                        : dayStatus === 'current'
-                          ? 'var(--sr-brand-primary)'
-                          : 'color-mix(in srgb, var(--sr-text-muted) 22%, transparent)',
-                  }}
-                />
-              )
-            })}
-          </div>
+          <CycleDayRail
+            totalDays={cycle.days.length}
+            days={cycle.days.map((d) => ({
+              dayNumber: d.dayNumber,
+              status: getCycleDayStatus(progress, d.dayNumber, cycle.days.length),
+            }))}
+          />
           {!isTestPending &&
             cycle.days.some(
               (d) => getCycleDayStatus(progress, d.dayNumber, cycle.days.length) === 'current',
@@ -233,10 +212,10 @@ export function ProgramHomeCard({
       {(() => {
         if (hasResume && resume) {
           return (
-            <div className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5">
-              <p className="text-sm font-semibold text-[var(--sr-text-primary)]">
-                {pl.homeInProgressSets(resume.set, resume.total, resume.day)}
-              </p>
+            <NestedStat
+              className="mt-4"
+              value={pl.homeInProgressSets(resume.set, resume.total, resume.day)}
+            >
               <div className="mt-2 flex gap-1.5" aria-hidden>
                 {Array.from({ length: resume.total }, (_, i) => (
                   <span
@@ -253,54 +232,40 @@ export function ProgramHomeCard({
                   />
                 ))}
               </div>
-            </div>
+            </NestedStat>
           )
         }
         if (bucket === 'paused') {
           return (
-            <div className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5">
-              <p className="text-sm text-[var(--sr-text-secondary)]">{pl.homeProgramPaused}</p>
-            </div>
+            <NestedStat className="mt-4" value={pl.homeProgramPaused} />
           )
         }
         if (bucket === 'test_pending_ready') return null
         if (bucket === 'resting' || bucket === 'test_pending_rest') {
-          // Tip rest_all already communicates regeneration — skip duplicate rest title.
           if (tipSuppression.allRest && bucket === 'resting') return null
           return (
-            <div className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5">
-              <p className="text-sm font-semibold text-[var(--sr-text-primary)]">
-                {pl.restPrimaryLabel(stats?.nextWorkoutLabel ?? pl.restIn(daysLeft))}
-              </p>
-              {bucket === 'resting' && (
-                <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
-                  {pl.restGateHint(waitingRestDays)}
-                </p>
-              )}
-              {bucket === 'test_pending_rest' && (
-                <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
-                  {pl.homeTipTestRest(stats?.nextWorkoutLabel ?? pl.today)}
-                </p>
-              )}
-            </div>
+            <NestedStat
+              className="mt-4"
+              value={pl.restPrimaryLabel(stats?.nextWorkoutLabel ?? pl.restIn(daysLeft))}
+              hint={
+                bucket === 'resting'
+                  ? pl.restGateHint(waitingRestDays)
+                  : pl.homeTipTestRest(stats?.nextWorkoutLabel ?? pl.today)
+              }
+            />
           )
         }
         if (bucket === 'ready' && model.setsPreviewLine && model.setsTargetTotal != null) {
           return (
-            <div className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
-                {pl.homeTodaySession}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-[var(--sr-text-primary)]">
-                {pl.homeSessionSetsSummary(
-                  model.currentDaySets?.length ?? 0,
-                  model.setsTargetTotal,
-                )}
-              </p>
-              <p className="mt-1 line-clamp-2 text-xs text-[var(--sr-text-secondary)]">
-                {model.setsPreviewLine}
-              </p>
-            </div>
+            <NestedStat
+              className="mt-4"
+              overline={pl.homeTodaySession}
+              value={pl.homeSessionSetsSummary(
+                model.currentDaySets?.length ?? 0,
+                model.setsTargetTotal,
+              )}
+              hint={model.setsPreviewLine}
+            />
           )
         }
         return null
@@ -312,27 +277,16 @@ export function ProgramHomeCard({
           stats.maxLastSetTrend.delta !== null) && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           {stats.lastSession && (
-            <div className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
-                {pl.lastWorkout}
-              </p>
-              <p className="mt-1 text-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
-                {pl.dayDoneCheck(stats.lastSession.dayNumber)}
-              </p>
-            </div>
+            <NestedStat
+              overline={pl.lastWorkout}
+              value={pl.dayDoneCheck(stats.lastSession.dayNumber)}
+            />
           )}
-          <div
-            className={`rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5 ${
-              !stats.lastSession ? 'col-span-2' : ''
-            }`}
-          >
-            <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
-              {pl.nextWorkout}
-            </p>
-            <p className="mt-1 text-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
-              {stats.nextWorkoutLabel}
-            </p>
-          </div>
+          <NestedStat
+            className={!stats.lastSession ? 'col-span-2' : undefined}
+            overline={pl.nextWorkout}
+            value={stats.nextWorkoutLabel}
+          />
           {(stats.lastTotalReps !== null || stats.maxLastSetTrend.delta !== null) && (
             <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5 text-sm text-[var(--sr-text-secondary)]">
               {stats.lastTotalReps !== null && (
@@ -416,24 +370,6 @@ export function ProgramHomeCard({
         }
         return null
       })()}
-
-      {program === 'pullups' && bucket === 'resting' && !hasResume && (
-        <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3">
-          <p className="text-sm text-[var(--sr-text-secondary)]">{pl.crossTraining}</p>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="mt-2"
-            fullWidth
-            onClick={() => {
-              const el = document.getElementById('program-pushups')
-              el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            }}
-          >
-            {pl.crossTrainingCta}
-          </Button>
-        </div>
-      )}
 
       {/* CTA */}
       <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-4">
@@ -524,22 +460,34 @@ export function ProgramHomeCard({
         )}
 
         {!hasResume && bucket === 'test_pending_rest' && (
-          <div className="flex flex-col gap-2">
-            <Button variant="ghost" size="touch" fullWidth disabled>
-              {pl.testPendingRestLabel(stats?.nextWorkoutLabel ?? pl.restIn(daysLeft))}
-            </Button>
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={() => void beginLevelChange(navigate, program)}
-            >
-              {pl.menuChangeLevel}
-            </Button>
-          </div>
+          <Button
+            variant="secondary"
+            size="touch"
+            fullWidth
+            onClick={() => void beginLevelChange(navigate, program)}
+          >
+            {pl.menuChangeLevel}
+          </Button>
         )}
 
         {!hasResume && (bucket === 'resting' || bucket === 'ready') && (
           <div className="flex flex-col gap-2">
+            {program === 'pullups' &&
+              bucket === 'resting' &&
+              !trainDespiteRest &&
+              enabledPrograms.includes('pushups') && (
+              <Button
+                variant="secondary"
+                size="touch"
+                fullWidth
+                onClick={() => {
+                  const el = document.getElementById('program-pushups')
+                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }}
+              >
+                {pl.crossTrainingCta}
+              </Button>
+            )}
             {bucket === 'resting' && !trainDespiteRest ? (
               <Button
                 variant="ghost"
@@ -666,6 +614,6 @@ export function ProgramHomeCard({
           onCancel={() => setPendingSetup(null)}
         />
       )}
-    </Card>
+    </ProgramAccentCard>
   )
 }

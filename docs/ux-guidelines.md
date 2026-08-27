@@ -16,12 +16,35 @@
 
 | Komponent | Plik |
 |---|---|
+| MetricStrip | `src/components/ui/MetricStrip.tsx` |
+| ProgramAccentCard | `src/components/ui/ProgramAccentCard.tsx` |
+| NestedStat | `src/components/ui/NestedStat.tsx` |
+| CycleDayRail | `src/components/ui/CycleDayRail.tsx` (home / ProgramStart) |
+| CycleDayPicker | `src/components/ui/CycleDayPicker.tsx` (Progress) |
+| PageSection | `src/components/ui/PageSection.tsx` |
+| TextField / CheckboxField | `src/components/ui/TextField.tsx` |
 | ProgressRing | `src/components/ui/ProgressRing.tsx` |
 | SegmentedControl | `src/components/ui/SegmentedControl.tsx` |
-| StatTile | `src/components/ui/StatTile.tsx` |
 | TrendIndicator | `src/components/ui/TrendIndicator.tsx` |
 | SessionCompare | `src/components/workout/SessionCompare.tsx` |
 | FeedbackBanner | `src/components/ux/Feedback.tsx` |
+| ConfirmSheet | wrapper nad `Sheet` (`showClose={false}`) |
+
+## Chrome stacking
+
+Treść → tab / RestTimerPill (`z-40`) → RestTimerExpanded (`z-50`) → Sheet (`z-55`) → CycleCelebration (`z-70`) → Offline (`z-80`) → Toast (`z-90`).  
+Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
+
+## Konwencje shell
+
+- Taby: `max-w-lg px-4 py-6 safe-top` (bez page `safe-bottom`)
+- Flow: `py-8 safe-top safe-bottom`
+- CTA trening: `size="touch"`; ustawienia: `sm` / `ghost`
+- Empty katalog → `EmptyState`; błąd → `ErrorBanner` + retry in-app
+- CSV: Progress = bieżący program; Profil = wszystkie
+- InstallCoach XOR HomeTip: tip dopiero gdy `installVisible === false`
+- Logout sheet: 3 akcje (wyczyść / zostaw dane / Anuluj = zamknij)
+- Summary: headline dominant — bez toastu „dzień ukończony”
 
 ## Hierarchia ekranu treningu (Strong-style)
 
@@ -33,15 +56,37 @@
 
 ```
 [Logo SmartReps]
-[HomeSummary — data, status, metryki 14d, paski cyklu]
-[Attention: InstallCoach XOR HomeTip]
+[HomeSummary — data, status, MetricStrip, paski cyklu]
+[Attention: InstallCoach XOR HomeTip — min-height band]
 [Wybierz trening]
-[ProgramHomeCard — rail, preview sesji, CTA]
-[ProgramHomeCard…]
+[ProgramHomeCard — CycleDayRail, NestedStat, CTA 1+1]
 [Tab bar]
 ```
 
-Test 5 sekund: wiem, czy dziś trenuję / odpoczywam, i którą kartę wybrać.
+## Wireframe — Postępy
+
+```
+[PageHeader + status]
+[program SegmentedControl][tabs]
+[MetricStrip + NestedStat]
+[wykresy / CycleDayPicker / historia / rekordy]
+```
+
+## Wireframe — Plany
+
+```
+[PageHeader + hint katalogu]
+[PageSection pompki — ProgramAccentCard accordion]
+[PageSection podciąganie]
+[guma — PageSection]
+```
+
+## Wireframe — Profil
+
+```
+[PageHeader]
+[Konto | Wygląd | Trening | Programy | Dane | O aplikacji]
+```
 
 ## Wireframe — Trening (`ActiveWorkoutScreen`)
 
@@ -66,13 +111,14 @@ Test 5 sekund: wiem, czy dziś trenuję / odpoczywam, i którą kartę wybrać.
 - [x] Test 5 sekund — użytkownik wie co robić
 - [x] Jedna primary action bez scrolla (5 serii)
 - [x] Stany loading/empty/error/offline (Dashboard, Progress, Workout, Summary)
-- [x] Toast sukcesu (3.5–5s wg wariantu) — sync, ukończony dzień, eksport CSV
+- [x] Toast sukcesu (3.5–5s) — sync / eksport (nie „dzień ukończony”)
 - [x] Microcopy ze słownika PL (`src/i18n/pl.ts`)
 - [x] Touch targets ≥ 48px (`--sr-spacing-touch`, size touch)
 - [x] Tab bar ukryty w treningu
 - [x] prefers-reduced-motion (tokens + timer ring)
 - [x] Filtry historii — status, bieżący cykl, zakres dat (30/90 dni)
-- [x] Audyt logiki ekranów (Critical/High) — MaxTest ±, magic link, onboarding gates, Profile
-- [x] Residual: dedup max_tests, testDraft, SE layout (dvh/min-h-0/offline/tab pad)
-- [x] Audyt UX/UI P0–P2 — rest gate, warmup per program, resume, fail model, sheets, stepper, Progress density, a11y
-- [ ] iPhone SE 375px — final smoke na urządzeniu (layout hardening done in CSS)
+- [x] focus-visible na Button / tabs / SegmentedControl / TextField
+- [x] Toast nie zasłania RestTimerPill
+- [x] Profile CSV = wszystkie programy; Progress CSV = bieżący
+- [x] Attention band min-height stabilny (coach → tip)
+- [ ] iPhone SE 375px — final smoke na urządzeniu

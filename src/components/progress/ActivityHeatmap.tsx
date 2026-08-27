@@ -34,7 +34,7 @@ export function ActivityHeatmap({ grid }: { grid: HeatmapCell[][] }) {
           ))}
         </div>
       </div>
-      <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-[var(--sr-text-muted)]">
+      <div className="mt-2 flex flex-wrap gap-3 sr-text-caption text-[var(--sr-text-muted)]">
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-[var(--sr-success)]" /> {pl.passedShort}</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-[var(--sr-error)]" /> {pl.failedShort}</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-[var(--sr-bg-surface)] ring-1 ring-[var(--sr-border-subtle)]" /> {pl.rest}</span>

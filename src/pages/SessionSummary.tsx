@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { pl } from '@/i18n/pl'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { SessionCompare } from '@/components/workout/SessionCompare'
 import { ErrorBanner, PageLoader } from '@/components/ux/Feedback'
 import { getProgramProgress } from '@/lib/program-service'
@@ -11,20 +12,6 @@ import { useWorkoutStore } from '@/stores/workout-store'
 import { daysUntilWorkout } from '@/lib/progress-engine'
 import { getCycleById } from '@/data/plans'
 import type { Program } from '@/data/plans/types'
-import { showToast } from '@/stores/toast-store'
-
-const toastedSessions = new Set<string>()
-const TOAST_CACHE_LIMIT = 40
-
-function shouldToastOnce(sessionId: string): boolean {
-  if (toastedSessions.has(sessionId)) return false
-  toastedSessions.add(sessionId)
-  if (toastedSessions.size > TOAST_CACHE_LIMIT) {
-    const oldest = toastedSessions.values().next().value
-    if (oldest) toastedSessions.delete(oldest)
-  }
-  return true
-}
 
 export default function SessionSummary() {
   const { program: programParam } = useParams<{ program: Program }>()
@@ -59,10 +46,6 @@ export default function SessionSummary() {
       const comparison = await getSessionComparison(program, sessionId)
       setCurrent(comparison.current)
       setPrevious(comparison.previous)
-
-      if (!failed && prog?.status !== 'test_pending' && shouldToastOnce(sessionId)) {
-        showToast(pl.toastDayComplete, 'success')
-      }
     } catch {
       setError(pl.errorLoadSummary)
     } finally {
@@ -83,7 +66,7 @@ export default function SessionSummary() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
         <PageLoader />
       </div>
     )
@@ -91,12 +74,20 @@ export default function SessionSummary() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <ErrorBanner message={error} onRetry={() => {
-          processedRef.current = false
-          void load()
-        }} />
-        <Button className="mt-4" fullWidth onClick={() => navigate('/', { replace: true })}>
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
+        <ErrorBanner
+          message={error}
+          onRetry={() => {
+            processedRef.current = false
+            void load()
+          }}
+        />
+        <Button
+          className="mt-4"
+          size="touch"
+          fullWidth
+          onClick={() => navigate('/', { replace: true })}
+        >
           {pl.backHome}
         </Button>
       </div>
@@ -106,40 +97,43 @@ export default function SessionSummary() {
   const rows = current?.setResults ?? setResults
   const totalReps = current?.totalReps ?? rows.reduce((s, r) => s + r.actual, 0)
   const cycle = progress ? getCycleById(progress.cycleId) : undefined
-  const daysLeft = daysUntilWorkout(progress?.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null)
+  const daysLeft = daysUntilWorkout(
+    progress?.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
+  )
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-      <h1 className="sr-text-h1">
-        {failed ? pl.dayFailed : pl.dayComplete(current?.dayNumber ?? 1)}
-      </h1>
-      <p className="mt-1 text-[var(--sr-text-secondary)]">
-        SmartReps · {program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram}
-      </p>
+      <PageHeader
+        title={failed ? pl.dayFailed : pl.dayComplete(current?.dayNumber ?? 1)}
+        subtitle={`${program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram}${
+          !failed && progress && progress.status !== 'test_pending'
+            ? ` · ${pl.nextWorkoutIn(daysLeft)}`
+            : ''
+        }`}
+      />
 
       {!failed && progress?.status === 'test_pending' && (
-        <Card className="mt-4 border border-[var(--sr-brand-primary)] sr-card">
+        <Card className="mt-4 border border-[var(--sr-brand-primary)]">
           <p className="font-semibold">{pl.cycleComplete}</p>
           <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.cycleCompleteHint}</p>
           <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecCycleDone}</p>
-          <Button className="mt-4" fullWidth onClick={() => navigate(`/setup/test/${program}?retest=1`)}>
+          <Button
+            className="mt-4"
+            size="touch"
+            fullWidth
+            onClick={() => navigate(`/setup/test/${program}?retest=1`)}
+          >
             {pl.retestNow}
           </Button>
         </Card>
       )}
 
       {!failed && progress && progress.status !== 'test_pending' && (
-        <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">
-          {pl.summaryRecSuccess}
-        </p>
-      )}
-
-      {!failed && progress && progress.status !== 'test_pending' && (
-        <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.nextWorkoutIn(daysLeft)}</p>
+        <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecSuccess}</p>
       )}
 
       {failed && (
-        <Card className="mt-4 border border-[var(--sr-error)] sr-card">
+        <Card className="mt-4 border border-[var(--sr-error)]">
           <p className="text-sm text-[var(--sr-error)]">
             {pl.dayFailedRestart(progress?.cycleAttempt ?? 1)}
           </p>
@@ -158,11 +152,12 @@ export default function SessionSummary() {
 
       {cycle && (
         <p className="mt-2 text-center text-xs text-[var(--sr-text-muted)]">
-          {cycle.nameShort} · {pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}
+          {cycle.nameShort} ·{' '}
+          {pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}
         </p>
       )}
 
-      <Button className="mt-8" fullWidth onClick={() => navigate('/', { replace: true })}>
+      <Button className="mt-8" size="touch" fullWidth onClick={() => navigate('/', { replace: true })}>
         {pl.backHome}
       </Button>
     </div>
