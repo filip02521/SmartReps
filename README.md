@@ -1,16 +1,16 @@
 # SmartReps
 
-Offline-first PWA do treningu **pompek** i **podciągania** w cyklach progresji (23 cykle na program). Aplikacja działa lokalnie bez konta; opcjonalna synchronizacja przez Supabase.
+Offline-first PWA do treningu **pompek** i **podciągania**. **23 cykle łącznie** (12 pompki + 11 podciąganie). Aplikacja działa lokalnie bez konta; opcjonalna synchronizacja przez Supabase.
 
 ## Funkcje
 
 - **Strong-style workout** — checklista serii, licznik powtórzeń, timer przerwy z auto-startem
-- **23 cykle treningowe** na pompki i podciąganie z walidacją planów
+- **23 cykle treningowe** (pompki + podciąganie) z walidacją planów
 - **Offline-first** — Dexie (IndexedDB), pełna funkcjonalność bez internetu
 - **PWA** — instalacja na telefonie, service worker, auto-update
 - **Postępy** — heatmapa aktywności, statystyki, historia sesji z filtrami
-- **Retest po cyklu** — test maksymalny przed kolejnym cyklem
-- **Opcjonalny cloud sync** — Supabase Auth + sync sesji i postępu
+- **Retest / zmiana poziomu** — test max albo wybór przedziału bez ponownego testu
+- **Opcjonalny cloud sync** — Supabase Auth (e-mail OTP) + sync sesji i postępu
 
 ## Stack
 
@@ -39,8 +39,10 @@ cp .env.example .env
 |---------|------|
 | `VITE_SUPABASE_URL` | URL projektu Supabase |
 | `VITE_SUPABASE_ANON_KEY` | Klucz anon (publiczny) |
+| `VITE_VAPID_PUBLIC_KEY` | Publiczny klucz Web Push (opcjonalnie) |
+| `VITE_SENTRY_DSN` | Sentry DSN (opcjonalnie) |
 
-Bez `.env` ekran logowania ma opcję **„Później”** — trening działa w pełni lokalnie.
+Bez `.env` ekran logowania ma opcję pominięcia — trening działa w pełni lokalnie.
 
 ## Skrypty
 
@@ -51,6 +53,8 @@ Bez `.env` ekran logowania ma opcję **„Później”** — trening działa w p
 | `npm run preview` | Podgląd buildu |
 | `npm test` | Testy (Vitest) |
 | `npm run validate-plans` | Walidacja 23 cykli treningowych |
+| `npm run generate-icons` | Generowanie ikon PWA / apple-touch PNG |
+| `npm run test:e2e` | Playwright — ścieżki routingowe |
 
 ## Supabase (opcjonalnie)
 
@@ -60,62 +64,40 @@ Bez `.env` ekran logowania ma opcję **„Później”** — trening działa w p
    - `supabase/migrations/002_sync_and_constraints.sql`
    - `supabase/migrations/003_harden_handle_new_user.sql`
    - `supabase/migrations/004_set_results_upsert.sql`
-3. Wklej URL i anon key do `.env` / Vercel env
-4. W **Authentication → URL Configuration** ustaw:
+   - `supabase/migrations/005_profiles_enabled_programs.sql`
+   - `supabase/migrations/006_push_and_ui_settings.sql`
+   - `supabase/migrations/007_push_timezone.sql`
+3. Wklej URL i anon key do `.env` / Vercel env (**Config**, nie Secret)
+4. (Opcjonalnie Web Push) ustaw `VITE_VAPID_PUBLIC_KEY` (Vercel Config + `.env`).
+   Sekrety Edge (`VAPID_*`, `CRON_SECRET`) — Dashboard Secrets **albo** wiersze w
+   `public.push_config` (RLS, bez polityk). Cron: workflow
+   `.github/workflows/push-reminders.yml` (sekrety GH: `PUSH_CRON_SECRET`,
+   `SUPABASE_PUSH_FUNCTION_URL`) albo `./scripts/setup-push-secrets.sh` + cron Dashboard.
+5. W **Authentication → URL Configuration** ustaw:
    - **Site URL:** `https://smart-reps.vercel.app`
-   - **Redirect URLs:**
-     - `https://smart-reps.vercel.app/**`
-     - `http://localhost:5173/**`
-     - `https://smart-reps.vercel.app/setup/login`
-     - `http://localhost:5173/setup/login`
-5. W aplikacji: Profil → Zaloguj się (magic link)
+   - **Redirect URLs:** `https://smart-reps.vercel.app/**`, `http://localhost:5173/**`, oraz `/setup/login`
+6. W szablonie e-maila OTP umieść `{{ .Token }}` (6-cyfrowy kod) — w PWA używaj kodu, nie linku
+7. W aplikacji: Profil → Zaloguj się (kod z e-maila)
 
 ## Produkcja
 
 Live: **https://smart-reps.vercel.app**  
 Repo: https://github.com/filip02521/SmartReps
 
-Push na `main` automatycznie deployuje na Vercel. CI: `validate-plans` → `lint` → `test` → `build`.
-
-## Deploy na Vercel
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Ffilip02521%2FSmartReps)
-
-### Ręcznie (GitHub)
-
-1. [vercel.com/new](https://vercel.com/new) → Import `filip02521/SmartReps`
-2. Framework: **Vite** (wykrywany automatycznie)
-3. Build: `npm run build` · Output: `dist`
-4. Dodaj env vars (`VITE_SUPABASE_*`) jeśli używasz sync
-5. Deploy
-
-Plik `vercel.json` zawiera rewrite pod React Router (SPA).
-
-### CLI
-
-```bash
-npx vercel          # preview
-npx vercel --prod   # produkcja
-```
+Push na `main` automatycznie deployuje na Vercel. CI: `validate-plans` → `lint` → `test` → `build` → `test:e2e`.
 
 ## Instalacja PWA
 
 1. Otwórz aplikację w Chrome / Safari na telefonie
 2. **Chrome:** menu → „Zainstaluj aplikację” / „Dodaj do ekranu głównego”
 3. **Safari:** Udostępnij → „Do ekranu początkowego”
+4. W zainstalowanej aplikacji loguj się **kodem z e-maila** (link zwykle otwiera Safari bez sesji w PWA)
 
-## Struktura
+## Dokumentacja
 
-```
-src/
-  pages/          # Dashboard, Workout, Progress, Profile, setup flow
-  components/     # UI, workout (Strong-style), brand
-  data/plans/     # Cykle pompek i podciągania
-  lib/            # Dexie, sync, stats, program-service
-  stores/         # Zustand (app, workout, toast)
-supabase/migrations/
-docs/ux-guidelines.md
-```
+- [`docs/ux-guidelines.md`](docs/ux-guidelines.md) — Strong-style UX
+- [`docs/product.md`](docs/product.md) — persona i metryki sukcesu
+- [`/privacy`](https://smart-reps.vercel.app/privacy) · [`/terms`](https://smart-reps.vercel.app/terms)
 
 ## Licencja
 

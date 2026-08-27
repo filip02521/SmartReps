@@ -1,0 +1,29 @@
+name: Push workout reminders
+
+# Calls Supabase Edge Function hourly so Web Push reminders fire at the user's local hour.
+on:
+  schedule:
+    - cron: '5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger send-workout-reminders
+        env:
+          URL: ${{ secrets.SUPABASE_PUSH_FUNCTION_URL }}
+          CRON_SECRET: ${{ secrets.PUSH_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "Missing SUPABASE_PUSH_FUNCTION_URL or PUSH_CRON_SECRET — skip."
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/push-out.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            "$URL")
+          echo "HTTP $code"
+          cat /tmp/push-out.json || true
+          test "$code" = "200"
