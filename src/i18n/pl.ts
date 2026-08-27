@@ -203,6 +203,18 @@ export const pl = {
 
   // Cycle picker
   pickLevel: 'Wybierz swój poziom',
+  levelChangeTitle: 'Zmień poziom',
+  levelChangeSubtitle:
+    'Wybierz inny przedział bez ponownego testu. Jeśli wolisz najpierw zmierzyć max — użyj testu poniżej.',
+  levelChangeHint: 'Nowy cykl zaczyna się od dnia 1. Historia poprzednich treningów pozostaje.',
+  levelChangeCurrent: 'Aktualny',
+  levelChangeRestart: 'Zrestartuj od dnia 1',
+  levelChangeDoTest: 'Wolę zrobić test max',
+  levelChangeReady: 'Poziom zmieniony',
+  levelChangeRestHint:
+    'Masz jeszcze przerwę po ostatnim treningu — nowy cykl będzie dostępny po jej zakończeniu.',
+  levelChangeLastTest: (reps: number, unit: string, recommended: string) =>
+    `Ostatni test: ${reps} ${unit} · wg wyniku pasuje: ${recommended}`,
   recommended: 'Dla Ciebie',
   saferStart: 'Bezpieczniejszy start',
   higherLevelWarning:

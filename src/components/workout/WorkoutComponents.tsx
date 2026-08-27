@@ -284,21 +284,21 @@ export function RestTimerPill({
   onAdd15?: () => void
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-2 shadow-[var(--sr-shadow-card)]">
       <button
         type="button"
         onClick={onExpand}
         aria-live="polite"
-        className="flex min-h-11 flex-1 items-center justify-between rounded-[var(--sr-radius-full)] bg-[var(--sr-bg-elevated)] px-5 py-3 shadow-[var(--sr-shadow-glow)]"
+        className="flex min-h-12 flex-1 items-center justify-between rounded-[var(--sr-radius-full)] bg-[var(--sr-brand-primary-muted)] px-5 py-3"
       >
-        <span className="text-sm text-[var(--sr-text-secondary)]">{pl.restLabel}</span>
-        <span className="tabular-nums text-xl font-bold text-[var(--sr-brand-secondary)]">
+        <span className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.restLabel}</span>
+        <span className="tabular-nums text-2xl font-bold text-[var(--sr-text-primary)]">
           {formatRestTime(remainingSec)}
         </span>
         <ChevronRight size={18} className="text-[var(--sr-text-muted)] rotate-[-90deg]" />
       </button>
       {onAdd15 && (
-        <Button variant="secondary" size="sm" className="min-h-11 shrink-0" onClick={onAdd15}>
+        <Button variant="secondary" size="sm" className="min-h-12 shrink-0" onClick={onAdd15}>
           {pl.add15s}
         </Button>
       )}
@@ -325,13 +325,14 @@ export function RestTimerExpanded({
 }) {
   const [showSkipConfirm, setShowSkipConfirm] = useState(false)
   const trapRef = useFocusTrap(true)
-  const progress = totalSec > 0 ? (totalSec - remainingSec) / totalSec : 0
+  const safeTotal = totalSec > 0 ? totalSec : 1
+  const progress = Math.min(1, Math.max(0, (safeTotal - remainingSec) / safeTotal))
   const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   return (
     <div
       ref={trapRef}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[var(--sr-bg-overlay)] safe-top safe-bottom"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[rgba(9,9,11,0.88)] text-[var(--sr-text-inverse)] safe-top safe-bottom"
       role="dialog"
       aria-modal="true"
       aria-label={pl.restLabel}
@@ -339,27 +340,29 @@ export function RestTimerExpanded({
     >
       <button
         type="button"
-        className="absolute right-4 top-4 min-h-11 min-w-11 text-[var(--sr-text-secondary)]"
+        className="absolute right-4 top-4 min-h-11 min-w-11 rounded-[var(--sr-radius-md)] px-3 text-sm text-zinc-300"
         onClick={onCollapse}
       >
         {pl.collapseTimer}
       </button>
-      <p className="mb-4 sr-text-overline text-[var(--sr-text-muted)]">
+      <p className="mb-4 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-400">
         {pl.restLabel}
       </p>
       <ProgressRing progress={progress} size={220} reducedMotion={reducedMotion}>
         <span
-          className="tabular-nums text-5xl font-bold text-[var(--sr-brand-secondary)]"
+          className="tabular-nums text-5xl font-bold text-white"
           aria-live="polite"
         >
           {formatRestTime(remainingSec)}
         </span>
       </ProgressRing>
-      <p className="mt-6 text-sm text-[var(--sr-text-secondary)]">{nextLabel}</p>
+      {nextLabel ? (
+        <p className="mt-6 px-4 text-center text-sm text-zinc-300">{nextLabel}</p>
+      ) : null}
       <div className="mt-8 flex flex-wrap justify-center gap-3 px-4">
         <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd15}>{pl.add15s}</Button>
         <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd30}>{pl.add30s}</Button>
-        <Button variant="ghost" size="sm" className="min-h-11" onClick={() => setShowSkipConfirm(true)}>{pl.skipRest}</Button>
+        <Button variant="ghost" size="sm" className="min-h-11 text-zinc-200" onClick={() => setShowSkipConfirm(true)}>{pl.skipRest}</Button>
       </div>
       {showSkipConfirm && (
         <ConfirmSheet

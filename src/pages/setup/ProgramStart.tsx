@@ -19,6 +19,7 @@ export default function ProgramStart() {
   const program = programParam as Program
   const [searchParams] = useSearchParams()
   const isRetestUrl = searchParams.get('retest') === '1'
+  const isLevelChangeUrl = searchParams.get('change') === '1'
   const { pendingStart, pendingTest, setPendingStart, setPendingTest, clearPendingStart } = useAppStore()
   const navigate = useNavigate()
   const hydrated = useStoreHydrated()
@@ -28,15 +29,20 @@ export default function ProgramStart() {
   const [restReady, setRestReady] = useState(false)
 
   const isRetest = isRetestUrl || !!pendingStart?.isRetest
-  const retestQuery = isRetest ? '?retest=1' : ''
+  const isLevelChange = isLevelChangeUrl || !!pendingStart?.isLevelChange
+  const modeQuery = isRetest ? '?retest=1' : isLevelChange ? '?change=1' : ''
 
   useEffect(() => {
     if (!hydrated || leavingRef.current) return
     if (pendingTest?.program === program && !pendingStart) return
     if (!pendingStart || pendingStart.program !== program) {
-      navigate(`/setup/test/${program}${retestQuery}`, { replace: true })
+      if (isLevelChange) {
+        navigate(`/setup/cycle/${program}?change=1`, { replace: true })
+      } else {
+        navigate(`/setup/test/${program}${isRetest ? '?retest=1' : ''}`, { replace: true })
+      }
     }
-  }, [hydrated, pendingStart, pendingTest, program, navigate, retestQuery])
+  }, [hydrated, pendingStart, pendingTest, program, navigate, isRetest, isLevelChange])
 
   useEffect(() => {
     let cancelled = false
@@ -86,14 +92,18 @@ export default function ProgramStart() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-      <SetupStepper current="start" />
+      {!isLevelChange && !isRetest && <SetupStepper current="start" />}
       <PageHeader
-        title={pl.programReady}
+        title={isLevelChange ? pl.levelChangeReady : pl.programReady}
         subtitle={pl.programReadySubtitle(
           program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram,
           pendingStart.cycleName,
         )}
       />
+
+      {isLevelChange && (
+        <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.levelChangeHint}</p>
+      )}
 
       <div className="mt-2 flex gap-1" role="list" aria-label={pl.cycleDays}>
         {cycle?.days.map((d) => (
@@ -110,7 +120,9 @@ export default function ProgramStart() {
 
       {inRest && (
         <Card className="mt-4 border border-[var(--sr-warning)] sr-card">
-          <p className="text-sm text-[var(--sr-warning)]">{pl.postTestRest}</p>
+          <p className="text-sm text-[var(--sr-warning)]">
+            {isLevelChange ? pl.levelChangeRestHint : pl.postTestRest}
+          </p>
           <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.nextWorkoutIn(restDays!)}</p>
         </Card>
       )}
@@ -133,7 +145,12 @@ export default function ProgramStart() {
         fullWidth
         onClick={() => {
           leavingRef.current = true
-          setPendingStart({ ...pendingStart, navigateToWorkout: !inRest, isRetest })
+          setPendingStart({
+            ...pendingStart,
+            navigateToWorkout: !inRest,
+            isRetest,
+            isLevelChange,
+          })
           navigate('/setup/login', { replace: true })
         }}
       >
@@ -146,6 +163,11 @@ export default function ProgramStart() {
         onClick={() => {
           const start = pendingStart
           leavingRef.current = true
+          if (isLevelChange) {
+            clearPendingStart()
+            navigate(`/setup/cycle/${program}?change=1`, { replace: true })
+            return
+          }
           setPendingTest({
             program: start.program,
             reps: start.reps ?? 1,
@@ -153,7 +175,7 @@ export default function ProgramStart() {
             committedMaxTestId: start.committedMaxTestId,
           })
           clearPendingStart()
-          navigate(`/setup/cycle/${program}${retestQuery}`, { replace: true })
+          navigate(`/setup/cycle/${program}${modeQuery}`, { replace: true })
         }}
       >
         {pl.backToPicker}

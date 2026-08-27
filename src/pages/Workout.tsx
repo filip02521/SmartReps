@@ -195,7 +195,11 @@ export default function WorkoutPage() {
           cycleAttempt: prog.cycleAttempt,
           currentSetIndex: active.currentSetIndex,
           setResults: active.setResults,
-          restTimer,
+          // Always show the big clock when resuming mid-rest — pill alone was easy to miss.
+          restTimer:
+            restTimer && restTimer.mode !== 'idle'
+              ? { ...restTimer, mode: 'expanded' as const }
+              : restTimer,
         })
         const existing = await db.workoutSessions.get(active.sessionId)
         session = existing ?? {
@@ -299,11 +303,11 @@ export default function WorkoutPage() {
       },
     })
     return () => stopRestTimerWorker()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- restart worker only when timer identity changes
+    // Restart worker only when the rest interval identity changes — not on mode (pill/expanded).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omit mode
   }, [
     restTimer?.startedAt,
     restTimer?.totalSec,
-    restTimer?.mode,
     timerSound,
     timerVibration,
   ])
@@ -376,8 +380,11 @@ export default function WorkoutPage() {
   const handleDone = async () => {
     const workout = useWorkoutStore.getState()
     if (!currentTarget || !day || !progress || !sessionMeta || finishingRef.current) return
+    // During rest: open the big clock (ignore accidental taps while saving the previous set).
     if (workout.restTimer && workout.restTimer.mode !== 'idle') {
-      workout.setRestTimer({ ...workout.restTimer, mode: 'expanded' })
+      if (workout.restTimer.mode !== 'expanded') {
+        workout.setRestTimer({ ...workout.restTimer, mode: 'expanded' })
+      }
       return
     }
     if (negativeCountdown !== null && negativeCountdown > 0) return
@@ -423,12 +430,12 @@ export default function WorkoutPage() {
         return
       }
 
-      // Start rest before any await so negative-prep effect cannot fire on the next set
-      workout.setRestTimer(createRestTimer(day.restBetweenSetsSec))
+      // Full-screen rest clock immediately after a set (pill alone was easy to miss).
+      const restSec = day.restBetweenSetsSec > 0 ? day.restBetweenSetsSec : 60
+      workout.setRestTimer(createRestTimer(restSec, 'expanded'))
       setActual(getTargetReps(day.sets[nextSetIndex]))
       await persistState()
       await loadPreviousActual(nextSetIndex, progress.cycleAttempt, progress.currentDay)
-      await persistState()
       finishingRef.current = false
     } catch {
       finishingRef.current = false
@@ -598,10 +605,15 @@ export default function WorkoutPage() {
         const t = useWorkoutStore.getState().restTimer
         if (t) useWorkoutStore.getState().setRestTimer(addRestTime(t, 30))
       }}
-      onSkipRest={() => useWorkoutStore.getState().setRestTimer(skipRest())}
+      onSkipRest={() => {
+        useWorkoutStore.getState().setRestTimer(skipRest())
+        releaseWakeLock()
+      }}
       onCollapseTimer={() => {
         const t = useWorkoutStore.getState().restTimer
-        if (t) useWorkoutStore.getState().setRestTimer({ ...t, mode: 'pill' })
+        if (t && t.mode !== 'idle') {
+          useWorkoutStore.getState().setRestTimer({ ...t, mode: 'pill' })
+        }
       }}
       onConfirmCancel={() => void (async () => {
         if (!sessionMeta) return

@@ -16,7 +16,7 @@ import {
   getStatusTone,
   setProgramPaused,
 } from '@/lib/program-service'
-import { beginProgramSetup } from '@/lib/setup-flow'
+import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import { clearAllLocalData } from '@/lib/local-data'
 import { getDeadLetterCount, retryDeadLetterItems } from '@/lib/sync'
 import { getCycleById } from '@/data/plans'
@@ -242,14 +242,14 @@ export default function ProfilePage() {
       setPendingChangeLevel(program)
       return
     }
-    await beginProgramSetup(navigate, program)
+    await beginLevelChange(navigate, program)
   }
 
   const confirmChangeLevel = async () => {
     if (!pendingChangeLevel) return
     const program = pendingChangeLevel
     setPendingChangeLevel(null)
-    await beginProgramSetup(navigate, program)
+    await beginLevelChange(navigate, program)
   }
 
   const addProgram = async (program: Program) => {

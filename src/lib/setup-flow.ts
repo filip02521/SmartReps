@@ -81,3 +81,17 @@ export async function beginProgramSetup(
   const q = opts?.retest ? '?retest=1' : ''
   navigate(`/setup/test/${program}${q}`, { replace: opts?.replace ?? true })
 }
+
+/**
+ * Change cycle/range without a max test — for users who already know the target level.
+ * Retest remains available via beginProgramSetup({ retest: true }).
+ */
+export async function beginLevelChange(
+  navigate: NavigateFunction,
+  program: Program,
+  opts?: { replace?: boolean },
+): Promise<void> {
+  await abandonAllInProgress(program)
+  useAppStore.getState().clearPendingTest()
+  navigate(`/setup/cycle/${program}?change=1`, { replace: opts?.replace ?? true })
+}

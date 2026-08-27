@@ -13,37 +13,71 @@ import { selectCycleByTest, isHigherCycle, isLowerCycle, getRetestOptions } from
 import { getNextWorkoutDate, getTestBlockDays, isWorkoutAvailable } from '@/lib/progress-engine'
 import { getCyclesByProgram } from '@/data/plans'
 import { initProgramProgress, updateProgramProgress, getProgramProgress } from '@/lib/program-service'
+import {
+  applyLevelChange,
+  getLevelChangeVisibleCycles,
+  loadLevelChangeContext,
+} from '@/lib/level-change'
+import { beginProgramSetup } from '@/lib/setup-flow'
 import { db } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
 import { Sheet } from '@/components/ui/Sheet'
 import { getCelebrationBadge, formatSetTarget } from '@/lib/progress-engine'
-import type { Program } from '@/data/plans/types'
+import type { Cycle, Program } from '@/data/plans/types'
 
 export default function CyclePicker() {
   const { program: programParam } = useParams<{ program: Program }>()
   const program = programParam as Program
   const [searchParams] = useSearchParams()
   const isRetest = searchParams.get('retest') === '1'
+  const isLevelChange = searchParams.get('change') === '1'
   const { pendingTest, pendingStart, clearPendingTest, setPendingStart } = useAppStore()
   const navigate = useNavigate()
   const hydrated = useStoreHydrated()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showWarning, setShowWarning] = useState(false)
-  const [showAllCycles, setShowAllCycles] = useState(false)
+  const [showAllCycles, setShowAllCycles] = useState(isLevelChange)
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [currentCycleId, setCurrentCycleId] = useState<string | null>(null)
   const [restBlocked, setRestBlocked] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (isRetest) {
-      getProgramProgress(program).then((p) => setCurrentCycleId(p?.cycleId ?? null))
-    }
-  }, [isRetest, program])
+  const [changeReady, setChangeReady] = useState(false)
+  const [warningBaseline, setWarningBaseline] = useState<Cycle | null>(null)
+  const [lastTestReps, setLastTestReps] = useState<number | null>(null)
 
   const [fullCycleId, setFullCycleId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const submitLock = useRef(false)
   const advancingRef = useRef(false)
+
+  const startQuery = isRetest ? '?retest=1' : isLevelChange ? '?change=1' : ''
+
+  useEffect(() => {
+    if (isRetest || isLevelChange) {
+      void getProgramProgress(program).then((p) => setCurrentCycleId(p?.cycleId ?? null))
+    }
+  }, [isRetest, isLevelChange, program])
+
+  useEffect(() => {
+    if (!isLevelChange || !hydrated) return
+    let cancelled = false
+    setChangeReady(false)
+    void (async () => {
+      const ctx = await loadLevelChangeContext(program)
+      if (cancelled) return
+      if (!ctx) {
+        navigate(`/setup/test/${program}`, { replace: true })
+        return
+      }
+      setCurrentCycleId(ctx.currentCycle.id)
+      setSelectedId(ctx.currentCycle.id)
+      setWarningBaseline(ctx.warningBaseline)
+      setLastTestReps(ctx.lastTestReps)
+      setChangeReady(true)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isLevelChange, hydrated, program, navigate])
 
   useEffect(() => {
     if (isRetest && currentCycleId && pendingTest) {
@@ -54,17 +88,17 @@ export default function CyclePicker() {
 
   useEffect(() => {
     if (!hydrated || advancingRef.current || submitLock.current) return
-    // Confirm just wrote pendingStart — don't bounce back to MaxTest
     if (pendingStart?.program === program) {
-      navigate(`/setup/start/${program}${isRetest ? '?retest=1' : ''}`, { replace: true })
+      navigate(`/setup/start/${program}${startQuery}`, { replace: true })
       return
     }
+    if (isLevelChange) return
     if (!pendingTest || pendingTest.program !== program) {
       navigate(`/setup/test/${program}${isRetest ? '?retest=1' : ''}`, { replace: true })
     }
-  }, [hydrated, pendingTest, pendingStart, program, isRetest, navigate])
+  }, [hydrated, pendingTest, pendingStart, program, isRetest, isLevelChange, navigate, startQuery])
 
-  if (!hydrated || (!pendingTest && pendingStart?.program !== program) || (pendingTest && pendingTest.program !== program)) {
+  if (!hydrated) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
         <PageLoader message={pl.restoringSetup} />
@@ -72,8 +106,7 @@ export default function CyclePicker() {
     )
   }
 
-  // Advancing to ProgramStart — show loader while navigate settles
-  if (!pendingTest && pendingStart?.program === program) {
+  if (pendingStart?.program === program) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
         <PageLoader compact />
@@ -81,7 +114,68 @@ export default function CyclePicker() {
     )
   }
 
-  if (!pendingTest) {
+  if (isLevelChange) {
+    if (!changeReady || !currentCycleId || !warningBaseline) {
+      return (
+        <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+          <PageLoader message={pl.restoringSetup} />
+        </div>
+      )
+    }
+    return (
+      <LevelChangePicker
+        program={program}
+        currentCycleId={currentCycleId}
+        selectedId={selectedId ?? currentCycleId}
+        warningBaseline={warningBaseline}
+        lastTestReps={lastTestReps}
+        showAllCycles={showAllCycles}
+        previewId={previewId}
+        fullCycleId={fullCycleId}
+        submitting={submitting}
+        showWarning={showWarning}
+        onSelect={setSelectedId}
+        onTogglePreview={(id) => setPreviewId(previewId === id ? null : id)}
+        onShowFullCycle={setFullCycleId}
+        onCloseFullCycle={() => setFullCycleId(null)}
+        onToggleShowAll={() => setShowAllCycles((v) => !v)}
+        onShowWarning={() => setShowWarning(true)}
+        onHideWarning={() => setShowWarning(false)}
+        onResetToBaseline={() => {
+          setShowWarning(false)
+          setSelectedId(warningBaseline.id)
+        }}
+        onPreferTest={() => void beginProgramSetup(navigate, program, { retest: true })}
+        onConfirm={async () => {
+          if (submitLock.current || submitting) return
+          submitLock.current = true
+          setSubmitting(true)
+          try {
+            const selected =
+              getCyclesByProgram(program).find((c) => c.id === (selectedId ?? currentCycleId)) ??
+              warningBaseline
+            const result = await applyLevelChange(program, selected.id)
+            advancingRef.current = true
+            clearPendingTest()
+            setPendingStart({
+              program,
+              cycleId: result.cycle.id,
+              cycleName: result.cycle.nameShort,
+              reps: lastTestReps ?? 0,
+              isLevelChange: true,
+              isRetest: false,
+            })
+            navigate(`/setup/start/${program}?change=1`, { replace: true })
+          } finally {
+            submitLock.current = false
+            setSubmitting(false)
+          }
+        }}
+      />
+    )
+  }
+
+  if (!pendingTest || pendingTest.program !== program) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
         <PageLoader message={pl.restoringSetup} />
@@ -119,7 +213,6 @@ export default function CyclePicker() {
       await initProgramProgress(program, selected.id)
       const afterInit = await getProgramProgress(program)
       const isRepeat = isRetest && selected.id === currentCycleId
-      // First-run: day 1 available immediately. Retest / cycle change: 2-day post-test rest.
       const applyPostTestRest = isRetest || existing?.status === 'test_pending' || !!existing?.lastWorkoutAt
       const restUntil = getNextWorkoutDate(new Date(), getTestBlockDays())
 
@@ -155,7 +248,6 @@ export default function CyclePicker() {
       }
 
       advancingRef.current = true
-      // Set next gate first so the redirect effect never bounces to MaxTest
       setPendingStart({
         program,
         cycleId: selected.id,
@@ -238,6 +330,7 @@ export default function CyclePicker() {
             cycle={cycle}
             recommended={recommended}
             selectedId={selectedId ?? recommended.id}
+            currentCycleId={null}
             previewId={previewId}
             onSelect={() => setSelectedId(cycle.id)}
             onTogglePreview={() => setPreviewId(previewId === cycle.id ? null : cycle.id)}
@@ -249,9 +342,7 @@ export default function CyclePicker() {
       {fullCycleId && (() => {
         const fc = cycles.find((c) => c.id === fullCycleId)
         if (!fc) return null
-        return (
-          <FullCycleSheet cycle={fc} onClose={() => setFullCycleId(null)} />
-        )
+        return <FullCycleSheet cycle={fc} onClose={() => setFullCycleId(null)} />
       })()}
 
       <Button variant="ghost" className="mt-3" fullWidth onClick={() => setShowAllCycles((v) => !v)}>
@@ -277,10 +368,148 @@ export default function CyclePicker() {
   )
 }
 
+function LevelChangePicker({
+  program,
+  currentCycleId,
+  selectedId,
+  warningBaseline,
+  lastTestReps,
+  showAllCycles,
+  previewId,
+  fullCycleId,
+  submitting,
+  showWarning,
+  onSelect,
+  onTogglePreview,
+  onShowFullCycle,
+  onCloseFullCycle,
+  onToggleShowAll,
+  onShowWarning,
+  onHideWarning,
+  onResetToBaseline,
+  onPreferTest,
+  onConfirm,
+}: {
+  program: Program
+  currentCycleId: string
+  selectedId: string
+  warningBaseline: Cycle
+  lastTestReps: number | null
+  showAllCycles: boolean
+  previewId: string | null
+  fullCycleId: string | null
+  submitting: boolean
+  showWarning: boolean
+  onSelect: (id: string) => void
+  onTogglePreview: (id: string) => void
+  onShowFullCycle: (id: string) => void
+  onCloseFullCycle: () => void
+  onToggleShowAll: () => void
+  onShowWarning: () => void
+  onHideWarning: () => void
+  onResetToBaseline: () => void
+  onPreferTest: () => void
+  onConfirm: () => Promise<void>
+}) {
+  const cycles = getCyclesByProgram(program)
+  const visible = getLevelChangeVisibleCycles(program, currentCycleId, showAllCycles)
+  const selected = cycles.find((c) => c.id === selectedId) ?? warningBaseline
+  const sameAsCurrent = selected.id === currentCycleId
+
+  const handleStart = () => {
+    if (submitting) return
+    if (isHigherCycle(selected, warningBaseline)) {
+      onShowWarning()
+      return
+    }
+    void onConfirm()
+  }
+
+  return (
+    <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
+      <PageHeader
+        title={pl.levelChangeTitle}
+        subtitle={pl.levelChangeSubtitle}
+      />
+
+      <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">{pl.levelChangeHint}</p>
+
+      {lastTestReps != null && (
+        <p className="mt-2 text-xs text-[var(--sr-text-muted)]">
+          {pl.levelChangeLastTest(
+            lastTestReps,
+            program === 'pushups' ? pl.pushups : pl.pullups,
+            warningBaseline.nameShort,
+          )}
+        </p>
+      )}
+
+      <div className="mt-6 flex flex-col gap-3">
+        {visible.map((cycle) => (
+          <CycleCard
+            key={cycle.id}
+            cycle={cycle}
+            recommended={warningBaseline}
+            selectedId={selectedId}
+            currentCycleId={currentCycleId}
+            previewId={previewId}
+            onSelect={() => onSelect(cycle.id)}
+            onTogglePreview={() => onTogglePreview(cycle.id)}
+            onShowFullCycle={() => onShowFullCycle(cycle.id)}
+          />
+        ))}
+      </div>
+
+      {fullCycleId && (() => {
+        const fc = cycles.find((c) => c.id === fullCycleId)
+        if (!fc) return null
+        return <FullCycleSheet cycle={fc} onClose={onCloseFullCycle} />
+      })()}
+
+      <Button variant="ghost" className="mt-3" fullWidth onClick={onToggleShowAll}>
+        {showAllCycles ? pl.hideOtherCycles : pl.showAllCycles}
+      </Button>
+
+      {showWarning && (
+        <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)] bg-[rgba(251,191,36,0.1)] p-4 text-sm">
+          {pl.higherLevelWarning}
+          <div className="mt-3 flex gap-2">
+            <Button variant="secondary" size="sm" onClick={onResetToBaseline}>
+              {pl.backToRecommended}
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={submitting}
+              onClick={() => {
+                onHideWarning()
+                void onConfirm()
+              }}
+            >
+              {pl.understandHigher}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Button className="mt-6" fullWidth disabled={submitting} onClick={handleStart}>
+        {sameAsCurrent
+          ? `${pl.levelChangeRestart} — ${selected.nameShort}`
+          : `${pl.pickLevelCta} — ${selected.nameShort}`}
+      </Button>
+
+      <Button variant="ghost" className="mt-2" fullWidth disabled={submitting} onClick={onPreferTest}>
+        {pl.levelChangeDoTest}
+      </Button>
+    </div>
+  )
+}
+
 function CycleCard({
   cycle,
   recommended,
   selectedId,
+  currentCycleId,
   previewId,
   onSelect,
   onTogglePreview,
@@ -289,6 +518,7 @@ function CycleCard({
   cycle: import('@/data/plans/types').Cycle
   recommended: import('@/data/plans/types').Cycle
   selectedId: string
+  currentCycleId: string | null
   previewId: string | null
   onSelect: () => void
   onTogglePreview: () => void
@@ -296,6 +526,7 @@ function CycleCard({
 }) {
   const isRec = cycle.id === recommended.id
   const isSel = cycle.id === selectedId
+  const isCurrent = currentCycleId != null && cycle.id === currentCycleId
   const isLower = isLowerCycle(cycle, recommended)
 
   return (
@@ -306,8 +537,9 @@ function CycleCard({
     >
       <div className="flex items-center justify-between">
         <div>
-          {isRec && <Badge className="mb-2">{pl.recommended}</Badge>}
-          {isLower && !isRec && <Badge variant="success" className="mb-2">{pl.saferStart}</Badge>}
+          {isCurrent && <Badge className="mb-2" variant="success">{pl.levelChangeCurrent}</Badge>}
+          {isRec && !isCurrent && <Badge className="mb-2">{pl.recommended}</Badge>}
+          {isLower && !isRec && !isCurrent && <Badge variant="success" className="mb-2">{pl.saferStart}</Badge>}
           <p className="font-semibold">{cycle.nameShort}</p>
           <p className="text-sm text-[var(--sr-text-secondary)]">
             {cycle.days.length} dni · {cycle.description}
@@ -344,7 +576,7 @@ function FullCycleSheet({
   cycle,
   onClose,
 }: {
-  cycle: import('@/data/plans/types').Cycle
+  cycle: Cycle
   onClose: () => void
 }) {
   return (

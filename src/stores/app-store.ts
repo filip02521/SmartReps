@@ -28,6 +28,8 @@ export type PendingStart = {
   cycleName: string
   reps: number
   isRetest?: boolean
+  /** Manual cycle switch without a new max test. */
+  isLevelChange?: boolean
   celebration?: string
   navigateToWorkout?: boolean
   committedMaxTestId?: number

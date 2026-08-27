@@ -127,7 +127,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
   const targetReps = getTargetReps(currentTarget)
 
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-lg flex-col safe-top safe-bottom">
+    <div className="mx-auto flex min-h-dvh max-w-lg flex-col safe-top safe-bottom">
       <header className="flex shrink-0 items-center justify-between px-2 py-2">
         <button
           type="button"
@@ -224,26 +224,26 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         )}
       </div>
 
-      <div ref={checklistRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      <div ref={checklistRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-28">
         <SetChecklist
           sets={day.sets}
           currentIndex={currentSetIndex}
           results={setResults}
           failedIndex={failedIndex}
-          dimmed={isResting && !canEditPreviousSet}
+          dimmed={false}
           onEditLastSet={canEditPreviousSet ? onEditPreviousSet : undefined}
         />
       </div>
 
-      {restTimer && restTimer.mode !== 'idle' && (
-        <div className="flex-shrink-0 px-4 pb-4">
-          {restTimer.mode === 'pill' && (
+      {restTimer && restTimer.mode === 'pill' && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-base)]/95 px-4 py-3 backdrop-blur safe-bottom">
+          <div className="mx-auto max-w-lg">
             <RestTimerPill
               remainingSec={restTimer.remainingSec}
               onExpand={onExpandTimer}
               onAdd15={onAddRest15}
             />
-          )}
+          </div>
         </div>
       )}
 

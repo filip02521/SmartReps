@@ -7,11 +7,15 @@ export type RestTimerState = {
   startedAt: number | null
 }
 
-export function createRestTimer(totalSec: number): RestTimerState {
+export function createRestTimer(
+  totalSec: number,
+  mode: RestTimerMode = 'pill',
+): RestTimerState {
+  const safeTotal = Math.max(0, Math.floor(totalSec))
   return {
-    mode: 'pill',
-    totalSec,
-    remainingSec: totalSec,
+    mode,
+    totalSec: safeTotal,
+    remainingSec: safeTotal,
     startedAt: Date.now(),
   }
 }

@@ -25,7 +25,7 @@ import {
   setProgramPaused,
 } from '@/lib/program-service'
 import { abandonAllInProgress } from '@/lib/session-service'
-import { beginProgramSetup, drainIncompleteSetup } from '@/lib/setup-flow'
+import { beginLevelChange, beginProgramSetup, drainIncompleteSetup } from '@/lib/setup-flow'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { getProgramStats, type ProgramStats } from '@/lib/stats-engine'
 import { getCycleById } from '@/data/plans'
@@ -186,7 +186,7 @@ function ProgramCard({
             onClick={() => {
               setShowMenu(false)
               if (resume) setPendingSetup('level')
-              else void beginProgramSetup(navigate, program)
+              else void beginLevelChange(navigate, program)
             }}
           >
             {pl.menuChangeLevel}
@@ -460,7 +460,11 @@ function ProgramCard({
           onConfirm={() => {
             const mode = pendingSetup
             setPendingSetup(null)
-            void beginProgramSetup(navigate, program, { retest: mode === 'retest' })
+            if (mode === 'retest') {
+              void beginProgramSetup(navigate, program, { retest: true })
+            } else {
+              void beginLevelChange(navigate, program)
+            }
           }}
           onCancel={() => setPendingSetup(null)}
         />

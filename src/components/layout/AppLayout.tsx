@@ -17,8 +17,8 @@ export function AppLayout() {
   const hideTabs = immersive || location.pathname.startsWith('/workout') || location.pathname.startsWith('/setup')
 
   return (
-    <div className="flex min-h-full flex-col" data-tabs={hideTabs ? '0' : '1'}>
-      <main className={cn('flex-1 min-h-0', !hideTabs && 'pb-[calc(5rem+env(safe-area-inset-bottom))]')}>
+    <div className={cn('flex min-h-dvh flex-col', hideTabs && 'h-dvh')} data-tabs={hideTabs ? '0' : '1'}>
+      <main className={cn('flex min-h-0 flex-1 flex-col', !hideTabs && 'pb-[calc(5rem+env(safe-area-inset-bottom))]')}>
         <Outlet />
       </main>
       {!hideTabs && (
