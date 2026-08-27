@@ -104,8 +104,8 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
   const isResting = restTimer !== null && restTimer.mode !== 'idle'
 
   return (
-    <div className="mx-auto flex h-full max-w-lg flex-col safe-top safe-bottom">
-      <header className="flex items-center justify-between px-4 py-3">
+    <div className="mx-auto flex h-full min-h-0 max-w-lg flex-col safe-top safe-bottom">
+      <header className="flex shrink-0 items-center justify-between px-4 py-3">
         <button type="button" onClick={onBack} className="text-[var(--sr-text-secondary)]" aria-label="Wstecz">
           ←
         </button>
@@ -164,7 +164,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         )}
       </div>
 
-      <div ref={checklistRef} className="flex-1 overflow-y-auto px-4 py-4">
+      <div ref={checklistRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <SetChecklist
           sets={day.sets}
           currentIndex={currentSetIndex}

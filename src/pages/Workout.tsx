@@ -244,10 +244,11 @@ export default function WorkoutPage() {
       const s = useWorkoutStore.getState()
       if (s.sessionId && s.setResults.length < setsCountRef.current) {
         const leave = window.confirm(pl.leaveWorkoutConfirm)
-        if (!leave) window.history.pushState(null, '', window.location.href)
+        if (!leave) {
+          window.history.pushState(null, '', window.location.href)
+        }
       }
     }
-    window.history.pushState(null, '', window.location.href)
     window.addEventListener('popstate', onPopState)
 
     return () => {

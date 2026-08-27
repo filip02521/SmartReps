@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent, type TouchEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type TouchEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -65,13 +65,24 @@ export default function MaxTest() {
   const isRetest = searchParams.get('retest') === '1'
   const [reps, setReps] = useState(0)
   const [warmup, setWarmup] = useState([false, false, false])
-  const { settings, setSettings, setPendingTest } = useAppStore()
+  const { settings, setSettings, setPendingTest, setTestDraft, clearTestDraft } = useAppStore()
   const navigate = useNavigate()
   const [showDisclaimer, setShowDisclaimer] = useState(!settings.healthDisclaimerAccepted)
   const [blocked, setBlocked] = useState<string | null>(null)
   const [warmupError, setWarmupError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const submitLock = useRef(false)
+  const hydratedRef = useRef(false)
+
+  useEffect(() => {
+    if (hydratedRef.current) return
+    hydratedRef.current = true
+    const draft = useAppStore.getState().testDraft
+    if (draft?.program === program) {
+      setReps(draft.reps)
+      setWarmup(draft.warmup.length === 3 ? draft.warmup : [false, false, false])
+    }
+  }, [program])
 
   const minusPress = useRepeatPress(() => setReps((r) => Math.max(0, r - 1)))
   const plusPress = useRepeatPress(() => setReps((r) => Math.min(999, r + 1)))
@@ -106,6 +117,7 @@ export default function MaxTest() {
       }
 
       const cycle = selectCycleByTest(program, reps)
+      clearTestDraft()
       setPendingTest({ program, reps, cycleId: cycle.id })
       navigate(`/setup/cycle/${program}${isRetest ? '?retest=1' : ''}`)
     } finally {
@@ -167,7 +179,7 @@ export default function MaxTest() {
       )}
 
       <div className="mt-8 flex flex-col items-center">
-        <p className="tabular-nums text-6xl font-bold">{reps}</p>
+        <p className="tabular-nums text-5xl font-bold sm:text-6xl">{reps}</p>
         <p className="text-sm text-[var(--sr-text-muted)]">
           {program === 'pushups' ? pl.pushups : pl.pullups}
         </p>
@@ -209,7 +221,10 @@ export default function MaxTest() {
           variant="ghost"
           className="mt-4"
           fullWidth
-          onClick={() => navigate('/setup/technique?from=test')}
+          onClick={() => {
+            setTestDraft({ program, reps, warmup })
+            navigate('/setup/technique?from=test')
+          }}
         >
           Jak robić pompkę?
         </Button>

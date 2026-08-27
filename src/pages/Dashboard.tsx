@@ -256,6 +256,7 @@ function ProgramCard({
                 onClick={async () => {
                   await clearActiveWorkout(program)
                   setResume(null)
+                  onGlobalResume({ program, clear: true })
                 }}
               >
                 {pl.startFresh}
@@ -311,7 +312,7 @@ function ProgramCard({
 }
 
 export default function Dashboard() {
-  const { settings, setupQueue, shiftSetupQueue } = useAppStore()
+  const { settings, setupQueue } = useAppStore()
   const navigate = useNavigate()
   const [resumeByProgram, setResumeByProgram] = useState<
     Partial<Record<Program, { day: number; set: number; total: number; stale?: boolean }>>
@@ -322,6 +323,7 @@ export default function Dashboard() {
     set: number
     total: number
   } | null>(null)
+  const [resumeEpoch, setResumeEpoch] = useState(0)
 
   const handleGlobalResume = useCallback((info: {
     program: Program
@@ -352,16 +354,24 @@ export default function Dashboard() {
       navigate('/setup/onboarding')
       return
     }
-    const next = setupQueue[0]
-    if (next) {
-      getProgramProgress(next).then((p) => {
+    let cancelled = false
+    async function drainQueue() {
+      while (!cancelled) {
+        const next = useAppStore.getState().setupQueue[0]
+        if (!next) return
+        const p = await getProgramProgress(next)
+        useAppStore.getState().shiftSetupQueue()
         if (!p) {
-          shiftSetupQueue()
           navigate(`/setup/test/${next}`)
+          return
         }
-      })
+      }
     }
-  }, [settings.onboardingComplete, navigate, setupQueue, shiftSetupQueue])
+    void drainQueue()
+    return () => {
+      cancelled = true
+    }
+  }, [settings.onboardingComplete, navigate, setupQueue])
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 safe-top">
@@ -422,13 +432,14 @@ export default function Dashboard() {
               return next
             })
             setGlobalStale(null)
+            setResumeEpoch((n) => n + 1)
           }}
         />
       )}
 
       <div className="flex flex-col gap-4">
         {settings.enabledPrograms.map((p) => (
-          <ProgramCard key={p} program={p} onGlobalResume={handleGlobalResume} />
+          <ProgramCard key={`${p}-${resumeEpoch}`} program={p} onGlobalResume={handleGlobalResume} />
         ))}
       </div>
     </div>

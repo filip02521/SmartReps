@@ -18,7 +18,7 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <main className={cn('flex-1', !hideTabs && 'pb-20')}>
+      <main className={cn('flex-1 min-h-0', !hideTabs && 'pb-[calc(5rem+env(safe-area-inset-bottom))]')}>
         <Outlet />
       </main>
       {!hideTabs && (

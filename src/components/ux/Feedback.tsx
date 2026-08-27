@@ -72,7 +72,7 @@ export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: (
 
 export function OfflineBar() {
   return (
-    <div className="bg-[var(--sr-warning)]/20 px-4 py-2 text-center text-xs font-medium text-[var(--sr-warning)]">
+    <div className="fixed left-0 right-0 top-0 z-[80] bg-[var(--sr-warning)]/20 px-4 py-2 text-center text-xs font-medium text-[var(--sr-warning)] safe-top">
       Offline · zapiszesz po połączeniu
     </div>
   )

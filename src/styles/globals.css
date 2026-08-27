@@ -11,6 +11,7 @@
 
 html, body, #root {
   height: 100%;
+  height: 100dvh;
   margin: 0;
 }
 
@@ -38,6 +39,10 @@ body {
 
 .safe-top {
   padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+html[data-offline='1'] .safe-top {
+  padding-top: max(2.75rem, calc(env(safe-area-inset-top) + 2.25rem));
 }
 
 .sr-text-display {

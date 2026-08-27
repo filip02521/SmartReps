@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { CycleCelebration } from '@/components/workout/WorkoutComponents'
+import { SkeletonCard } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { getCycleById } from '@/data/plans'
@@ -13,10 +14,11 @@ import type { Program } from '@/data/plans/types'
 export default function ProgramStart() {
   const { program: programParam } = useParams<{ program: Program }>()
   const program = programParam as Program
-  const { pendingStart, setPendingStart } = useAppStore()
+  const { pendingStart, setPendingStart, setPendingTest, clearPendingStart } = useAppStore()
   const navigate = useNavigate()
   const [dismissedCelebration, setDismissedCelebration] = useState(false)
   const [restDays, setRestDays] = useState<number | null>(null)
+  const [restReady, setRestReady] = useState(false)
 
   useEffect(() => {
     if (!pendingStart || pendingStart.program !== program) {
@@ -25,11 +27,20 @@ export default function ProgramStart() {
   }, [pendingStart, program, navigate])
 
   useEffect(() => {
+    let cancelled = false
+    setRestReady(false)
     getProgramProgress(program).then((p) => {
+      if (cancelled) return
       if (p?.nextWorkoutAfter && !isWorkoutAvailable(new Date(p.nextWorkoutAfter))) {
         setRestDays(daysUntilWorkout(new Date(p.nextWorkoutAfter)))
+      } else {
+        setRestDays(0)
       }
+      setRestReady(true)
     })
+    return () => {
+      cancelled = true
+    }
   }, [program])
 
   if (!pendingStart) return null
@@ -43,9 +54,17 @@ export default function ProgramStart() {
     )
   }
 
+  if (!restReady) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+        <SkeletonCard className="h-48" />
+      </div>
+    )
+  }
+
   const cycle = getCycleById(pendingStart.cycleId)
   const day1 = cycle?.days[0]
-  const inRest = restDays !== null && restDays > 0
+  const inRest = (restDays ?? 0) > 0
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
@@ -68,7 +87,7 @@ export default function ProgramStart() {
       {inRest && (
         <Card className="mt-4 border border-[var(--sr-warning)] sr-card">
           <p className="text-sm text-[var(--sr-warning)]">{pl.postTestRest}</p>
-          <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.nextWorkoutIn(restDays)}</p>
+          <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.nextWorkoutIn(restDays!)}</p>
         </Card>
       )}
 
@@ -87,10 +106,7 @@ export default function ProgramStart() {
         className="mt-8"
         fullWidth
         onClick={() => {
-          if (pendingStart) {
-            // Only request immediate workout when rest window is already clear.
-            setPendingStart({ ...pendingStart, navigateToWorkout: !inRest })
-          }
+          setPendingStart({ ...pendingStart, navigateToWorkout: !inRest })
           navigate('/setup/login')
         }}
       >
@@ -101,15 +117,15 @@ export default function ProgramStart() {
         className="mt-2"
         fullWidth
         onClick={() => {
-          const start = useAppStore.getState().pendingStart
-          if (start) {
-            useAppStore.getState().setPendingTest({
-              program: start.program,
-              reps: start.reps ?? 1,
-              cycleId: start.cycleId,
-            })
-          }
-          const retest = start?.isRetest ? '?retest=1' : ''
+          const start = pendingStart
+          setPendingTest({
+            program: start.program,
+            reps: start.reps ?? 1,
+            cycleId: start.cycleId,
+            committedMaxTestId: start.committedMaxTestId,
+          })
+          clearPendingStart()
+          const retest = start.isRetest ? '?retest=1' : ''
           navigate(`/setup/cycle/${program}${retest}`)
         }}
       >

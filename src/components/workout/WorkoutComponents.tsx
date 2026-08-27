@@ -280,7 +280,7 @@ export function RestTimerExpanded({
         </span>
       </ProgressRing>
       <p className="mt-6 text-sm text-[var(--sr-text-secondary)]">{nextLabel}</p>
-      <div className="mt-8 flex gap-3">
+      <div className="mt-8 flex flex-wrap justify-center gap-3 px-4">
         <Button variant="secondary" size="sm" onClick={onAdd15}>{pl.add15s}</Button>
         <Button variant="secondary" size="sm" onClick={onAdd30}>{pl.add30s}</Button>
         <Button variant="ghost" size="sm" onClick={() => setShowSkipConfirm(true)}>{pl.skipRest}</Button>

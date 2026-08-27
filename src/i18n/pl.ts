@@ -115,6 +115,8 @@ export const pl = {
   addProgram: 'Dodaj program',
   addProgramPushups: 'Dodaj pompki',
   addProgramPullups: 'Dodaj podciąganie',
+  changeLevelActiveWarning:
+    'Masz przerwaną sesję treningu. Zmiana poziomu usunie tę sesję. Kontynuować?',
   prevColumn: 'Poprz.',
 
   // Units

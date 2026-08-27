@@ -43,9 +43,7 @@ export default function SessionSummary() {
         setPrevious(comparison.previous)
       }
 
-      if (!failed && prog?.status === 'test_pending') {
-        // Cycle complete — retest celebration happens after max test in ProgramStart
-      } else if (!failed && sessionId) {
+      if (!failed && sessionId && prog?.status !== 'test_pending') {
         showToast(pl.toastDayComplete, 'success')
       }
     } catch {

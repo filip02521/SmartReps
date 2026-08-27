@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { pl } from '@/i18n/pl'
 import { requestWorkoutReminderPermission, scheduleDailyReminder, cancelReminder } from '@/lib/notifications'
-import { getProgramProgress } from '@/lib/program-service'
+import { getProgramProgress, getActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
 import type { Program } from '@/data/plans/types'
 
 function applyTheme(theme: 'system' | 'dark' | 'light') {
@@ -38,6 +38,20 @@ export default function ProfilePage() {
   const logout = async () => {
     if (isSupabaseConfigured) await supabase.auth.signOut()
     setEmail(null)
+  }
+
+  const changeLevel = async (program: Program) => {
+    const active = await getActiveWorkout(program)
+    if (active) {
+      const ok = window.confirm(pl.changeLevelActiveWarning)
+      if (!ok) return
+      await clearActiveWorkout(program)
+    }
+    navigate(`/setup/test/${program}`)
+  }
+
+  const retest = (program: Program) => {
+    navigate(`/setup/test/${program}?retest=1`)
   }
 
   const addProgram = async (program: Program) => {
@@ -133,20 +147,20 @@ export default function ProfilePage() {
         <div className="mt-2 flex flex-col gap-2">
           {settings.enabledPrograms.includes('pushups') && (
             <>
-              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => navigate('/setup/test/pushups')}>
+              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => void changeLevel('pushups')}>
                 {pl.changeLevelPushups}
               </Button>
-              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => navigate('/setup/test/pushups?retest=1')}>
+              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => retest('pushups')}>
                 {pl.retestPushups}
               </Button>
             </>
           )}
           {settings.enabledPrograms.includes('pullups') && (
             <>
-              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => navigate('/setup/test/pullups')}>
+              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => void changeLevel('pullups')}>
                 {pl.changeLevelPullups}
               </Button>
-              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => navigate('/setup/test/pullups?retest=1')}>
+              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => retest('pullups')}>
                 {pl.retestPullups}
               </Button>
             </>

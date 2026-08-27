@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -35,6 +35,7 @@ export default function CyclePicker() {
 
   const [fullCycleId, setFullCycleId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const submitLock = useRef(false)
 
   useEffect(() => {
     if (isRetest && currentCycleId && pendingTest) {
@@ -65,7 +66,8 @@ export default function CyclePicker() {
     isRetest && currentCycleId ? getRetestOptions(program, pendingTest.reps, currentCycleId) : null
 
   const confirm = async () => {
-    if (submitting) return
+    if (submitLock.current || submitting) return
+    submitLock.current = true
     setSubmitting(true)
     try {
       await initProgramProgress(program, selected.id)
@@ -81,16 +83,29 @@ export default function CyclePicker() {
         nextWorkoutAfter: restUntil.toISOString(),
         lastWorkoutAt: new Date().toISOString(),
       })
+
+      const existingTest =
+        pendingTest.committedMaxTestId != null
+          ? await db.maxTests.get(pendingTest.committedMaxTestId)
+          : undefined
+
       const testRecord = {
         program,
         reps: pendingTest.reps,
-        testedAt: new Date().toISOString(),
+        testedAt: existingTest?.testedAt ?? new Date().toISOString(),
         selectedCycleId: selected.id,
         wasManualOverride: selected.id !== recommended.id,
       }
-      const testId = await db.maxTests.add(testRecord)
-      const savedTest = { ...testRecord, id: testId }
-      await enqueueSync('max_tests', 'insert', savedTest)
+
+      let testId = pendingTest.committedMaxTestId
+      if (testId != null && existingTest) {
+        await db.maxTests.update(testId, testRecord)
+        await enqueueSync('max_tests', 'update', { ...testRecord, id: testId })
+      } else {
+        testId = await db.maxTests.add(testRecord)
+        await enqueueSync('max_tests', 'insert', { ...testRecord, id: testId })
+      }
+
       clearPendingTest()
       setPendingStart({
         program,
@@ -99,15 +114,17 @@ export default function CyclePicker() {
         reps: pendingTest.reps,
         isRetest,
         celebration: celebration ?? undefined,
+        committedMaxTestId: testId,
       })
       navigate(`/setup/start/${program}`)
     } finally {
+      submitLock.current = false
       setSubmitting(false)
     }
   }
 
   const handleStart = () => {
-    if (submitting) return
+    if (submitLock.current || submitting) return
     if (isHigherCycle(selected, recommended)) {
       setShowWarning(true)
       return
