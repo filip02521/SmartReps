@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MoreVertical } from 'lucide-react'
 import { LogoFull } from '@/components/brand/Logo'
@@ -317,7 +317,7 @@ export default function Dashboard() {
     Partial<Record<Program, { day: number; set: number; total: number; stale?: boolean }>>
   >({})
 
-  const handleGlobalResume = (info: {
+  const handleGlobalResume = useCallback((info: {
     program: Program
     day?: number
     set?: number
@@ -339,7 +339,7 @@ export default function Dashboard() {
         [info.program]: { day: info.day!, set: info.set!, total: info.total!, stale: info.stale },
       }))
     }
-  }
+  }, [])
 
   useEffect(() => {
     if (!settings.onboardingComplete) {

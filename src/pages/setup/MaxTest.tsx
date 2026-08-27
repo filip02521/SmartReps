@@ -31,13 +31,21 @@ function useRepeatPress(onStep: () => void) {
   const start = () => {
     onStep()
     let delay = 300
-    let interval = window.setInterval(() => {
+    let timer: number | null = null
+    const tick = () => {
       onStep()
       delay = Math.max(60, delay - 30)
-    }, delay)
-    const stop = () => clearInterval(interval)
+      timer = window.setTimeout(tick, delay)
+    }
+    timer = window.setTimeout(tick, delay)
+    const stop = () => {
+      if (timer != null) window.clearTimeout(timer)
+      timer = null
+    }
     window.addEventListener('mouseup', stop, { once: true })
     window.addEventListener('touchend', stop, { once: true })
+    window.addEventListener('mouseleave', stop, { once: true })
+    window.addEventListener('touchcancel', stop, { once: true })
   }
   return { onMouseDown: start, onTouchStart: start }
 }

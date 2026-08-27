@@ -1,3 +1,5 @@
+let activeReminderId: number | null = null
+
 export async function requestWorkoutReminderPermission(): Promise<boolean> {
   if (!('Notification' in window)) return false
   if (Notification.permission === 'granted') return true
@@ -16,17 +18,21 @@ export function showWorkoutReminder(title: string, body: string) {
 }
 
 export function scheduleDailyReminder(hour = 18, minute = 0): number | null {
+  cancelReminder()
   const now = new Date()
   const next = new Date()
   next.setHours(hour, minute, 0, 0)
   if (next <= now) next.setDate(next.getDate() + 1)
   const delay = next.getTime() - now.getTime()
-  return window.setTimeout(() => {
+  activeReminderId = window.setTimeout(() => {
     showWorkoutReminder('SmartReps', 'Czas na trening — sprawdź swój plan na dziś.')
     scheduleDailyReminder(hour, minute)
   }, delay)
+  return activeReminderId
 }
 
-export function cancelReminder(timerId: number | null) {
-  if (timerId !== null) window.clearTimeout(timerId)
+export function cancelReminder(timerId?: number | null) {
+  const id = timerId ?? activeReminderId
+  if (id != null) window.clearTimeout(id)
+  if (id === activeReminderId) activeReminderId = null
 }

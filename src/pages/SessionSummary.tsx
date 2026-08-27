@@ -56,10 +56,16 @@ export default function SessionSummary() {
   }
 
   useEffect(() => {
+    processedRef.current = false
+  }, [program, sessionId, failed])
+
+  useEffect(() => {
     if (processedRef.current) return
     processedRef.current = true
     void load()
-  }, [program, sessionId, failed, store])
+    // load intentionally omits store from deps — reset once per summary key
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when summary identity changes
+  }, [program, sessionId, failed])
 
   if (loading) {
     return (

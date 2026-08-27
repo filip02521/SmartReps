@@ -7,7 +7,18 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { pl } from '@/i18n/pl'
 import { requestWorkoutReminderPermission, scheduleDailyReminder, cancelReminder } from '@/lib/notifications'
 
-let reminderTimer: number | null = null
+function applyTheme(theme: 'system' | 'dark' | 'light') {
+  if (theme === 'system') {
+    document.documentElement.removeAttribute('data-theme')
+  } else {
+    document.documentElement.setAttribute('data-theme', theme)
+  }
+}
+
+function applyHighContrast(on: boolean) {
+  if (on) document.documentElement.setAttribute('data-high-contrast', 'true')
+  else document.documentElement.removeAttribute('data-high-contrast')
+}
 
 export default function ProfilePage() {
   const { settings, setSettings } = useAppStore()
@@ -20,20 +31,7 @@ export default function ProfilePage() {
     }
     applyTheme(settings.theme)
     applyHighContrast(settings.highContrast)
-  }, [])
-
-  const applyTheme = (theme: 'system' | 'dark' | 'light') => {
-    if (theme === 'system') {
-      document.documentElement.removeAttribute('data-theme')
-    } else {
-      document.documentElement.setAttribute('data-theme', theme)
-    }
-  }
-
-  const applyHighContrast = (on: boolean) => {
-    if (on) document.documentElement.setAttribute('data-high-contrast', 'true')
-    else document.documentElement.removeAttribute('data-high-contrast')
-  }
+  }, [settings.theme, settings.highContrast])
 
   const logout = async () => {
     if (isSupabaseConfigured) await supabase.auth.signOut()
@@ -93,10 +91,9 @@ export default function ProfilePage() {
               if (on) {
                 const granted = await requestWorkoutReminderPermission()
                 if (!granted) return
-                reminderTimer = scheduleDailyReminder()
+                scheduleDailyReminder()
               } else {
-                cancelReminder(reminderTimer)
-                reminderTimer = null
+                cancelReminder()
               }
               setSettings({ workoutReminders: on && Notification.permission === 'granted' })
             }}

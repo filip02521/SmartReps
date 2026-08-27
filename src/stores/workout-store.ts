@@ -66,7 +66,7 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
     }),
 
   resumeSession: (params) =>
-    set({ ...params, immersive: true }),
+    set({ ...params, failedRetryUsed: false, immersive: true }),
 
   completeSet: (result) =>
     set((s) => ({

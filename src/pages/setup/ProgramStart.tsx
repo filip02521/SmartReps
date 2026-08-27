@@ -94,7 +94,22 @@ export default function ProgramStart() {
       >
         {restDays !== null && restDays > 0 ? pl.continueToLogin : pl.startDay1}
       </Button>
-      <Button variant="ghost" className="mt-2" fullWidth onClick={() => navigate(`/setup/cycle/${program}`)}>
+      <Button
+        variant="ghost"
+        className="mt-2"
+        fullWidth
+        onClick={() => {
+          const start = useAppStore.getState().pendingStart
+          if (start) {
+            useAppStore.getState().setPendingTest({
+              program: start.program,
+              reps: start.reps ?? 1,
+              cycleId: start.cycleId,
+            })
+          }
+          navigate(`/setup/cycle/${program}`)
+        }}
+      >
         {pl.backToPicker}
       </Button>
     </div>

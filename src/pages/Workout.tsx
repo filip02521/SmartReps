@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getCycleById } from '@/data/plans'
 import { pl } from '@/i18n/pl'
-import { validateSet, getTargetReps, isWorkoutAvailable } from '@/lib/progress-engine'
+import { validateSet, getTargetReps, isWorkoutAvailable, daysUntilWorkout } from '@/lib/progress-engine'
 import {
   createRestTimer,
   addRestTime,
@@ -39,7 +39,8 @@ export default function WorkoutPage() {
   const forceStart = searchParams.get('force') === '1'
   const navigate = useNavigate()
   const { settings, setSettings } = useAppStore()
-  const initRef = useRef(false)
+  const finishingRef = useRef(false)
+  const initGenerationRef = useRef(0)
   const checklistRef = useRef<HTMLDivElement>(null)
   const setsCountRef = useRef(5)
 
@@ -57,7 +58,6 @@ export default function WorkoutPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showPlanSheet, setShowPlanSheet] = useState(false)
   const [negativeCountdown, setNegativeCountdown] = useState<number | null>(null)
-  const [finishing, setFinishing] = useState(false)
   const [showStaleConfirm, setShowStaleConfirm] = useState(false)
   const [staleResume, setStaleResume] = useState<{ day: number; set: number; total: number } | null>(null)
   const staleConfirmedRef = useRef(false)
@@ -77,13 +77,14 @@ export default function WorkoutPage() {
     [program],
   )
 
-  const initWorkout = useCallback(async () => {
-    if (initRef.current) return
-    initRef.current = true
+  const initWorkout = useCallback(async (generation: number) => {
     setInitError(null)
+    setRestBlocked(false)
+    setTestPendingBlocked(false)
 
     try {
       const prog = await getProgramProgress(program)
+      if (generation !== initGenerationRef.current) return
       if (!prog) {
         navigate('/')
         return
@@ -107,7 +108,7 @@ export default function WorkoutPage() {
       }
 
       setProgress(prog)
-      const active = await db.activeWorkout.get(program)
+      let active = await db.activeWorkout.get(program)
 
       if (active && isStaleActiveWorkout(active.updatedAt) && !staleConfirmedRef.current) {
         const cycleForStale = getCycleById(prog.cycleId)
@@ -134,7 +135,35 @@ export default function WorkoutPage() {
 
       let session: LocalWorkoutSession
 
+      if (!active) {
+        const existingInProgress = await db.workoutSessions
+          .where('program')
+          .equals(program)
+          .filter((s) => s.status === 'in_progress')
+          .first()
+        if (existingInProgress) {
+          active = {
+            program,
+            sessionId: existingInProgress.id,
+            currentSetIndex: existingInProgress.setResults.length,
+            setResults: existingInProgress.setResults,
+            restTimerJson: null,
+            updatedAt: new Date().toISOString(),
+          }
+        }
+      }
+
+      if (generation !== initGenerationRef.current) return
+
       if (active) {
+        let restTimer = null
+        if (active.restTimerJson) {
+          try {
+            restTimer = JSON.parse(active.restTimerJson)
+          } catch {
+            restTimer = null
+          }
+        }
         store.resumeSession({
           sessionId: active.sessionId,
           program,
@@ -143,7 +172,7 @@ export default function WorkoutPage() {
           cycleAttempt: prog.cycleAttempt,
           currentSetIndex: active.currentSetIndex,
           setResults: active.setResults,
-          restTimer: active.restTimerJson ? JSON.parse(active.restTimerJson) : null,
+          restTimer,
         })
         const existing = await db.workoutSessions.get(active.sessionId)
         session = existing ?? {
@@ -177,7 +206,15 @@ export default function WorkoutPage() {
           cycleAttempt: prog.cycleAttempt,
         })
         await db.workoutSessions.put(session)
+        await saveActiveWorkout(program, {
+          sessionId,
+          currentSetIndex: 0,
+          setResults: [],
+          restTimerJson: null,
+        })
       }
+
+      if (generation !== initGenerationRef.current) return
 
       setSessionMeta(session)
       const setIdx = active?.currentSetIndex ?? 0
@@ -190,13 +227,17 @@ export default function WorkoutPage() {
         setSettings({ hasSeenWorkoutHint: true })
       }
     } catch {
+      if (generation !== initGenerationRef.current) return
       setInitError('Nie udało się rozpocząć treningu.')
       setInitialized(true)
     }
   }, [program, navigate, store, settings.hasSeenWorkoutHint, setSettings, forceStart, loadPreviousActual])
 
   useEffect(() => {
-    void initWorkout()
+    const generation = ++initGenerationRef.current
+    finishingRef.current = false
+    setInitialized(false)
+    void initWorkout(generation)
     store.setImmersive(true)
 
     const onPopState = () => {
@@ -210,13 +251,13 @@ export default function WorkoutPage() {
     window.addEventListener('popstate', onPopState)
 
     return () => {
+      initGenerationRef.current += 1
       store.setImmersive(false)
       releaseWakeLock()
       stopRestTimerWorker()
       window.removeEventListener('popstate', onPopState)
-      initRef.current = false
     }
-  }, [store])
+  }, [store, program, forceStart, initWorkout])
 
   useEffect(() => {
     if (!store.restTimer || store.restTimer.mode === 'idle') {
@@ -242,6 +283,7 @@ export default function WorkoutPage() {
       },
     })
     return () => stopRestTimerWorker()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- restart worker only when timer identity changes
   }, [
     store.restTimer?.startedAt,
     store.restTimer?.totalSec,
@@ -258,8 +300,9 @@ export default function WorkoutPage() {
 
   const persistState = async () => {
     const s = useWorkoutStore.getState()
+    if (!s.sessionId) return
     await saveActiveWorkout(program, {
-      sessionId: s.sessionId!,
+      sessionId: s.sessionId,
       currentSetIndex: s.currentSetIndex,
       setResults: s.setResults,
       restTimerJson: s.restTimer ? JSON.stringify(s.restTimer) : null,
@@ -267,55 +310,61 @@ export default function WorkoutPage() {
   }
 
   const handleDone = async () => {
-    if (!currentTarget || !day || !progress || !sessionMeta || finishing) return
+    if (!currentTarget || !day || !progress || !sessionMeta || finishingRef.current) return
+    finishingRef.current = true
 
-    if (cycle?.variant === 'negative' && currentTarget.kind === 'exact') {
-      setNegativeCountdown(4)
-    }
+    try {
+      if (cycle?.variant === 'negative' && currentTarget.kind === 'exact') {
+        setNegativeCountdown(4)
+      }
 
-    const passed = validateSet(currentTarget, actual)
-    const result: SetResultDraft = {
-      setNumber: store.currentSetIndex + 1,
-      target: currentTarget,
-      actual,
-      passed,
-    }
+      const passed = validateSet(currentTarget, actual)
+      const result: SetResultDraft = {
+        setNumber: store.currentSetIndex + 1,
+        target: currentTarget,
+        actual,
+        passed,
+      }
 
-    if (!passed) {
-      onSetFailed()
-      setFailedIndex(store.currentSetIndex)
-      if (!store.failedRetryUsed) {
-        store.setFailedRetryUsed(true)
+      if (!passed) {
+        onSetFailed()
+        setFailedIndex(store.currentSetIndex)
+        if (!store.failedRetryUsed) {
+          store.setFailedRetryUsed(true)
+          finishingRef.current = false
+          return
+        }
+        await finalizeFailedDay(sessionMeta.id, program, [...store.setResults, result])
+        store.reset()
+        navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`)
         return
       }
-      setFinishing(true)
-      await finalizeFailedDay(sessionMeta.id, program, [...store.setResults, result])
-      store.reset()
-      navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`)
-      return
+
+      onSetComplete()
+      setPulseFlash(true)
+      window.setTimeout(() => setPulseFlash(false), 400)
+      const nextSetIndex = store.currentSetIndex + 1
+      const allResults = [...store.setResults, result]
+      store.completeSet(result)
+      setFailedIndex(undefined)
+      await persistState()
+
+      if (nextSetIndex >= day.sets.length) {
+        await finalizeSuccessfulDay(sessionMeta, allResults)
+        store.reset()
+        navigate(`/workout/${program}/summary?session=${sessionMeta.id}`)
+        return
+      }
+
+      store.setRestTimer(createRestTimer(day.restBetweenSetsSec))
+      setActual(getTargetReps(day.sets[nextSetIndex]))
+      await loadPreviousActual(nextSetIndex, progress.cycleAttempt, progress.currentDay)
+      await persistState()
+      finishingRef.current = false
+    } catch {
+      finishingRef.current = false
+      setInitError('Nie udało się zapisać serii. Spróbuj ponownie.')
     }
-
-    onSetComplete()
-    setPulseFlash(true)
-    window.setTimeout(() => setPulseFlash(false), 400)
-    const nextSetIndex = store.currentSetIndex + 1
-    const allResults = [...store.setResults, result]
-    store.completeSet(result)
-    setFailedIndex(undefined)
-    await persistState()
-
-    if (nextSetIndex >= day.sets.length) {
-      setFinishing(true)
-      await finalizeSuccessfulDay(sessionMeta, allResults)
-      store.reset()
-      navigate(`/workout/${program}/summary?session=${sessionMeta.id}`)
-      return
-    }
-
-    store.setRestTimer(createRestTimer(day.restBetweenSetsSec))
-    setActual(getTargetReps(day.sets[nextSetIndex]))
-    await loadPreviousActual(nextSetIndex, progress.cycleAttempt, progress.currentDay)
-    await persistState()
   }
 
   if (!initialized) {
@@ -329,7 +378,11 @@ export default function WorkoutPage() {
   if (initError) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <ErrorBanner message={initError} onRetry={() => { initRef.current = false; void initWorkout() }} />
+        <ErrorBanner message={initError} onRetry={() => {
+          const generation = ++initGenerationRef.current
+          setInitialized(false)
+          void initWorkout(generation)
+        }} />
         <Button variant="ghost" className="mt-4" fullWidth onClick={() => navigate('/')}>{pl.backHome}</Button>
       </div>
     )
@@ -360,8 +413,9 @@ export default function WorkoutPage() {
         onConfirm={() => {
           staleConfirmedRef.current = true
           setShowStaleConfirm(false)
-          initRef.current = false
-          void initWorkout()
+          const generation = ++initGenerationRef.current
+          setInitialized(false)
+          void initWorkout(generation)
         }}
         onCancel={async () => {
           await clearActiveWorkout(program)
@@ -373,16 +427,16 @@ export default function WorkoutPage() {
   }
 
   if (restBlocked && progress) {
-    const daysLeft = progress.nextWorkoutAfter
-      ? Math.max(0, Math.ceil((new Date(progress.nextWorkoutAfter).getTime() - Date.now()) / 86400000))
-      : 0
+    const daysLeft = daysUntilWorkout(
+      progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
+    )
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
         <h1 className="sr-text-h1">{pl.restBlocked(pl.restIn(daysLeft))}</h1>
         <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
           Program zaleca minimum {daysLeft} {daysLeft === 1 ? 'dzień' : 'dni'} przerwy po ostatnim treningu.
         </p>
-        <Button className="mt-6" fullWidth onClick={() => navigate(`/workout/${program}?force=1`)}>
+        <Button className="mt-6" fullWidth onClick={() => navigate(`/workout/${program}?force=1`, { replace: true })}>
           {pl.trainAnyway}
         </Button>
         <Button variant="ghost" className="mt-2" fullWidth onClick={() => navigate('/')}>
@@ -426,7 +480,11 @@ export default function WorkoutPage() {
       pulseFlash={pulseFlash}
       nextLabel={nextLabel}
       checklistRef={checklistRef}
-      onBack={() => { if (window.confirm(pl.leaveWorkoutConfirm)) navigate('/') }}
+      onBack={() => {
+        if (window.confirm(pl.leaveWorkoutConfirm)) {
+          void persistState().finally(() => navigate('/'))
+        }
+      }}
       onToggleMenu={() => setShowMenu((v) => !v)}
       onShowPlan={() => { setShowPlanSheet(true); setShowMenu(false) }}
       onShowTechnique={() => { navigate('/setup/technique'); setShowMenu(false) }}
@@ -436,11 +494,16 @@ export default function WorkoutPage() {
       onDone={() => void handleDone()}
       onRetry={() => { setFailedIndex(undefined); store.setFailedRetryUsed(false) }}
       onFinishDayEarly={() => void (async () => {
-        if (!sessionMeta || finishing) return
-        setFinishing(true)
-        await finalizeFailedDay(sessionMeta.id, program, store.setResults)
-        store.reset()
-        navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`)
+        if (!sessionMeta || finishingRef.current) return
+        finishingRef.current = true
+        try {
+          await finalizeFailedDay(sessionMeta.id, program, store.setResults)
+          store.reset()
+          navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`)
+        } catch {
+          finishingRef.current = false
+          setInitError('Nie udało się zakończyć dnia. Spróbuj ponownie.')
+        }
       })()}
       onExpandTimer={() => store.setRestTimer({ ...store.restTimer!, mode: 'expanded' })}
       onAddRest15={() => store.setRestTimer(addRestTime(useWorkoutStore.getState().restTimer!, 15))}

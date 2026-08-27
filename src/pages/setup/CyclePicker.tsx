@@ -40,7 +40,7 @@ export default function CyclePicker() {
       const opts = getRetestOptions(program, pendingTest.reps, currentCycleId)
       setSelectedId(opts.recommended.id)
     }
-  }, [isRetest, currentCycleId, program, pendingTest?.reps])
+  }, [isRetest, currentCycleId, program, pendingTest])
 
   useEffect(() => {
     if (!pendingTest || pendingTest.program !== program) {
@@ -92,6 +92,7 @@ export default function CyclePicker() {
       program,
       cycleId: selected.id,
       cycleName: selected.nameShort,
+      reps: pendingTest.reps,
       celebration: celebration ?? undefined,
     })
     navigate(`/setup/start/${program}`)

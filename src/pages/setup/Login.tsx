@@ -6,6 +6,7 @@ import { pullRemoteData, syncAllLocalData } from '@/lib/sync'
 import { useAppStore } from '@/stores/app-store'
 import { getProgramProgress } from '@/lib/program-service'
 import { isWorkoutAvailable } from '@/lib/progress-engine'
+import { showToast } from '@/stores/toast-store'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -53,6 +54,7 @@ export default function Login() {
       }
     })
     return () => subscription.unsubscribe()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auth listener once per mount
   }, [navigate])
 
   const skip = async () => {
@@ -65,9 +67,18 @@ export default function Login() {
       return
     }
     setLoading(true)
-    const { error } = await supabase.auth.signInWithOtp({ email })
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    })
     setLoading(false)
-    if (!error) setSent(true)
+    if (error) {
+      showToast(error.message || 'Nie udało się wysłać linku. Spróbuj ponownie.', 'error')
+      return
+    }
+    setSent(true)
   }
 
   return (

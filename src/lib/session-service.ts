@@ -43,6 +43,9 @@ export async function finalizeSuccessfulDay(
   session: LocalWorkoutSession,
   setResults: SetResultDraft[],
 ): Promise<void> {
+  const existing = await db.workoutSessions.get(session.id)
+  if (existing?.status === 'completed' && existing.passed === true) return
+
   const totalReps = setResults.reduce((s, r) => s + r.actual, 0)
   const updated: LocalWorkoutSession = {
     ...session,
