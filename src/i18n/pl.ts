@@ -4,6 +4,14 @@ export const pl = {
 
   // Dashboard
   ready: 'Gotowy do treningu',
+  dashboardSubtitle: 'Wybierz program i zacznij dzień',
+  statusInProgress: 'W toku',
+  continueSession: 'Kontynuuj sesję',
+  resumeDespiteRestHint:
+    'Masz niedokończony trening — możesz go dokończyć mimo zalecanej przerwy.',
+  noProgramsTitle: 'Brak włączonych programów',
+  noProgramsDesc: 'Dodaj program w profilu, aby zacząć trenować.',
+  goToProfile: 'Przejdź do profilu',
   rest: 'Przerwa',
   test: 'Wykonaj test',
   restart: 'Restart cyklu',

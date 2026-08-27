@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/stores/app-store'
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
+import { Card, Badge } from '@/components/ui/Card'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
@@ -12,14 +12,22 @@ import { requestWorkoutReminderPermission, scheduleDailyReminder, cancelReminder
 import {
   getProgramProgress,
   getActiveWorkout,
+  getStatusLabel,
+  getStatusTone,
   setProgramPaused,
 } from '@/lib/program-service'
 import { beginProgramSetup } from '@/lib/setup-flow'
 import { clearAllLocalData } from '@/lib/local-data'
 import { getDeadLetterCount, retryDeadLetterItems } from '@/lib/sync'
+import { getCycleById } from '@/data/plans'
 import { showToast } from '@/stores/toast-store'
 import type { LocalProgramProgress } from '@/lib/db'
 import type { Program } from '@/data/plans/types'
+
+const programAccent: Record<Program, string> = {
+  pushups: 'var(--sr-pushups-accent)',
+  pullups: 'var(--sr-pullups-accent)',
+}
 
 function applyTheme(theme: 'system' | 'dark' | 'light') {
   if (theme === 'system') {
@@ -32,6 +40,118 @@ function applyTheme(theme: 'system' | 'dark' | 'light') {
 function applyHighContrast(on: boolean) {
   if (on) document.documentElement.setAttribute('data-high-contrast', 'true')
   else document.documentElement.removeAttribute('data-high-contrast')
+}
+
+function ProgramSettingsBlock({
+  program,
+  progress,
+  canDisable,
+  onChangeLevel,
+  onRetest,
+  onTogglePause,
+  onDisable,
+}: {
+  program: Program
+  progress?: LocalProgramProgress
+  canDisable: boolean
+  onChangeLevel: () => void
+  onRetest: () => void
+  onTogglePause: () => void
+  onDisable: () => void
+}) {
+  const label = program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+  const cycle = progress ? getCycleById(progress.cycleId) : undefined
+  const paused = progress?.status === 'paused'
+  const statusLabel = progress ? getStatusLabel(progress) : null
+  const statusTone = progress ? getStatusTone(progress) : 'info'
+  const badgeVariant =
+    statusTone === 'success'
+      ? 'success'
+      : statusTone === 'warning'
+        ? 'warning'
+        : statusTone === 'error'
+          ? 'error'
+          : 'info'
+
+  return (
+    <section
+      className="overflow-hidden rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]"
+      aria-labelledby={`program-settings-${program}`}
+    >
+      <div
+        className="border-l-[3px] px-4 py-3"
+        style={{ borderLeftColor: programAccent[program] }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3
+              id={`program-settings-${program}`}
+              className="truncate text-base font-semibold text-[var(--sr-text-primary)]"
+            >
+              {label}
+            </h3>
+            {cycle ? (
+              <p className="mt-0.5 text-sm text-[var(--sr-text-secondary)]">
+                {cycle.nameShort}
+                {progress ? ` · ${pl.dayOfTotal(progress.currentDay, cycle.days.length)}` : ''}
+                {progress && progress.cycleAttempt > 1
+                  ? ` · ${pl.attemptLabel(progress.cycleAttempt)}`
+                  : ''}
+              </p>
+            ) : (
+              <p className="mt-0.5 text-sm text-[var(--sr-text-muted)]">{pl.notConfigured}</p>
+            )}
+          </div>
+          {statusLabel && <Badge variant={badgeVariant}>{statusLabel}</Badge>}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] p-3">
+        <Button
+          variant="secondary"
+          size="md"
+          fullWidth
+          className="justify-start px-4 font-medium"
+          onClick={onChangeLevel}
+        >
+          {pl.menuChangeLevel}
+        </Button>
+        <Button
+          variant="secondary"
+          size="md"
+          fullWidth
+          className="justify-start px-4 font-medium"
+          onClick={onRetest}
+        >
+          {pl.menuRetest}
+        </Button>
+        {progress && (
+          <Button
+            variant="ghost"
+            size="md"
+            fullWidth
+            className="justify-start px-4 text-[var(--sr-text-secondary)]"
+            onClick={onTogglePause}
+          >
+            {paused ? pl.resumeProgram : pl.pauseProgram}
+          </Button>
+        )}
+        {canDisable && (
+          <div className="mt-1 border-t border-[var(--sr-border-subtle)] pt-2">
+            <Button
+              variant="ghost"
+              size="md"
+              fullWidth
+              className="justify-start px-4 text-[var(--sr-error)] hover:text-[var(--sr-error)]"
+              onClick={onDisable}
+            >
+              {pl.disableProgram}
+            </Button>
+          </div>
+        )}
+      </div>
+    </section>
+  )
 }
 
 export default function ProfilePage() {
@@ -230,51 +350,39 @@ export default function ProfilePage() {
 
       <Card className="mt-4 sr-card">
         <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.programs}</p>
-        <div className="mt-2 flex flex-col gap-2">
-          {settings.enabledPrograms.map((program) => {
-            const paused = progressByProgram[program]?.status === 'paused'
-            const label = program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
-            return (
-              <div key={program} className="border-b border-[var(--sr-border-subtle)] pb-3 last:border-0">
-                <p className="mb-1 text-sm font-medium">{label}</p>
-                <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => void changeLevel(program)}>
-                  {program === 'pushups' ? pl.changeLevelPushups : pl.changeLevelPullups}
-                </Button>
-                <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => void retest(program)}>
-                  {program === 'pushups' ? pl.retestPushups : pl.retestPullups}
-                </Button>
-                {progressByProgram[program] && (
-                  <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => void togglePause(program)}>
-                    {paused ? pl.resumeProgram : pl.pauseProgram}
-                  </Button>
-                )}
-                {settings.enabledPrograms.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-11 justify-start px-0 text-[var(--sr-error)]"
-                    onClick={() => setPendingDisable(program)}
-                  >
-                    {pl.disableProgram}
-                  </Button>
-                )}
-              </div>
-            )
-          })}
+        <div className="mt-4 flex flex-col gap-4">
+          {settings.enabledPrograms.map((program) => (
+            <ProgramSettingsBlock
+              key={program}
+              program={program}
+              progress={progressByProgram[program]}
+              canDisable={settings.enabledPrograms.length > 1}
+              onChangeLevel={() => void changeLevel(program)}
+              onRetest={() => void retest(program)}
+              onTogglePause={() => void togglePause(program)}
+              onDisable={() => setPendingDisable(program)}
+            />
+          ))}
+
           {missingPrograms.length > 0 && (
-            <div className="mt-2 border-t border-[var(--sr-border-subtle)] pt-3">
-              <p className="mb-2 text-xs text-[var(--sr-text-muted)]">{pl.addProgram}</p>
-              {missingPrograms.map((p) => (
-                <Button
-                  key={p}
-                  variant="secondary"
-                  size="sm"
-                  className="mb-2 w-full"
-                  onClick={() => void addProgram(p)}
-                >
-                  {p === 'pushups' ? pl.addProgramPushups : pl.addProgramPullups}
-                </Button>
-              ))}
+            <div className="rounded-[var(--sr-radius-md)] border border-dashed border-[var(--sr-border-strong)] bg-[var(--sr-bg-surface)]/60 p-3">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
+                {pl.addProgram}
+              </p>
+              <div className="flex flex-col gap-2">
+                {missingPrograms.map((p) => (
+                  <Button
+                    key={p}
+                    variant="secondary"
+                    size="md"
+                    fullWidth
+                    className="justify-start px-4"
+                    onClick={() => void addProgram(p)}
+                  >
+                    {p === 'pushups' ? pl.addProgramPushups : pl.addProgramPullups}
+                  </Button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -283,12 +391,12 @@ export default function ProfilePage() {
       <Card className="mt-4 sr-card">
         <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.about}</p>
         {deadLetter > 0 && (
-          <div className="mt-3">
+          <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/40 bg-[var(--sr-warning)]/10 p-3">
             <p className="text-sm text-[var(--sr-warning)]">{pl.syncDeadLetter(deadLetter)}</p>
             <Button
               variant="secondary"
               size="sm"
-              className="mt-2"
+              className="mt-3"
               fullWidth
               onClick={async () => {
                 const { ok } = await retryDeadLetterItems()
@@ -300,11 +408,19 @@ export default function ProfilePage() {
             </Button>
           </div>
         )}
-        <Button variant="ghost" size="sm" className="mt-3 min-h-11 justify-start px-0 text-[var(--sr-error)]" onClick={() => setShowClearConfirm(true)}>
-          {pl.clearLocalData}
-        </Button>
-        <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">{pl.healthDisclaimer}</p>
-        <p className="mt-3 text-xs">
+        <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-3">
+          <Button
+            variant="ghost"
+            size="md"
+            fullWidth
+            className="justify-start px-0 text-[var(--sr-error)] hover:text-[var(--sr-error)]"
+            onClick={() => setShowClearConfirm(true)}
+          >
+            {pl.clearLocalData}
+          </Button>
+        </div>
+        <p className="mt-4 text-sm leading-relaxed text-[var(--sr-text-secondary)]">{pl.healthDisclaimer}</p>
+        <p className="mt-3 text-xs text-[var(--sr-text-muted)]">
           <a href="https://100pompek.pl" className="text-[var(--sr-brand-primary)]" target="_blank" rel="noreferrer">100pompek.pl</a>
           {' · '}
           <a href="https://podciaganie.pl" className="text-[var(--sr-brand-primary)]" target="_blank" rel="noreferrer">podciaganie.pl</a>

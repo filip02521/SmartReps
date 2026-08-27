@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MoreVertical } from 'lucide-react'
-import { LogoFull } from '@/components/brand/Logo'
+import { LogoFull, LogoMark } from '@/components/brand/Logo'
 import { Card, Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { Sheet } from '@/components/ui/Sheet'
 import { TrendIndicator } from '@/components/ui/TrendIndicator'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
-import { SkeletonCard, ErrorBanner, PageLoader } from '@/components/ux/Feedback'
+import {
+  SkeletonCard,
+  ErrorBanner,
+  PageLoader,
+  FeedbackBanner,
+  EmptyState,
+} from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
@@ -15,6 +22,7 @@ import {
   getStatusLabel,
   getStatusTone,
   getActiveWorkout,
+  setProgramPaused,
 } from '@/lib/program-service'
 import { abandonAllInProgress } from '@/lib/session-service'
 import { beginProgramSetup, drainIncompleteSetup } from '@/lib/setup-flow'
@@ -31,12 +39,23 @@ const programMeta: Record<Program, { label: string; accent: string }> = {
   pullups: { label: pl.pullupsProgram, accent: 'var(--sr-pullups-accent)' },
 }
 
+function toneToBadge(
+  tone: ReturnType<typeof getStatusTone>,
+): 'success' | 'warning' | 'error' | 'info' {
+  if (tone === 'success') return 'success'
+  if (tone === 'warning') return 'warning'
+  if (tone === 'error') return 'error'
+  return 'info'
+}
+
 function ProgramCard({
   program,
   reloadKey,
+  onReload,
 }: {
   program: Program
   reloadKey: number
+  onReload: () => void
 }) {
   const navigate = useNavigate()
   const [progress, setProgress] = useState<LocalProgramProgress | undefined>()
@@ -53,6 +72,7 @@ function ProgramCard({
     async function load() {
       setLoading(true)
       setLoadError(null)
+      setTrainDespiteRest(false)
       try {
         const prog = await getProgramProgress(program)
         setProgress(prog)
@@ -81,22 +101,25 @@ function ProgramCard({
     void load()
   }, [program, reloadKey])
 
-  if (loading) return <SkeletonCard className="h-40" />
+  if (loading) {
+    return <SkeletonCard className="min-h-[17rem]" />
+  }
 
   if (loadError) {
     return (
-      <Card className="border-l-4 sr-card" style={{ borderLeftColor: programMeta[program].accent }}>
-        <ErrorBanner message={loadError} onRetry={() => window.location.reload()} />
+      <Card className="border-l-4" style={{ borderLeftColor: programMeta[program].accent }}>
+        <p className="mb-3 font-semibold text-[var(--sr-text-primary)]">{programMeta[program].label}</p>
+        <ErrorBanner message={loadError} onRetry={onReload} />
       </Card>
     )
   }
 
   if (!progress) {
     return (
-      <Card className="border-l-4 sr-card" style={{ borderLeftColor: programMeta[program].accent }}>
-        <p className="font-semibold">{programMeta[program].label}</p>
+      <Card className="border-l-4" style={{ borderLeftColor: programMeta[program].accent }}>
+        <p className="font-semibold text-[var(--sr-text-primary)]">{programMeta[program].label}</p>
         <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.notConfigured}</p>
-        <Button className="mt-4" fullWidth onClick={() => navigate(`/setup/test/${program}`)}>
+        <Button className="mt-5" size="touch" fullWidth onClick={() => navigate(`/setup/test/${program}`)}>
           {pl.startSetup}
         </Button>
       </Card>
@@ -104,161 +127,225 @@ function ProgramCard({
   }
 
   const cycle = getCycleById(progress.cycleId)
-  const status = getStatusLabel(progress)
-  const badgeVariant = getStatusTone(progress)
   const available = isWorkoutAvailable(
     progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
   )
   const daysLeft = daysUntilWorkout(
     progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
   )
+  const isPaused = progress.status === 'paused'
+  const isTestPending = progress.status === 'test_pending'
+  const resting = !available && !isPaused && !isTestPending
+  const hasResume = !!resume && !isTestPending
+
+  const displayBadge = hasResume
+    ? { label: pl.statusInProgress, variant: 'info' as const }
+    : { label: getStatusLabel(progress), variant: toneToBadge(getStatusTone(progress)) }
+
   const canStart =
-    progress.status === 'paused' || progress.status === 'test_pending'
+    isPaused || isTestPending
       ? false
       : available || trainDespiteRest
 
+  const waitingRestDays = Math.max(1, daysLeft)
+
   return (
-    <Card id={`program-${program}`} className="border-l-4 sr-card scroll-mt-24" style={{ borderLeftColor: programMeta[program].accent }}>
-      <div className="mb-3 flex items-center justify-between">
-        <p className="font-semibold">{programMeta[program].label}</p>
-        <div className="flex items-center gap-2">
-          <Badge variant={badgeVariant}>{status}</Badge>
-          <button
-            type="button"
-            aria-label={pl.menuProgram}
-            aria-expanded={showMenu}
-            className="flex min-h-11 min-w-11 items-center justify-center"
-            onClick={() => setShowMenu((v) => !v)}
-          >
-            <MoreVertical size={18} className="text-[var(--sr-text-muted)]" />
-          </button>
+    <Card
+      id={`program-${program}`}
+      className="scroll-mt-24 border-l-4"
+      style={{ borderLeftColor: programMeta[program].accent }}
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-lg font-semibold leading-tight text-[var(--sr-text-primary)]">
+            {programMeta[program].label}
+          </h2>
+          <div className="mt-2">
+            <Badge variant={displayBadge.variant}>{displayBadge.label}</Badge>
+          </div>
         </div>
+        <button
+          type="button"
+          aria-label={pl.menuProgram}
+          aria-haspopup="dialog"
+          aria-expanded={showMenu}
+          className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] hover:bg-[var(--sr-bg-surface)]"
+          onClick={() => setShowMenu(true)}
+        >
+          <MoreVertical size={20} />
+        </button>
       </div>
 
-      {showMenu && (
-        <>
-          <button type="button" className="fixed inset-0 z-10" aria-label={pl.close} onClick={() => setShowMenu(false)} />
-          <div className="relative z-20 mb-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] py-1 text-sm">
-            <button
-              type="button"
-              className="block min-h-11 w-full px-3 py-2 text-left"
-              onClick={() => {
-                setShowMenu(false)
-                if (resume) setPendingSetup('level')
-                else void beginProgramSetup(navigate, program)
-              }}
-            >
-              {pl.menuChangeLevel}
-            </button>
-            <button type="button" className="block min-h-11 w-full px-3 py-2 text-left" onClick={() => { setShowMenu(false); navigate('/progress') }}>
-              {pl.menuHistory}
-            </button>
-            <button
-              type="button"
-              className="block min-h-11 w-full px-3 py-2 text-left"
-              onClick={() => {
-                setShowMenu(false)
-                if (resume) setPendingSetup('retest')
-                else void beginProgramSetup(navigate, program, { retest: true })
-              }}
-            >
-              {pl.menuRetest}
-            </button>
-          </div>
-        </>
-      )}
+      <Sheet open={showMenu} onClose={() => setShowMenu(false)} title={pl.menuProgram}>
+        <div className="flex flex-col gap-1 pb-2">
+          <Button
+            variant="ghost"
+            fullWidth
+            className="justify-start px-3"
+            onClick={() => {
+              setShowMenu(false)
+              if (resume) setPendingSetup('level')
+              else void beginProgramSetup(navigate, program)
+            }}
+          >
+            {pl.menuChangeLevel}
+          </Button>
+          <Button
+            variant="ghost"
+            fullWidth
+            className="justify-start px-3"
+            onClick={() => {
+              setShowMenu(false)
+              navigate('/progress')
+            }}
+          >
+            {pl.menuHistory}
+          </Button>
+          <Button
+            variant="ghost"
+            fullWidth
+            className="justify-start px-3 text-[var(--sr-error)] hover:text-[var(--sr-error)]"
+            onClick={() => {
+              setShowMenu(false)
+              if (resume) setPendingSetup('retest')
+              else void beginProgramSetup(navigate, program, { retest: true })
+            }}
+          >
+            {pl.menuRetest}
+          </Button>
+        </div>
+      </Sheet>
 
       {cycle && (
-        <>
-          <div className="mb-2 flex gap-1" role="list" aria-label={pl.cycleDays}>
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+              {cycle.nameShort}
+            </p>
+            <p className="shrink-0 text-xs font-medium tabular-nums text-[var(--sr-text-muted)]">
+              {isTestPending
+                ? pl.cycleDoneDays(cycle.days.length, cycle.days.length)
+                : pl.dayOfTotal(progress.currentDay, cycle.days.length)}
+              {' · '}
+              {pl.attemptLabel(progress.cycleAttempt)}
+            </p>
+          </div>
+
+          <div className="flex gap-1.5" role="list" aria-label={pl.cycleDays}>
             {cycle.days.map((d) => {
               const dayStatus = getCycleDayStatus(progress, d.dayNumber, cycle.days.length)
               return (
-              <div
-                key={d.dayNumber}
-                role="listitem"
-                aria-label={`${pl.dayOfTotal(d.dayNumber, cycle.days.length)} — ${dayStatus}`}
-                className="h-1.5 flex-1 rounded-full"
-                style={{
-                  background:
-                    dayStatus === 'completed'
-                      ? 'var(--sr-success)'
-                      : dayStatus === 'current'
-                        ? 'var(--sr-brand-primary)'
-                        : 'var(--sr-bg-surface)',
-                }}
-              />
+                <div
+                  key={d.dayNumber}
+                  role="listitem"
+                  aria-label={`${pl.dayOfTotal(d.dayNumber, cycle.days.length)} — ${dayStatus}`}
+                  className="h-2.5 flex-1 rounded-full"
+                  style={{
+                    background:
+                      dayStatus === 'completed'
+                        ? 'var(--sr-success)'
+                        : dayStatus === 'current'
+                          ? 'var(--sr-brand-primary)'
+                          : 'color-mix(in srgb, var(--sr-text-muted) 22%, transparent)',
+                  }}
+                />
               )
             })}
           </div>
-          <p className="text-sm text-[var(--sr-text-secondary)]">
-            {cycle.nameShort} ·{' '}
-            {progress.status === 'test_pending'
-              ? pl.cycleDoneDays(cycle.days.length, cycle.days.length)
-              : pl.dayOfTotal(progress.currentDay, cycle.days.length)}{' '}
-            · {pl.attemptLabel(progress.cycleAttempt)}
-          </p>
 
           {stats && (
-            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--sr-text-secondary)]">
-              <div>
-                <p className="text-[var(--sr-text-muted)]">{pl.lastWorkout}</p>
-                <p>{stats.lastSession ? pl.dayDoneCheck(stats.lastSession.dayNumber) : '—'}</p>
-              </div>
-              <div>
-                <p className="text-[var(--sr-text-muted)]">{pl.nextWorkout}</p>
-                <p>{stats.nextWorkoutLabel}</p>
-              </div>
-              {stats.lastTotalReps !== null && (
-                <p className="col-span-2">{pl.totalRepsLastSession(stats.lastTotalReps)}</p>
-              )}
-              {stats.maxLastSetTrend.delta !== null && (
-                <p className="col-span-2">
-                  {pl.maxSetTrend}: {stats.maxLastSetTrend.current}{' '}
-                  <TrendIndicator delta={stats.maxLastSetTrend.delta} />
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
+                  {pl.lastWorkout}
                 </p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
+                  {stats.lastSession ? pl.dayDoneCheck(stats.lastSession.dayNumber) : '—'}
+                </p>
+              </div>
+              <div className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
+                  {pl.nextWorkout}
+                </p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
+                  {stats.nextWorkoutLabel}
+                </p>
+              </div>
+              {(stats.lastTotalReps !== null || stats.maxLastSetTrend.delta !== null) && (
+                <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5 text-sm text-[var(--sr-text-secondary)]">
+                  {stats.lastTotalReps !== null && (
+                    <span>{pl.totalRepsLastSession(stats.lastTotalReps)}</span>
+                  )}
+                  {stats.maxLastSetTrend.delta !== null && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="text-[var(--sr-text-muted)]">{pl.maxSetTrend}</span>
+                      <span className="font-semibold tabular-nums text-[var(--sr-text-primary)]">
+                        {stats.maxLastSetTrend.current}
+                      </span>
+                      <TrendIndicator delta={stats.maxLastSetTrend.delta} />
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           )}
-
-          {!available && !trainDespiteRest && (
-            <p className="mt-2 text-sm font-medium text-[var(--sr-warning)]">
-              {pl.restBlocked(pl.restIn(daysLeft))}
-            </p>
-          )}
-
-          {program === 'pullups' && status === pl.statusRest && (
-            <div className="mt-2">
-              <p className="text-xs text-[var(--sr-text-muted)]">{pl.crossTraining}</p>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-1 min-h-11 px-0"
-                onClick={() => {
-                  const el = document.getElementById('program-pushups')
-                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                  el?.classList.add('ring-2', 'ring-[var(--sr-brand-primary)]', 'rounded-[var(--sr-radius-lg)]')
-                  window.setTimeout(() => {
-                    el?.classList.remove('ring-2', 'ring-[var(--sr-brand-primary)]', 'rounded-[var(--sr-radius-lg)]')
-                  }, 2000)
-                }}
-              >
-                {pl.crossTrainingCta}
-              </Button>
-            </div>
-          )}
-        </>
+        </div>
       )}
 
-      {resume && progress.status !== 'test_pending' && (
-        <>
-          {resume.stale && (
-            <p className="mt-3 rounded-[var(--sr-radius-md)] bg-[var(--sr-warning)]/15 p-3 text-sm text-[var(--sr-warning)]">
-              {pl.staleSession}
-            </p>
-          )}
-          <div className="mt-4 flex flex-col gap-2">
+      {/* Context banners */}
+      {hasResume && resting && (
+        <div className="mt-4">
+          <FeedbackBanner variant="info" message={pl.resumeDespiteRestHint} />
+        </div>
+      )}
+
+      {!hasResume && resting && !trainDespiteRest && (
+        <div className="mt-4 space-y-2">
+          <FeedbackBanner
+            variant="warning"
+            message={pl.restBlocked(pl.restIn(daysLeft))}
+          />
+          <p className="px-0.5 text-xs leading-relaxed text-[var(--sr-text-muted)]">
+            {pl.restGateHint(waitingRestDays)}
+          </p>
+        </div>
+      )}
+
+      {hasResume && resume?.stale && (
+        <div className="mt-4">
+          <FeedbackBanner variant="warning" message={pl.staleSession} />
+        </div>
+      )}
+
+      {program === 'pullups' && resting && !hasResume && (
+        <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3">
+          <p className="text-sm text-[var(--sr-text-secondary)]">{pl.crossTraining}</p>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="mt-2"
+            fullWidth
+            onClick={() => {
+              const el = document.getElementById('program-pushups')
+              el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              el?.classList.add('ring-2', 'ring-[var(--sr-brand-primary)]')
+              window.setTimeout(() => {
+                el?.classList.remove('ring-2', 'ring-[var(--sr-brand-primary)]')
+              }, 1800)
+            }}
+          >
+            {pl.crossTrainingCta}
+          </Button>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-4">
+        {hasResume && resume && (
+          <div className="flex flex-col gap-2">
             <Button
+              size="touch"
               fullWidth
               onClick={() => {
                 if (resume.stale) setShowStaleConfirm(true)
@@ -280,14 +367,77 @@ function ProgramCard({
               </Button>
             )}
           </div>
-        </>
-      )}
+        )}
+
+        {!hasResume && isPaused && (
+          <Button
+            variant="secondary"
+            size="touch"
+            fullWidth
+            onClick={async () => {
+              await setProgramPaused(program, false)
+              onReload()
+            }}
+          >
+            {pl.resumeProgram}
+          </Button>
+        )}
+
+        {!hasResume && isTestPending && (
+          <Button
+            size="touch"
+            fullWidth
+            onClick={() => void beginProgramSetup(navigate, program, { retest: true })}
+          >
+            {pl.test}
+          </Button>
+        )}
+
+        {!hasResume && !isPaused && !isTestPending && (
+          <div className="flex flex-col gap-2">
+            {resting && !trainDespiteRest ? (
+              <Button
+                variant="secondary"
+                size="touch"
+                fullWidth
+                onClick={() => setTrainDespiteRest(true)}
+              >
+                {pl.trainAnyway}
+              </Button>
+            ) : (
+              <Button
+                size="touch"
+                fullWidth
+                disabled={!canStart}
+                onClick={() => {
+                  navigate(
+                    trainDespiteRest || !available
+                      ? `/workout/${program}?force=1`
+                      : `/workout/${program}`,
+                  )
+                }}
+              >
+                {pl.startDay(progress.currentDay)}
+              </Button>
+            )}
+            {resting && trainDespiteRest && (
+              <Button
+                variant="ghost"
+                fullWidth
+                onClick={() => setTrainDespiteRest(false)}
+              >
+                {pl.cancel}
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
 
       {showStaleConfirm && resume && (
         <ConfirmSheet
           title={pl.staleSessionTitle}
           message={pl.staleSessionConfirm}
-          confirmLabel={pl.continueWorkout(resume.day, resume.set, resume.total)}
+          confirmLabel={pl.continueSession}
           cancelLabel={pl.startFresh}
           onConfirm={() => {
             setShowStaleConfirm(false)
@@ -315,30 +465,6 @@ function ProgramCard({
           onCancel={() => setPendingSetup(null)}
         />
       )}
-
-      {!resume && (
-        <>
-          {!canStart && progress.status !== 'test_pending' && (
-            <Button variant="secondary" className="mt-4" fullWidth onClick={() => setTrainDespiteRest(true)}>
-              {pl.trainAnyway}
-            </Button>
-          )}
-          <Button
-            className="mt-2"
-            fullWidth
-            disabled={!canStart && progress.status !== 'test_pending'}
-            onClick={() => {
-              if (progress.status === 'test_pending') {
-                void beginProgramSetup(navigate, program, { retest: true })
-              } else {
-                navigate(trainDespiteRest ? `/workout/${program}?force=1` : `/workout/${program}`)
-              }
-            }}
-          >
-            {progress.status === 'test_pending' ? pl.test : pl.startDay(progress.currentDay)}
-          </Button>
-        </>
-      )}
     </Card>
   )
 }
@@ -347,7 +473,7 @@ export default function Dashboard() {
   const settings = useAppStore((s) => s.settings)
   const navigate = useNavigate()
   const hydrated = useStoreHydrated()
-  const [resumeEpoch] = useState(0)
+  const [resumeEpoch, setResumeEpoch] = useState(0)
 
   useEffect(() => {
     if (!hydrated || !settings.onboardingComplete) return
@@ -373,16 +499,34 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 safe-top">
+    <div className="mx-auto max-w-lg px-4 py-6 safe-top safe-bottom">
       <header className="mb-6">
-        <LogoFull />
+        <LogoFull height={24} />
+        <h1 className="mt-4 sr-text-h1">{pl.navWorkout}</h1>
+        <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
+          {pl.dashboardSubtitle}
+        </p>
       </header>
 
-      <div className="flex flex-col gap-4">
-        {settings.enabledPrograms.map((p) => (
-          <ProgramCard key={`${p}-${resumeEpoch}`} program={p} reloadKey={resumeEpoch} />
-        ))}
-      </div>
+      {settings.enabledPrograms.length === 0 ? (
+        <EmptyState
+          icon={<LogoMark size={48} />}
+          title={pl.noProgramsTitle}
+          description={pl.noProgramsDesc}
+          action={{ label: pl.goToProfile, onClick: () => navigate('/profile') }}
+        />
+      ) : (
+        <div className="flex flex-col gap-5">
+          {settings.enabledPrograms.map((p) => (
+            <ProgramCard
+              key={`${p}-${resumeEpoch}`}
+              program={p}
+              reloadKey={resumeEpoch}
+              onReload={() => setResumeEpoch((n) => n + 1)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
