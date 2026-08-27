@@ -53,7 +53,7 @@ const initialState = {
   immersive: false,
 }
 
-export const useWorkoutStore = create<WorkoutStore>((set) => ({
+export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   ...initialState,
 
   startSession: (params) =>
@@ -77,6 +77,9 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
   setRestTimer: (restTimer) => set({ restTimer }),
   setCurrentSetIndex: (currentSetIndex) => set({ currentSetIndex }),
   setFailedRetryUsed: (failedRetryUsed) => set({ failedRetryUsed }),
-  setImmersive: (immersive) => set({ immersive }),
+  setImmersive: (immersive) => {
+    if (get().immersive === immersive) return
+    set({ immersive })
+  },
   reset: () => set(initialState),
 }))

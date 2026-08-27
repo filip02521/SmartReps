@@ -83,6 +83,7 @@ export default function WorkoutPage() {
     setInitError(null)
     setRestBlocked(false)
     setTestPendingBlocked(false)
+    const workout = useWorkoutStore.getState()
 
     try {
       const prog = await getProgramProgress(program)
@@ -166,7 +167,7 @@ export default function WorkoutPage() {
             restTimer = null
           }
         }
-        store.resumeSession({
+        workout.resumeSession({
           sessionId: active.sessionId,
           program,
           cycleId: prog.cycleId,
@@ -200,7 +201,7 @@ export default function WorkoutPage() {
           startedAt: new Date().toISOString(),
           setResults: [],
         }
-        store.startSession({
+        workout.startSession({
           sessionId,
           program,
           cycleId: prog.cycleId,
@@ -233,22 +234,22 @@ export default function WorkoutPage() {
       setInitError(pl.errorStartWorkout)
       setInitialized(true)
     }
-  }, [program, navigate, store, settings.hasSeenWorkoutHint, setSettings, forceStart, loadPreviousActual])
+  }, [program, navigate, settings.hasSeenWorkoutHint, setSettings, forceStart, loadPreviousActual])
 
   useEffect(() => {
     const generation = ++initGenerationRef.current
     finishingRef.current = false
     setInitialized(false)
     void initWorkout(generation)
-    store.setImmersive(true)
+    useWorkoutStore.getState().setImmersive(true)
 
     return () => {
       initGenerationRef.current += 1
-      store.setImmersive(false)
+      useWorkoutStore.getState().setImmersive(false)
       releaseWakeLock()
       stopRestTimerWorker()
     }
-  }, [store, program, forceStart, initWorkout])
+  }, [program, forceStart, initWorkout])
 
   useEffect(() => {
     if (!store.restTimer || store.restTimer.mode === 'idle') {
