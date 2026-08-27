@@ -2,21 +2,12 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { allCycles } from '@/data/plans'
 import { Card } from '@/components/ui/Card'
-import { ErrorBanner, SkeletonCard } from '@/components/ux/Feedback'
+import { ErrorBanner } from '@/components/ux/Feedback'
 import { formatSetTarget } from '@/lib/progress-engine'
 import { pl } from '@/i18n/pl'
 
 export default function PlansPage() {
   const [openId, setOpenId] = useState<string | null>(null)
-  const [ready] = useState(true)
-
-  if (!ready) {
-    return (
-      <div className="mx-auto max-w-lg px-4 py-6 safe-top">
-        <SkeletonCard className="h-48" />
-      </div>
-    )
-  }
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 safe-top">

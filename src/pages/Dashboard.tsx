@@ -316,6 +316,12 @@ export default function Dashboard() {
   const [resumeByProgram, setResumeByProgram] = useState<
     Partial<Record<Program, { day: number; set: number; total: number; stale?: boolean }>>
   >({})
+  const [globalStale, setGlobalStale] = useState<{
+    program: Program
+    day: number
+    set: number
+    total: number
+  } | null>(null)
 
   const handleGlobalResume = useCallback((info: {
     program: Program
@@ -374,12 +380,51 @@ export default function Dashboard() {
           {resume.stale && (
             <p className="mt-1 text-xs text-[var(--sr-warning)]">{pl.staleSession}</p>
           )}
-          <Button className="mt-3" size="sm" fullWidth onClick={() => navigate(`/workout/${prog}`)}>
+          <Button
+            className="mt-3"
+            size="sm"
+            fullWidth
+            onClick={() => {
+              if (resume.stale) {
+                setGlobalStale({
+                  program: programKey,
+                  day: resume.day,
+                  set: resume.set,
+                  total: resume.total,
+                })
+              } else {
+                navigate(`/workout/${prog}`)
+              }
+            }}
+          >
             {pl.continueWorkout(resume.day, resume.set, resume.total)}
           </Button>
         </Card>
         )
       })}
+
+      {globalStale && (
+        <ConfirmSheet
+          title={pl.staleSessionTitle}
+          message={pl.staleSessionConfirm}
+          confirmLabel={pl.continueWorkout(globalStale.day, globalStale.set, globalStale.total)}
+          cancelLabel={pl.startFresh}
+          onConfirm={() => {
+            const p = globalStale.program
+            setGlobalStale(null)
+            navigate(`/workout/${p}`)
+          }}
+          onCancel={async () => {
+            await clearActiveWorkout(globalStale.program)
+            setResumeByProgram((prev) => {
+              const next = { ...prev }
+              delete next[globalStale.program]
+              return next
+            })
+            setGlobalStale(null)
+          }}
+        />
+      )}
 
       <div className="flex flex-col gap-4">
         {settings.enabledPrograms.map((p) => (

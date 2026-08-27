@@ -487,7 +487,12 @@ export default function WorkoutPage() {
       }}
       onToggleMenu={() => setShowMenu((v) => !v)}
       onShowPlan={() => { setShowPlanSheet(true); setShowMenu(false) }}
-      onShowTechnique={() => { navigate('/setup/technique'); setShowMenu(false) }}
+      onShowTechnique={() => {
+        void persistState().finally(() => {
+          navigate('/setup/technique?from=workout')
+          setShowMenu(false)
+        })
+      }}
       onRequestCancel={() => { setShowCancelConfirm(true); setShowMenu(false) }}
       onDismissHint={() => setShowHint(false)}
       onActualChange={setActual}

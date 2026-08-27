@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState, type MouseEvent, type TouchEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -27,8 +27,14 @@ export function HealthDisclaimer({ onAccept }: { onAccept: () => void }) {
   )
 }
 
+/** Hold-to-repeat without pairing with onClick (avoids double-fire on tap). */
 function useRepeatPress(onStep: () => void) {
-  const start = () => {
+  const steppingRef = useRef(false)
+
+  const start = (e: MouseEvent | TouchEvent) => {
+    e.preventDefault()
+    if (steppingRef.current) return
+    steppingRef.current = true
     onStep()
     let delay = 300
     let timer: number | null = null
@@ -41,12 +47,14 @@ function useRepeatPress(onStep: () => void) {
     const stop = () => {
       if (timer != null) window.clearTimeout(timer)
       timer = null
+      steppingRef.current = false
     }
     window.addEventListener('mouseup', stop, { once: true })
     window.addEventListener('touchend', stop, { once: true })
     window.addEventListener('mouseleave', stop, { once: true })
     window.addEventListener('touchcancel', stop, { once: true })
   }
+
   return { onMouseDown: start, onTouchStart: start }
 }
 
@@ -61,7 +69,9 @@ export default function MaxTest() {
   const navigate = useNavigate()
   const [showDisclaimer, setShowDisclaimer] = useState(!settings.healthDisclaimerAccepted)
   const [blocked, setBlocked] = useState<string | null>(null)
-  const [warmupHint, setWarmupHint] = useState(false)
+  const [warmupError, setWarmupError] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const submitLock = useRef(false)
 
   const minusPress = useRepeatPress(() => setReps((r) => Math.max(0, r - 1)))
   const plusPress = useRepeatPress(() => setReps((r) => Math.min(999, r + 1)))
@@ -74,19 +84,34 @@ export default function MaxTest() {
   const warmupComplete = warmup.every(Boolean)
 
   const handleNext = async () => {
+    if (submitLock.current || submitting) return
     if (!warmupComplete) {
-      setWarmupHint(true)
-    }
-
-    const progress = await getProgramProgress(program)
-    if (progress?.nextWorkoutAfter && !isWorkoutAvailable(new Date(progress.nextWorkoutAfter))) {
-      setBlocked(pl.testBlockedRest)
+      setWarmupError(true)
       return
     }
+    setWarmupError(false)
+    submitLock.current = true
+    setSubmitting(true)
 
-    const cycle = selectCycleByTest(program, reps)
-    setPendingTest({ program, reps, cycleId: cycle.id })
-    navigate(`/setup/cycle/${program}${isRetest ? '?retest=1' : ''}`)
+    try {
+      const progress = await getProgramProgress(program)
+      // Hard-block only on retest / test_pending rest window — not normal day rest for change-level.
+      if (
+        (isRetest || progress?.status === 'test_pending') &&
+        progress?.nextWorkoutAfter &&
+        !isWorkoutAvailable(new Date(progress.nextWorkoutAfter))
+      ) {
+        setBlocked(pl.testBlockedRest)
+        return
+      }
+
+      const cycle = selectCycleByTest(program, reps)
+      setPendingTest({ program, reps, cycleId: cycle.id })
+      navigate(`/setup/cycle/${program}${isRetest ? '?retest=1' : ''}`)
+    } finally {
+      submitLock.current = false
+      setSubmitting(false)
+    }
   }
 
   const title = isRetest
@@ -110,9 +135,9 @@ export default function MaxTest() {
         </p>
       )}
 
-      {warmupHint && !warmupComplete && (
-        <p className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-info)]/10 p-3 text-sm text-[var(--sr-info)]">
-          {pl.warmupRecommended}
+      {warmupError && !warmupComplete && (
+        <p className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-error)]/10 p-3 text-sm text-[var(--sr-error)]">
+          {pl.warmupRequired}
         </p>
       )}
 
@@ -124,7 +149,10 @@ export default function MaxTest() {
               <input
                 type="checkbox"
                 checked={warmup[i]}
-                onChange={() => setWarmup((w) => w.map((v, j) => (j === i ? !v : v)))}
+                onChange={() => {
+                  setWarmup((w) => w.map((v, j) => (j === i ? !v : v)))
+                  setWarmupError(false)
+                }}
               />
               {item}
             </label>
@@ -146,16 +174,14 @@ export default function MaxTest() {
         <div className="mt-4 flex gap-6">
           <button
             type="button"
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sr-bg-surface)]"
-            onClick={() => setReps(Math.max(0, reps - 1))}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sr-bg-surface)] select-none"
             {...minusPress}
           >
             <Minus />
           </button>
           <button
             type="button"
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sr-bg-surface)]"
-            onClick={() => setReps(reps + 1)}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sr-bg-surface)] select-none"
             {...plusPress}
           >
             <Plus />
@@ -164,20 +190,34 @@ export default function MaxTest() {
       </div>
 
       {program === 'pullups' && reps === 0 && (
-        <Button variant="ghost" className="mt-4" fullWidth onClick={() => { setReps(0); void handleNext() }}>
+        <Button
+          variant="ghost"
+          className="mt-4"
+          fullWidth
+          disabled={submitting}
+          onClick={() => {
+            setReps(0)
+            void handleNext()
+          }}
+        >
           {pl.cantPullup}
         </Button>
       )}
 
       {program === 'pushups' && reps <= 2 && !isRetest && (
-        <Button variant="ghost" className="mt-4" fullWidth onClick={() => navigate('/setup/technique')}>
+        <Button
+          variant="ghost"
+          className="mt-4"
+          fullWidth
+          onClick={() => navigate('/setup/technique?from=test')}
+        >
           Jak robić pompkę?
         </Button>
       )}
 
       <p className="mt-4 text-center text-xs text-[var(--sr-text-muted)]">{pl.testHonesty}</p>
 
-      <Button className="mt-6" fullWidth onClick={() => void handleNext()}>
+      <Button className="mt-6" fullWidth disabled={submitting} onClick={() => void handleNext()}>
         {pl.nextPickCycle}
       </Button>
     </div>

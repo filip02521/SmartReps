@@ -108,6 +108,14 @@ export const pl = {
   nextWorkoutIn: (days: number) =>
     days === 1 ? 'Następny trening: jutro' : `Następny trening: za ${days} dni`,
   backHome: 'Wróć do SmartReps',
+  continueSetup: 'Kontynuuj konfigurację',
+  techniqueContinueTest: 'Rozumiem — kontynuuj test',
+  techniqueContinueWorkout: 'Rozumiem — wróć do treningu',
+  retestNow: 'Wykonaj test max',
+  login: 'Zaloguj się',
+  addProgram: 'Dodaj program',
+  addProgramPushups: 'Dodaj pompki',
+  addProgramPullups: 'Dodaj podciąganie',
   prevColumn: 'Poprz.',
 
   // Units

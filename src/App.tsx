@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { AuthBridge } from '@/components/ux/AuthBridge'
+import { GlobalOfflineBar } from '@/components/ux/GlobalOfflineBar'
+import { RequireOnboarding } from '@/components/ux/RequireOnboarding'
 import Dashboard from '@/pages/Dashboard'
 import WorkoutPage from '@/pages/Workout'
 import SessionSummary from '@/pages/SessionSummary'
@@ -18,6 +21,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <ToastHost />
+      <AuthBridge />
+      <GlobalOfflineBar />
       <Routes>
         <Route path="/setup/onboarding" element={<Onboarding />} />
         <Route path="/setup/test/:program" element={<MaxTest />} />
@@ -26,11 +31,13 @@ export default function App() {
         <Route path="/setup/login" element={<Login />} />
         <Route path="/setup/technique" element={<TechniquePushups />} />
 
-        <Route element={<AppLayout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/progress" element={<ProgressPage />} />
-          <Route path="/plans" element={<PlansPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+        <Route element={<RequireOnboarding />}>
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/progress" element={<ProgressPage />} />
+            <Route path="/plans" element={<PlansPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
         </Route>
 
         <Route path="/workout/:program" element={<WorkoutPage />} />

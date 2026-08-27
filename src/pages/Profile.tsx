@@ -6,6 +6,8 @@ import { Card } from '@/components/ui/Card'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { pl } from '@/i18n/pl'
 import { requestWorkoutReminderPermission, scheduleDailyReminder, cancelReminder } from '@/lib/notifications'
+import { getProgramProgress } from '@/lib/program-service'
+import type { Program } from '@/data/plans/types'
 
 function applyTheme(theme: 'system' | 'dark' | 'light') {
   if (theme === 'system') {
@@ -38,6 +40,19 @@ export default function ProfilePage() {
     setEmail(null)
   }
 
+  const addProgram = async (program: Program) => {
+    if (settings.enabledPrograms.includes(program)) return
+    setSettings({ enabledPrograms: [...settings.enabledPrograms, program] })
+    const existing = await getProgramProgress(program)
+    if (!existing) {
+      navigate(`/setup/test/${program}`)
+    }
+  }
+
+  const missingPrograms = (['pushups', 'pullups'] as Program[]).filter(
+    (p) => !settings.enabledPrograms.includes(p),
+  )
+
   return (
     <div className="mx-auto max-w-lg px-4 py-6 safe-top">
       <h1 className="sr-text-h1">{pl.navProfile}</h1>
@@ -45,6 +60,16 @@ export default function ProfilePage() {
       <Card className="mt-6 sr-card">
         <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.account}</p>
         <p className="mt-2 text-sm">{email ?? pl.notLoggedIn}</p>
+        {isSupabaseConfigured && !email && (
+          <Button className="mt-3" size="sm" fullWidth onClick={() => navigate('/setup/login')}>
+            {pl.login}
+          </Button>
+        )}
+        {isSupabaseConfigured && email && (
+          <Button variant="ghost" className="mt-3" size="sm" fullWidth onClick={() => void logout()}>
+            {pl.logout}
+          </Button>
+        )}
       </Card>
 
       <Card className="mt-4 sr-card">
@@ -106,18 +131,42 @@ export default function ProfilePage() {
       <Card className="mt-4 sr-card">
         <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.programs}</p>
         <div className="mt-2 flex flex-col gap-2">
-          <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => navigate('/setup/test/pushups')}>
-            {pl.changeLevelPushups}
-          </Button>
-          <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => navigate('/setup/test/pullups')}>
-            {pl.changeLevelPullups}
-          </Button>
-          <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => navigate('/setup/test/pushups?retest=1')}>
-            {pl.retestPushups}
-          </Button>
-          <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => navigate('/setup/test/pullups?retest=1')}>
-            {pl.retestPullups}
-          </Button>
+          {settings.enabledPrograms.includes('pushups') && (
+            <>
+              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => navigate('/setup/test/pushups')}>
+                {pl.changeLevelPushups}
+              </Button>
+              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => navigate('/setup/test/pushups?retest=1')}>
+                {pl.retestPushups}
+              </Button>
+            </>
+          )}
+          {settings.enabledPrograms.includes('pullups') && (
+            <>
+              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => navigate('/setup/test/pullups')}>
+                {pl.changeLevelPullups}
+              </Button>
+              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => navigate('/setup/test/pullups?retest=1')}>
+                {pl.retestPullups}
+              </Button>
+            </>
+          )}
+          {missingPrograms.length > 0 && (
+            <div className="mt-2 border-t border-[var(--sr-border-subtle)] pt-3">
+              <p className="mb-2 text-xs text-[var(--sr-text-muted)]">{pl.addProgram}</p>
+              {missingPrograms.map((p) => (
+                <Button
+                  key={p}
+                  variant="secondary"
+                  size="sm"
+                  className="mb-2 w-full"
+                  onClick={() => void addProgram(p)}
+                >
+                  {p === 'pushups' ? pl.addProgramPushups : pl.addProgramPullups}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </Card>
 
@@ -129,12 +178,6 @@ export default function ProfilePage() {
           <a href="https://podciaganie.pl" className="text-[var(--sr-brand-primary)]" target="_blank" rel="noreferrer">podciaganie.pl</a>
         </p>
       </Card>
-
-      {isSupabaseConfigured && email && (
-        <Button variant="ghost" className="mt-6" fullWidth onClick={() => void logout()}>
-          {pl.logout}
-        </Button>
-      )}
 
       <p className="mt-8 text-center text-xs text-[var(--sr-text-muted)]">SmartReps v1.0.0</p>
     </div>

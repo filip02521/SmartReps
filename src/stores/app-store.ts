@@ -17,7 +17,15 @@ export type UserSettings = {
 type AppStore = {
   settings: UserSettings
   pendingTest: { program: Program; reps: number; cycleId: string } | null
-  pendingStart: { program: Program; cycleId: string; cycleName: string; reps: number; celebration?: string; navigateToWorkout?: boolean } | null
+  pendingStart: {
+    program: Program
+    cycleId: string
+    cycleName: string
+    reps: number
+    isRetest?: boolean
+    celebration?: string
+    navigateToWorkout?: boolean
+  } | null
   setupQueue: Program[]
   setSettings: (partial: Partial<UserSettings>) => void
   setPendingTest: (test: AppStore['pendingTest']) => void

@@ -101,6 +101,9 @@ export default function SessionSummary() {
         <Card className="mt-4 border border-[var(--sr-brand-primary)] sr-card">
           <p className="font-semibold">{pl.cycleComplete}</p>
           <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.cycleCompleteHint}</p>
+          <Button className="mt-4" fullWidth onClick={() => navigate(`/setup/test/${program}?retest=1`)}>
+            {pl.retestNow}
+          </Button>
         </Card>
       )}
 

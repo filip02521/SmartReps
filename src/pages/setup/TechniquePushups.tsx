@@ -1,5 +1,6 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
+import { pl } from '@/i18n/pl'
 
 function StepIllustration({ step }: { step: 1 | 2 | 3 }) {
   const labels = ['Start', 'Dół', 'Góra']
@@ -14,6 +15,9 @@ function StepIllustration({ step }: { step: 1 | 2 | 3 }) {
 
 export default function TechniquePushups() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const fromWorkout = searchParams.get('from') === 'workout'
+
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
       <h1 className="text-xl font-bold">Technika — pompki na kolanach</h1>
@@ -32,7 +36,7 @@ export default function TechniquePushups() {
         </div>
       </div>
       <Button className="mt-8" fullWidth onClick={() => navigate(-1)}>
-        Rozumiem — kontynuuj test
+        {fromWorkout ? pl.techniqueContinueWorkout : pl.techniqueContinueTest}
       </Button>
     </div>
   )

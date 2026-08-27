@@ -365,7 +365,7 @@ export function CycleCelebration({ message, onDismiss }: { message: string; onDi
       <div className="relative max-w-sm rounded-[var(--sr-radius-xl)] bg-[var(--sr-bg-elevated)] p-8">
         <p className="sr-gradient-text text-2xl font-bold">{pl.goalAchieved}</p>
         <p className="mt-3 text-[var(--sr-text-secondary)]">{message}</p>
-        <Button className="mt-6" fullWidth onClick={onDismiss}>{pl.backHome}</Button>
+        <Button className="mt-6" fullWidth onClick={onDismiss}>{pl.continueSetup}</Button>
       </div>
     </div>
   )

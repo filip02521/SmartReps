@@ -45,6 +45,7 @@ export default function ProgramStart() {
 
   const cycle = getCycleById(pendingStart.cycleId)
   const day1 = cycle?.days[0]
+  const inRest = restDays !== null && restDays > 0
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
@@ -64,7 +65,7 @@ export default function ProgramStart() {
       </div>
       <p className="mt-1 text-xs text-[var(--sr-text-muted)]">Dzień 1/{cycle?.days.length}</p>
 
-      {restDays !== null && restDays > 0 && (
+      {inRest && (
         <Card className="mt-4 border border-[var(--sr-warning)] sr-card">
           <p className="text-sm text-[var(--sr-warning)]">{pl.postTestRest}</p>
           <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.nextWorkoutIn(restDays)}</p>
@@ -87,12 +88,13 @@ export default function ProgramStart() {
         fullWidth
         onClick={() => {
           if (pendingStart) {
-            setPendingStart({ ...pendingStart, navigateToWorkout: true })
+            // Only request immediate workout when rest window is already clear.
+            setPendingStart({ ...pendingStart, navigateToWorkout: !inRest })
           }
           navigate('/setup/login')
         }}
       >
-        {restDays !== null && restDays > 0 ? pl.continueToLogin : pl.startDay1}
+        {inRest ? pl.continueToLogin : pl.startDay1}
       </Button>
       <Button
         variant="ghost"
@@ -107,7 +109,8 @@ export default function ProgramStart() {
               cycleId: start.cycleId,
             })
           }
-          navigate(`/setup/cycle/${program}`)
+          const retest = start?.isRetest ? '?retest=1' : ''
+          navigate(`/setup/cycle/${program}${retest}`)
         }}
       >
         {pl.backToPicker}

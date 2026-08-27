@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
-import { pullRemoteData, syncAllLocalData } from '@/lib/sync'
-import { useAppStore } from '@/stores/app-store'
-import { getProgramProgress } from '@/lib/program-service'
-import { isWorkoutAvailable } from '@/lib/progress-engine'
+import { navigateAfterAuth } from '@/lib/post-auth-navigation'
 import { showToast } from '@/stores/toast-store'
 
 export default function Login() {
@@ -14,51 +11,15 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
-  const goHomeOrNextSetup = async () => {
-    const { setupQueue, shiftSetupQueue, pendingStart, clearPendingStart } = useAppStore.getState()
-
-    if (pendingStart) {
-      const { program, navigateToWorkout } = pendingStart
-      clearPendingStart()
-      if (navigateToWorkout) {
-        const prog = await getProgramProgress(program)
-        const ready = !prog?.nextWorkoutAfter || isWorkoutAvailable(new Date(prog.nextWorkoutAfter))
-        if (ready && prog?.status !== 'test_pending') {
-          navigate(`/workout/${program}`)
-          return
-        }
-      }
-      navigate('/')
-      return
-    }
-
-    const next = setupQueue[0]
-    if (next) {
-      const prog = await getProgramProgress(next)
-      shiftSetupQueue()
-      if (!prog) {
-        navigate(`/setup/test/${next}`)
-        return
-      }
-    }
-    navigate('/')
-  }
-
   useEffect(() => {
     if (!isSupabaseConfigured) return
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
-      if (event === 'SIGNED_IN') {
-        await pullRemoteData()
-        await syncAllLocalData()
-        await goHomeOrNextSetup()
-      }
+    void supabase.auth.getSession().then(({ data }) => {
+      if (data.session) void navigateAfterAuth(navigate)
     })
-    return () => subscription.unsubscribe()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- auth listener once per mount
   }, [navigate])
 
   const skip = async () => {
-    await goHomeOrNextSetup()
+    await navigateAfterAuth(navigate)
   }
 
   const sendLink = async () => {
@@ -67,11 +28,10 @@ export default function Login() {
       return
     }
     setLoading(true)
+    const redirectTo = `${window.location.origin}/setup/login`
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
+      options: { emailRedirectTo: redirectTo },
     })
     setLoading(false)
     if (error) {

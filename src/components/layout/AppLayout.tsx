@@ -3,8 +3,6 @@ import { Activity, BarChart3, List, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
 import { useWorkoutStore } from '@/stores/workout-store'
-import { OfflineBar } from '@/components/ux/Feedback'
-import { useOnline } from '@/hooks/useOnline'
 
 const tabs = [
   { to: '/', label: pl.navWorkout, icon: Activity },
@@ -15,13 +13,11 @@ const tabs = [
 
 export function AppLayout() {
   const location = useLocation()
-  const online = useOnline()
   const immersive = useWorkoutStore((s) => s.immersive)
   const hideTabs = immersive || location.pathname.startsWith('/workout') || location.pathname.startsWith('/setup')
 
   return (
     <div className="flex min-h-full flex-col">
-      {!online && <OfflineBar />}
       <main className={cn('flex-1', !hideTabs && 'pb-20')}>
         <Outlet />
       </main>

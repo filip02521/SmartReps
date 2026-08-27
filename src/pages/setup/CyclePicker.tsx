@@ -34,6 +34,7 @@ export default function CyclePicker() {
   }, [isRetest, program])
 
   const [fullCycleId, setFullCycleId] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (isRetest && currentCycleId && pendingTest) {
@@ -64,41 +65,49 @@ export default function CyclePicker() {
     isRetest && currentCycleId ? getRetestOptions(program, pendingTest.reps, currentCycleId) : null
 
   const confirm = async () => {
-    await initProgramProgress(program, selected.id)
-    const existing = await getProgramProgress(program)
-    const isRepeat = isRetest && selected.id === currentCycleId
-    const restUntil = getNextWorkoutDate(new Date(), getTestBlockDays())
+    if (submitting) return
+    setSubmitting(true)
+    try {
+      await initProgramProgress(program, selected.id)
+      const existing = await getProgramProgress(program)
+      const isRepeat = isRetest && selected.id === currentCycleId
+      const restUntil = getNextWorkoutDate(new Date(), getTestBlockDays())
 
-    await updateProgramProgress(program, {
-      cycleId: selected.id,
-      status: 'rest',
-      currentDay: 1,
-      cycleAttempt: isRepeat ? (existing?.cycleAttempt ?? 0) + 1 : 1,
-      nextWorkoutAfter: restUntil.toISOString(),
-      lastWorkoutAt: new Date().toISOString(),
-    })
-    const testRecord = {
-      program,
-      reps: pendingTest.reps,
-      testedAt: new Date().toISOString(),
-      selectedCycleId: selected.id,
-      wasManualOverride: selected.id !== recommended.id,
+      await updateProgramProgress(program, {
+        cycleId: selected.id,
+        status: 'rest',
+        currentDay: 1,
+        cycleAttempt: isRepeat ? (existing?.cycleAttempt ?? 0) + 1 : 1,
+        nextWorkoutAfter: restUntil.toISOString(),
+        lastWorkoutAt: new Date().toISOString(),
+      })
+      const testRecord = {
+        program,
+        reps: pendingTest.reps,
+        testedAt: new Date().toISOString(),
+        selectedCycleId: selected.id,
+        wasManualOverride: selected.id !== recommended.id,
+      }
+      const testId = await db.maxTests.add(testRecord)
+      const savedTest = { ...testRecord, id: testId }
+      await enqueueSync('max_tests', 'insert', savedTest)
+      clearPendingTest()
+      setPendingStart({
+        program,
+        cycleId: selected.id,
+        cycleName: selected.nameShort,
+        reps: pendingTest.reps,
+        isRetest,
+        celebration: celebration ?? undefined,
+      })
+      navigate(`/setup/start/${program}`)
+    } finally {
+      setSubmitting(false)
     }
-    const testId = await db.maxTests.add(testRecord)
-    const savedTest = { ...testRecord, id: testId }
-    await enqueueSync('max_tests', 'insert', savedTest)
-    clearPendingTest()
-    setPendingStart({
-      program,
-      cycleId: selected.id,
-      cycleName: selected.nameShort,
-      reps: pendingTest.reps,
-      celebration: celebration ?? undefined,
-    })
-    navigate(`/setup/start/${program}`)
   }
 
   const handleStart = () => {
+    if (submitting) return
     if (isHigherCycle(selected, recommended)) {
       setShowWarning(true)
       return
@@ -172,12 +181,12 @@ export default function CyclePicker() {
             <Button variant="secondary" size="sm" onClick={() => { setShowWarning(false); setSelectedId(recommended.id) }}>
               {pl.backToRecommended}
             </Button>
-            <Button variant="danger" size="sm" onClick={() => void confirm()}>{pl.understandHigher}</Button>
+            <Button variant="danger" size="sm" disabled={submitting} onClick={() => void confirm()}>{pl.understandHigher}</Button>
           </div>
         </div>
       )}
 
-      <Button className="mt-6" fullWidth onClick={handleStart}>
+      <Button className="mt-6" fullWidth disabled={submitting} onClick={handleStart}>
         Rozpocznij od {selected.nameShort}
       </Button>
     </div>

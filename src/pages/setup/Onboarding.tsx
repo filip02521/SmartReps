@@ -68,7 +68,10 @@ export default function Onboarding() {
               </button>
             ))}
           </div>
-          <Button className="mt-auto" fullWidth onClick={() => setStep(2)}>Dalej</Button>
+          <div className="mt-auto flex flex-col gap-2">
+            <Button fullWidth onClick={() => setStep(2)}>Dalej</Button>
+            <Button variant="ghost" fullWidth onClick={() => setStep(0)}>Wstecz</Button>
+          </div>
         </div>
       )}
 
@@ -84,7 +87,10 @@ export default function Onboarding() {
               </div>
             ))}
           </div>
-          <Button className="mt-auto" fullWidth onClick={finish}>Rozpocznij test</Button>
+          <div className="mt-auto flex flex-col gap-2">
+            <Button fullWidth onClick={finish}>Rozpocznij test</Button>
+            <Button variant="ghost" fullWidth onClick={() => setStep(1)}>Wstecz</Button>
+          </div>
         </div>
       )}
     </div>
