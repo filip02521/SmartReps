@@ -4,8 +4,10 @@ import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { SetupStepper } from '@/components/setup/SetupStepper'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { PageLoader } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
+import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { selectCycleByTest } from '@/lib/cycle-selector'
 import { getProgramProgress } from '@/lib/program-service'
 import { isWorkoutAvailable } from '@/lib/progress-engine'
@@ -67,26 +69,28 @@ export default function MaxTest() {
   const isRetest = searchParams.get('retest') === '1'
   const [reps, setReps] = useState(0)
   const [warmup, setWarmup] = useState([false, false, false])
-  const { settings, setSettings, setPendingTest, setTestDraft, clearTestDraft } = useAppStore()
+  const { setSettings, setPendingTest, setTestDraft, clearTestDraft } = useAppStore()
   const navigate = useNavigate()
-  const [showDisclaimer, setShowDisclaimer] = useState(!settings.healthDisclaimerAccepted)
+  const hydrated = useStoreHydrated()
+  const [showDisclaimer, setShowDisclaimer] = useState(false)
   const [blocked, setBlocked] = useState<string | null>(null)
   const [warmupError, setWarmupError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const submitLock = useRef(false)
-  const hydratedRef = useRef(false)
+  const hydratedDraftRef = useRef(false)
 
   const warmupItems = program === 'pullups' ? pl.warmupItemsPullups : pl.warmupItemsPushups
 
   useEffect(() => {
-    if (hydratedRef.current) return
-    hydratedRef.current = true
+    if (!hydrated || hydratedDraftRef.current) return
+    hydratedDraftRef.current = true
+    setShowDisclaimer(!useAppStore.getState().settings.healthDisclaimerAccepted)
     const draft = useAppStore.getState().testDraft
     if (draft?.program === program) {
       setReps(draft.reps)
       setWarmup(draft.warmup.length === 3 ? draft.warmup : [false, false, false])
     }
-  }, [program])
+  }, [hydrated, program])
 
   const minusPress = useRepeatPress(() => setReps((r) => Math.max(0, r - 1)))
   const plusPress = useRepeatPress(() => setReps((r) => Math.min(999, r + 1)))
@@ -110,8 +114,8 @@ export default function MaxTest() {
 
     try {
       const progress = await getProgramProgress(program)
+      // Gate retest, test_pending, and mid-cycle change-level when rest is active
       if (
-        (isRetest || progress?.status === 'test_pending') &&
         progress?.nextWorkoutAfter &&
         !isWorkoutAvailable(new Date(progress.nextWorkoutAfter))
       ) {
@@ -127,6 +131,14 @@ export default function MaxTest() {
       submitLock.current = false
       setSubmitting(false)
     }
+  }
+
+  if (!hydrated) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+        <PageLoader />
+      </div>
+    )
   }
 
   const title = isRetest

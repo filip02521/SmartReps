@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { pl } from '@/i18n/pl'
 
 function StepIllustration({ step }: { step: 1 | 2 | 3 }) {
-  const labels = ['Start', 'Dół', 'Góra']
+  const labels = [pl.techniquePoseStart, pl.techniquePoseBottom, pl.techniquePoseTop]
   return (
     <svg viewBox="0 0 120 80" className="mx-auto h-20 w-32" aria-hidden>
       <rect x="10" y="50" width="100" height="4" fill="var(--sr-border-subtle)" rx="2" />

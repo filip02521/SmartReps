@@ -185,7 +185,9 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
 
       {failedRetryVisible && (
         <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-error-muted)] px-3 py-2 text-sm text-[var(--sr-error)]">
-          {pl.workoutFailBanner(actual, targetReps)}
+          {currentTarget.kind === 'exact'
+            ? pl.workoutFailExactBanner(actual, targetReps)
+            : pl.workoutFailBanner(actual, targetReps)}
         </div>
       )}
 

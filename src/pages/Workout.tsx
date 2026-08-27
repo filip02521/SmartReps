@@ -18,13 +18,15 @@ import { onSetComplete, onSetFailed, ConfirmSheet } from '@/components/workout/W
 import { ActiveWorkoutScreen } from '@/components/workout/ActiveWorkoutScreen'
 import { Button } from '@/components/ui/Button'
 import { ErrorBanner, PageLoader } from '@/components/ux/Feedback'
-import { getProgramProgress, saveActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
 import {
   finalizeFailedDay,
   finalizeSuccessfulDay,
   abandonWorkoutSession,
+  abandonAllInProgress,
   getPreviousSetActual,
+  saveWorkoutSession,
 } from '@/lib/session-service'
+import { getProgramProgress, saveActiveWorkout, markProgramActiveIfReady } from '@/lib/program-service'
 import { db } from '@/lib/db'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { generateId, playChime, vibrate } from '@/lib/utils'
@@ -108,18 +110,28 @@ export default function WorkoutPage() {
         return
       }
 
+      if (prog.status === 'paused') {
+        setInitError(pl.statusPaused)
+        setInitialized(true)
+        return
+      }
+
       const available = isWorkoutAvailable(
         prog.nextWorkoutAfter ? new Date(prog.nextWorkoutAfter) : null,
       )
-      if (!available && !forceStart) {
+      const existingActive = await db.activeWorkout.get(program)
+      // Allow resuming an in-progress session during rest; block only new starts
+      if (!available && !forceStart && !existingActive) {
         setRestBlocked(true)
         setProgress(prog)
         setInitialized(true)
         return
       }
 
+      await markProgramActiveIfReady(program)
+
       setProgress(prog)
-      let active = await db.activeWorkout.get(program)
+      let active = existingActive
 
       if (active && isStaleActiveWorkout(active.updatedAt) && !staleConfirmedRef.current) {
         const cycleForStale = getCycleById(prog.cycleId)
@@ -196,8 +208,11 @@ export default function WorkoutPage() {
           startedAt: new Date().toISOString(),
           setResults: active.setResults,
         }
-        if (!existing) await db.workoutSessions.put(session)
+        if (!existing) await saveWorkoutSession(session)
       } else {
+        // Ensure no orphan in_progress ghosts before creating a fresh session
+        await abandonAllInProgress(program)
+
         const sessionId = generateId()
         session = {
           id: sessionId,
@@ -216,7 +231,7 @@ export default function WorkoutPage() {
           dayNumber: prog.currentDay,
           cycleAttempt: prog.cycleAttempt,
         })
-        await db.workoutSessions.put(session)
+        await saveWorkoutSession(session)
         await saveActiveWorkout(program, {
           sessionId,
           currentSetIndex: 0,
@@ -444,7 +459,7 @@ export default function WorkoutPage() {
           void initWorkout(generation)
         }}
         onCancel={async () => {
-          await clearActiveWorkout(program)
+          await abandonAllInProgress(program)
           useWorkoutStore.getState().reset()
           navigate('/', { replace: true })
         }}
@@ -523,11 +538,18 @@ export default function WorkoutPage() {
       onDone={() => void handleDone()}
       onRetry={() => { setFailedIndex(undefined) }}
       onFinishDayEarly={() => void (async () => {
-        if (!sessionMeta || finishingRef.current) return
+        if (!sessionMeta || !currentTarget || finishingRef.current) return
         finishingRef.current = true
         try {
-          await finalizeFailedDay(sessionMeta.id, program, useWorkoutStore.getState().setResults)
-          useWorkoutStore.getState().reset()
+          const workout = useWorkoutStore.getState()
+          const failedResult: SetResultDraft = {
+            setNumber: workout.currentSetIndex + 1,
+            target: currentTarget,
+            actual,
+            passed: false,
+          }
+          await finalizeFailedDay(sessionMeta.id, program, [...workout.setResults, failedResult])
+          workout.reset()
           navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`, { replace: true })
         } catch {
           finishingRef.current = false

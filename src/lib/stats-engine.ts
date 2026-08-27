@@ -3,6 +3,7 @@ import { getCycleById } from '@/data/plans'
 import type { Program } from '@/data/plans/types'
 import type { SetTarget } from '@/data/plans/types'
 import { getCompletedDaysInCycle } from '@/lib/cycle-progress'
+import { pl } from '@/i18n/pl'
 
 export type ProgramStats = {
   lastSession: LocalWorkoutSession | undefined
@@ -79,14 +80,14 @@ export async function getProgramStats(
   const totalRepsAllTime = passed.reduce((sum, s) => sum + (s.totalReps ?? 0), 0)
   const streakWeeks = computeStreakWeeks(passed)
 
-  let nextWorkoutLabel = 'Dziś'
+  let nextWorkoutLabel: string = pl.today
   if (progress.nextWorkoutAfter) {
     const next = new Date(progress.nextWorkoutAfter)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     next.setHours(0, 0, 0, 0)
     const diff = Math.ceil((next.getTime() - today.getTime()) / (86400000))
-    nextWorkoutLabel = diff <= 0 ? 'Dziś' : diff === 1 ? 'Jutro' : `Za ${diff} dni`
+    nextWorkoutLabel = diff <= 0 ? pl.today : diff === 1 ? pl.tomorrow : pl.inDays(diff)
   }
 
   return {

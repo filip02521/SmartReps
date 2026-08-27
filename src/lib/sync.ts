@@ -204,18 +204,42 @@ export async function flushSyncQueue(): Promise<number> {
   const userId = await getUserId()
   if (!userId) return 0
 
+  const MAX_ATTEMPTS = 5
   let errors = 0
   const items = await db.syncQueue.orderBy('createdAt').toArray()
   for (const item of items) {
+    if ((item.attempts ?? 0) >= MAX_ATTEMPTS) continue
     try {
       await processQueueItem(userId, item.table, item.action, JSON.parse(item.payload))
       if (item.id !== undefined) await db.syncQueue.delete(item.id)
     } catch (err) {
       errors++
+      const attempts = (item.attempts ?? 0) + 1
       console.warn('[sync] queue item failed', item.table, err)
+      if (item.id !== undefined) {
+        await db.syncQueue.update(item.id, { attempts })
+        if (attempts >= MAX_ATTEMPTS) {
+          console.warn('[sync] queue item dead-lettered after', attempts, 'attempts', item.table)
+        }
+      }
     }
   }
   return errors
+}
+
+export async function getDeadLetterCount(): Promise<number> {
+  const items = await db.syncQueue.toArray()
+  return items.filter((i) => (i.attempts ?? 0) >= 5).length
+}
+
+export async function retryDeadLetterItems(): Promise<SyncResult> {
+  const items = await db.syncQueue.toArray()
+  for (const item of items) {
+    if (item.id !== undefined && (item.attempts ?? 0) >= 5) {
+      await db.syncQueue.update(item.id, { attempts: 0 })
+    }
+  }
+  return syncWithRemote()
 }
 
 export async function syncAllLocalData(): Promise<SyncResult> {
@@ -441,18 +465,32 @@ export async function pullRemoteData(): Promise<SyncResult> {
   return { ok: errors === 0, errors }
 }
 
+export async function syncWithRemote(): Promise<SyncResult> {
+  const userId = await getUserId()
+  if (!userId) return { ok: true, errors: 0 }
+
+  const push = await syncAllLocalData()
+  const pull = await pullRemoteData()
+  const flush = await syncAllLocalData()
+  const errors = push.errors + pull.errors + flush.errors
+  return { ok: errors === 0, errors }
+}
+
 export function setupOnlineSync() {
   if (typeof window === 'undefined') return () => {}
 
-  const onOnline = () => {
-    void syncAllLocalData().then(({ ok }) => {
+  const run = () => {
+    void syncWithRemote().then(({ ok }) => {
       if (ok) showToast(pl.toastSyncDone, 'success')
       else showToast(pl.toastSyncFailed, 'error')
     })
   }
 
+  const onOnline = () => run()
+
   window.addEventListener('online', onOnline)
-  void syncAllLocalData()
+  // Boot: push → pull → flush when configured + logged in (no-op without user)
+  void syncWithRemote()
 
   return () => window.removeEventListener('online', onOnline)
 }

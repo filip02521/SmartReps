@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
-import { pullRemoteData, syncAllLocalData } from '@/lib/sync'
+import { syncWithRemote } from '@/lib/sync'
 import { useAppStore } from '@/stores/app-store'
 import { navigateAfterAuth } from '@/lib/post-auth-navigation'
+import { hasIncompleteSetup } from '@/lib/setup-flow'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
 
@@ -39,18 +40,16 @@ export function AuthBridge() {
       try {
         await waitForHydration()
 
-        // Push first so local active_workout deletes land before pull can resurrect them
-        const push = await syncAllLocalData()
-        const pull = await pullRemoteData()
-        const flush = await syncAllLocalData()
-        if (!push.ok || !pull.ok || !flush.ok) {
+        const { ok } = await syncWithRemote()
+        if (!ok) {
           showToast(pl.toastSyncFailed, 'error')
         }
 
-        const { pendingStart, setupQueue, settings } = useAppStore.getState()
+        const { pendingStart, settings } = useAppStore.getState()
+        const incomplete = await hasIncompleteSetup()
         const needsSetupGate =
           !!pendingStart ||
-          setupQueue.length > 0 ||
+          incomplete ||
           !settings.onboardingComplete
         if (needsSetupGate || window.location.pathname === '/setup/login') {
           await navigateAfterAuth(navigate)

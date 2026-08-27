@@ -3,9 +3,10 @@ import { getRetestOptions, isHigherCycle, isLowerCycle } from '@/lib/cycle-selec
 import { getCycleById } from '@/data/plans'
 
 describe('getRetestOptions', () => {
-  it('recommends lower cycle when test score dropped below current', () => {
+  it('recommends matched lower cycle when test score dropped below current', () => {
     const opts = getRetestOptions('pushups', 8, 'pushups-21-25')
-    expect(opts.recommended.id).toBe('pushups-21-25')
+    expect(opts.recommended.id).toBe('pushups-6-10')
+    expect(opts.alternatives.some((c) => c.id === 'pushups-21-25')).toBe(true)
   })
 
   it('recommends matched cycle on improvement', () => {

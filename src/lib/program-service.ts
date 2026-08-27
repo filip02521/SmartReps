@@ -8,7 +8,11 @@ import {
   daysUntilWorkout,
   getNextWorkoutDate,
   getTestBlockDays,
+  isWorkoutAvailable,
 } from '@/lib/progress-engine'
+
+/** Prevents double day-advance for the same session id. */
+const advancedBySession = new Set<string>()
 
 export async function getProgramProgress(program: Program): Promise<LocalProgramProgress | undefined> {
   return db.programProgress.where('program').equals(program).first()
@@ -54,11 +58,31 @@ export async function updateProgramProgress(
   return merged
 }
 
+/** Mark program ready/active when user starts a day after rest / cycle_failed. */
+export async function markProgramActiveIfReady(program: Program): Promise<void> {
+  const progress = await getProgramProgress(program)
+  if (!progress) return
+  if (progress.status === 'test_pending' || progress.status === 'paused') return
+  const available = isWorkoutAvailable(
+    progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
+  )
+  if (!available) return
+  if (progress.status === 'active') return
+  await updateProgramProgress(program, { status: 'active' })
+}
+
 export async function completeWorkoutDay(
   program: Program,
   passed: boolean,
   _totalReps: number,
+  sessionId?: string,
 ) {
+  if (sessionId) {
+    const key = `${program}:${sessionId}`
+    if (advancedBySession.has(key)) return
+    advancedBySession.add(key)
+  }
+
   const progress = await getProgramProgress(program)
   if (!progress) return
 
@@ -69,7 +93,8 @@ export async function completeWorkoutDay(
   const restDays = day?.restAfterDay ?? 1
 
   if (!passed) {
-    const restartDate = getNextWorkoutDate(new Date(), 2)
+    // Restart policy: same as post-test block (recovery before attempt N+1)
+    const restartDate = getNextWorkoutDate(new Date(), getTestBlockDays())
     await updateProgramProgress(program, {
       status: 'cycle_failed',
       currentDay: 1,
@@ -113,10 +138,10 @@ export function getStatusTone(progress: LocalProgramProgress): 'success' | 'warn
   switch (progress.status) {
     case 'active':
     case 'rest':
+    case 'cycle_failed':
       return waitingRest ? 'warning' : 'success'
     case 'test_pending':
       return 'info'
-    case 'cycle_failed':
     case 'paused':
       return 'error'
     default:
@@ -136,7 +161,7 @@ export function getStatusLabel(progress: LocalProgramProgress): string {
     case 'test_pending':
       return pl.statusTest
     case 'cycle_failed':
-      return pl.statusRestart
+      return waitingRest ? pl.statusRestart : pl.statusReady
     case 'paused':
       return pl.statusPaused
     default:
@@ -169,4 +194,19 @@ export async function clearActiveWorkout(program: Program) {
 
 export async function getActiveWorkout(program: Program) {
   return db.activeWorkout.get(program)
+}
+
+export async function setProgramPaused(program: Program, paused: boolean) {
+  const progress = await getProgramProgress(program)
+  if (!progress) return
+  if (paused) {
+    await updateProgramProgress(program, { status: 'paused' })
+  } else {
+    const available = isWorkoutAvailable(
+      progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
+    )
+    await updateProgramProgress(program, {
+      status: available ? 'active' : 'rest',
+    })
+  }
 }

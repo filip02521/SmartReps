@@ -43,6 +43,7 @@ export type SyncQueueItem = {
   action: 'insert' | 'update' | 'delete'
   payload: string
   createdAt: string
+  attempts?: number
 }
 
 export type LocalMaxTest = {
@@ -70,6 +71,47 @@ class SmartRepsDB extends Dexie {
       syncQueue: '++id, createdAt',
       maxTests: '++id, program, testedAt',
     })
+    // v2: unique program; session status queries (compound maxTests unique in v3)
+    this.version(2).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, startedAt, [program+status]',
+      activeWorkout: 'program',
+      syncQueue: '++id, createdAt',
+      maxTests: '++id, program, testedAt, [program+testedAt]',
+    })
+    this.version(3)
+      .stores({
+        programProgress: '++id, &program',
+        workoutSessions: 'id, program, startedAt, [program+status]',
+        activeWorkout: 'program',
+        syncQueue: '++id, createdAt',
+        maxTests: '++id, program, testedAt, &[program+testedAt]',
+      })
+      .upgrade(async (tx) => {
+        const progress = await tx.table('programProgress').toArray()
+        const seenProg = new Set<string>()
+        const sortedProg = [...progress].sort(
+          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        )
+        for (const row of sortedProg) {
+          if (seenProg.has(row.program)) {
+            if (row.id != null) await tx.table('programProgress').delete(row.id)
+          } else {
+            seenProg.add(row.program)
+          }
+        }
+
+        const tests = await tx.table('maxTests').toArray()
+        const seenTest = new Set<string>()
+        for (const row of tests) {
+          const key = `${row.program}|${row.testedAt}`
+          if (seenTest.has(key)) {
+            if (row.id != null) await tx.table('maxTests').delete(row.id)
+          } else {
+            seenTest.add(key)
+          }
+        }
+      })
   }
 }
 

@@ -4,6 +4,13 @@ import type { Program } from '@/data/plans/types'
 import { enqueueSync } from '@/lib/sync'
 import { clearActiveWorkout, completeWorkoutDay } from '@/lib/program-service'
 
+/** Session ids already advanced in progress — prevents double completeWorkoutDay. */
+const finalizedProgressKeys = new Set<string>()
+
+function progressKey(program: Program, sessionId: string) {
+  return `${program}:${sessionId}`
+}
+
 export async function saveWorkoutSession(session: LocalWorkoutSession): Promise<void> {
   await db.workoutSessions.put(session)
   await enqueueSync('workout_sessions', 'update', session)
@@ -43,8 +50,15 @@ export async function finalizeSuccessfulDay(
   session: LocalWorkoutSession,
   setResults: SetResultDraft[],
 ): Promise<void> {
+  const key = progressKey(session.program, session.id)
   const existing = await db.workoutSessions.get(session.id)
-  if (existing?.status === 'completed' && existing.passed === true) return
+  if (existing?.status === 'completed' && existing.passed === true) {
+    if (!finalizedProgressKeys.has(key)) {
+      await completeWorkoutDay(session.program, true, existing.totalReps ?? 0, session.id)
+      finalizedProgressKeys.add(key)
+    }
+    return
+  }
 
   const totalReps = setResults.reduce((s, r) => s + r.actual, 0)
   const updated: LocalWorkoutSession = {
@@ -57,7 +71,8 @@ export async function finalizeSuccessfulDay(
   }
   await saveWorkoutSession(updated)
   await clearActiveWorkout(session.program)
-  await completeWorkoutDay(session.program, true, totalReps)
+  await completeWorkoutDay(session.program, true, totalReps, session.id)
+  finalizedProgressKeys.add(key)
 }
 
 export async function finalizeFailedDay(
@@ -65,9 +80,16 @@ export async function finalizeFailedDay(
   program: Program,
   setResults: SetResultDraft[],
 ): Promise<void> {
+  const key = progressKey(program, sessionId)
   const existing = await db.workoutSessions.get(sessionId)
   if (!existing) return
-  if (existing.status === 'completed' && existing.passed === false) return
+  if (existing.status === 'completed' && existing.passed === false) {
+    if (!finalizedProgressKeys.has(key)) {
+      await completeWorkoutDay(program, false, existing.totalReps ?? 0, sessionId)
+      finalizedProgressKeys.add(key)
+    }
+    return
+  }
 
   const totalReps = setResults.reduce((s, r) => s + r.actual, 0)
   const updated: LocalWorkoutSession = {
@@ -80,13 +102,27 @@ export async function finalizeFailedDay(
   }
   await saveWorkoutSession(updated)
   await clearActiveWorkout(program)
-  await completeWorkoutDay(program, false, totalReps)
+  await completeWorkoutDay(program, false, totalReps, sessionId)
+  finalizedProgressKeys.add(key)
 }
 
 export async function abandonWorkoutSession(program: Program, sessionId: string): Promise<void> {
   const existing = await db.workoutSessions.get(sessionId)
   if (existing && existing.status === 'in_progress') {
     await saveWorkoutSession({ ...existing, status: 'abandoned', completedAt: new Date().toISOString() })
+  }
+  await clearActiveWorkout(program)
+}
+
+/** Abandon every in_progress session for a program (start-fresh / setup). */
+export async function abandonAllInProgress(program: Program): Promise<void> {
+  const orphans = await db.workoutSessions
+    .where('program')
+    .equals(program)
+    .filter((s) => s.status === 'in_progress')
+    .toArray()
+  for (const s of orphans) {
+    await saveWorkoutSession({ ...s, status: 'abandoned', completedAt: new Date().toISOString() })
   }
   await clearActiveWorkout(program)
 }

@@ -35,14 +35,17 @@ export function getRetestOptions(
 ): { recommended: Cycle; alternatives: Cycle[] } {
   const recommended = selectCycleByTest(program, testReps)
   const current = allCycles.find((c) => c.id === currentCycleId)
+
   const alternatives = allCycles
     .filter((c) => c.program === program && c.id !== recommended.id)
     .sort((a, b) => a.level - b.level)
 
-  if (current && testReps < (current.testRange.min ?? 0)) {
+  // If score dropped, keep current as an explicit alternative (not the recommendation)
+  if (current && current.id !== recommended.id) {
+    const withoutCurrent = alternatives.filter((c) => c.id !== current.id)
     return {
-      recommended: current,
-      alternatives: alternatives.filter((c) => c.level <= (current?.level ?? 0)),
+      recommended,
+      alternatives: [current, ...withoutCurrent],
     }
   }
 

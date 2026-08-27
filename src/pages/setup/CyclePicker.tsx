@@ -10,7 +10,7 @@ import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { selectCycleByTest, isHigherCycle, isLowerCycle, getRetestOptions } from '@/lib/cycle-selector'
-import { getNextWorkoutDate, getTestBlockDays } from '@/lib/progress-engine'
+import { getNextWorkoutDate, getTestBlockDays, isWorkoutAvailable } from '@/lib/progress-engine'
 import { getCyclesByProgram } from '@/data/plans'
 import { initProgramProgress, updateProgramProgress, getProgramProgress } from '@/lib/program-service'
 import { db } from '@/lib/db'
@@ -32,6 +32,7 @@ export default function CyclePicker() {
   const [showAllCycles, setShowAllCycles] = useState(false)
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [currentCycleId, setCurrentCycleId] = useState<string | null>(null)
+  const [restBlocked, setRestBlocked] = useState<string | null>(null)
 
   useEffect(() => {
     if (isRetest) {
@@ -103,18 +104,31 @@ export default function CyclePicker() {
     if (submitLock.current || submitting) return
     submitLock.current = true
     setSubmitting(true)
+    setRestBlocked(null)
     try {
-      await initProgramProgress(program, selected.id)
       const existing = await getProgramProgress(program)
+      if (
+        (isRetest || existing?.status === 'test_pending') &&
+        existing?.nextWorkoutAfter &&
+        !isWorkoutAvailable(new Date(existing.nextWorkoutAfter))
+      ) {
+        setRestBlocked(pl.testBlockedRest)
+        return
+      }
+
+      await initProgramProgress(program, selected.id)
+      const afterInit = await getProgramProgress(program)
       const isRepeat = isRetest && selected.id === currentCycleId
+      // First-run: day 1 available immediately. Retest / cycle change: 2-day post-test rest.
+      const applyPostTestRest = isRetest || existing?.status === 'test_pending' || !!existing?.lastWorkoutAt
       const restUntil = getNextWorkoutDate(new Date(), getTestBlockDays())
 
       await updateProgramProgress(program, {
         cycleId: selected.id,
-        status: 'rest',
+        status: applyPostTestRest ? 'rest' : 'active',
         currentDay: 1,
-        cycleAttempt: isRepeat ? (existing?.cycleAttempt ?? 0) + 1 : 1,
-        nextWorkoutAfter: restUntil.toISOString(),
+        cycleAttempt: isRepeat ? (afterInit?.cycleAttempt ?? 0) + 1 : 1,
+        nextWorkoutAfter: applyPostTestRest ? restUntil.toISOString() : null,
         lastWorkoutAt: new Date().toISOString(),
       })
 
@@ -185,6 +199,19 @@ export default function CyclePicker() {
       />
 
       {celebration && <Badge variant="success">{celebration}</Badge>}
+
+      {restBlocked && (
+        <p className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-warning)]/15 p-3 text-sm text-[var(--sr-warning)]">
+          {restBlocked}
+        </p>
+      )}
+
+      {!isRetest && (
+        <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">{pl.firstTestReadyHint}</p>
+      )}
+      {isRetest && (
+        <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">{pl.postTestRest}</p>
+      )}
 
       {isRetest && retestOptions && (
         <div className="mt-4 flex flex-wrap gap-2">

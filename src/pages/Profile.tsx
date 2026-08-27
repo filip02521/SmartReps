@@ -9,8 +9,16 @@ import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { pl } from '@/i18n/pl'
 import { requestWorkoutReminderPermission, scheduleDailyReminder, cancelReminder } from '@/lib/notifications'
-import { getProgramProgress, getActiveWorkout } from '@/lib/program-service'
+import {
+  getProgramProgress,
+  getActiveWorkout,
+  setProgramPaused,
+} from '@/lib/program-service'
 import { beginProgramSetup } from '@/lib/setup-flow'
+import { clearAllLocalData } from '@/lib/local-data'
+import { getDeadLetterCount, retryDeadLetterItems } from '@/lib/sync'
+import { showToast } from '@/stores/toast-store'
+import type { LocalProgramProgress } from '@/lib/db'
 import type { Program } from '@/data/plans/types'
 
 function applyTheme(theme: 'system' | 'dark' | 'light') {
@@ -32,6 +40,21 @@ export default function ProfilePage() {
   const [email, setEmail] = useState<string | null>(null)
   const [pendingChangeLevel, setPendingChangeLevel] = useState<Program | null>(null)
   const [pendingRetest, setPendingRetest] = useState<Program | null>(null)
+  const [pendingDisable, setPendingDisable] = useState<Program | null>(null)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [progressByProgram, setProgressByProgram] = useState<Partial<Record<Program, LocalProgramProgress>>>({})
+  const [deadLetter, setDeadLetter] = useState(0)
+
+  const reloadMeta = async () => {
+    const map: Partial<Record<Program, LocalProgramProgress>> = {}
+    for (const p of settings.enabledPrograms) {
+      const prog = await getProgramProgress(p)
+      if (prog) map[p] = prog
+    }
+    setProgressByProgram(map)
+    setDeadLetter(await getDeadLetterCount())
+  }
 
   useEffect(() => {
     if (isSupabaseConfigured) {
@@ -39,11 +62,35 @@ export default function ProfilePage() {
     }
     applyTheme(settings.theme)
     applyHighContrast(settings.highContrast)
-  }, [settings.theme, settings.highContrast])
+    void (async () => {
+      const map: Partial<Record<Program, LocalProgramProgress>> = {}
+      for (const p of settings.enabledPrograms) {
+        const prog = await getProgramProgress(p)
+        if (prog) map[p] = prog
+      }
+      setProgressByProgram(map)
+      setDeadLetter(await getDeadLetterCount())
+    })()
+  }, [settings.theme, settings.highContrast, settings.enabledPrograms])
 
-  const logout = async () => {
+  const logoutOnly = async () => {
     if (isSupabaseConfigured) await supabase.auth.signOut()
     setEmail(null)
+    setShowLogoutConfirm(false)
+  }
+
+  const logoutAndClear = async () => {
+    if (isSupabaseConfigured) await supabase.auth.signOut()
+    await clearAllLocalData()
+    setEmail(null)
+    setShowLogoutConfirm(false)
+    navigate('/setup/onboarding', { replace: true })
+  }
+
+  const clearLocal = async () => {
+    await clearAllLocalData()
+    setShowClearConfirm(false)
+    navigate('/setup/onboarding', { replace: true })
   }
 
   const retest = async (program: Program) => {
@@ -87,6 +134,19 @@ export default function ProfilePage() {
     }
   }
 
+  const disableProgram = (program: Program) => {
+    const next = settings.enabledPrograms.filter((p) => p !== program)
+    setSettings({ enabledPrograms: next.length ? next : settings.enabledPrograms })
+    setPendingDisable(null)
+  }
+
+  const togglePause = async (program: Program) => {
+    const prog = progressByProgram[program]
+    if (!prog) return
+    await setProgramPaused(program, prog.status !== 'paused')
+    await reloadMeta()
+  }
+
   const missingPrograms = (['pushups', 'pullups'] as Program[]).filter(
     (p) => !settings.enabledPrograms.includes(p),
   )
@@ -104,7 +164,7 @@ export default function ProfilePage() {
           </Button>
         )}
         {isSupabaseConfigured && email && (
-          <Button variant="ghost" className="mt-3" size="sm" fullWidth onClick={() => void logout()}>
+          <Button variant="ghost" className="mt-3" size="sm" fullWidth onClick={() => setShowLogoutConfirm(true)}>
             {pl.logout}
           </Button>
         )}
@@ -171,26 +231,36 @@ export default function ProfilePage() {
       <Card className="mt-4 sr-card">
         <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.programs}</p>
         <div className="mt-2 flex flex-col gap-2">
-          {settings.enabledPrograms.includes('pushups') && (
-            <>
-              <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => void changeLevel('pushups')}>
-                {pl.changeLevelPushups}
-              </Button>
-              <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => retest('pushups')}>
-                {pl.retestPushups}
-              </Button>
-            </>
-          )}
-          {settings.enabledPrograms.includes('pullups') && (
-            <>
-              <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => void changeLevel('pullups')}>
-                {pl.changeLevelPullups}
-              </Button>
-              <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => retest('pullups')}>
-                {pl.retestPullups}
-              </Button>
-            </>
-          )}
+          {settings.enabledPrograms.map((program) => {
+            const paused = progressByProgram[program]?.status === 'paused'
+            const label = program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+            return (
+              <div key={program} className="border-b border-[var(--sr-border-subtle)] pb-3 last:border-0">
+                <p className="mb-1 text-sm font-medium">{label}</p>
+                <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => void changeLevel(program)}>
+                  {program === 'pushups' ? pl.changeLevelPushups : pl.changeLevelPullups}
+                </Button>
+                <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => void retest(program)}>
+                  {program === 'pushups' ? pl.retestPushups : pl.retestPullups}
+                </Button>
+                {progressByProgram[program] && (
+                  <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => void togglePause(program)}>
+                    {paused ? pl.resumeProgram : pl.pauseProgram}
+                  </Button>
+                )}
+                {settings.enabledPrograms.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-11 justify-start px-0 text-[var(--sr-error)]"
+                    onClick={() => setPendingDisable(program)}
+                  >
+                    {pl.disableProgram}
+                  </Button>
+                )}
+              </div>
+            )
+          })}
           {missingPrograms.length > 0 && (
             <div className="mt-2 border-t border-[var(--sr-border-subtle)] pt-3">
               <p className="mb-2 text-xs text-[var(--sr-text-muted)]">{pl.addProgram}</p>
@@ -211,7 +281,29 @@ export default function ProfilePage() {
       </Card>
 
       <Card className="mt-4 sr-card">
-        <p className="text-sm text-[var(--sr-text-secondary)]">{pl.healthDisclaimer}</p>
+        <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.about}</p>
+        {deadLetter > 0 && (
+          <div className="mt-3">
+            <p className="text-sm text-[var(--sr-warning)]">{pl.syncDeadLetter(deadLetter)}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-2"
+              fullWidth
+              onClick={async () => {
+                const { ok } = await retryDeadLetterItems()
+                showToast(ok ? pl.toastSyncDone : pl.toastSyncFailed, ok ? 'success' : 'error')
+                await reloadMeta()
+              }}
+            >
+              {pl.syncRetryDead}
+            </Button>
+          </div>
+        )}
+        <Button variant="ghost" size="sm" className="mt-3 min-h-11 justify-start px-0 text-[var(--sr-error)]" onClick={() => setShowClearConfirm(true)}>
+          {pl.clearLocalData}
+        </Button>
+        <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">{pl.healthDisclaimer}</p>
         <p className="mt-3 text-xs">
           <a href="https://100pompek.pl" className="text-[var(--sr-brand-primary)]" target="_blank" rel="noreferrer">100pompek.pl</a>
           {' · '}
@@ -239,6 +331,37 @@ export default function ProfilePage() {
           variant="danger"
           onConfirm={() => void confirmRetest()}
           onCancel={() => setPendingRetest(null)}
+        />
+      )}
+      {pendingDisable && (
+        <ConfirmSheet
+          title={pl.disableProgram}
+          message={pl.disableProgramConfirm}
+          confirmLabel={pl.confirm}
+          variant="danger"
+          onConfirm={() => disableProgram(pendingDisable)}
+          onCancel={() => setPendingDisable(null)}
+        />
+      )}
+      {showLogoutConfirm && (
+        <ConfirmSheet
+          title={pl.logout}
+          message={pl.logoutClearConfirm}
+          confirmLabel={pl.logoutAndClear}
+          cancelLabel={pl.logoutKeepData}
+          variant="danger"
+          onConfirm={() => void logoutAndClear()}
+          onCancel={() => void logoutOnly()}
+        />
+      )}
+      {showClearConfirm && (
+        <ConfirmSheet
+          title={pl.clearLocalData}
+          message={pl.clearLocalDataConfirm}
+          confirmLabel={pl.confirm}
+          variant="danger"
+          onConfirm={() => void clearLocal()}
+          onCancel={() => setShowClearConfirm(false)}
         />
       )}
     </div>

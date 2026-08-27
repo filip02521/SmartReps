@@ -26,15 +26,16 @@ export default function App() {
       <GlobalOfflineBar />
       <Routes>
         <Route path="/setup/onboarding" element={<Onboarding />} />
-        <Route element={<RequireProgram />}>
-          <Route path="/setup/test/:program" element={<MaxTest />} />
-          <Route path="/setup/cycle/:program" element={<CyclePicker />} />
-          <Route path="/setup/start/:program" element={<ProgramStart />} />
-        </Route>
         <Route path="/setup/login" element={<Login />} />
         <Route path="/setup/technique" element={<TechniquePushups />} />
 
         <Route element={<RequireOnboarding />}>
+          <Route element={<RequireProgram />}>
+            <Route path="/setup/test/:program" element={<MaxTest />} />
+            <Route path="/setup/cycle/:program" element={<CyclePicker />} />
+            <Route path="/setup/start/:program" element={<ProgramStart />} />
+          </Route>
+
           <Route element={<AppLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/progress" element={<ProgressPage />} />

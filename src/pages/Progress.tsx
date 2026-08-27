@@ -16,6 +16,7 @@ import { EmptyState, PageLoader, ErrorBanner } from '@/components/ux/Feedback'
 import { formatSetTarget } from '@/lib/progress-engine'
 import { db } from '@/lib/db'
 import { getProgramProgress } from '@/lib/program-service'
+import { navigateToTrain } from '@/lib/setup-flow'
 import { getCycleById } from '@/data/plans'
 import { getProgramStats, getMaxSetPerDay, getProgramRecords } from '@/lib/stats-engine'
 import { useAppStore } from '@/stores/app-store'
@@ -182,7 +183,7 @@ export default function ProgressPage() {
             <EmptyState
               icon={<LogoMark size={48} />}
               title={pl.firstWorkout}
-              action={{ label: pl.startFirstWorkout, onClick: () => navigate(`/workout/${program}`) }}
+              action={{ label: pl.startFirstWorkout, onClick: () => void navigateToTrain(navigate, program) }}
             />
           ) : tests.length > 0 ? (
             <Card className="mt-6 h-48 sr-card">
@@ -283,7 +284,7 @@ export default function ProgressPage() {
               <EmptyState
                 icon={<LogoMark size={48} />}
                 title={pl.firstWorkout}
-                action={{ label: pl.startFirstWorkout, onClick: () => navigate(`/workout/${program}`) }}
+                action={{ label: pl.startFirstWorkout, onClick: () => void navigateToTrain(navigate, program) }}
               />
             ) : (
               <EmptyState

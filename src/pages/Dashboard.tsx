@@ -15,8 +15,8 @@ import {
   getStatusLabel,
   getStatusTone,
   getActiveWorkout,
-  clearActiveWorkout,
 } from '@/lib/program-service'
+import { abandonAllInProgress } from '@/lib/session-service'
 import { beginProgramSetup, drainIncompleteSetup } from '@/lib/setup-flow'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { getProgramStats, type ProgramStats } from '@/lib/stats-engine'
@@ -113,7 +113,7 @@ function ProgramCard({
     progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
   )
   const canStart =
-    progress.status === 'test_pending'
+    progress.status === 'paused' || progress.status === 'test_pending'
       ? false
       : available || trainDespiteRest
 
@@ -262,7 +262,7 @@ function ProgramCard({
               fullWidth
               onClick={() => {
                 if (resume.stale) setShowStaleConfirm(true)
-                else navigate(`/workout/${program}`)
+                else navigate(`/workout/${program}?force=1`)
               }}
             >
               {pl.continueWorkout(resume.day, resume.set, resume.total)}
@@ -272,7 +272,7 @@ function ProgramCard({
                 variant="ghost"
                 fullWidth
                 onClick={async () => {
-                  await clearActiveWorkout(program)
+                  await abandonAllInProgress(program)
                   setResume(null)
                 }}
               >
@@ -291,10 +291,10 @@ function ProgramCard({
           cancelLabel={pl.startFresh}
           onConfirm={() => {
             setShowStaleConfirm(false)
-            navigate(`/workout/${program}`)
+            navigate(`/workout/${program}?force=1`)
           }}
           onCancel={async () => {
-            await clearActiveWorkout(program)
+            await abandonAllInProgress(program)
             setResume(null)
             setShowStaleConfirm(false)
           }}

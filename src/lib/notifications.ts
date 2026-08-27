@@ -1,3 +1,5 @@
+import { pl } from '@/i18n/pl'
+
 let activeReminderId: number | null = null
 
 export async function requestWorkoutReminderPermission(): Promise<boolean> {
@@ -17,6 +19,11 @@ export function showWorkoutReminder(title: string, body: string) {
   }
 }
 
+/**
+ * Schedules an in-tab reminder via setTimeout.
+ * Limitation: timers are cleared when the PWA/browser tab is killed or the device sleeps
+ * for a long time — not a substitute for Web Push / periodic background sync.
+ */
 export function scheduleDailyReminder(hour = 18, minute = 0): number | null {
   cancelReminder()
   const now = new Date()
@@ -25,7 +32,7 @@ export function scheduleDailyReminder(hour = 18, minute = 0): number | null {
   if (next <= now) next.setDate(next.getDate() + 1)
   const delay = next.getTime() - now.getTime()
   activeReminderId = window.setTimeout(() => {
-    showWorkoutReminder('SmartReps', 'Czas na trening — sprawdź swój plan na dziś.')
+    showWorkoutReminder(pl.reminderNotificationTitle, pl.reminderNotificationBody)
     scheduleDailyReminder(hour, minute)
   }, delay)
   return activeReminderId

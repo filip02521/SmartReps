@@ -38,10 +38,13 @@ export default function Onboarding() {
   }
 
   const finish = () => {
-    const enabled: Program[] = programs.length ? programs : ['pushups']
-    setSettings({ onboardingComplete: true, enabledPrograms: enabled })
-    setSetupQueue(enabled.slice(1))
-    navigate(`/setup/test/${enabled[0]}`)
+    const selected: Program[] = programs.length ? programs : ['pushups']
+    const prev = useAppStore.getState().settings.enabledPrograms
+    const merged = Array.from(new Set([...prev, ...selected])) as Program[]
+    setSettings({ onboardingComplete: true, enabledPrograms: merged.length ? merged : selected })
+    // setupQueue mirror for legacy persist; drainIncompleteSetup uses enabledPrograms
+    setSetupQueue(selected.slice(1))
+    navigate(`/setup/test/${selected[0]}`)
   }
 
   if (!hydrated || onboardingComplete) {

@@ -39,9 +39,12 @@ export const pl = {
   nextSet: (n: number, reps: number, unit: string) =>
     `Następnie: Seria ${n} · ${reps} ${unit}`,
   workoutHint:
-    'Ustaw liczbę powtórzeń, potem Zrobione. Cel = sukces; mniej niż cel = nieudana seria.',
+    'Ustaw liczbę powtórzeń, potem Zrobione. Cel = sukces; mniej niż cel = nieudana seria. Serie „równo N” wymagają dokładnie N.',
   workoutFailBanner: (actual: number, target: number) =>
     `Cel ${target}, zrobione ${actual} — seria nieudana`,
+  workoutFailExactBanner: (actual: number, target: number) =>
+    `Wymagane dokładnie ${target}, zrobione ${actual} — seria nieudana`,
+  exactLiveHint: (n: number) => `Wymagane dokładnie ${n} — nie więcej, nie mniej`,
   restInProgress: 'Trwa przerwa — poczekaj lub otwórz timer',
   skipRestConfirm: 'Pominąć przerwę i przejść do następnej serii?',
   leaveWorkoutConfirm: 'Trening w toku. Wyjść? Postęp sesji zostanie zapisany.',
@@ -173,6 +176,7 @@ export const pl = {
   recordBestSession: 'Najwięcej reps (sesja)',
   recordHighestCycle: 'Najwyższy osiągnięty cykl',
   postTestRest: 'Po teście zalecana 2-dniowa przerwa przed pierwszym treningiem nowego cyklu.',
+  firstTestReadyHint: 'Po pierwszym teście możesz od razu zacząć Dzień 1 — przerwa 2 dni obowiązuje przy retestach.',
   staleSessionTitle: 'Stara sesja treningowa',
   staleSessionConfirm: 'Kontynuować przerwaną sesję sprzed ponad 24 h?',
   cycleDayPreview: 'Podgląd dnia',
@@ -295,8 +299,24 @@ export const pl = {
   timerVibration: 'Wibracja',
   keepScreenOn: 'Podczas przerwy ekran nie gaśnie (gdy przeglądarka na to pozwala).',
   workoutReminders: 'Przypomnienia o treningu',
-  workoutRemindersHint: 'Codzienne powiadomienie o 18:00 (wymaga zgody przeglądarki).',
+  workoutRemindersHint:
+    'Codzienne powiadomienie o 18:00 (wymaga zgody przeglądarki). Działa tylko gdy aplikacja jest otwarta — po zamknięciu karty timer ginie (brak Web Push).',
+  reminderNotificationTitle: 'SmartReps',
+  reminderNotificationBody: 'Czas na trening — sprawdź swój plan na dziś.',
   programs: 'Programy',
+  disableProgram: 'Wyłącz program',
+  disableProgramConfirm: 'Program zniknie z pulpitu. Historia pozostanie na urządzeniu. Kontynuować?',
+  pauseProgram: 'Wstrzymaj program',
+  resumeProgram: 'Wznów program',
+  clearLocalData: 'Wyczyść lokalne dane',
+  clearLocalDataConfirm:
+    'Usunie postęp, sesje i ustawienia z tego urządzenia. Konta w chmurze nie usuwa. Tej operacji nie da się cofnąć.',
+  logoutClearConfirm:
+    'Wylogować i wyczyścić dane lokalne na tym urządzeniu? (zalecane na współdzielonym telefonie)',
+  logoutKeepData: 'Wyloguj — zostaw dane',
+  logoutAndClear: 'Wyloguj i wyczyść',
+  syncDeadLetter: (n: number) => `Sync: ${n} elementów w kolejce awaryjnej`,
+  syncRetryDead: 'Ponów synchronizację',
   changeLevelPushups: 'Zmień poziom — Pompki',
   changeLevelPullups: 'Zmień poziom — Podciąganie',
   retestPushups: 'Test pompek',
@@ -322,11 +342,18 @@ export const pl = {
 
   errorCrash: 'Coś poszło nie tak. Spróbuj odświeżyć aplikację.',
 
+  today: 'Dziś',
+  tomorrow: 'Jutro',
+  inDays: (n: number) => `Za ${n} dni`,
+  techniquePoseStart: 'Start',
+  techniquePoseBottom: 'Dół',
+  techniquePoseTop: 'Góra',
+
   formatSetMax: (min: number) => `MAX · min ${min}`,
   formatSetExact: (reps: number) => `Równo ${reps}`,
   setLabelFixed: (reps: number, unit: string) => `Zrób ${reps} ${unit}`,
   setLabelMax: (min: number) => `MAX — minimum ${min}`,
-  setLabelExact: (reps: number) => `Wykonaj ${reps} opuszczeń`,
+  setLabelExact: (reps: number) => `Wykonaj dokładnie ${reps} opuszczeń`,
 
   celebrationPushups100: 'Cel 100 pompek osiągnięty!',
   celebrationPullupsMain: 'Cel główny osiągnięty!',

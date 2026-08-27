@@ -91,16 +91,24 @@ export function RepCounter({
   onDisabledTap?: () => void
 }) {
   const targetReps = getTargetReps(target)
+  const isExact = target.kind === 'exact'
+  const maxReps = isExact ? targetReps : 999
 
   return (
     <div className={cn('flex flex-col items-center gap-4 py-4', disabled && 'opacity-60')}>
       <p className="sr-text-overline text-[var(--sr-text-muted)]">
         {getSetLabel(target, program)}
       </p>
+      {isExact && (
+        <p className="text-center text-sm text-[var(--sr-text-secondary)]">
+          {pl.exactLiveHint(targetReps)}
+        </p>
+      )}
       <p
         className={cn(
           'sr-text-display tabular-nums leading-none text-[var(--sr-text-primary)]',
           pulseFlash && 'animate-pulse-success',
+          isExact && actual !== targetReps && actual > 0 && 'text-[var(--sr-warning)]',
         )}
       >
         {actual}
@@ -138,9 +146,9 @@ export function RepCounter({
         <button
           type="button"
           aria-label={pl.moreReps}
-          disabled={disabled}
+          disabled={disabled || actual >= maxReps}
           className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] disabled:opacity-50"
-          onClick={() => onActualChange(actual + 1)}
+          onClick={() => onActualChange(Math.min(maxReps, actual + 1))}
         >
           <Plus size={24} />
         </button>
