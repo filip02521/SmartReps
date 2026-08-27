@@ -110,7 +110,13 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
   } = props
 
   const currentTarget = day.sets[currentSetIndex]
-  const unit = program === 'pushups' ? pl.pushups : pl.pullups
+  const unit =
+    cycleVariant === 'negative'
+      ? pl.negatives
+      : program === 'pushups'
+        ? pl.pushups
+        : pl.pullups
+  const programLabel = program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
   const isResting = restTimer !== null && restTimer.mode !== 'idle'
   const preparingNegative = negativeCountdown !== null && negativeCountdown > 0
   const counterLocked = isResting || preparingNegative
@@ -128,7 +134,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           <ArrowLeft size={22} />
         </button>
         <p className="sr-text-body-sm text-center text-[var(--sr-text-secondary)]">
-          {program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram} · Dzień {progress.currentDay} · {pl.setColumn} {currentSetIndex + 1}/{day.sets.length}
+          {pl.workoutHeader(programLabel, progress.currentDay, currentSetIndex + 1, day.sets.length)}
         </p>
         <button
           type="button"

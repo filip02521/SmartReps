@@ -216,8 +216,21 @@ export const pl = {
   // Units
   pushups: 'pompek',
   pullups: 'podciągnięć',
+  negatives: 'opuszczeń',
   pushupsProgram: 'Pompki',
   pullupsProgram: 'Podciąganie',
+
+  dayLabel: (n: number) => `Dzień ${n}`,
+  dayDoneCheck: (n: number) => `Dzień ${n} ✓`,
+  testResultSubtitle: (reps: number, unit: string) => `Test: ${reps} ${unit}`,
+  programReadySubtitle: (program: string, cycle: string) => `${program} · Cykl ${cycle}`,
+  restSecAndSets: (sec: number) => `Przerwa: ${sec}s · Serie:`,
+  attemptShort: (n: number) => `Próba ${n}`,
+  cycleNotConfigured: 'Skonfiguruj program, aby zobaczyć mapę cyklu',
+  configureProgram: 'Skonfiguruj program',
+  missingSession: 'Brak danych sesji — wróć do pulpitu',
+  workoutHeader: (program: string, day: number, set: number, total: number) =>
+    `${program} · Dzień ${day} · Seria ${set}/${total}`,
 
   // Empty
   firstWorkout: 'Twój pierwszy trening czeka',
@@ -306,4 +319,20 @@ export const pl = {
   close: 'Zamknij',
   yes: 'Tak',
   no: 'Nie',
+
+  errorCrash: 'Coś poszło nie tak. Spróbuj odświeżyć aplikację.',
+
+  formatSetMax: (min: number) => `MAX · min ${min}`,
+  formatSetExact: (reps: number) => `Równo ${reps}`,
+  setLabelFixed: (reps: number, unit: string) => `Zrób ${reps} ${unit}`,
+  setLabelMax: (min: number) => `MAX — minimum ${min}`,
+  setLabelExact: (reps: number) => `Wykonaj ${reps} opuszczeń`,
+
+  celebrationPushups100: 'Cel 100 pompek osiągnięty!',
+  celebrationPullupsMain: 'Cel główny osiągnięty!',
+  celebrationPullupsAmbition: 'Cel ambicji osiągnięty!',
+
+  heatmapDayPassed: (day: number, reps: number) => `Dzień ${day} · ${reps} reps`,
+  heatmapDayFailed: 'Dzień nieudany',
+  heatmapRest: 'Przerwa',
 } as const

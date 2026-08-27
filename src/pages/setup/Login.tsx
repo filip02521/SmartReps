@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { SetupStepper } from '@/components/setup/SetupStepper'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { SkeletonCard } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { navigateAfterAuth } from '@/lib/post-auth-navigation'
+import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
 
@@ -13,13 +15,14 @@ export default function Login() {
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const hydrated = useStoreHydrated()
 
   useEffect(() => {
-    if (!isSupabaseConfigured) return
+    if (!hydrated || !isSupabaseConfigured) return
     void supabase.auth.getSession().then(({ data }) => {
       if (data.session) void navigateAfterAuth(navigate)
     })
-  }, [navigate])
+  }, [hydrated, navigate])
 
   const skip = async () => {
     await navigateAfterAuth(navigate)
@@ -47,6 +50,14 @@ export default function Login() {
       return
     }
     setSent(true)
+  }
+
+  if (!hydrated) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+        <SkeletonCard className="h-40" />
+      </div>
+    )
   }
 
   return (

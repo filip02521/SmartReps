@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { CycleCelebration } from '@/components/workout/WorkoutComponents'
@@ -17,6 +17,8 @@ import type { Program } from '@/data/plans/types'
 export default function ProgramStart() {
   const { program: programParam } = useParams<{ program: Program }>()
   const program = programParam as Program
+  const [searchParams] = useSearchParams()
+  const isRetestUrl = searchParams.get('retest') === '1'
   const { pendingStart, pendingTest, setPendingStart, setPendingTest, clearPendingStart } = useAppStore()
   const navigate = useNavigate()
   const hydrated = useStoreHydrated()
@@ -25,14 +27,16 @@ export default function ProgramStart() {
   const [restDays, setRestDays] = useState<number | null>(null)
   const [restReady, setRestReady] = useState(false)
 
+  const isRetest = isRetestUrl || !!pendingStart?.isRetest
+  const retestQuery = isRetest ? '?retest=1' : ''
+
   useEffect(() => {
     if (!hydrated || leavingRef.current) return
-    // Back-to-picker sets pendingTest then navigates explicitly — don't fight it
     if (pendingTest?.program === program && !pendingStart) return
     if (!pendingStart || pendingStart.program !== program) {
-      navigate(`/setup/test/${program}`, { replace: true })
+      navigate(`/setup/test/${program}${retestQuery}`, { replace: true })
     }
-  }, [hydrated, pendingStart, pendingTest, program, navigate])
+  }, [hydrated, pendingStart, pendingTest, program, navigate, retestQuery])
 
   useEffect(() => {
     let cancelled = false
@@ -86,7 +90,10 @@ export default function ProgramStart() {
       <SetupStepper current="start" />
       <PageHeader
         title={pl.programReady}
-        subtitle={`${program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram} · Cykl ${pendingStart.cycleName}`}
+        subtitle={pl.programReadySubtitle(
+          program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram,
+          pendingStart.cycleName,
+        )}
       />
 
       <div className="mt-2 flex gap-1" role="list" aria-label={pl.cycleDays}>
@@ -98,7 +105,9 @@ export default function ProgramStart() {
           />
         ))}
       </div>
-      <p className="mt-1 text-xs text-[var(--sr-text-muted)]">Dzień 1/{cycle?.days.length}</p>
+      <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
+        {pl.dayOfTotal(1, cycle?.days.length ?? 1)}
+      </p>
 
       {inRest && (
         <Card className="mt-4 border border-[var(--sr-warning)] sr-card">
@@ -125,7 +134,7 @@ export default function ProgramStart() {
         fullWidth
         onClick={() => {
           leavingRef.current = true
-          setPendingStart({ ...pendingStart, navigateToWorkout: !inRest })
+          setPendingStart({ ...pendingStart, navigateToWorkout: !inRest, isRetest })
           navigate('/setup/login', { replace: true })
         }}
       >
@@ -145,8 +154,7 @@ export default function ProgramStart() {
             committedMaxTestId: start.committedMaxTestId,
           })
           clearPendingStart()
-          const retest = start.isRetest ? '?retest=1' : ''
-          navigate(`/setup/cycle/${program}${retest}`, { replace: true })
+          navigate(`/setup/cycle/${program}${retestQuery}`, { replace: true })
         }}
       >
         {pl.backToPicker}

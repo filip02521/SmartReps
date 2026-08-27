@@ -1,4 +1,5 @@
 import type { SetTarget } from '@/data/plans/types'
+import { pl } from '@/i18n/pl'
 
 export function validateSet(target: SetTarget, actual: number): boolean {
   switch (target.kind) {
@@ -7,7 +8,8 @@ export function validateSet(target: SetTarget, actual: number): boolean {
     case 'max':
       return actual >= target.minReps
     case 'exact':
-      return actual >= target.reps
+      // Negatives: prescribed controlled reps exactly ("Równo N")
+      return actual === target.reps
   }
 }
 
@@ -26,21 +28,21 @@ export function formatSetTarget(target: SetTarget): string {
     case 'fixed':
       return String(target.reps)
     case 'max':
-      return `MAX · min ${target.minReps}`
+      return pl.formatSetMax(target.minReps)
     case 'exact':
-      return `Równo ${target.reps}`
+      return pl.formatSetExact(target.reps)
   }
 }
 
 export function getSetLabel(target: SetTarget, program: 'pushups' | 'pullups'): string {
-  const unit = program === 'pushups' ? 'pompek' : 'podciągnięć'
+  const unit = program === 'pushups' ? pl.pushups : pl.pullups
   switch (target.kind) {
     case 'fixed':
-      return `Zrób ${target.reps} ${unit}`
+      return pl.setLabelFixed(target.reps, unit)
     case 'max':
-      return `MAX — minimum ${target.minReps}`
+      return pl.setLabelMax(target.minReps)
     case 'exact':
-      return `Wykonaj ${target.reps} opuszczeń`
+      return pl.setLabelExact(target.reps)
   }
 }
 
@@ -102,10 +104,10 @@ export function getCelebrationBadge(
   program: 'pushups' | 'pullups',
   reps: number,
 ): string | null {
-  if (program === 'pushups' && reps >= 100) return 'Cel 100 pompek osiągnięty!'
+  if (program === 'pushups' && reps >= 100) return pl.celebrationPushups100
   if (program === 'pullups') {
-    if (reps >= 50) return 'Cel ambicji osiągnięty!'
-    if (reps >= 30) return 'Cel główny osiągnięty!'
+    if (reps >= 50) return pl.celebrationPullupsAmbition
+    if (reps >= 30) return pl.celebrationPullupsMain
   }
   return null
 }

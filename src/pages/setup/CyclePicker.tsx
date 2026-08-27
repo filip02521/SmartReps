@@ -55,7 +55,7 @@ export default function CyclePicker() {
     if (!hydrated || advancingRef.current || submitLock.current) return
     // Confirm just wrote pendingStart — don't bounce back to MaxTest
     if (pendingStart?.program === program) {
-      navigate(`/setup/start/${program}`, { replace: true })
+      navigate(`/setup/start/${program}${isRetest ? '?retest=1' : ''}`, { replace: true })
       return
     }
     if (!pendingTest || pendingTest.program !== program) {
@@ -154,7 +154,7 @@ export default function CyclePicker() {
         committedMaxTestId: testId,
       })
       clearPendingTest()
-      navigate(`/setup/start/${program}`, { replace: true })
+      navigate(`/setup/start/${program}${isRetest ? '?retest=1' : ''}`, { replace: true })
     } finally {
       submitLock.current = false
       setSubmitting(false)
@@ -180,7 +180,10 @@ export default function CyclePicker() {
       {!isRetest && <SetupStepper current="cycle" />}
       <PageHeader
         title={isRetest ? pl.retestTitle : pl.pickLevel}
-        subtitle={`Test: ${pendingTest.reps} ${program === 'pushups' ? pl.pushups : pl.pullups}`}
+        subtitle={pl.testResultSubtitle(
+          pendingTest.reps,
+          program === 'pushups' ? pl.pushups : pl.pullups,
+        )}
       />
 
       {celebration && <Badge variant="success">{celebration}</Badge>}
@@ -297,7 +300,7 @@ function CycleCard({
       </button>
       {previewId === cycle.id && cycle.days[0] && (
         <div className="mt-2 border-t border-[var(--sr-border-subtle)] pt-2 text-xs text-[var(--sr-text-secondary)]">
-          <p className="mb-1">Przerwa: {cycle.days[0].restBetweenSetsSec}s · Serie:</p>
+          <p className="mb-1">{pl.restSecAndSets(cycle.days[0].restBetweenSetsSec)}</p>
           <p>{cycle.days[0].sets.map((s) => formatSetTarget(s)).join(' · ')}</p>
           <button
             type="button"
@@ -324,7 +327,7 @@ function FullCycleSheet({
       <div className="space-y-4">
         {cycle.days.map((day) => (
           <div key={day.dayNumber} className="border-t border-[var(--sr-border-subtle)] pt-3">
-            <p className="text-sm font-medium">Dzień {day.dayNumber} · {pl.restBetweenSets(day.restBetweenSetsSec)}</p>
+            <p className="text-sm font-medium">{pl.dayLabel(day.dayNumber)} · {pl.restBetweenSets(day.restBetweenSetsSec)}</p>
             <ul className="mt-2 space-y-1 text-sm text-[var(--sr-text-secondary)]">
               {day.sets.map((s, i) => (
                 <li key={i} className="flex justify-between">

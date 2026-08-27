@@ -17,9 +17,9 @@ describe('progress-engine', () => {
     expect(validateSet({ kind: 'max', minReps: 10 }, 9)).toBe(false)
   })
 
-  it('validates exact sets with >=', () => {
+  it('validates exact sets with equality', () => {
     expect(validateSet({ kind: 'exact', reps: 7 }, 7)).toBe(true)
-    expect(validateSet({ kind: 'exact', reps: 7 }, 8)).toBe(true)
+    expect(validateSet({ kind: 'exact', reps: 7 }, 8)).toBe(false)
     expect(validateSet({ kind: 'exact', reps: 7 }, 6)).toBe(false)
   })
 

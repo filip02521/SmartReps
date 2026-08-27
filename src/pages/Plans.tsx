@@ -76,7 +76,7 @@ function CycleList({
                 {cycle.days.map((day) => (
                   <div key={day.dayNumber}>
                     <p className="sr-text-body-sm font-medium">
-                      Dzień {day.dayNumber} · {pl.restBetweenSets(day.restBetweenSetsSec)}
+                      {pl.dayLabel(day.dayNumber)} · {pl.restBetweenSets(day.restBetweenSetsSec)}
                     </p>
                     <ul className="mt-1 space-y-0.5">
                       {day.sets.map((s, i) => (

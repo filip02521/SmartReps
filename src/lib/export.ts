@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import type { Program } from '@/data/plans/types'
 import { subWeeks, startOfWeek, addDays, format, isSameDay } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
+import { pl } from '@/i18n/pl'
 
 export type HeatmapCell = {
   date: string
@@ -34,17 +35,17 @@ export async function buildActivityHeatmap(
       if (daySessions.some((s) => s.status === 'completed' && s.passed)) {
         status = 'passed'
         const s = daySessions.find((x) => x.passed)!
-        detail = `Dzień ${s.dayNumber} · ${s.totalReps ?? 0} reps`
+        detail = pl.heatmapDayPassed(s.dayNumber, s.totalReps ?? 0)
       } else if (daySessions.some((s) => s.status === 'completed' && s.passed === false)) {
         status = 'failed'
-        detail = 'Dzień nieudany'
+        detail = pl.heatmapDayFailed
       } else if (
         progress?.nextWorkoutAfter &&
         isSameDay(date, new Date(progress.nextWorkoutAfter)) &&
         date <= today
       ) {
         status = 'rest'
-        detail = 'Przerwa'
+        detail = pl.heatmapRest
       }
 
       row.push({

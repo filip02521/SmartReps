@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import { OnboardingIllustration } from '@/components/onboarding/OnboardingIllustrations'
 import { Button } from '@/components/ui/Button'
-import { StepIndicator } from '@/components/ux/Feedback'
+import { StepIndicator, SkeletonCard } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
+import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import type { Program } from '@/data/plans/types'
 
 const rules = [
@@ -17,8 +18,18 @@ const rules = [
 export default function Onboarding() {
   const [step, setStep] = useState(0)
   const [programs, setPrograms] = useState<Program[]>(['pushups'])
-  const { setSettings, setSetupQueue } = useAppStore()
+  const setSettings = useAppStore((s) => s.setSettings)
+  const setSetupQueue = useAppStore((s) => s.setSetupQueue)
+  const onboardingComplete = useAppStore((s) => s.settings.onboardingComplete)
   const navigate = useNavigate()
+  const hydrated = useStoreHydrated()
+
+  useEffect(() => {
+    if (!hydrated) return
+    if (onboardingComplete) {
+      navigate('/', { replace: true })
+    }
+  }, [hydrated, onboardingComplete, navigate])
 
   const toggleProgram = (p: Program) => {
     setPrograms((prev) =>
@@ -31,6 +42,14 @@ export default function Onboarding() {
     setSettings({ onboardingComplete: true, enabledPrograms: enabled })
     setSetupQueue(enabled.slice(1))
     navigate(`/setup/test/${enabled[0]}`)
+  }
+
+  if (!hydrated || onboardingComplete) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+        <SkeletonCard className="h-48" />
+      </div>
+    )
   }
 
   return (

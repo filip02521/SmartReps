@@ -330,13 +330,30 @@ async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
   }
 }
 
+async function hasPendingActiveDelete(program: Program): Promise<boolean> {
+  const items = await db.syncQueue.toArray()
+  return items.some((item) => {
+    if (item.table !== 'active_workout' || item.action !== 'delete') return false
+    try {
+      const payload = JSON.parse(item.payload) as { program?: string }
+      return payload.program === program
+    } catch {
+      return false
+    }
+  })
+}
+
 async function mergeActiveRemote(userId: string, remote: RemoteActiveRow) {
-  const local = await db.activeWorkout.get(remote.program as Program)
+  const program = remote.program as Program
+  // Prefer local tombstone (queued delete) over resurrecting remote active
+  if (await hasPendingActiveDelete(program)) return
+
+  const local = await db.activeWorkout.get(program)
   const remoteUpdated = new Date(remote.updated_at).getTime()
   const localUpdated = local?.updatedAt ? new Date(local.updatedAt).getTime() : 0
 
   const mapped: ActiveWorkoutState = {
-    program: remote.program as Program,
+    program,
     sessionId: remote.session_id,
     currentSetIndex: remote.current_set - 1,
     setResults: remote.set_results_json ?? [],

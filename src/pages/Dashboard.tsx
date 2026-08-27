@@ -9,6 +9,7 @@ import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
+import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import {
   getProgramProgress,
   getStatusLabel,
@@ -16,6 +17,7 @@ import {
   getActiveWorkout,
   clearActiveWorkout,
 } from '@/lib/program-service'
+import { beginProgramSetup, drainIncompleteSetup } from '@/lib/setup-flow'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { getProgramStats, type ProgramStats } from '@/lib/stats-engine'
 import { getCycleById } from '@/data/plans'
@@ -44,6 +46,7 @@ function ProgramCard({
   const [showMenu, setShowMenu] = useState(false)
   const [trainDespiteRest, setTrainDespiteRest] = useState(false)
   const [showStaleConfirm, setShowStaleConfirm] = useState(false)
+  const [pendingSetup, setPendingSetup] = useState<'level' | 'retest' | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -136,13 +139,29 @@ function ProgramCard({
         <>
           <button type="button" className="fixed inset-0 z-10" aria-label={pl.close} onClick={() => setShowMenu(false)} />
           <div className="relative z-20 mb-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] py-1 text-sm">
-            <button type="button" className="block min-h-11 w-full px-3 py-2 text-left" onClick={() => { setShowMenu(false); navigate(`/setup/test/${program}`) }}>
+            <button
+              type="button"
+              className="block min-h-11 w-full px-3 py-2 text-left"
+              onClick={() => {
+                setShowMenu(false)
+                if (resume) setPendingSetup('level')
+                else void beginProgramSetup(navigate, program)
+              }}
+            >
               {pl.menuChangeLevel}
             </button>
             <button type="button" className="block min-h-11 w-full px-3 py-2 text-left" onClick={() => { setShowMenu(false); navigate('/progress') }}>
               {pl.menuHistory}
             </button>
-            <button type="button" className="block min-h-11 w-full px-3 py-2 text-left" onClick={() => { setShowMenu(false); navigate(`/setup/test/${program}?retest=1`) }}>
+            <button
+              type="button"
+              className="block min-h-11 w-full px-3 py-2 text-left"
+              onClick={() => {
+                setShowMenu(false)
+                if (resume) setPendingSetup('retest')
+                else void beginProgramSetup(navigate, program, { retest: true })
+              }}
+            >
               {pl.menuRetest}
             </button>
           </div>
@@ -184,7 +203,7 @@ function ProgramCard({
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--sr-text-secondary)]">
               <div>
                 <p className="text-[var(--sr-text-muted)]">{pl.lastWorkout}</p>
-                <p>{stats.lastSession ? `Dzień ${stats.lastSession.dayNumber} ✓` : '—'}</p>
+                <p>{stats.lastSession ? pl.dayDoneCheck(stats.lastSession.dayNumber) : '—'}</p>
               </div>
               <div>
                 <p className="text-[var(--sr-text-muted)]">{pl.nextWorkout}</p>
@@ -282,6 +301,21 @@ function ProgramCard({
         />
       )}
 
+      {pendingSetup && (
+        <ConfirmSheet
+          title={pendingSetup === 'retest' ? pl.menuRetest : pl.menuChangeLevel}
+          message={pl.changeLevelActiveWarning}
+          confirmLabel={pl.confirm}
+          variant="danger"
+          onConfirm={() => {
+            const mode = pendingSetup
+            setPendingSetup(null)
+            void beginProgramSetup(navigate, program, { retest: mode === 'retest' })
+          }}
+          onCancel={() => setPendingSetup(null)}
+        />
+      )}
+
       {!resume && (
         <>
           {!canStart && progress.status !== 'test_pending' && (
@@ -295,7 +329,7 @@ function ProgramCard({
             disabled={!canStart && progress.status !== 'test_pending'}
             onClick={() => {
               if (progress.status === 'test_pending') {
-                navigate(`/setup/test/${program}?retest=1`)
+                void beginProgramSetup(navigate, program, { retest: true })
               } else {
                 navigate(trainDespiteRest ? `/workout/${program}?force=1` : `/workout/${program}`)
               }
@@ -310,33 +344,33 @@ function ProgramCard({
 }
 
 export default function Dashboard() {
-  const { settings, setupQueue } = useAppStore()
+  const settings = useAppStore((s) => s.settings)
   const navigate = useNavigate()
+  const hydrated = useStoreHydrated()
   const [resumeEpoch] = useState(0)
 
   useEffect(() => {
-    if (!settings.onboardingComplete) {
-      navigate('/setup/onboarding')
-      return
-    }
+    if (!hydrated || !settings.onboardingComplete) return
     let cancelled = false
-    async function drainQueue() {
-      while (!cancelled) {
-        const next = useAppStore.getState().setupQueue[0]
-        if (!next) return
-        const p = await getProgramProgress(next)
-        useAppStore.getState().shiftSetupQueue()
-        if (!p) {
-          navigate(`/setup/test/${next}`)
-          return
-        }
-      }
-    }
-    void drainQueue()
+    void (async () => {
+      const safeNavigate: typeof navigate = ((to, options) => {
+        if (cancelled) return
+        navigate(to, options)
+      }) as typeof navigate
+      await drainIncompleteSetup(safeNavigate)
+    })()
     return () => {
       cancelled = true
     }
-  }, [settings.onboardingComplete, navigate, setupQueue])
+  }, [hydrated, settings.onboardingComplete, settings.enabledPrograms, navigate])
+
+  if (!hydrated) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-6 safe-top">
+        <SkeletonCard className="h-40" />
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 safe-top">

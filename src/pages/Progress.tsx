@@ -178,7 +178,13 @@ export default function ProgressPage() {
             </div>
           )}
 
-          {tests.length > 0 ? (
+          {tests.length === 0 && sessions.length === 0 ? (
+            <EmptyState
+              icon={<LogoMark size={48} />}
+              title={pl.firstWorkout}
+              action={{ label: pl.startFirstWorkout, onClick: () => navigate(`/workout/${program}`) }}
+            />
+          ) : tests.length > 0 ? (
             <Card className="mt-6 h-48 sr-card">
               <p className="mb-2 text-sm font-medium">{pl.chartTestOverTime}</p>
               <ResponsiveContainer width="100%" height="85%">
@@ -190,13 +196,7 @@ export default function ProgressPage() {
                 </LineChart>
               </ResponsiveContainer>
             </Card>
-          ) : (
-            <EmptyState
-              icon={<LogoMark size={48} />}
-              title={pl.firstWorkout}
-              action={{ label: pl.startFirstWorkout, onClick: () => navigate(`/workout/${program}`) }}
-            />
-          )}
+          ) : null}
 
           {maxPerDay.length > 0 && (
             <Card className="mt-6 h-40 sr-card">
@@ -312,7 +312,7 @@ export default function ProgressPage() {
                 return (
                 <Card key={s.id} className="cursor-pointer py-3 sr-card" onClick={() => setSelectedSession(s)}>
                   <p className="text-sm font-medium">
-                    {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })} · Dzień {s.dayNumber}
+                    {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })} · {pl.dayLabel(s.dayNumber)}
                     {` · ${statusLabel}`}
                   </p>
                   <p className="text-xs text-[var(--sr-text-muted)]">
@@ -326,7 +326,8 @@ export default function ProgressPage() {
         </div>
       )}
 
-      {tab === 'cycle' && cycle && (
+      {tab === 'cycle' && (
+        cycle ? (
         <Card className="mt-4 sr-card">
           <p className="mb-3 text-sm font-medium">{pl.cycleMapTitle(cycle.nameShort)}</p>
           <div className="flex justify-between gap-1">
@@ -367,13 +368,20 @@ export default function ProgressPage() {
           </div>
           <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{pl.cycleMapHint}</p>
         </Card>
+        ) : (
+          <EmptyState
+            icon={<LogoMark size={48} />}
+            title={pl.cycleNotConfigured}
+            action={{ label: pl.configureProgram, onClick: () => navigate(`/setup/test/${program}`) }}
+          />
+        )
       )}
 
       <Sheet open={!!selectedSession} onClose={() => setSelectedSession(null)} title={pl.sessionDetails}>
         {selectedSession && (
           <>
             <p className="text-sm text-[var(--sr-text-secondary)]">
-              Dzień {selectedSession.dayNumber} · {selectedSession.totalReps ?? 0} {pl.repsUnit}
+              {pl.dayLabel(selectedSession.dayNumber)} · {selectedSession.totalReps ?? 0} {pl.repsUnit}
             </p>
             <ul className="mt-4 space-y-1 text-sm">
               {selectedSession.setResults.map((r) => (

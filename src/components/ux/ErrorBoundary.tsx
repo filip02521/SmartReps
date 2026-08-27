@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { ErrorBanner } from '@/components/ux/Feedback'
+import { pl } from '@/i18n/pl'
 
 type Props = { children: ReactNode; fallback?: ReactNode }
 type State = { error: Error | null }
@@ -21,7 +22,7 @@ export class ErrorBoundary extends Component<Props, State> {
         this.props.fallback ?? (
           <div className="mx-auto max-w-lg p-6 safe-top">
             <ErrorBanner
-              message="Coś poszło nie tak. Spróbuj odświeżyć aplikację."
+              message={pl.errorCrash}
               onRetry={() => window.location.reload()}
             />
           </div>

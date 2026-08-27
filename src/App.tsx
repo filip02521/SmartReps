@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { AuthBridge } from '@/components/ux/AuthBridge'
 import { GlobalOfflineBar } from '@/components/ux/GlobalOfflineBar'
-import { RequireOnboarding } from '@/components/ux/RequireOnboarding'
+import { RequireOnboarding, RequireProgram } from '@/components/ux/RequireOnboarding'
 import Dashboard from '@/pages/Dashboard'
 import WorkoutPage from '@/pages/Workout'
 import SessionSummary from '@/pages/SessionSummary'
@@ -26,9 +26,11 @@ export default function App() {
       <GlobalOfflineBar />
       <Routes>
         <Route path="/setup/onboarding" element={<Onboarding />} />
-        <Route path="/setup/test/:program" element={<MaxTest />} />
-        <Route path="/setup/cycle/:program" element={<CyclePicker />} />
-        <Route path="/setup/start/:program" element={<ProgramStart />} />
+        <Route element={<RequireProgram />}>
+          <Route path="/setup/test/:program" element={<MaxTest />} />
+          <Route path="/setup/cycle/:program" element={<CyclePicker />} />
+          <Route path="/setup/start/:program" element={<ProgramStart />} />
+        </Route>
         <Route path="/setup/login" element={<Login />} />
         <Route path="/setup/technique" element={<TechniquePushups />} />
 
@@ -40,9 +42,12 @@ export default function App() {
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
 
-          <Route path="/workout/:program" element={<WorkoutPage />} />
-          <Route path="/workout/:program/summary" element={<SessionSummary />} />
+          <Route element={<RequireProgram />}>
+            <Route path="/workout/:program" element={<WorkoutPage />} />
+            <Route path="/workout/:program/summary" element={<SessionSummary />} />
+          </Route>
         </Route>
+        <Route path="/not-found" element={<NotFound />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

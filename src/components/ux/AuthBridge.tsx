@@ -4,10 +4,26 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { pullRemoteData, syncAllLocalData } from '@/lib/sync'
 import { useAppStore } from '@/stores/app-store'
 import { navigateAfterAuth } from '@/lib/post-auth-navigation'
+import { showToast } from '@/stores/toast-store'
+import { pl } from '@/i18n/pl'
+
+async function waitForHydration(timeoutMs = 3000): Promise<void> {
+  if (useAppStore.persist.hasHydrated()) return
+  await new Promise<void>((resolve) => {
+    const unsub = useAppStore.persist.onFinishHydration(() => {
+      unsub()
+      resolve()
+    })
+    window.setTimeout(() => {
+      unsub()
+      resolve()
+    }, timeoutMs)
+  })
+}
 
 /**
  * Global auth bridge: magic-link returns to /setup/login (or any route).
- * On SIGNED_IN, sync and finish pending setup gates even if Login unmounted.
+ * On SIGNED_IN, push local first (incl. active deletes), then pull, then finish gates.
  */
 export function AuthBridge() {
   const navigate = useNavigate()
@@ -21,14 +37,26 @@ export function AuthBridge() {
       if (handlingRef.current) return
       handlingRef.current = true
       try {
-        await pullRemoteData()
-        await syncAllLocalData()
-        const { pendingStart, setupQueue } = useAppStore.getState()
-        if (pendingStart || setupQueue.length > 0) {
-          await navigateAfterAuth(navigate)
-        } else if (window.location.pathname === '/setup/login') {
-          navigate('/', { replace: true })
+        await waitForHydration()
+
+        // Push first so local active_workout deletes land before pull can resurrect them
+        const push = await syncAllLocalData()
+        const pull = await pullRemoteData()
+        const flush = await syncAllLocalData()
+        if (!push.ok || !pull.ok || !flush.ok) {
+          showToast(pl.toastSyncFailed, 'error')
         }
+
+        const { pendingStart, setupQueue, settings } = useAppStore.getState()
+        const needsSetupGate =
+          !!pendingStart ||
+          setupQueue.length > 0 ||
+          !settings.onboardingComplete
+        if (needsSetupGate || window.location.pathname === '/setup/login') {
+          await navigateAfterAuth(navigate)
+        }
+      } catch {
+        showToast(pl.toastSyncFailed, 'error')
       } finally {
         handlingRef.current = false
       }

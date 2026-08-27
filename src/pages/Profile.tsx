@@ -9,7 +9,8 @@ import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { pl } from '@/i18n/pl'
 import { requestWorkoutReminderPermission, scheduleDailyReminder, cancelReminder } from '@/lib/notifications'
-import { getProgramProgress, getActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
+import { getProgramProgress, getActiveWorkout } from '@/lib/program-service'
+import { beginProgramSetup } from '@/lib/setup-flow'
 import type { Program } from '@/data/plans/types'
 
 function applyTheme(theme: 'system' | 'dark' | 'light') {
@@ -30,6 +31,7 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState<string | null>(null)
   const [pendingChangeLevel, setPendingChangeLevel] = useState<Program | null>(null)
+  const [pendingRetest, setPendingRetest] = useState<Program | null>(null)
 
   useEffect(() => {
     if (isSupabaseConfigured) {
@@ -44,25 +46,36 @@ export default function ProfilePage() {
     setEmail(null)
   }
 
+  const retest = async (program: Program) => {
+    const active = await getActiveWorkout(program)
+    if (active) {
+      setPendingRetest(program)
+      return
+    }
+    await beginProgramSetup(navigate, program, { retest: true })
+  }
+
+  const confirmRetest = async () => {
+    if (!pendingRetest) return
+    const program = pendingRetest
+    setPendingRetest(null)
+    await beginProgramSetup(navigate, program, { retest: true })
+  }
+
   const changeLevel = async (program: Program) => {
     const active = await getActiveWorkout(program)
     if (active) {
       setPendingChangeLevel(program)
       return
     }
-    navigate(`/setup/test/${program}`)
+    await beginProgramSetup(navigate, program)
   }
 
   const confirmChangeLevel = async () => {
     if (!pendingChangeLevel) return
     const program = pendingChangeLevel
     setPendingChangeLevel(null)
-    await clearActiveWorkout(program)
-    navigate(`/setup/test/${program}`)
-  }
-
-  const retest = (program: Program) => {
-    navigate(`/setup/test/${program}?retest=1`)
+    await beginProgramSetup(navigate, program)
   }
 
   const addProgram = async (program: Program) => {
@@ -216,6 +229,16 @@ export default function ProfilePage() {
           variant="danger"
           onConfirm={() => void confirmChangeLevel()}
           onCancel={() => setPendingChangeLevel(null)}
+        />
+      )}
+      {pendingRetest && (
+        <ConfirmSheet
+          title={pl.menuRetest}
+          message={pl.changeLevelActiveWarning}
+          confirmLabel={pl.confirm}
+          variant="danger"
+          onConfirm={() => void confirmRetest()}
+          onCancel={() => setPendingRetest(null)}
         />
       )}
     </div>

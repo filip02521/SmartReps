@@ -38,7 +38,8 @@ export default function WorkoutPage() {
   const [searchParams] = useSearchParams()
   const forceStart = searchParams.get('force') === '1'
   const navigate = useNavigate()
-  const { settings, setSettings } = useAppStore()
+  const timerSound = useAppStore((s) => s.settings.timerSound)
+  const timerVibration = useAppStore((s) => s.settings.timerVibration)
   const finishingRef = useRef(false)
   const initGenerationRef = useRef(0)
   const checklistRef = useRef<HTMLDivElement>(null)
@@ -65,11 +66,18 @@ export default function WorkoutPage() {
   const staleConfirmedRef = useRef(false)
   const [pulseFlash, setPulseFlash] = useState(false)
 
-  const store = useWorkoutStore()
+  const currentSetIndex = useWorkoutStore((s) => s.currentSetIndex)
+  const setResults = useWorkoutStore((s) => s.setResults)
+  const restTimer = useWorkoutStore((s) => s.restTimer)
   const cycle = progress ? getCycleById(progress.cycleId) : undefined
   const day = cycle?.days.find((d) => d.dayNumber === progress?.currentDay)
-  const currentTarget = day?.sets[store.currentSetIndex]
-  const unit = program === 'pushups' ? pl.pushups : pl.pullups
+  const currentTarget = day?.sets[currentSetIndex]
+  const unit =
+    cycle?.variant === 'negative'
+      ? pl.negatives
+      : program === 'pushups'
+        ? pl.pushups
+        : pl.pullups
 
   const loadPreviousActual = useCallback(
     async (setIndex: number, cycleAttempt: number, dayNumber: number) => {
@@ -89,7 +97,7 @@ export default function WorkoutPage() {
       const prog = await getProgramProgress(program)
       if (generation !== initGenerationRef.current) return
       if (!prog) {
-        navigate('/')
+        navigate('/', { replace: true })
         return
       }
 
@@ -225,16 +233,17 @@ export default function WorkoutPage() {
       await loadPreviousActual(setIdx, prog.cycleAttempt, prog.currentDay)
       setInitialized(true)
 
-      if (!settings.hasSeenWorkoutHint) {
+      const { settings: appSettings, setSettings: patchSettings } = useAppStore.getState()
+      if (!appSettings.hasSeenWorkoutHint) {
         setShowHint(true)
-        setSettings({ hasSeenWorkoutHint: true })
+        patchSettings({ hasSeenWorkoutHint: true })
       }
     } catch {
       if (generation !== initGenerationRef.current) return
       setInitError(pl.errorStartWorkout)
       setInitialized(true)
     }
-  }, [program, navigate, settings.hasSeenWorkoutHint, setSettings, forceStart, loadPreviousActual])
+  }, [program, navigate, forceStart, loadPreviousActual])
 
   useEffect(() => {
     const generation = ++initGenerationRef.current
@@ -252,12 +261,12 @@ export default function WorkoutPage() {
   }, [program, forceStart, initWorkout])
 
   useEffect(() => {
-    if (!store.restTimer || store.restTimer.mode === 'idle') {
+    if (!restTimer || restTimer.mode === 'idle') {
       stopRestTimerWorker()
       return
     }
     requestWakeLock()
-    startRestTimerWorker(store.restTimer, {
+    startRestTimerWorker(restTimer, {
       getState: () => useWorkoutStore.getState().restTimer,
       onTick: (remainingSec) => {
         const current = useWorkoutStore.getState().restTimer
@@ -265,8 +274,8 @@ export default function WorkoutPage() {
         useWorkoutStore.getState().setRestTimer({ ...current, remainingSec })
       },
       onComplete: () => {
-        if (settings.timerSound) playChime()
-        if (settings.timerVibration) vibrate(100)
+        if (timerSound) playChime()
+        if (timerVibration) vibrate(100)
         useWorkoutStore.getState().setRestTimer(skipRest())
         releaseWakeLock()
         checklistRef.current
@@ -277,11 +286,11 @@ export default function WorkoutPage() {
     return () => stopRestTimerWorker()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- restart worker only when timer identity changes
   }, [
-    store.restTimer?.startedAt,
-    store.restTimer?.totalSec,
-    store.restTimer?.mode,
-    settings.timerSound,
-    settings.timerVibration,
+    restTimer?.startedAt,
+    restTimer?.totalSec,
+    restTimer?.mode,
+    timerSound,
+    timerVibration,
   ])
 
   useEffect(() => {
@@ -293,22 +302,22 @@ export default function WorkoutPage() {
   // Pre-set negative prep when landing on an exact set (not after Done / mid-persist)
   useEffect(() => {
     if (!initialized || !day || !cycle || finishingRef.current) return
-    const resting = store.restTimer !== null && store.restTimer.mode !== 'idle'
+    const resting = restTimer !== null && restTimer.mode !== 'idle'
     if (resting) {
       setNegativeCountdown(null)
       return
     }
-    const target = day.sets[store.currentSetIndex]
+    const target = day.sets[currentSetIndex]
     if (cycle.variant !== 'negative' || !target || target.kind !== 'exact') {
       setNegativeCountdown(null)
       negativePrepForSetRef.current = null
       return
     }
-    if (negativePrepForSetRef.current === store.currentSetIndex) return
-    negativePrepForSetRef.current = store.currentSetIndex
+    if (negativePrepForSetRef.current === currentSetIndex) return
+    negativePrepForSetRef.current = currentSetIndex
     setNegativeCountdown(4)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- react to set index + rest mode only
-  }, [initialized, day, cycle, store.currentSetIndex, store.restTimer?.mode])
+  }, [initialized, day, cycle, currentSetIndex, restTimer?.mode])
 
   const persistState = async () => {
     const s = useWorkoutStore.getState()
@@ -322,9 +331,10 @@ export default function WorkoutPage() {
   }
 
   const handleDone = async () => {
+    const workout = useWorkoutStore.getState()
     if (!currentTarget || !day || !progress || !sessionMeta || finishingRef.current) return
-    if (store.restTimer && store.restTimer.mode !== 'idle') {
-      store.setRestTimer({ ...store.restTimer, mode: 'expanded' })
+    if (workout.restTimer && workout.restTimer.mode !== 'idle') {
+      workout.setRestTimer({ ...workout.restTimer, mode: 'expanded' })
       return
     }
     if (negativeCountdown !== null && negativeCountdown > 0) return
@@ -334,7 +344,7 @@ export default function WorkoutPage() {
     try {
       const passed = validateSet(currentTarget, actual)
       const result: SetResultDraft = {
-        setNumber: store.currentSetIndex + 1,
+        setNumber: workout.currentSetIndex + 1,
         target: currentTarget,
         actual,
         passed,
@@ -342,14 +352,14 @@ export default function WorkoutPage() {
 
       if (!passed) {
         onSetFailed()
-        setFailedIndex(store.currentSetIndex)
-        if (!store.failedRetryUsed) {
-          store.setFailedRetryUsed(true)
+        setFailedIndex(workout.currentSetIndex)
+        if (!workout.failedRetryUsed) {
+          workout.setFailedRetryUsed(true)
           finishingRef.current = false
           return
         }
-        await finalizeFailedDay(sessionMeta.id, program, [...store.setResults, result])
-        store.reset()
+        await finalizeFailedDay(sessionMeta.id, program, [...workout.setResults, result])
+        workout.reset()
         navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`, { replace: true })
         return
       }
@@ -357,21 +367,21 @@ export default function WorkoutPage() {
       onSetComplete()
       setPulseFlash(true)
       window.setTimeout(() => setPulseFlash(false), 400)
-      const nextSetIndex = store.currentSetIndex + 1
-      const allResults = [...store.setResults, result]
-      store.completeSet(result)
+      const nextSetIndex = workout.currentSetIndex + 1
+      const allResults = [...workout.setResults, result]
+      workout.completeSet(result)
       setFailedIndex(undefined)
 
       if (nextSetIndex >= day.sets.length) {
         await persistState()
         await finalizeSuccessfulDay(sessionMeta, allResults)
-        store.reset()
+        workout.reset()
         navigate(`/workout/${program}/summary?session=${sessionMeta.id}`, { replace: true })
         return
       }
 
       // Start rest before any await so negative-prep effect cannot fire on the next set
-      store.setRestTimer(createRestTimer(day.restBetweenSetsSec))
+      workout.setRestTimer(createRestTimer(day.restBetweenSetsSec))
       setActual(getTargetReps(day.sets[nextSetIndex]))
       await persistState()
       await loadPreviousActual(nextSetIndex, progress.cycleAttempt, progress.currentDay)
@@ -399,7 +409,7 @@ export default function WorkoutPage() {
           setInitialized(false)
           void initWorkout(generation)
         }} />
-        <Button variant="ghost" className="mt-4" fullWidth onClick={() => navigate('/')}>{pl.backHome}</Button>
+        <Button variant="ghost" className="mt-4" fullWidth onClick={() => navigate('/', { replace: true })}>{pl.backHome}</Button>
       </div>
     )
   }
@@ -412,7 +422,7 @@ export default function WorkoutPage() {
         <Button className="mt-6" fullWidth onClick={() => navigate(`/setup/test/${program}?retest=1`)}>
           {pl.test}
         </Button>
-        <Button variant="ghost" className="mt-2" fullWidth onClick={() => navigate('/')}>
+        <Button variant="ghost" className="mt-2" fullWidth onClick={() => navigate('/', { replace: true })}>
           {pl.backHome}
         </Button>
       </div>
@@ -435,8 +445,8 @@ export default function WorkoutPage() {
         }}
         onCancel={async () => {
           await clearActiveWorkout(program)
-          store.reset()
-          navigate('/')
+          useWorkoutStore.getState().reset()
+          navigate('/', { replace: true })
         }}
       />
     )
@@ -455,7 +465,7 @@ export default function WorkoutPage() {
         <Button className="mt-6" fullWidth onClick={() => navigate(`/workout/${program}?force=1`, { replace: true })}>
           {pl.trainAnyway}
         </Button>
-        <Button variant="ghost" className="mt-2" fullWidth onClick={() => navigate('/')}>
+        <Button variant="ghost" className="mt-2" fullWidth onClick={() => navigate('/', { replace: true })}>
           {pl.backHome}
         </Button>
       </div>
@@ -465,14 +475,14 @@ export default function WorkoutPage() {
   if (!day || !currentTarget || !progress) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <ErrorBanner message={pl.errorNoWorkoutData} onRetry={() => navigate('/')} />
+        <ErrorBanner message={pl.errorNoWorkoutData} onRetry={() => navigate('/', { replace: true })} />
       </div>
     )
   }
 
-  const nextTarget = day.sets[store.currentSetIndex + 1]
+  const nextTarget = day.sets[currentSetIndex + 1]
   const nextLabel = nextTarget
-    ? pl.nextSet(store.currentSetIndex + 2, getTargetReps(nextTarget), unit)
+    ? pl.nextSet(currentSetIndex + 2, getTargetReps(nextTarget), unit)
     : ''
 
   return (
@@ -481,9 +491,9 @@ export default function WorkoutPage() {
       progress={{ currentDay: progress.currentDay, cycleAttempt: progress.cycleAttempt }}
       day={day}
       cycleVariant={cycle?.variant}
-      currentSetIndex={store.currentSetIndex}
-      setResults={store.setResults}
-      restTimer={store.restTimer}
+      currentSetIndex={currentSetIndex}
+      setResults={setResults}
+      restTimer={restTimer}
       actual={actual}
       lastActual={lastActual}
       failedIndex={failedIndex}
@@ -493,7 +503,7 @@ export default function WorkoutPage() {
       showLeaveConfirm={showLeaveConfirm}
       showPlanSheet={showPlanSheet}
       negativeCountdown={negativeCountdown}
-      failedRetryVisible={failedIndex === store.currentSetIndex}
+      failedRetryVisible={failedIndex === currentSetIndex}
       pulseFlash={pulseFlash}
       nextLabel={nextLabel}
       checklistRef={checklistRef}
@@ -511,34 +521,46 @@ export default function WorkoutPage() {
       onDismissHint={() => setShowHint(false)}
       onActualChange={setActual}
       onDone={() => void handleDone()}
-      onRetry={() => { setFailedIndex(undefined); store.setFailedRetryUsed(false) }}
+      onRetry={() => { setFailedIndex(undefined) }}
       onFinishDayEarly={() => void (async () => {
         if (!sessionMeta || finishingRef.current) return
         finishingRef.current = true
         try {
-          await finalizeFailedDay(sessionMeta.id, program, store.setResults)
-          store.reset()
+          await finalizeFailedDay(sessionMeta.id, program, useWorkoutStore.getState().setResults)
+          useWorkoutStore.getState().reset()
           navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`, { replace: true })
         } catch {
           finishingRef.current = false
           setInitError(pl.errorFinishDay)
         }
       })()}
-      onExpandTimer={() => store.setRestTimer({ ...store.restTimer!, mode: 'expanded' })}
-      onAddRest15={() => store.setRestTimer(addRestTime(useWorkoutStore.getState().restTimer!, 15))}
-      onAddRest30={() => store.setRestTimer(addRestTime(useWorkoutStore.getState().restTimer!, 30))}
-      onSkipRest={() => store.setRestTimer(skipRest())}
-      onCollapseTimer={() => store.setRestTimer({ ...useWorkoutStore.getState().restTimer!, mode: 'pill' })}
+      onExpandTimer={() => {
+        const t = useWorkoutStore.getState().restTimer
+        if (t) useWorkoutStore.getState().setRestTimer({ ...t, mode: 'expanded' })
+      }}
+      onAddRest15={() => {
+        const t = useWorkoutStore.getState().restTimer
+        if (t) useWorkoutStore.getState().setRestTimer(addRestTime(t, 15))
+      }}
+      onAddRest30={() => {
+        const t = useWorkoutStore.getState().restTimer
+        if (t) useWorkoutStore.getState().setRestTimer(addRestTime(t, 30))
+      }}
+      onSkipRest={() => useWorkoutStore.getState().setRestTimer(skipRest())}
+      onCollapseTimer={() => {
+        const t = useWorkoutStore.getState().restTimer
+        if (t) useWorkoutStore.getState().setRestTimer({ ...t, mode: 'pill' })
+      }}
       onConfirmCancel={() => void (async () => {
         if (!sessionMeta) return
         await abandonWorkoutSession(program, sessionMeta.id)
-        store.reset()
-        navigate('/')
+        useWorkoutStore.getState().reset()
+        navigate('/', { replace: true })
       })()}
       onDismissCancel={() => setShowCancelConfirm(false)}
       onConfirmLeave={() => {
         setShowLeaveConfirm(false)
-        void persistState().finally(() => navigate('/'))
+        void persistState().finally(() => navigate('/', { replace: true }))
       }}
       onDismissLeave={() => setShowLeaveConfirm(false)}
       onClosePlan={() => setShowPlanSheet(false)}

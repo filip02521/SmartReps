@@ -59,6 +59,7 @@ Bez `.env` ekran logowania ma opcję **„Później”** — trening działa w p
    - `supabase/migrations/001_initial_schema.sql`
    - `supabase/migrations/002_sync_and_constraints.sql`
    - `supabase/migrations/003_harden_handle_new_user.sql`
+   - `supabase/migrations/004_set_results_upsert.sql`
 3. Wklej URL i anon key do `.env` / Vercel env
 4. W **Authentication → URL Configuration** ustaw:
    - **Site URL:** `https://smart-reps.vercel.app`

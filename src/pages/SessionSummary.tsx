@@ -13,6 +13,19 @@ import { getCycleById } from '@/data/plans'
 import type { Program } from '@/data/plans/types'
 import { showToast } from '@/stores/toast-store'
 
+const toastedSessions = new Set<string>()
+const TOAST_CACHE_LIMIT = 40
+
+function shouldToastOnce(sessionId: string): boolean {
+  if (toastedSessions.has(sessionId)) return false
+  toastedSessions.add(sessionId)
+  if (toastedSessions.size > TOAST_CACHE_LIMIT) {
+    const oldest = toastedSessions.values().next().value
+    if (oldest) toastedSessions.delete(oldest)
+  }
+  return true
+}
+
 export default function SessionSummary() {
   const { program: programParam } = useParams<{ program: Program }>()
   const program = programParam as Program
@@ -20,7 +33,7 @@ export default function SessionSummary() {
   const failed = searchParams.get('failed') === '1'
   const sessionId = searchParams.get('session')
   const navigate = useNavigate()
-  const store = useWorkoutStore()
+  const setResults = useWorkoutStore((s) => s.setResults)
   const processedRef = useRef(false)
 
   const [loading, setLoading] = useState(true)
@@ -33,17 +46,21 @@ export default function SessionSummary() {
     setLoading(true)
     setError(null)
     try {
-      store.reset()
+      useWorkoutStore.getState().reset()
+
+      if (!sessionId) {
+        setError(pl.missingSession)
+        return
+      }
+
       const prog = await getProgramProgress(program)
       setProgress(prog)
 
-      if (sessionId) {
-        const comparison = await getSessionComparison(program, sessionId)
-        setCurrent(comparison.current)
-        setPrevious(comparison.previous)
-      }
+      const comparison = await getSessionComparison(program, sessionId)
+      setCurrent(comparison.current)
+      setPrevious(comparison.previous)
 
-      if (!failed && sessionId && prog?.status !== 'test_pending') {
+      if (!failed && prog?.status !== 'test_pending' && shouldToastOnce(sessionId)) {
         showToast(pl.toastDayComplete, 'success')
       }
     } catch {
@@ -61,7 +78,6 @@ export default function SessionSummary() {
     if (processedRef.current) return
     processedRef.current = true
     void load()
-    // load intentionally omits store from deps — reset once per summary key
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when summary identity changes
   }, [program, sessionId, failed])
 
@@ -76,12 +92,18 @@ export default function SessionSummary() {
   if (error) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <ErrorBanner message={error} onRetry={() => void load()} />
+        <ErrorBanner message={error} onRetry={() => {
+          processedRef.current = false
+          void load()
+        }} />
+        <Button className="mt-4" fullWidth onClick={() => navigate('/', { replace: true })}>
+          {pl.backHome}
+        </Button>
       </div>
     )
   }
 
-  const rows = current?.setResults ?? store.setResults
+  const rows = current?.setResults ?? setResults
   const totalReps = current?.totalReps ?? rows.reduce((s, r) => s + r.actual, 0)
   const cycle = progress ? getCycleById(progress.cycleId) : undefined
   const daysLeft = daysUntilWorkout(progress?.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null)
@@ -128,7 +150,7 @@ export default function SessionSummary() {
 
       {cycle && (
         <p className="mt-2 text-center text-xs text-[var(--sr-text-muted)]">
-          {cycle.nameShort} · Próba {current?.cycleAttempt ?? progress?.cycleAttempt}
+          {cycle.nameShort} · {pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}
         </p>
       )}
 
