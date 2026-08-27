@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { SetupStepper } from '@/components/setup/SetupStepper'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { SkeletonCard } from '@/components/ux/Feedback'
+import { PageLoader } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { navigateAfterAuth } from '@/lib/post-auth-navigation'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
@@ -55,7 +55,7 @@ export default function Login() {
   if (!hydrated) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <SkeletonCard className="h-40" />
+        <PageLoader />
       </div>
     )
   }

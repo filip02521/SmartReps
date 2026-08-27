@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import { OnboardingIllustration } from '@/components/onboarding/OnboardingIllustrations'
 import { Button } from '@/components/ui/Button'
-import { StepIndicator, SkeletonCard } from '@/components/ux/Feedback'
+import { StepIndicator, PageLoader } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
@@ -47,7 +47,7 @@ export default function Onboarding() {
   if (!hydrated || onboardingComplete) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <SkeletonCard className="h-48" />
+        <PageLoader />
       </div>
     )
   }

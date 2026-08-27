@@ -4,7 +4,7 @@ import { pl } from '@/i18n/pl'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { SessionCompare } from '@/components/workout/SessionCompare'
-import { ErrorBanner, SkeletonCard } from '@/components/ux/Feedback'
+import { ErrorBanner, PageLoader } from '@/components/ux/Feedback'
 import { getProgramProgress } from '@/lib/program-service'
 import { getSessionComparison } from '@/lib/session-service'
 import { useWorkoutStore } from '@/stores/workout-store'
@@ -84,7 +84,7 @@ export default function SessionSummary() {
   if (loading) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <SkeletonCard className="h-48" />
+        <PageLoader />
       </div>
     )
   }

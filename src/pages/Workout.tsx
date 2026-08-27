@@ -17,7 +17,7 @@ import { useAppStore } from '@/stores/app-store'
 import { onSetComplete, onSetFailed, ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { ActiveWorkoutScreen } from '@/components/workout/ActiveWorkoutScreen'
 import { Button } from '@/components/ui/Button'
-import { ErrorBanner, SkeletonCard } from '@/components/ux/Feedback'
+import { ErrorBanner, PageLoader } from '@/components/ux/Feedback'
 import { getProgramProgress, saveActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
 import {
   finalizeFailedDay,
@@ -396,7 +396,7 @@ export default function WorkoutPage() {
   if (!initialized) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <SkeletonCard className="h-64" />
+        <PageLoader message={pl.loading} />
       </div>
     )
   }

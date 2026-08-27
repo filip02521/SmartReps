@@ -6,7 +6,7 @@ import { Card, Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { TrendIndicator } from '@/components/ui/TrendIndicator'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
-import { SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
+import { SkeletonCard, ErrorBanner, PageLoader } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
@@ -367,7 +367,7 @@ export default function Dashboard() {
   if (!hydrated) {
     return (
       <div className="mx-auto max-w-lg px-4 py-6 safe-top">
-        <SkeletonCard className="h-40" />
+        <PageLoader />
       </div>
     )
   }

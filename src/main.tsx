@@ -48,5 +48,5 @@ createRoot(document.getElementById('root')!).render(
 )
 
 window.requestAnimationFrame(() => {
-  window.setTimeout(hideSplash, 500)
+  window.setTimeout(hideSplash, 900)
 })

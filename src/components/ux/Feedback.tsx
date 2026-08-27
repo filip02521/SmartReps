@@ -3,6 +3,8 @@ import { ReactNode } from 'react'
 import { Button } from '@/components/ui/Button'
 import { pl } from '@/i18n/pl'
 
+export { BrandLoader, PageLoader } from '@/components/ui/BrandLoader'
+
 export function EmptyState({
   icon,
   title,
@@ -87,10 +89,13 @@ export function SkeletonCard({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'h-32 animate-pulse rounded-[var(--sr-radius-lg)] bg-[var(--sr-bg-surface)]',
+        'relative h-32 overflow-hidden rounded-[var(--sr-radius-lg)] bg-[var(--sr-bg-surface)]',
         className,
       )}
-    />
+      aria-hidden
+    >
+      <div className="absolute inset-0 sr-skeleton-shimmer" />
+    </div>
   )
 }
 

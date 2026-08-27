@@ -12,7 +12,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Sheet } from '@/components/ui/Sheet'
 import { LogoMark } from '@/components/brand/Logo'
 import { Card } from '@/components/ui/Card'
-import { EmptyState, SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
+import { EmptyState, PageLoader, ErrorBanner } from '@/components/ux/Feedback'
 import { formatSetTarget } from '@/lib/progress-engine'
 import { db } from '@/lib/db'
 import { getProgramProgress } from '@/lib/program-service'
@@ -136,7 +136,7 @@ export default function ProgressPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-lg px-4 py-6 safe-top">
-        <SkeletonCard className="h-48" />
+        <PageLoader />
       </div>
     )
   }

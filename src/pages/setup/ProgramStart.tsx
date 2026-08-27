@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { CycleCelebration } from '@/components/workout/WorkoutComponents'
 import { SetupStepper } from '@/components/setup/SetupStepper'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { SkeletonCard } from '@/components/ux/Feedback'
+import { PageLoader } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
@@ -58,8 +58,7 @@ export default function ProgramStart() {
   if (!hydrated || !pendingStart || pendingStart.program !== program) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <SkeletonCard className="h-48" />
-        <p className="mt-4 text-center text-sm text-[var(--sr-text-muted)]">{pl.restoringSetup}</p>
+        <PageLoader message={pl.restoringSetup} />
       </div>
     )
   }
@@ -76,7 +75,7 @@ export default function ProgramStart() {
   if (!restReady) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <SkeletonCard className="h-48" />
+        <PageLoader compact />
       </div>
     )
   }

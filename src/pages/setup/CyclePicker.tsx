@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Card, Badge } from '@/components/ui/Card'
 import { SetupStepper } from '@/components/setup/SetupStepper'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { SkeletonCard } from '@/components/ux/Feedback'
+import { PageLoader } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
@@ -66,17 +66,16 @@ export default function CyclePicker() {
   if (!hydrated || (!pendingTest && pendingStart?.program !== program) || (pendingTest && pendingTest.program !== program)) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <SkeletonCard className="h-48" />
-        <p className="mt-4 text-center text-sm text-[var(--sr-text-muted)]">{pl.restoringSetup}</p>
+        <PageLoader message={pl.restoringSetup} />
       </div>
     )
   }
 
-  // Advancing to ProgramStart — show skeleton while navigate settles
+  // Advancing to ProgramStart — show loader while navigate settles
   if (!pendingTest && pendingStart?.program === program) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <SkeletonCard className="h-48" />
+        <PageLoader compact />
       </div>
     )
   }
@@ -84,8 +83,7 @@ export default function CyclePicker() {
   if (!pendingTest) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <SkeletonCard className="h-48" />
-        <p className="mt-4 text-center text-sm text-[var(--sr-text-muted)]">{pl.restoringSetup}</p>
+        <PageLoader message={pl.restoringSetup} />
       </div>
     )
   }
