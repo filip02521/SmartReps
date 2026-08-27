@@ -68,7 +68,7 @@ export default function ProgressPage() {
         setRecords(await getProgramRecords(program))
         setHeatmap(await buildActivityHeatmap(program))
       } catch {
-        setError('Nie udało się załadować postępów.')
+        setError(pl.errorLoadProgress)
       } finally {
         setLoading(false)
       }
@@ -180,7 +180,7 @@ export default function ProgressPage() {
 
           {tests.length > 0 ? (
             <Card className="mt-6 h-48 sr-card">
-              <p className="mb-2 text-sm font-medium">Test max w czasie</p>
+              <p className="mb-2 text-sm font-medium">{pl.chartTestOverTime}</p>
               <ResponsiveContainer width="100%" height="85%">
                 <LineChart data={tests}>
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="var(--sr-text-muted)" />
@@ -298,17 +298,29 @@ export default function ProgressPage() {
             )
           ) : (
             <div className="flex flex-col gap-2">
-              {filteredSessions.slice(0, 20).map((s) => (
+              {filteredSessions.slice(0, 20).map((s) => {
+                const statusLabel =
+                  s.status === 'in_progress'
+                    ? pl.sessionInProgress
+                    : s.status === 'abandoned'
+                      ? pl.abandonedShort
+                      : s.passed === false
+                        ? pl.failedShort
+                        : s.passed === true
+                          ? pl.passedShort
+                          : pl.incompleteShort
+                return (
                 <Card key={s.id} className="cursor-pointer py-3 sr-card" onClick={() => setSelectedSession(s)}>
                   <p className="text-sm font-medium">
                     {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })} · Dzień {s.dayNumber}
-                    {s.passed === false ? ` (${pl.failedShort})` : ` · ${pl.passedShort}`}
+                    {` · ${statusLabel}`}
                   </p>
                   <p className="text-xs text-[var(--sr-text-muted)]">
                     {getCycleById(s.cycleId)?.nameShort ?? s.cycleId} · {s.totalReps ?? 0} {pl.repsUnit}
                   </p>
                 </Card>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -316,7 +328,7 @@ export default function ProgressPage() {
 
       {tab === 'cycle' && cycle && (
         <Card className="mt-4 sr-card">
-          <p className="mb-3 text-sm font-medium">Mapa cyklu — {cycle.nameShort}</p>
+          <p className="mb-3 text-sm font-medium">{pl.cycleMapTitle(cycle.nameShort)}</p>
           <div className="flex justify-between gap-1">
             {cycle.days.map((d) => {
               const dayStatus = progress
@@ -353,7 +365,7 @@ export default function ProgressPage() {
               )
             })}
           </div>
-          <p className="mt-2 text-xs text-[var(--sr-text-muted)]">Ukończony dzień → sesja · przyszły → plan</p>
+          <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{pl.cycleMapHint}</p>
         </Card>
       )}
 

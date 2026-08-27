@@ -64,7 +64,7 @@ export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: (
       <p className="text-sm text-[var(--sr-error)]">{message}</p>
       {onRetry && (
         <Button variant="ghost" size="sm" className="mt-2" onClick={onRetry}>
-          Spróbuj ponownie
+          {pl.tryAgain}
         </Button>
       )}
     </div>

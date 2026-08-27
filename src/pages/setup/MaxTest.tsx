@@ -17,7 +17,7 @@ export function HealthDisclaimer({ onAccept }: { onAccept: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--sr-bg-overlay)] p-4" role="dialog" aria-modal="true" aria-labelledby="health-title">
       <div className="max-w-sm rounded-[var(--sr-radius-xl)] bg-[var(--sr-bg-elevated)] p-6">
-        <h2 id="health-title" className="text-lg font-semibold">Zdrowie i bezpieczeństwo</h2>
+        <h2 id="health-title" className="text-lg font-semibold">{pl.healthTitle}</h2>
         <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">{pl.healthDisclaimer}</p>
         <label className="mt-4 flex min-h-11 items-start gap-3 text-sm">
           <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} className="mt-1 h-5 w-5" />
@@ -130,7 +130,7 @@ export default function MaxTest() {
   }
 
   const title = isRetest
-    ? `Test po cyklu — ${program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram}`
+    ? pl.retestAfterCycle(program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram)
     : program === 'pushups'
       ? pl.testPushups
       : pl.testPullups
@@ -143,7 +143,7 @@ export default function MaxTest() {
 
       <PageHeader
         title={title}
-        subtitle={isRetest ? 'Sprawdź postęp i wybierz kolejny cykl po teście.' : pl.testPrompt}
+        subtitle={isRetest ? pl.retestSubtitle : pl.testPrompt}
       />
 
       {blocked && (
@@ -234,7 +234,7 @@ export default function MaxTest() {
             navigate('/setup/technique?from=test')
           }}
         >
-          Jak robić pompkę?
+          {pl.howToPushup}
         </Button>
       )}
 

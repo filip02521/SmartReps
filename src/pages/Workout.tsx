@@ -130,7 +130,7 @@ export default function WorkoutPage() {
       const d = c?.days.find((x) => x.dayNumber === prog.currentDay)
       setsCountRef.current = d?.sets.length ?? 5
       if (!c || !d) {
-        setInitError('Nie znaleziono planu treningowego dla tego programu.')
+        setInitError(pl.errorNoPlan)
         setInitialized(true)
         return
       }
@@ -230,7 +230,7 @@ export default function WorkoutPage() {
       }
     } catch {
       if (generation !== initGenerationRef.current) return
-      setInitError('Nie udało się rozpocząć treningu.')
+      setInitError(pl.errorStartWorkout)
       setInitialized(true)
     }
   }, [program, navigate, store, settings.hasSeenWorkoutHint, setSettings, forceStart, loadPreviousActual])
@@ -289,11 +289,14 @@ export default function WorkoutPage() {
     return () => clearTimeout(t)
   }, [negativeCountdown])
 
-  // Pre-set negative prep when landing on an exact set (not after Done)
+  // Pre-set negative prep when landing on an exact set (not after Done / mid-persist)
   useEffect(() => {
-    if (!initialized || !day || !cycle) return
+    if (!initialized || !day || !cycle || finishingRef.current) return
     const resting = store.restTimer !== null && store.restTimer.mode !== 'idle'
-    if (resting) return
+    if (resting) {
+      setNegativeCountdown(null)
+      return
+    }
     const target = day.sets[store.currentSetIndex]
     if (cycle.variant !== 'negative' || !target || target.kind !== 'exact') {
       setNegativeCountdown(null)
@@ -325,6 +328,7 @@ export default function WorkoutPage() {
     }
     if (negativeCountdown !== null && negativeCountdown > 0) return
     finishingRef.current = true
+    setNegativeCountdown(null)
 
     try {
       const passed = validateSet(currentTarget, actual)
@@ -356,23 +360,25 @@ export default function WorkoutPage() {
       const allResults = [...store.setResults, result]
       store.completeSet(result)
       setFailedIndex(undefined)
-      await persistState()
 
       if (nextSetIndex >= day.sets.length) {
+        await persistState()
         await finalizeSuccessfulDay(sessionMeta, allResults)
         store.reset()
         navigate(`/workout/${program}/summary?session=${sessionMeta.id}`, { replace: true })
         return
       }
 
+      // Start rest before any await so negative-prep effect cannot fire on the next set
       store.setRestTimer(createRestTimer(day.restBetweenSetsSec))
       setActual(getTargetReps(day.sets[nextSetIndex]))
+      await persistState()
       await loadPreviousActual(nextSetIndex, progress.cycleAttempt, progress.currentDay)
       await persistState()
       finishingRef.current = false
     } catch {
       finishingRef.current = false
-      setInitError('Nie udało się zapisać serii. Spróbuj ponownie.')
+      setInitError(pl.errorSaveSet)
     }
   }
 
@@ -458,7 +464,7 @@ export default function WorkoutPage() {
   if (!day || !currentTarget || !progress) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <ErrorBanner message="Brak danych treningu." onRetry={() => navigate('/')} />
+        <ErrorBanner message={pl.errorNoWorkoutData} onRetry={() => navigate('/')} />
       </div>
     )
   }
@@ -490,6 +496,7 @@ export default function WorkoutPage() {
       pulseFlash={pulseFlash}
       nextLabel={nextLabel}
       checklistRef={checklistRef}
+      showTechniqueLink={program === 'pushups'}
       onBack={() => setShowLeaveConfirm(true)}
       onToggleMenu={() => setShowMenu((v) => !v)}
       onShowPlan={() => { setShowPlanSheet(true); setShowMenu(false) }}
@@ -513,7 +520,7 @@ export default function WorkoutPage() {
           navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`, { replace: true })
         } catch {
           finishingRef.current = false
-          setInitError('Nie udało się zakończyć dnia. Spróbuj ponownie.')
+          setInitError(pl.errorFinishDay)
         }
       })()}
       onExpandTimer={() => store.setRestTimer({ ...store.restTimer!, mode: 'expanded' })}

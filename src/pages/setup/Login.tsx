@@ -43,7 +43,7 @@ export default function Login() {
     })
     setLoading(false)
     if (error) {
-      showToast(error.message || 'Nie udało się wysłać linku. Spróbuj ponownie.', 'error')
+      showToast(error.message || pl.errorSendLink, 'error')
       return
     }
     setSent(true)

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { AuthBridge } from '@/components/ux/AuthBridge'
 import { GlobalOfflineBar } from '@/components/ux/GlobalOfflineBar'
@@ -15,6 +15,7 @@ import CyclePicker from '@/pages/setup/CyclePicker'
 import ProgramStart from '@/pages/setup/ProgramStart'
 import Login from '@/pages/setup/Login'
 import TechniquePushups from '@/pages/setup/TechniquePushups'
+import NotFound from '@/pages/NotFound'
 import { ToastHost } from '@/components/ux/Toast'
 
 export default function App() {
@@ -42,7 +43,7 @@ export default function App() {
           <Route path="/workout/:program" element={<WorkoutPage />} />
           <Route path="/workout/:program/summary" element={<SessionSummary />} />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   )

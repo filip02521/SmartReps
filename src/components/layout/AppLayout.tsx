@@ -22,7 +22,7 @@ export function AppLayout() {
         <Outlet />
       </main>
       {!hideTabs && (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] safe-bottom" aria-label="Główna nawigacja">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] safe-bottom" aria-label={pl.mainNav}>
           <div className="mx-auto flex max-w-lg justify-around px-2 py-1">
             {tabs.map(({ to, label, icon: Icon }) => {
               const active = location.pathname === to

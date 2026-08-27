@@ -39,6 +39,7 @@ export type ActiveWorkoutScreenProps = {
   pulseFlash?: boolean
   nextLabel: string
   checklistRef?: RefObject<HTMLDivElement | null>
+  showTechniqueLink?: boolean
   onBack: () => void
   onToggleMenu: () => void
   onShowPlan: () => void
@@ -84,6 +85,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     pulseFlash,
     nextLabel,
     checklistRef,
+    showTechniqueLink = false,
     onBack,
     onToggleMenu,
     onShowPlan,
@@ -151,9 +153,11 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
             <button type="button" className="block min-h-11 w-full px-4 py-2 text-left text-sm" onClick={onShowPlan}>
               {pl.previewDayPlan}
             </button>
-            <button type="button" className="block min-h-11 w-full px-4 py-2 text-left text-sm" onClick={onShowTechnique}>
-              {pl.helpTechnique}
-            </button>
+            {showTechniqueLink && (
+              <button type="button" className="block min-h-11 w-full px-4 py-2 text-left text-sm" onClick={onShowTechnique}>
+                {pl.helpTechniquePushups}
+              </button>
+            )}
             <button type="button" className="block min-h-11 w-full px-4 py-2 text-left text-sm text-[var(--sr-error)]" onClick={onRequestCancel}>
               {pl.cancelWorkout}
             </button>

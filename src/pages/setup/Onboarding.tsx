@@ -9,9 +9,9 @@ import { useAppStore } from '@/stores/app-store'
 import type { Program } from '@/data/plans/types'
 
 const rules = [
-  { title: 'Test max', text: 'Zacznij od testu — aplikacja dobierze odpowiedni poziom.' },
-  { title: 'Przerwy', text: 'Szanuj przerwy między dniami — regeneracja buduje siłę.' },
-  { title: 'Restart', text: 'Nieudany dzień? Po przerwie wracasz do dnia 1 tego cyklu.' },
+  { title: pl.onboardingRuleTestTitle, text: pl.onboardingRuleTestText },
+  { title: pl.onboardingRuleRestTitle, text: pl.onboardingRuleRestText },
+  { title: pl.onboardingRuleRestartTitle, text: pl.onboardingRuleRestartText },
 ]
 
 export default function Onboarding() {
@@ -40,7 +40,7 @@ export default function Onboarding() {
       {step === 0 && (
         <div className="flex flex-1 flex-col items-center justify-center text-center">
           <OnboardingIllustration step="welcome" />
-          <h1 className="mt-2 sr-text-h1">{pl.appName}</h1>
+          <h1 className="mt-2 sr-text-h1">{pl.onboardingWelcome}</h1>
           <p className="mt-2 text-[var(--sr-text-secondary)]">{pl.tagline}</p>
           <Button className="mt-8" fullWidth onClick={() => setStep(1)}>{pl.next}</Button>
         </div>

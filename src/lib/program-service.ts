@@ -105,6 +105,25 @@ export async function completeWorkoutDay(
   })
 }
 
+export function getStatusTone(progress: LocalProgramProgress): 'success' | 'warning' | 'info' | 'error' {
+  const waitingRest =
+    progress.nextWorkoutAfter &&
+    daysUntilWorkout(new Date(progress.nextWorkoutAfter)) > 0
+
+  switch (progress.status) {
+    case 'active':
+    case 'rest':
+      return waitingRest ? 'warning' : 'success'
+    case 'test_pending':
+      return 'info'
+    case 'cycle_failed':
+    case 'paused':
+      return 'error'
+    default:
+      return 'info'
+  }
+}
+
 export function getStatusLabel(progress: LocalProgramProgress): string {
   const waitingRest =
     progress.nextWorkoutAfter &&

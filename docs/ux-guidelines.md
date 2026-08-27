@@ -61,7 +61,7 @@
 - [x] Test 5 sekund — użytkownik wie co robić
 - [x] Jedna primary action bez scrolla (5 serii)
 - [x] Stany loading/empty/error/offline (Dashboard, Progress, Workout, Summary)
-- [x] Toast sukcesu (2s) — sync, ukończony dzień, eksport CSV
+- [x] Toast sukcesu (3.5–5s wg wariantu) — sync, ukończony dzień, eksport CSV
 - [x] Microcopy ze słownika PL (`src/i18n/pl.ts`)
 - [x] Touch targets ≥ 48px (`--sr-spacing-touch`, size touch)
 - [x] Tab bar ukryty w treningu

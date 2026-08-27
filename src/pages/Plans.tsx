@@ -14,12 +14,12 @@ export default function PlansPage() {
     <div className="mx-auto max-w-lg px-4 py-6 safe-top">
       <PageHeader
         title={pl.navPlans}
-        subtitle={`SmartReps implementuje plany z 100pompek.pl i podciaganie.pl`}
+        subtitle={pl.plansAttribution}
       />
 
       {allCycles.length === 0 && (
         <div className="mt-6">
-          <ErrorBanner message="Brak planów treningowych." />
+          <ErrorBanner message={pl.noPlans} />
         </div>
       )}
 

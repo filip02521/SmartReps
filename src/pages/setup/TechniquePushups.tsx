@@ -26,19 +26,19 @@ export default function TechniquePushups() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-      <PageHeader title="Technika — pompki na kolanach" onBack={goBack} />
+      <PageHeader title={pl.techniqueTitle} onBack={goBack} />
       <div className="mt-2 space-y-6">
         <div>
           <StepIllustration step={1} />
-          <p className="text-sm text-[var(--sr-text-secondary)]">Ustaw dłonie na szerokość barków, ciało w linii prostej od kolan do głowy.</p>
+          <p className="text-sm text-[var(--sr-text-secondary)]">{pl.techniqueStep1}</p>
         </div>
         <div>
           <StepIllustration step={2} />
-          <p className="text-sm text-[var(--sr-text-secondary)]">Opuszczaj się powoli, łokcie blisko tułowia.</p>
+          <p className="text-sm text-[var(--sr-text-secondary)]">{pl.techniqueStep2}</p>
         </div>
         <div>
           <StepIllustration step={3} />
-          <p className="text-sm text-[var(--sr-text-secondary)]">Wypchnij się do pozycji startowej — pełna amplituda.</p>
+          <p className="text-sm text-[var(--sr-text-secondary)]">{pl.techniqueStep3}</p>
         </div>
       </div>
       <Button className="mt-8" fullWidth onClick={goBack}>

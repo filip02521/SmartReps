@@ -12,6 +12,7 @@ import { useAppStore } from '@/stores/app-store'
 import {
   getProgramProgress,
   getStatusLabel,
+  getStatusTone,
   getActiveWorkout,
   clearActiveWorkout,
 } from '@/lib/program-service'
@@ -69,7 +70,7 @@ function ProgramCard({
           }
         }
       } catch {
-        setLoadError('Nie udało się załadować programu.')
+        setLoadError(pl.errorLoadProgram)
       } finally {
         setLoading(false)
       }
@@ -101,6 +102,7 @@ function ProgramCard({
 
   const cycle = getCycleById(progress.cycleId)
   const status = getStatusLabel(progress)
+  const badgeVariant = getStatusTone(progress)
   const available = isWorkoutAvailable(
     progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
   )
@@ -111,15 +113,6 @@ function ProgramCard({
     progress.status === 'test_pending'
       ? false
       : available || trainDespiteRest
-
-  const badgeVariant =
-    status === pl.statusReady
-      ? 'success'
-      : status === pl.statusRest
-        ? 'warning'
-        : status === pl.statusTest
-          ? 'info'
-          : 'error'
 
   return (
     <Card id={`program-${program}`} className="border-l-4 sr-card scroll-mt-24" style={{ borderLeftColor: programMeta[program].accent }}>

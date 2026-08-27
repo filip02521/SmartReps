@@ -47,7 +47,7 @@ export default function SessionSummary() {
         showToast(pl.toastDayComplete, 'success')
       }
     } catch {
-      setError('Nie udało się załadować podsumowania.')
+      setError(pl.errorLoadSummary)
     } finally {
       setLoading(false)
     }
@@ -112,7 +112,7 @@ export default function SessionSummary() {
       {failed && (
         <Card className="mt-4 border border-[var(--sr-error)] sr-card">
           <p className="text-sm text-[var(--sr-error)]">
-            {pl.onboardingRulesTitle}: po przerwie wrócisz do dnia 1 tego cyklu ({pl.attemptLabel(progress?.cycleAttempt ?? 1)}).
+            {pl.dayFailedRestart(progress?.cycleAttempt ?? 1)}
           </p>
         </Card>
       )}
