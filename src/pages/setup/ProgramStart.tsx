@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { SkeletonCard } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
+import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { getCycleById } from '@/data/plans'
 import { getProgramProgress } from '@/lib/program-service'
 import { formatSetTarget, isWorkoutAvailable, daysUntilWorkout } from '@/lib/progress-engine'
@@ -16,17 +17,22 @@ import type { Program } from '@/data/plans/types'
 export default function ProgramStart() {
   const { program: programParam } = useParams<{ program: Program }>()
   const program = programParam as Program
-  const { pendingStart, setPendingStart, setPendingTest, clearPendingStart } = useAppStore()
+  const { pendingStart, pendingTest, setPendingStart, setPendingTest, clearPendingStart } = useAppStore()
   const navigate = useNavigate()
+  const hydrated = useStoreHydrated()
+  const leavingRef = useRef(false)
   const [dismissedCelebration, setDismissedCelebration] = useState(false)
   const [restDays, setRestDays] = useState<number | null>(null)
   const [restReady, setRestReady] = useState(false)
 
   useEffect(() => {
+    if (!hydrated || leavingRef.current) return
+    // Back-to-picker sets pendingTest then navigates explicitly — don't fight it
+    if (pendingTest?.program === program && !pendingStart) return
     if (!pendingStart || pendingStart.program !== program) {
-      navigate(`/setup/test/${program}`)
+      navigate(`/setup/test/${program}`, { replace: true })
     }
-  }, [pendingStart, program, navigate])
+  }, [hydrated, pendingStart, pendingTest, program, navigate])
 
   useEffect(() => {
     let cancelled = false
@@ -45,7 +51,7 @@ export default function ProgramStart() {
     }
   }, [program])
 
-  if (!pendingStart) {
+  if (!hydrated || !pendingStart || pendingStart.program !== program) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
         <SkeletonCard className="h-48" />
@@ -106,7 +112,9 @@ export default function ProgramStart() {
           <p className="font-medium">{pl.firstTraining}</p>
           <ul className="mt-3 space-y-1 text-sm text-[var(--sr-text-secondary)]">
             {day1.sets.map((s, i) => (
-              <li key={i}>Seria {i + 1}: {formatSetTarget(s)} · przerwa {day1.restBetweenSetsSec}s</li>
+              <li key={i}>
+                {pl.setColumn} {i + 1}: {formatSetTarget(s)} · {pl.restBetweenSets(day1.restBetweenSetsSec)}
+              </li>
             ))}
           </ul>
         </Card>
@@ -116,8 +124,9 @@ export default function ProgramStart() {
         className="mt-8"
         fullWidth
         onClick={() => {
+          leavingRef.current = true
           setPendingStart({ ...pendingStart, navigateToWorkout: !inRest })
-          navigate('/setup/login')
+          navigate('/setup/login', { replace: true })
         }}
       >
         {inRest ? pl.continueToLogin : pl.startDay1}
@@ -128,6 +137,7 @@ export default function ProgramStart() {
         fullWidth
         onClick={() => {
           const start = pendingStart
+          leavingRef.current = true
           setPendingTest({
             program: start.program,
             reps: start.reps ?? 1,
@@ -136,7 +146,7 @@ export default function ProgramStart() {
           })
           clearPendingStart()
           const retest = start.isRetest ? '?retest=1' : ''
-          navigate(`/setup/cycle/${program}${retest}`)
+          navigate(`/setup/cycle/${program}${retest}`, { replace: true })
         }}
       >
         {pl.backToPicker}

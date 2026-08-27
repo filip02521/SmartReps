@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { SkeletonCard } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
+import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { selectCycleByTest, isHigherCycle, isLowerCycle, getRetestOptions } from '@/lib/cycle-selector'
 import { getNextWorkoutDate, getTestBlockDays } from '@/lib/progress-engine'
 import { getCyclesByProgram } from '@/data/plans'
@@ -23,8 +24,9 @@ export default function CyclePicker() {
   const program = programParam as Program
   const [searchParams] = useSearchParams()
   const isRetest = searchParams.get('retest') === '1'
-  const { pendingTest, clearPendingTest, setPendingStart } = useAppStore()
+  const { pendingTest, pendingStart, clearPendingTest, setPendingStart } = useAppStore()
   const navigate = useNavigate()
+  const hydrated = useStoreHydrated()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showWarning, setShowWarning] = useState(false)
   const [showAllCycles, setShowAllCycles] = useState(false)
@@ -40,6 +42,7 @@ export default function CyclePicker() {
   const [fullCycleId, setFullCycleId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const submitLock = useRef(false)
+  const advancingRef = useRef(false)
 
   useEffect(() => {
     if (isRetest && currentCycleId && pendingTest) {
@@ -49,12 +52,36 @@ export default function CyclePicker() {
   }, [isRetest, currentCycleId, program, pendingTest])
 
   useEffect(() => {
-    if (!pendingTest || pendingTest.program !== program) {
-      navigate(`/setup/test/${program}${isRetest ? '?retest=1' : ''}`)
+    if (!hydrated || advancingRef.current || submitLock.current) return
+    // Confirm just wrote pendingStart — don't bounce back to MaxTest
+    if (pendingStart?.program === program) {
+      navigate(`/setup/start/${program}`, { replace: true })
+      return
     }
-  }, [pendingTest, program, isRetest, navigate])
+    if (!pendingTest || pendingTest.program !== program) {
+      navigate(`/setup/test/${program}${isRetest ? '?retest=1' : ''}`, { replace: true })
+    }
+  }, [hydrated, pendingTest, pendingStart, program, isRetest, navigate])
 
-  if (!pendingTest || pendingTest.program !== program) {
+  if (!hydrated || (!pendingTest && pendingStart?.program !== program) || (pendingTest && pendingTest.program !== program)) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+        <SkeletonCard className="h-48" />
+        <p className="mt-4 text-center text-sm text-[var(--sr-text-muted)]">{pl.restoringSetup}</p>
+      </div>
+    )
+  }
+
+  // Advancing to ProgramStart — show skeleton while navigate settles
+  if (!pendingTest && pendingStart?.program === program) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+        <SkeletonCard className="h-48" />
+      </div>
+    )
+  }
+
+  if (!pendingTest) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
         <SkeletonCard className="h-48" />
@@ -115,7 +142,8 @@ export default function CyclePicker() {
         await enqueueSync('max_tests', 'insert', { ...testRecord, id: testId })
       }
 
-      clearPendingTest()
+      advancingRef.current = true
+      // Set next gate first so the redirect effect never bounces to MaxTest
       setPendingStart({
         program,
         cycleId: selected.id,
@@ -125,7 +153,8 @@ export default function CyclePicker() {
         celebration: celebration ?? undefined,
         committedMaxTestId: testId,
       })
-      navigate(`/setup/start/${program}`)
+      clearPendingTest()
+      navigate(`/setup/start/${program}`, { replace: true })
     } finally {
       submitLock.current = false
       setSubmitting(false)

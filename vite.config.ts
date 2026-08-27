@@ -34,6 +34,12 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    // Bind IPv4+IPv6 so both http://localhost:5173 and http://127.0.0.1:5173 work
+    host: true,
+    port: 5173,
+    strictPort: true,
+  },
   build: {
     chunkSizeWarningLimit: 1200,
   },
