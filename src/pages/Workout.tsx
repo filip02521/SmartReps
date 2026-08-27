@@ -111,7 +111,7 @@ export default function WorkoutPage() {
       }
 
       if (prog.status === 'paused') {
-        setInitError(pl.statusPaused)
+        setInitError(pl.errorProgramPaused)
         setInitialized(true)
         return
       }
@@ -345,6 +345,34 @@ export default function WorkoutPage() {
     })
   }
 
+  const handleEditPreviousSet = async () => {
+    if (finishingRef.current || !day || !progress) return
+    const workout = useWorkoutStore.getState()
+    if (workout.currentSetIndex <= 0 || workout.setResults.length === 0) return
+
+    // Stop rest worker before mutating state (undo also clears timer mode).
+    if (workout.restTimer && workout.restTimer.mode !== 'idle') {
+      workout.setRestTimer(skipRest())
+      releaseWakeLock()
+    }
+
+    const removed = useWorkoutStore.getState().undoLastSet()
+    if (!removed) return
+
+    setFailedIndex(undefined)
+    setNegativeCountdown(null)
+    negativePrepForSetRef.current = null
+    setActual(removed.actual)
+
+    const editIndex = useWorkoutStore.getState().currentSetIndex
+    try {
+      await persistState()
+      await loadPreviousActual(editIndex, progress.cycleAttempt, progress.currentDay)
+    } catch {
+      setInitError(pl.errorSaveSet)
+    }
+  }
+
   const handleDone = async () => {
     const workout = useWorkoutStore.getState()
     if (!currentTarget || !day || !progress || !sessionMeta || finishingRef.current) return
@@ -536,6 +564,8 @@ export default function WorkoutPage() {
       onDismissHint={() => setShowHint(false)}
       onActualChange={setActual}
       onDone={() => void handleDone()}
+      canEditPreviousSet={setResults.length > 0 && currentSetIndex > 0}
+      onEditPreviousSet={() => void handleEditPreviousSet()}
       onRetry={() => { setFailedIndex(undefined) }}
       onFinishDayEarly={() => void (async () => {
         if (!sessionMeta || !currentTarget || finishingRef.current) return

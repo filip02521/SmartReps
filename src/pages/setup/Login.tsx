@@ -186,7 +186,7 @@ export default function Login() {
     })
     setLoading(false)
     if (error) {
-      showToast(error.message || pl.errorSendLink, 'error')
+      showToast(pl.errorSendLink, 'error')
       return
     }
     setSent(true)
@@ -206,7 +206,7 @@ export default function Login() {
     try {
       const { error } = await verifyEmailOtp(trimmed, code)
       if (error) {
-        showToast(error.message || pl.loginOtpInvalid, 'error')
+        showToast(pl.loginOtpInvalid, 'error')
         return
       }
       await completeSignInFlow(navigate, {

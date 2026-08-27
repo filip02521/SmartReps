@@ -30,10 +30,10 @@ export const pl = {
   menuChangeLevel: 'Zmień poziom',
   menuHistory: 'Historia',
   menuRetest: 'Wykonaj test',
-  staleSession: 'Sesja sprzed ponad 24 h — kontynuuj lub zacznij od nowa.',
+  staleSession: 'Sesja sprzed ponad 24 godzin — kontynuuj lub zacznij od nowa.',
   startFresh: 'Zacznij od nowa',
   notConfigured: 'Nie skonfigurowano',
-  startSetup: 'Rozpocznij setup',
+  startSetup: 'Rozpocznij konfigurację',
   setupNextProgram: (name: string) => `Skonfiguruj ${name}`,
 
   // Workout
@@ -47,23 +47,26 @@ export const pl = {
   nextSet: (n: number, reps: number, unit: string) =>
     `Następnie: Seria ${n} · ${reps} ${unit}`,
   workoutHint:
-    'Ustaw liczbę powtórzeń, potem Zrobione. Cel = sukces; mniej niż cel = nieudana seria. Serie „równo N” wymagają dokładnie N.',
+    'Ustaw liczbę powtórzeń, potem naciśnij Zrobione. Cel = sukces; mniej niż cel = nieudana seria. Serie „równo N” wymagają dokładnie N.',
   workoutFailBanner: (actual: number, target: number) =>
     `Cel ${target}, zrobione ${actual} — seria nieudana`,
   workoutFailExactBanner: (actual: number, target: number) =>
     `Wymagane dokładnie ${target}, zrobione ${actual} — seria nieudana`,
   exactLiveHint: (n: number) => `Wymagane dokładnie ${n} — nie więcej, nie mniej`,
-  restInProgress: 'Trwa przerwa — poczekaj lub otwórz timer',
+  restInProgress: 'Trwa przerwa — poczekaj lub otwórz timer.',
   skipRestConfirm: 'Pominąć przerwę i przejść do następnej serii?',
-  leaveWorkoutConfirm: 'Trening w toku. Wyjść? Postęp sesji zostanie zapisany.',
+  leaveWorkoutConfirm: 'Trening jest w toku. Wyjść? Postęp sesji zostanie zapisany.',
   leaveWorkoutTitle: 'Wyjść z treningu?',
   previewDayPlan: 'Podgląd planu dnia',
-  helpTechnique: 'Pomoc techniki',
+  helpTechnique: 'Wskazówki techniki',
   negativeCountdown: (sec: number) => `Przygotuj opuszczanie · ${sec}s`,
   negativeBanner: 'Opuszczaj powoli (3–5 s). Liczy się pełna kontrola ruchu.',
   restBetweenSets: (sec: number) => `Przerwa między seriami: ${sec}s`,
   setColumn: 'Seria',
   targetColumn: 'Cel',
+  editPreviousSet: 'Popraw poprzednią serię',
+  editPreviousSetHint: 'Wróć do ostatniej serii, żeby zmienić liczbę powtórzeń.',
+  editShort: 'Zmień',
 
   // Test
   testPushups: 'Test pompek',
@@ -71,7 +74,7 @@ export const pl = {
   testPrompt: 'Ile powtórzeń zrobisz za jednym razem na pełnej amplitudzie?',
   testHonesty: 'Nie oszukuj — lepiej zacząć niżej.',
   testPullupRules:
-    'Licz tylko pełne powtórzenia — broda nad drążkiem. Ostatnie niepełne nie wliczaj.',
+    'Licz tylko pełne powtórzenia — broda nad drążkiem. Niepełnych nie wliczaj.',
   cantPullup: 'Nie umiem się podciągnąć',
   warmup: 'Rozgrzewka (wymagana)',
   warmupRequired: 'Zaznacz wszystkie punkty rozgrzewki przed testem.',
@@ -96,7 +99,7 @@ export const pl = {
   passedShort: 'udana',
   incompleteShort: 'niedokończona',
   abandonedShort: 'anulowana',
-  filterEmptyHistory: 'Brak sesji dla wybranych filtrów',
+  filterEmptyHistory: 'Brak sesji dla wybranych filtrów.',
   clearFilters: 'Wyczyść filtry',
   statusReady: 'Gotowy',
   statusRest: 'Przerwa',
@@ -104,39 +107,43 @@ export const pl = {
   statusRestart: 'Restart',
   statusPaused: 'Wstrzymany',
   heatmapSummary: (n: number, weeks: number) =>
-    `${n} treningów w ostatnich ${weeks} tyg.`,
+    n === 1
+      ? `1 trening w ostatnich ${weeks} tyg.`
+      : `${n} treningów w ostatnich ${weeks} tyg.`,
   loginTitle: 'Zapisz postęp w chmurze',
   loginTitleReturning: 'Przywróć postęp z chmury',
-  loginSubtitle: 'Opcjonalnie — możesz pominąć i trenować offline na tym urządzeniu.',
-  loginSubtitleReturning: 'Zaloguj się tym samym e-mailem co na innych urządzeniach — postęp i programy wrócą automatycznie.',
+  loginSubtitle: 'Opcjonalnie — możesz pominąć i trenować bez konta na tym urządzeniu.',
+  loginSubtitleReturning:
+    'Zaloguj się tym samym adresem e-mail co na innych urządzeniach — postęp i programy wrócą automatycznie.',
   loginEmailLabel: 'E-mail',
   loginEmailPlaceholder: 'jan@example.com',
   loginSendCode: 'Wyślij kod na e-mail',
   loginSendLink: 'Wyślij kod na e-mail',
-  loginSent: 'Sprawdź skrzynkę — wpisz kod z e-maila poniżej.',
-  loginSentCode: 'Kod wysłany! Wpisz go poniżej — działa w aplikacji na telefonie.',
-  loginSentTo: (email: string) => `Wysłano na ${email}`,
+  loginSent: 'Sprawdź skrzynkę — wpisz poniżej kod z wiadomości.',
+  loginSentCode: 'Kod wysłany. Wpisz go poniżej, aby się zalogować.',
+  loginSentTo: (email: string) => `Wysłano na adres ${email}`,
   loginOtpLabel: 'Kod z e-maila',
   loginOtpPlaceholder: '000000',
-  loginOtpHint: '6-cyfrowy kod z wiadomości SmartReps (nie link).',
-  loginVerifyCode: 'Zaloguj kodem',
-  loginOtpInvalid: 'Nieprawidłowy kod — sprawdź e-mail i spróbuj ponownie.',
+  loginOtpHint: '6-cyfrowy kod z wiadomości SmartReps (nie klikaj w link).',
+  loginVerifyCode: 'Zaloguj się kodem',
+  loginOtpInvalid: 'Nieprawidłowy lub wygasły kod. Sprawdź e-mail i spróbuj ponownie.',
   loginResendCode: 'Wyślij kod ponownie',
   loginPwaCodeHint:
-    'Na telefonie link z e-maila zwykle otwiera Safari, a nie tę aplikację. Wpisz tutaj 6-cyfrowy kod z e-maila — to jedyny sposób logowania w wersji „Dodaj do ekranu głównego”.',
-  loginBrowserLinkHint: 'Możesz też kliknąć link w e-mailu — zaloguje w tej karcie przeglądarki.',
-  loginSkip: 'Pomiń — trenuję offline',
+    'Na telefonie link z e-maila często otwiera przeglądarkę zamiast tej aplikacji. Wpisz tutaj 6-cyfrowy kod z wiadomości — tak logujesz się po dodaniu SmartReps do ekranu głównego.',
+  loginBrowserLinkHint:
+    'Możesz też kliknąć link w e-mailu — zaloguje Cię w tej karcie przeglądarki.',
+  loginSkip: 'Pomiń — trenuję bez konta',
   loginInvalidEmail: 'Podaj poprawny adres e-mail.',
   loginPwaHint:
-    'W aplikacji na ekranie głównym używaj kodu z e-maila, nie linku — link otworzy Safari bez sesji w SmartReps.',
+    'W aplikacji z ekranu głównego używaj kodu z e-maila, nie linku — link otworzy przeglądarkę bez sesji w SmartReps.',
   loginAlreadySignedIn: 'Jesteś zalogowany jako',
   loginContinue: 'Kontynuuj',
   loginLogoutToSwitch: 'Wyloguj, aby użyć innego konta',
-  loginLogoutToSwitchHint: 'Wyloguj się, zanim wyślesz link na inny adres e-mail.',
-  loginLogoutToSwitchDone: 'Wylogowano — możesz zalogować się innym kontem.',
+  loginLogoutToSwitchHint: 'Najpierw się wyloguj, a potem wyślij kod na inny adres e-mail.',
+  loginLogoutToSwitchDone: 'Wylogowano. Możesz zalogować się innym kontem.',
   backToOnboarding: 'Wróć do konfiguracji',
   accountSwitchCleared:
-    'Wykryto inne konto — lokalne dane zostały wyczyszczone przed synchronizacją.',
+    'Zalogowano innym kontem — dane lokalne na tym urządzeniu zostały wyczyszczone przed synchronizacją.',
   onboardingWelcome: 'Witaj w SmartReps',
   onboardingNewUser: 'Pierwszy raz — skonfiguruj program',
   onboardingHaveAccount: 'Mam już konto — zaloguj się',
@@ -152,19 +159,20 @@ export const pl = {
   menuProgram: 'Menu programu',
   menuWorkout: 'Menu treningu',
   errorSaveSet: 'Nie udało się zapisać serii. Spróbuj ponownie.',
-  errorLoadProgram: 'Nie udało się załadować programu.',
-  errorLoadProgress: 'Nie udało się załadować postępów.',
-  errorLoadSummary: 'Nie udało się załadować podsumowania.',
-  errorStartWorkout: 'Nie udało się rozpocząć treningu.',
+  errorLoadProgram: 'Nie udało się wczytać programu. Spróbuj ponownie.',
+  errorLoadProgress: 'Nie udało się wczytać postępów. Spróbuj ponownie.',
+  errorLoadSummary: 'Nie udało się wczytać podsumowania. Spróbuj ponownie.',
+  errorStartWorkout: 'Nie udało się rozpocząć treningu. Spróbuj ponownie.',
   errorFinishDay: 'Nie udało się zakończyć dnia. Spróbuj ponownie.',
   errorNoPlan: 'Nie znaleziono planu treningowego dla tego programu.',
-  errorNoWorkoutData: 'Brak danych treningu.',
-  errorSendLink: 'Nie udało się wysłać linku. Spróbuj ponownie.',
+  errorNoWorkoutData: 'Brak danych treningu. Wróć do ekranu Trening i spróbuj ponownie.',
+  errorSendLink: 'Nie udało się wysłać kodu. Spróbuj ponownie.',
+  errorProgramPaused: 'Ten program jest wstrzymany. Wznów go w profilu, aby trenować.',
   notFoundTitle: 'Nie znaleziono strony',
-  notFoundBody: 'Ten adres nie istnieje w SmartReps. Wróć do treningu.',
+  notFoundBody: 'Ten adres nie istnieje w SmartReps. Wróć do ekranu Trening.',
   chartTestOverTime: 'Test max w czasie',
   cycleMapTitle: (name: string) => `Mapa cyklu — ${name}`,
-  cycleMapHint: 'Ukończony dzień → sesja · przyszły → plan',
+  cycleMapHint: 'Ukończony dzień pokazuje sesję, przyszły — plan treningu',
   techniqueTitle: 'Technika — pompki na kolanach',
   techniqueStep1: 'Ustaw dłonie na szerokość barków, ciało w linii prostej od kolan do głowy.',
   techniqueStep2: 'Opuszczaj się powoli, łokcie blisko tułowia.',
@@ -198,7 +206,7 @@ export const pl = {
   recommended: 'Dla Ciebie',
   saferStart: 'Bezpieczniejszy start',
   higherLevelWarning:
-    'Twój test sugeruje niższy poziom. Przedwczesne przeskoczenie może prowadzić do niepowodzeń i restartów. Kontynuować?',
+    'Twój wynik testu sugeruje niższy poziom. Zbyt wczesne przeskoczenie może prowadzić do niepowodzeń i restartów. Kontynuować?',
   backToRecommended: 'Wróć do rekomendacji',
   understandHigher: 'Rozumiem, zaczynam wyżej',
   previewPlan: 'Podgląd planu',
@@ -207,12 +215,12 @@ export const pl = {
   tabRecords: 'Rekordy',
   recordBestTest: 'Najlepszy test',
   recordBestMaxSet: 'Najlepsza seria max',
-  recordBestSession: 'Najwięcej reps (sesja)',
+  recordBestSession: 'Najwięcej powtórzeń w sesji',
   recordHighestCycle: 'Najwyższy osiągnięty cykl',
   postTestRest: 'Po teście zalecana 2-dniowa przerwa przed pierwszym treningiem nowego cyklu.',
   firstTestReadyHint: 'Po pierwszym teście możesz od razu zacząć Dzień 1 — przerwa 2 dni obowiązuje przy retestach.',
   staleSessionTitle: 'Stara sesja treningowa',
-  staleSessionConfirm: 'Kontynuować przerwaną sesję sprzed ponad 24 h?',
+  staleSessionConfirm: 'Kontynuować przerwaną sesję sprzed ponad 24 godzin?',
   cycleDayPreview: 'Podgląd dnia',
   showAllCycles: 'Pokaż wszystkie poziomy',
   hideOtherCycles: 'Ukryj inne poziomy',
@@ -248,7 +256,7 @@ export const pl = {
   addProgramPushups: 'Dodaj pompki',
   addProgramPullups: 'Dodaj podciąganie',
   changeLevelActiveWarning:
-    'Masz przerwaną sesję treningu. Zmiana poziomu usunie tę sesję. Kontynuować?',
+    'Masz niedokończoną sesję treningu. Zmiana poziomu usunie tę sesję. Kontynuować?',
   prevColumn: 'Poprz.',
 
   // Units
@@ -266,7 +274,7 @@ export const pl = {
   attemptShort: (n: number) => `Próba ${n}`,
   cycleNotConfigured: 'Skonfiguruj program, aby zobaczyć mapę cyklu',
   configureProgram: 'Skonfiguruj program',
-  missingSession: 'Brak danych sesji — wróć do pulpitu',
+  missingSession: 'Brak danych sesji — wróć do ekranu Trening',
   workoutHeader: (program: string, day: number, set: number, total: number) =>
     `${program} · Dzień ${day} · Seria ${set}/${total}`,
 
@@ -275,7 +283,7 @@ export const pl = {
   startFirstWorkout: 'Rozpocznij trening',
 
   // Offline
-  offline: 'Offline · zapiszesz po połączeniu',
+  offline: 'Brak sieci · zapiszesz po połączeniu',
 
   // Timer
   skipRest: 'Pomiń',
@@ -287,12 +295,12 @@ export const pl = {
   recordTest: 'Rekord testu',
   cycleDays: 'Dni ukończone',
   sessionsTotal: 'Sesje',
-  totalRepsLabel: 'Reps łącznie',
-  streakWeeks: 'Streak (tyg.)',
+  totalRepsLabel: 'Powtórzenia łącznie',
+  streakWeeks: 'Tygodnie z rzędu',
   tabOverview: 'Przegląd',
   tabHistory: 'Historia',
   tabCycle: 'Cykl',
-  maxSetPerDay: 'Seria max (ostatnia) per dzień',
+  maxSetPerDay: 'Seria max (ostatnia) na dzień',
   sessionDetails: 'Szczegóły sesji',
   filterAll: 'Wszystkie',
   filterPassed: 'Udane',
@@ -306,12 +314,12 @@ export const pl = {
   activityHeatmap: 'Aktywność (12 tyg.)',
   exportCsv: 'Eksport CSV',
   toastDayComplete: 'Dzień ukończony — świetna robota!',
-  toastExportDone: 'Historia wyeksportowana do CSV',
+  toastExportDone: 'Historia została wyeksportowana do pliku CSV',
   toastSyncDone: 'Zsynchronizowano z chmurą',
-  toastSyncFailed: 'Synchronizacja nie powiodła się — spróbuj ponownie online',
+  toastSyncFailed: 'Synchronizacja nie powiodła się. Sprawdź połączenie i spróbuj ponownie.',
   continueToLogin: 'Kontynuuj — zapisz postęp',
   testPendingBlocked: 'Cykl ukończony — wykonaj test max, aby wybrać kolejny poziom.',
-  totalRepsDelta: (n: number) => `${n > 0 ? '+' : ''}${n} vs poprzednia sesja`,
+  totalRepsDelta: (n: number) => `${n > 0 ? '+' : ''}${n} względem poprzedniej sesji`,
 
   // Plans — resistance bands
   resistanceBandsTitle: 'Gumy oporowe (podciąganie)',
@@ -320,7 +328,8 @@ export const pl = {
   resistanceBandsTip1: 'Zacznij od grubszej gumy i stopniowo przechodź na cieńszą.',
   resistanceBandsTip2: 'Ustaw stopę/kolano w gumie tak, by wspomagała ruch w górę, ale nie robiła za Ciebie całej pracy.',
   resistanceBandsTip3: 'Licz tylko pełne powtórzenia — broda nad drążkiem, kontrolowane opuszczanie.',
-  resistanceBandsNote: 'SmartReps śledzi cykle z podciaganie.pl; wariant z gumą traktuj jak trening techniczny uzupełniający.',
+  resistanceBandsNote:
+    'SmartReps śledzi cykle z podciaganie.pl. Wariant z gumą traktuj jako trening techniczny uzupełniający.',
 
   // Profile
   appearance: 'Wygląd',
@@ -334,22 +343,26 @@ export const pl = {
   keepScreenOn: 'Podczas przerwy ekran nie gaśnie (gdy przeglądarka na to pozwala).',
   workoutReminders: 'Przypomnienia o treningu',
   workoutRemindersHint:
-    'Codzienne powiadomienie o 18:00 (wymaga zgody przeglądarki). Działa tylko gdy aplikacja jest otwarta — po zamknięciu karty timer ginie (brak Web Push).',
+    'Codzienne powiadomienie o 18:00 (wymaga zgody przeglądarki). Działa tylko, gdy aplikacja jest otwarta — po zamknięciu karty przypomnienie nie zadziała.',
   reminderNotificationTitle: 'SmartReps',
   reminderNotificationBody: 'Czas na trening — sprawdź swój plan na dziś.',
   programs: 'Programy',
   disableProgram: 'Wyłącz program',
-  disableProgramConfirm: 'Program zniknie z pulpitu. Historia pozostanie na urządzeniu. Kontynuować?',
+  disableProgramConfirm:
+    'Program zniknie z ekranu Trening. Historia pozostanie na urządzeniu. Kontynuować?',
   pauseProgram: 'Wstrzymaj program',
   resumeProgram: 'Wznów program',
   clearLocalData: 'Wyczyść lokalne dane',
   clearLocalDataConfirm:
-    'Usunie postęp, sesje i ustawienia z tego urządzenia. Konta w chmurze nie usuwa. Tej operacji nie da się cofnąć.',
+    'Usunie postęp, sesje i ustawienia z tego urządzenia. Nie usuwa konta w chmurze. Tej operacji nie da się cofnąć.',
   logoutClearConfirm:
-    'Wylogować i wyczyścić dane lokalne na tym urządzeniu? (zalecane na współdzielonym telefonie)',
+    'Wylogować i wyczyścić dane lokalne na tym urządzeniu? Zalecane na współdzielonym telefonie.',
   logoutKeepData: 'Wyloguj — zostaw dane',
   logoutAndClear: 'Wyloguj i wyczyść',
-  syncDeadLetter: (n: number) => `Sync: ${n} elementów w kolejce awaryjnej`,
+  syncDeadLetter: (n: number) =>
+    n === 1
+      ? '1 element czeka na ponowną synchronizację'
+      : `${n} elementów czeka na ponowną synchronizację`,
   syncRetryDead: 'Ponów synchronizację',
   changeLevelPushups: 'Zmień poziom — Pompki',
   changeLevelPullups: 'Zmień poziom — Podciąganie',
@@ -358,7 +371,7 @@ export const pl = {
   about: 'O aplikacji',
   logout: 'Wyloguj',
   account: 'Konto',
-  notLoggedIn: 'Nie zalogowano — dane tylko na tym urządzeniu',
+  notLoggedIn: 'Nie jesteś zalogowany — dane tylko na tym urządzeniu',
 
   // Nav
   navWorkout: 'Trening',
@@ -374,7 +387,7 @@ export const pl = {
   yes: 'Tak',
   no: 'Nie',
 
-  errorCrash: 'Coś poszło nie tak. Spróbuj odświeżyć aplikację.',
+  errorCrash: 'Wystąpił nieoczekiwany błąd. Odśwież aplikację i spróbuj ponownie.',
 
   today: 'Dziś',
   tomorrow: 'Jutro',
@@ -393,7 +406,7 @@ export const pl = {
   celebrationPullupsMain: 'Cel główny osiągnięty!',
   celebrationPullupsAmbition: 'Cel ambicji osiągnięty!',
 
-  heatmapDayPassed: (day: number, reps: number) => `Dzień ${day} · ${reps} reps`,
+  heatmapDayPassed: (day: number, reps: number) => `Dzień ${day} · ${reps} powt.`,
   heatmapDayFailed: 'Dzień nieudany',
   heatmapRest: 'Przerwa',
 } as const

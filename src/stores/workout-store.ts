@@ -33,6 +33,8 @@ type WorkoutStore = {
     restTimer: RestTimerState | null
   }) => void
   completeSet: (result: SetResultDraft) => void
+  /** Undo last completed set so the user can correct reps. Returns removed result or null. */
+  undoLastSet: () => SetResultDraft | null
   setRestTimer: (timer: RestTimerState | null) => void
   setCurrentSetIndex: (index: number) => void
   setFailedRetryUsed: (v: boolean) => void
@@ -73,6 +75,20 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       setResults: [...s.setResults.filter((r) => r.setNumber !== result.setNumber), result],
       currentSetIndex: s.currentSetIndex + 1,
     })),
+
+  undoLastSet: () => {
+    const s = get()
+    if (s.currentSetIndex <= 0 || s.setResults.length === 0) return null
+    const setNumber = s.currentSetIndex
+    const removed = s.setResults.find((r) => r.setNumber === setNumber)
+    if (!removed) return null
+    set({
+      setResults: s.setResults.filter((r) => r.setNumber !== setNumber),
+      currentSetIndex: setNumber - 1,
+      restTimer: { mode: 'idle', totalSec: 0, remainingSec: 0, startedAt: null },
+    })
+    return removed
+  },
 
   setRestTimer: (restTimer) => set({ restTimer }),
   setCurrentSetIndex: (currentSetIndex) => set({ currentSetIndex }),

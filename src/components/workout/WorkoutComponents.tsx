@@ -169,26 +169,36 @@ export function SetRow({
   target,
   state,
   actual,
+  editable,
   onClick,
 }: {
   setNumber: number
   target: SetTarget
   state: 'pending' | 'active' | 'done' | 'failed'
   actual?: number
+  /** Last completed set can be tapped to correct reps. */
+  editable?: boolean
   onClick?: () => void
 }) {
+  const canPress = Boolean(onClick) && (state !== 'done' || editable)
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={state === 'done'}
+      disabled={!canPress}
       data-active-set={state === 'active' ? 'true' : undefined}
+      aria-label={
+        editable
+          ? `${pl.setColumn} ${setNumber} — ${pl.editPreviousSet}`
+          : undefined
+      }
       className={cn(
         'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] px-4 py-3 text-left transition-colors',
         state === 'active' && 'border-2 border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]',
         state === 'done' && 'bg-[var(--sr-success-muted)] text-[var(--sr-success)]',
         state === 'failed' && 'bg-[var(--sr-error-muted)] text-[var(--sr-error)]',
         state === 'pending' && 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
+        editable && 'ring-1 ring-[var(--sr-brand-primary)]/40',
       )}
     >
       <span className="flex items-center gap-2 font-medium">
@@ -197,7 +207,9 @@ export function SetRow({
       </span>
       <span className="tabular-nums text-sm">
         {state === 'done' && actual !== undefined
-          ? `${actual} / ${formatSetTarget(target)}`
+          ? editable
+            ? `${actual} / ${formatSetTarget(target)} · ${pl.editShort}`
+            : `${actual} / ${formatSetTarget(target)}`
           : `${pl.targetColumn.toLowerCase()} ${formatSetTarget(target)}`}
       </span>
     </button>
@@ -210,12 +222,14 @@ export function SetChecklist({
   results,
   failedIndex,
   dimmed,
+  onEditLastSet,
 }: {
   sets: SetTarget[]
   currentIndex: number
   results: { setNumber: number; actual: number; passed: boolean }[]
   failedIndex?: number
   dimmed?: boolean
+  onEditLastSet?: () => void
 }) {
   return (
     <div className={cn('flex flex-col gap-2 overflow-y-auto transition-opacity', dimmed && 'opacity-40')}>
@@ -226,6 +240,8 @@ export function SetChecklist({
         if (result?.passed) state = 'done'
         else if (failedIndex === i) state = 'failed'
         else if (i === currentIndex) state = 'active'
+        // After completing set N, currentIndex === N; that done row is editable.
+        const editable = state === 'done' && setNumber === currentIndex && Boolean(onEditLastSet)
         return (
           <SetRow
             key={setNumber}
@@ -233,6 +249,8 @@ export function SetChecklist({
             target={target}
             state={state}
             actual={result?.actual}
+            editable={editable}
+            onClick={editable ? onEditLastSet : undefined}
           />
         )
       })}

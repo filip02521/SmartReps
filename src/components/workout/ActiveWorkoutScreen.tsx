@@ -48,6 +48,8 @@ export type ActiveWorkoutScreenProps = {
   onDismissHint: () => void
   onActualChange: (n: number) => void
   onDone: () => void
+  onEditPreviousSet?: () => void
+  canEditPreviousSet?: boolean
   onRetry: () => void
   onFinishDayEarly: () => void
   onExpandTimer: () => void
@@ -94,6 +96,8 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     onDismissHint,
     onActualChange,
     onDone,
+    onEditPreviousSet,
+    canEditPreviousSet = false,
     onRetry,
     onFinishDayEarly,
     onExpandTimer,
@@ -207,6 +211,11 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           disabledHint={isResting ? pl.restInProgress : preparingNegative ? pl.negativeCountdown(negativeCountdown!) : undefined}
           onDisabledTap={isResting ? onExpandTimer : undefined}
         />
+        {canEditPreviousSet && onEditPreviousSet && (
+          <Button variant="ghost" className="mt-2" fullWidth onClick={onEditPreviousSet}>
+            {pl.editPreviousSet}
+          </Button>
+        )}
         {failedRetryVisible && (
           <div className="mt-2 flex gap-2">
             <Button variant="secondary" fullWidth onClick={onRetry}>{pl.retry}</Button>
@@ -221,7 +230,8 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           currentIndex={currentSetIndex}
           results={setResults}
           failedIndex={failedIndex}
-          dimmed={isResting}
+          dimmed={isResting && !canEditPreviousSet}
+          onEditLastSet={canEditPreviousSet ? onEditPreviousSet : undefined}
         />
       </div>
 
