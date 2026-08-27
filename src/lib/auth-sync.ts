@@ -109,6 +109,28 @@ type SyncToastOpts = { showSuccessToast?: boolean; showFailureToast?: boolean }
 
 let authenticatedSyncLock: Promise<SyncResult> | null = null
 let pendingSyncToasts: SyncToastOpts = {}
+let syncToastTimer: ReturnType<typeof setTimeout> | null = null
+let pendingSyncToastResult: 'success' | 'failure' | null = null
+
+/** Coalesce rapid sync result toasts — success wins over a late failure toast. */
+function scheduleSyncResultToast(ok: boolean, opts: SyncToastOpts) {
+  if (ok && !opts.showSuccessToast) return
+  if (!ok && !opts.showFailureToast) return
+
+  if (ok) pendingSyncToastResult = 'success'
+  else if (pendingSyncToastResult !== 'success') pendingSyncToastResult = 'failure'
+
+  if (syncToastTimer) clearTimeout(syncToastTimer)
+  syncToastTimer = setTimeout(() => {
+    if (pendingSyncToastResult === 'success') {
+      showToast(pl.toastSyncDone, 'success')
+    } else if (pendingSyncToastResult === 'failure') {
+      showToast(pl.toastSyncFailed, 'error')
+    }
+    pendingSyncToastResult = null
+    syncToastTimer = null
+  }, 400)
+}
 
 export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncResult> {
   if (!isSupabaseConfigured) return { ok: true, errors: 0 }
@@ -128,11 +150,7 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
     const toastOpts = { ...pendingSyncToasts }
     pendingSyncToasts = {}
 
-    if (result.ok && toastOpts.showSuccessToast) {
-      showToast(pl.toastSyncDone, 'success')
-    } else if (!result.ok && toastOpts.showFailureToast) {
-      showToast(pl.toastSyncFailed, 'error')
-    }
+    scheduleSyncResultToast(result.ok, toastOpts)
 
     if (result.ok) {
       await completeOnboardingIfSynced()
@@ -174,6 +192,10 @@ export async function handleAuthSession(
   })
 
   if (event === 'SIGNED_IN' && navigate && (await shouldNavigateAfterAuth())) {
-    await resolvePostAuthNavigation(navigate, consumeAuthReturnTo())
+    try {
+      await resolvePostAuthNavigation(navigate, consumeAuthReturnTo())
+    } catch (err) {
+      console.warn('[auth] post-sign-in navigation failed', err)
+    }
   }
 }

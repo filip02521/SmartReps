@@ -69,9 +69,12 @@ export default function Login() {
 
   const continueSignedIn = async () => {
     setLoading(true)
-    await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
-    await resolvePostAuthNavigation(navigate, effectiveReturnTo() ?? consumeAuthReturnTo())
-    setLoading(false)
+    try {
+      await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
+      await resolvePostAuthNavigation(navigate, effectiveReturnTo() ?? consumeAuthReturnTo())
+    } finally {
+      setLoading(false)
+    }
   }
 
   const logoutToSwitch = async () => {

@@ -175,6 +175,8 @@ describe('runAuthenticatedSync', () => {
     resolveSync({ ok: true, errors: 0 })
     await Promise.all([p1, p2])
 
+    await new Promise((r) => setTimeout(r, 500))
     expect(showToast).toHaveBeenCalledWith(expect.any(String), 'success')
+    expect(showToast).not.toHaveBeenCalledWith(expect.any(String), 'error')
   })
 })
