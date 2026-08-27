@@ -106,7 +106,9 @@ export const pl = {
   heatmapSummary: (n: number, weeks: number) =>
     `${n} treningów w ostatnich ${weeks} tyg.`,
   loginTitle: 'Zapisz postęp w chmurze',
+  loginTitleReturning: 'Przywróć postęp z chmury',
   loginSubtitle: 'Opcjonalnie — możesz pominąć i trenować offline na tym urządzeniu.',
+  loginSubtitleReturning: 'Zaloguj się tym samym e-mailem co na innych urządzeniach — postęp i programy wrócą automatycznie.',
   loginEmailLabel: 'E-mail',
   loginEmailPlaceholder: 'jan@example.com',
   loginSendLink: 'Wyślij link magiczny',
@@ -120,9 +122,12 @@ export const pl = {
   loginLogoutToSwitch: 'Wyloguj, aby użyć innego konta',
   loginLogoutToSwitchHint: 'Wyloguj się, zanim wyślesz link na inny adres e-mail.',
   loginLogoutToSwitchDone: 'Wylogowano — możesz zalogować się innym kontem.',
+  backToOnboarding: 'Wróć do konfiguracji',
   accountSwitchCleared:
     'Wykryto inne konto — lokalne dane zostały wyczyszczone przed synchronizacją.',
   onboardingWelcome: 'Witaj w SmartReps',
+  onboardingNewUser: 'Pierwszy raz — skonfiguruj program',
+  onboardingHaveAccount: 'Mam już konto — zaloguj się',
   onboardingPickProgram: 'Wybierz program',
   onboardingRulesTitle: 'Jak to działa',
   restGateHint: (days: number) =>

@@ -7,6 +7,9 @@ import { StepIndicator, PageLoader } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
+import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
+import { runAuthenticatedSync } from '@/lib/auth-sync'
+import { completeOnboardingIfSynced } from '@/lib/onboarding-from-sync'
 import type { Program } from '@/data/plans/types'
 
 const rules = [
@@ -18,6 +21,7 @@ const rules = [
 export default function Onboarding() {
   const [step, setStep] = useState(0)
   const [programs, setPrograms] = useState<Program[]>(['pushups'])
+  const [restoring, setRestoring] = useState(false)
   const setSettings = useAppStore((s) => s.setSettings)
   const setSetupQueue = useAppStore((s) => s.setSetupQueue)
   const onboardingComplete = useAppStore((s) => s.settings.onboardingComplete)
@@ -28,6 +32,30 @@ export default function Onboarding() {
     if (!hydrated) return
     if (onboardingComplete) {
       navigate('/', { replace: true })
+    }
+  }, [hydrated, onboardingComplete, navigate])
+
+  useEffect(() => {
+    if (!hydrated || !isSupabaseConfigured || onboardingComplete) return
+
+    let cancelled = false
+    void (async () => {
+      setRestoring(true)
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (!data.session || cancelled) return
+        await runAuthenticatedSync({ showSuccessToast: false, showFailureToast: false })
+        if (cancelled) return
+        if (await completeOnboardingIfSynced()) {
+          navigate('/', { replace: true })
+        }
+      } finally {
+        if (!cancelled) setRestoring(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
     }
   }, [hydrated, onboardingComplete, navigate])
 
@@ -42,12 +70,15 @@ export default function Onboarding() {
     const prev = useAppStore.getState().settings.enabledPrograms
     const merged = Array.from(new Set([...prev, ...selected])) as Program[]
     setSettings({ onboardingComplete: true, enabledPrograms: merged.length ? merged : selected })
-    // setupQueue mirror for legacy persist; drainIncompleteSetup uses enabledPrograms
     setSetupQueue(selected.slice(1))
     navigate(`/setup/test/${selected[0]}`)
   }
 
-  if (!hydrated || onboardingComplete) {
+  const goToLogin = () => {
+    navigate('/setup/login', { state: { fromOnboarding: true } })
+  }
+
+  if (!hydrated || onboardingComplete || restoring) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
         <PageLoader />
@@ -64,7 +95,14 @@ export default function Onboarding() {
           <OnboardingIllustration step="welcome" />
           <h1 className="mt-2 sr-text-h1">{pl.onboardingWelcome}</h1>
           <p className="mt-2 text-[var(--sr-text-secondary)]">{pl.tagline}</p>
-          <Button className="mt-8" fullWidth onClick={() => setStep(1)}>{pl.next}</Button>
+          <Button className="mt-8" fullWidth onClick={() => setStep(1)}>
+            {pl.onboardingNewUser}
+          </Button>
+          {isSupabaseConfigured && (
+            <Button variant="secondary" className="mt-3" fullWidth onClick={goToLogin}>
+              {pl.onboardingHaveAccount}
+            </Button>
+          )}
         </div>
       )}
 

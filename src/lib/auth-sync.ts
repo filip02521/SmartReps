@@ -13,6 +13,7 @@ import { resolvePostAuthNavigation } from '@/lib/post-auth-navigation'
 import { hasIncompleteSetup } from '@/lib/setup-flow'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
+import { completeOnboardingIfSynced } from '@/lib/onboarding-from-sync'
 
 const AUTH_RETURN_KEY = 'auth-return-to'
 
@@ -132,6 +133,11 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
     } else if (!result.ok && toastOpts.showFailureToast) {
       showToast(pl.toastSyncFailed, 'error')
     }
+
+    if (result.ok) {
+      await completeOnboardingIfSynced()
+    }
+
     return result
   })().finally(() => {
     authenticatedSyncLock = null

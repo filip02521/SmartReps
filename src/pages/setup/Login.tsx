@@ -16,7 +16,7 @@ import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
 
-type LoginLocationState = { returnTo?: string }
+type LoginLocationState = { returnTo?: string; fromOnboarding?: boolean }
 
 function readReturnTo(
   state: LoginLocationState | null,
@@ -38,6 +38,7 @@ export default function Login() {
   const location = useLocation()
   const hydrated = useStoreHydrated()
   const returnTo = readReturnTo(location.state as LoginLocationState | null, location.search)
+  const fromOnboarding = (location.state as LoginLocationState | null)?.fromOnboarding === true
 
   useEffect(() => {
     if (returnTo) setAuthReturnTo(returnTo)
@@ -84,6 +85,10 @@ export default function Login() {
   }
 
   const skip = async () => {
+    if (fromOnboarding) {
+      navigate('/setup/onboarding', { replace: true })
+      return
+    }
     await resolvePostAuthNavigation(navigate, effectiveReturnTo() ?? consumeAuthReturnTo())
   }
 
@@ -130,8 +135,11 @@ export default function Login() {
   if (signedInEmail && !sent) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-        <SetupStepper current="login" />
-        <PageHeader title={pl.loginTitle} subtitle={pl.loginSubtitle} />
+        {!fromOnboarding && <SetupStepper current="login" />}
+        <PageHeader
+          title={fromOnboarding ? pl.loginTitleReturning : pl.loginTitle}
+          subtitle={fromOnboarding ? pl.loginSubtitleReturning : pl.loginSubtitle}
+        />
         <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">
           {pl.loginAlreadySignedIn}{' '}
           <span className="font-medium text-[var(--sr-text-primary)]">{signedInEmail}</span>
@@ -154,8 +162,11 @@ export default function Login() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-      <SetupStepper current="login" />
-      <PageHeader title={pl.loginTitle} subtitle={pl.loginSubtitle} />
+      {!fromOnboarding && <SetupStepper current="login" />}
+      <PageHeader
+        title={fromOnboarding ? pl.loginTitleReturning : pl.loginTitle}
+        subtitle={fromOnboarding ? pl.loginSubtitleReturning : pl.loginSubtitle}
+      />
 
       {sent ? (
         <div className="mt-2 space-y-3">
@@ -186,7 +197,7 @@ export default function Login() {
       )}
 
       <Button variant="ghost" className="mt-4" fullWidth disabled={loading} onClick={() => void skip()}>
-        {pl.loginSkip}
+        {fromOnboarding ? pl.backToOnboarding : pl.loginSkip}
       </Button>
     </div>
   )
