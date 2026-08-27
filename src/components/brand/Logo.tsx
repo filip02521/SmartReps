@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { cn } from '@/lib/utils'
+import { pl } from '@/i18n/pl'
 
 export function LogoMark({ size = 40 }: { size?: number }) {
   const uid = useId().replace(/:/g, '')
@@ -20,9 +21,14 @@ export function LogoMark({ size = 40 }: { size?: number }) {
 
 export function LogoFull({ height = 28, className }: { height?: number; className?: string }) {
   return (
-    <div className={cn('flex items-center gap-2', className)} style={{ height }}>
+    <div
+      className={cn('flex items-center gap-2', className)}
+      style={{ height }}
+      role="img"
+      aria-label={pl.appName}
+    >
       <LogoMark size={height} />
-      <span className="text-lg font-bold tracking-tight">
+      <span className="text-lg font-bold tracking-tight" aria-hidden>
         <span className="font-normal text-[var(--sr-text-primary)]">Smart</span>
         <span className="sr-gradient-text">Reps</span>
       </span>

@@ -29,14 +29,19 @@
 2. **POZIOM 2** — kontekst: seria, `PreviousResultBadge`
 3. **POZIOM 3** — SetChecklist, timer pill
 
-## Wireframe — Dashboard
+## Wireframe — Dashboard (home)
 
 ```
 [Logo SmartReps]
-[Karta Pompki — badge status — progress bar — CTA]
-[Karta Podciąganie]
+[HomeSummary — data, status, metryki 14d, paski cyklu]
+[Attention: InstallCoach XOR HomeTip]
+[Wybierz trening]
+[ProgramHomeCard — rail, preview sesji, CTA]
+[ProgramHomeCard…]
 [Tab bar]
 ```
+
+Test 5 sekund: wiem, czy dziś trenuję / odpoczywam, i którą kartę wybrać.
 
 ## Wireframe — Trening (`ActiveWorkoutScreen`)
 

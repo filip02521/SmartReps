@@ -1,0 +1,510 @@
+import { db, type LocalProgramProgress, type ActiveWorkoutState } from '@/lib/db'
+import { getCycleById } from '@/data/plans'
+import type { Program, SetTarget } from '@/data/plans/types'
+import { getCompletedDaysInCycle } from '@/lib/cycle-progress'
+import {
+  formatSetTarget,
+  getTargetReps,
+  isWorkoutAvailable,
+} from '@/lib/progress-engine'
+import { getProgramStats, type ProgramStats } from '@/lib/stats-engine'
+import { isStaleActiveWorkout } from '@/lib/sync'
+import { pl } from '@/i18n/pl'
+
+export type ProgramBucket =
+  | 'resume_stale'
+  | 'resume'
+  | 'test_pending_ready'
+  | 'test_pending_rest'
+  | 'ready'
+  | 'resting'
+  | 'paused'
+  | 'unconfigured'
+
+export type ResumeInfo = {
+  day: number
+  set: number
+  total: number
+  stale: boolean
+  currentSetIndex: number
+}
+
+export type HomeProgramBar = {
+  program: Program
+  label: string
+  completedDays: number
+  totalDays: number
+  fraction: number
+  cycleNameShort: string
+  attempt: number
+  dayLabel: string
+  paused: boolean
+  testPending: boolean
+}
+
+export type TipKind =
+  | 'stale'
+  | 'test_ready'
+  | 'test_rest'
+  | 'level'
+  | 'habit_zero'
+  | 'habit_met'
+  | 'rest_all'
+
+export type HomeTipModel = {
+  id: string
+  kind: TipKind
+  message: string
+  dismissible: boolean
+  actionLabel?: string
+  actionProgram?: Program
+  scrollProgram?: Program
+}
+
+export type TipSuppression = {
+  stale: boolean
+  test: boolean
+  level: boolean
+  allRest: boolean
+}
+
+export type ProgramCardModel = {
+  program: Program
+  label: string
+  accent: string
+  bucket: ProgramBucket
+  progress: LocalProgramProgress | null
+  stats: ProgramStats | null
+  resume: ResumeInfo | null
+  available: boolean
+  daysLeft: number
+  cycleNameShort: string | null
+  cycleDayCount: number
+  currentDaySets: SetTarget[] | null
+  setsPreviewLine: string | null
+  setsTargetTotal: number | null
+  loadError: string | null
+  /** Last completed session failed (for level tip). */
+  lastFailed: boolean
+}
+
+export type HomeLoadResult = {
+  summary: {
+    sessions14d: number
+    reps14d: number
+    bestStreakWeeks: number
+    statusSentence: string
+    dateLabel: string
+    programs: HomeProgramBar[]
+  }
+  cards: ProgramCardModel[]
+  tip: HomeTipModel | null
+  tipSuppression: TipSuppression
+}
+
+const BUCKET_ORDER: ProgramBucket[] = [
+  'resume_stale',
+  'resume',
+  'test_pending_ready',
+  'test_pending_rest',
+  'ready',
+  'resting',
+  'paused',
+  'unconfigured',
+]
+
+const PROGRAM_ORDER: Program[] = ['pushups', 'pullups']
+
+export function programLabel(program: Program): string {
+  return program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+}
+
+export function programAccent(program: Program): string {
+  return program === 'pushups' ? 'var(--sr-pushups-accent)' : 'var(--sr-pullups-accent)'
+}
+
+export function localDayKey(d = new Date()): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+export function formatHomeDate(d = new Date()): string {
+  const sameYear = d.getFullYear() === new Date().getFullYear()
+  return d.toLocaleDateString('pl-PL', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  })
+}
+
+export function deriveProgramBucket(
+  progress: LocalProgramProgress | null | undefined,
+  resume: ResumeInfo | null,
+): ProgramBucket {
+  if (!progress) return 'unconfigured'
+  const available = isWorkoutAvailable(
+    progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
+  )
+  const isPaused = progress.status === 'paused'
+  const isTestPending = progress.status === 'test_pending'
+  const hasResume = !!resume && !isTestPending && !isPaused
+
+  if (hasResume && resume.stale) return 'resume_stale'
+  if (hasResume) return 'resume'
+  if (isTestPending && available) return 'test_pending_ready'
+  if (isTestPending && !available) return 'test_pending_rest'
+  if (isPaused) return 'paused'
+  if (!available) return 'resting'
+  return 'ready'
+}
+
+function bucketRank(b: ProgramBucket): number {
+  return BUCKET_ORDER.indexOf(b)
+}
+
+export function sortPrograms(programs: Program[], buckets: Map<Program, ProgramBucket>): Program[] {
+  return [...programs].sort((a, b) => {
+    const ra = bucketRank(buckets.get(a) ?? 'unconfigured')
+    const rb = bucketRank(buckets.get(b) ?? 'unconfigured')
+    if (ra !== rb) return ra - rb
+    return PROGRAM_ORDER.indexOf(a) - PROGRAM_ORDER.indexOf(b)
+  })
+}
+
+function buildResume(
+  progress: LocalProgramProgress,
+  active: ActiveWorkoutState | undefined,
+): ResumeInfo | null {
+  if (!active) return null
+  const cycle = getCycleById(progress.cycleId)
+  const day = cycle?.days.find((d) => d.dayNumber === progress.currentDay)
+  return {
+    day: progress.currentDay,
+    set: active.currentSetIndex + 1,
+    total: day?.sets.length ?? 5,
+    stale: isStaleActiveWorkout(active.updatedAt),
+    currentSetIndex: active.currentSetIndex,
+  }
+}
+
+export function buildStatusSentence(cards: ProgramCardModel[]): string {
+  const configured = cards.filter((c) => c.bucket !== 'unconfigured')
+  const hasResumeStale = cards.some((c) => c.bucket === 'resume_stale')
+  const hasResumeFresh = cards.some((c) => c.bucket === 'resume')
+  const hasResume = hasResumeStale || hasResumeFresh
+  const otherReady = cards.some((c) => c.bucket === 'ready')
+  const testReady = cards.some((c) => c.bucket === 'test_pending_ready')
+  const testRest = cards.find((c) => c.bucket === 'test_pending_rest')
+  const anyReady = cards.some((c) => c.bucket === 'ready')
+  const allResting =
+    configured.length > 0 &&
+    configured.every((c) => c.bucket === 'resting' || c.bucket === 'paused') &&
+    configured.some((c) => c.bucket === 'resting')
+  const allPausedOrUnconfigured =
+    cards.length > 0 &&
+    cards.every((c) => c.bucket === 'paused' || c.bucket === 'unconfigured')
+
+  if (hasResume) {
+    if (otherReady) return pl.homeStatusResumeAndReady
+    if (hasResumeStale && !hasResumeFresh) return pl.homeStatusResumeStale
+    return pl.homeStatusResume
+  }
+  if (testReady) return pl.homeStatusTestReady
+  if (testRest) {
+    const label = testRest.stats?.nextWorkoutLabel ?? pl.today
+    return pl.homeStatusTestRest(label)
+  }
+  if (anyReady) return pl.homeStatusReady
+  if (allResting) {
+    const restingCards = configured.filter((c) => c.bucket === 'resting' && c.progress)
+    let soonest: ProgramCardModel | null = null
+    let soonestTs = Number.POSITIVE_INFINITY
+    for (const c of restingCards) {
+      const raw = c.progress?.nextWorkoutAfter
+      const ts = raw ? new Date(raw).getTime() : 0
+      if (ts < soonestTs) {
+        soonestTs = ts
+        soonest = c
+      }
+    }
+    const next = soonest?.stats?.nextWorkoutLabel ?? pl.today
+    return pl.homeStatusAllRest(next)
+  }
+  if (allPausedOrUnconfigured) return pl.homeStatusSetup
+  return pl.homeStatusFallback
+}
+
+export function pickTip(
+  cards: ProgramCardModel[],
+  sessions14d: number,
+  dismissedId: string | null,
+  dismissedDay: string | null,
+): HomeTipModel | null {
+  const today = localDayKey()
+  const dismissed =
+    dismissedDay === today && dismissedId ? new Set([dismissedId]) : new Set<string>()
+
+  const staleCard = cards.find((c) => c.bucket === 'resume_stale')
+  if (staleCard) {
+    return {
+      id: 'stale',
+      kind: 'stale',
+      message: pl.staleSession,
+      dismissible: false,
+      scrollProgram: staleCard.program,
+    }
+  }
+
+  const testReady = cards.find((c) => c.bucket === 'test_pending_ready')
+  if (testReady) {
+    return {
+      id: 'test_ready',
+      kind: 'test_ready',
+      message: pl.cycleCompleteHint,
+      dismissible: false,
+      scrollProgram: testReady.program,
+    }
+  }
+
+  const testRest = cards.find((c) => c.bucket === 'test_pending_rest')
+  if (testRest) {
+    const next = testRest.stats?.nextWorkoutLabel ?? pl.today
+    return {
+      id: 'test_rest',
+      kind: 'test_rest',
+      message: pl.homeTipTestRest(next),
+      dismissible: false,
+      scrollProgram: testRest.program,
+    }
+  }
+
+  const level = cards.find(
+    (c) => c.progress && c.progress.cycleAttempt >= 2 && c.lastFailed,
+  )
+  if (level) {
+    return {
+      id: `level-${level.program}`,
+      kind: 'level',
+      message: pl.considerLowerLevel,
+      dismissible: false,
+      actionLabel: pl.menuChangeLevel,
+      actionProgram: level.program,
+      scrollProgram: level.program,
+    }
+  }
+
+  const configuredCount = cards.filter((c) => c.bucket !== 'unconfigured').length
+  if (sessions14d === 0 && configuredCount >= 1 && !dismissed.has('habit-zero')) {
+    const scroll =
+      cards.find((c) => c.bucket === 'ready' || c.bucket.startsWith('resume'))?.program ??
+      cards.find((c) => c.bucket !== 'unconfigured')?.program
+    return {
+      id: 'habit-zero',
+      kind: 'habit_zero',
+      message: pl.homeTipHabitZero,
+      dismissible: true,
+      scrollProgram: scroll,
+    }
+  }
+
+  if (sessions14d >= 3 && !dismissed.has('habit-met')) {
+    return {
+      id: 'habit-met',
+      kind: 'habit_met',
+      message: pl.homeTipHabitMet,
+      dismissible: true,
+    }
+  }
+
+  const configured = cards.filter((c) => c.bucket !== 'unconfigured')
+  const allResting =
+    configured.length > 0 && configured.every((c) => c.bucket === 'resting')
+  if (allResting && !dismissed.has('rest-all')) {
+    return {
+      id: 'rest-all',
+      kind: 'rest_all',
+      message: pl.homeTipRestAll,
+      dismissible: true,
+    }
+  }
+
+  return null
+}
+
+export function tipSuppressionFrom(tip: HomeTipModel | null): TipSuppression {
+  return {
+    stale: tip?.kind === 'stale',
+    test: tip?.kind === 'test_ready' || tip?.kind === 'test_rest',
+    level: tip?.kind === 'level',
+    allRest: tip?.kind === 'rest_all',
+  }
+}
+
+export async function loadHomeDashboard(
+  enabledPrograms: Program[],
+  opts?: { dismissedHomeTipId?: string | null; dismissedHomeTipDay?: string | null },
+): Promise<HomeLoadResult> {
+  const since = Date.now() - 14 * 86400000
+  const allSessions = await db.workoutSessions.toArray()
+  const passed14d = allSessions.filter(
+    (s) =>
+      s.status === 'completed' &&
+      s.passed &&
+      new Date(s.startedAt).getTime() >= since,
+  )
+  const sessions14d = passed14d.length
+  const reps14d = passed14d.reduce((sum, s) => sum + (s.totalReps ?? 0), 0)
+
+  const cardModels = await Promise.all(
+    enabledPrograms.map(async (program): Promise<ProgramCardModel> => {
+      try {
+        const progress =
+          (await db.programProgress.where('program').equals(program).first()) ?? null
+        if (!progress) {
+          return {
+            program,
+            label: programLabel(program),
+            accent: programAccent(program),
+            bucket: 'unconfigured',
+            progress: null,
+            stats: null,
+            resume: null,
+            available: true,
+            daysLeft: 0,
+            cycleNameShort: null,
+            cycleDayCount: 0,
+            currentDaySets: null,
+            setsPreviewLine: null,
+            setsTargetTotal: null,
+            loadError: null,
+            lastFailed: false,
+          }
+        }
+
+        const active = await db.activeWorkout.get(program)
+        const resume = buildResume(progress, active)
+        const stats = await getProgramStats(program, progress)
+        const available = isWorkoutAvailable(
+          progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
+        )
+        const daysLeft = (() => {
+          if (!progress.nextWorkoutAfter) return 0
+          const next = new Date(progress.nextWorkoutAfter)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          next.setHours(0, 0, 0, 0)
+          return Math.max(0, Math.ceil((next.getTime() - today.getTime()) / 86400000))
+        })()
+        const bucket = deriveProgramBucket(progress, resume)
+        const cycle = getCycleById(progress.cycleId)
+        const day = cycle?.days.find((d) => d.dayNumber === progress.currentDay)
+        const sets = day?.sets ?? null
+        const setsPreviewLine = sets ? sets.map(formatSetTarget).join(' · ') : null
+        const setsTargetTotal = sets
+          ? sets.reduce((sum, t) => sum + getTargetReps(t), 0)
+          : null
+
+        const programSessions = allSessions
+          .filter((s) => s.program === program && s.status === 'completed')
+          .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+        const lastCompleted = programSessions[0]
+        const lastFailed = !!lastCompleted && !lastCompleted.passed
+
+        return {
+          program,
+          label: programLabel(program),
+          accent: programAccent(program),
+          bucket,
+          progress,
+          stats,
+          resume,
+          available,
+          daysLeft,
+          cycleNameShort: cycle?.nameShort ?? null,
+          cycleDayCount: cycle?.days.length ?? 0,
+          currentDaySets: sets,
+          setsPreviewLine,
+          setsTargetTotal,
+          loadError: null,
+          lastFailed,
+        }
+      } catch {
+        return {
+          program,
+          label: programLabel(program),
+          accent: programAccent(program),
+          bucket: 'unconfigured',
+          progress: null,
+          stats: null,
+          resume: null,
+          available: true,
+          daysLeft: 0,
+          cycleNameShort: null,
+          cycleDayCount: 0,
+          currentDaySets: null,
+          setsPreviewLine: null,
+          setsTargetTotal: null,
+          loadError: pl.errorLoadProgram,
+          lastFailed: false,
+        }
+      }
+    }),
+  )
+
+  const bucketMap = new Map(cardModels.map((c) => [c.program, c.bucket]))
+  const sortedPrograms = sortPrograms(enabledPrograms, bucketMap)
+  const cards = sortedPrograms.map((p) => cardModels.find((c) => c.program === p)!)
+
+  let bestStreakWeeks = 0
+  for (const c of cards) {
+    if (c.stats) bestStreakWeeks = Math.max(bestStreakWeeks, c.stats.streakWeeks)
+  }
+
+  const programs: HomeProgramBar[] = []
+  for (const c of cards) {
+    if (!c.progress || c.bucket === 'unconfigured') continue
+    const cycle = getCycleById(c.progress.cycleId)
+    if (!cycle) continue
+    const completed = getCompletedDaysInCycle(c.progress, cycle)
+    const total = cycle.days.length
+    const testPending = c.progress.status === 'test_pending'
+    programs.push({
+      program: c.program,
+      label: c.label,
+      completedDays: testPending ? total : completed,
+      totalDays: total,
+      fraction: total > 0 ? (testPending ? 1 : completed / total) : 0,
+      cycleNameShort: cycle.nameShort,
+      attempt: c.progress.cycleAttempt,
+      dayLabel: testPending
+        ? pl.cycleDoneTestLabel
+        : pl.dayOfTotal(c.progress.currentDay, total),
+      paused: c.progress.status === 'paused',
+      testPending,
+    })
+  }
+
+  const tip = pickTip(
+    cards,
+    sessions14d,
+    opts?.dismissedHomeTipId ?? null,
+    opts?.dismissedHomeTipDay ?? null,
+  )
+
+  return {
+    summary: {
+      sessions14d,
+      reps14d,
+      bestStreakWeeks,
+      statusSentence: buildStatusSentence(cards),
+      dateLabel: formatHomeDate(),
+      programs,
+    },
+    cards,
+    tip,
+    tipSuppression: tipSuppressionFrom(tip),
+  }
+}

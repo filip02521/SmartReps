@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { pl } from '@/i18n/pl'
@@ -13,7 +13,14 @@ type BeforeInstallPromptEvent = Event & {
 }
 
 /** Soft A2HS + standalone login coach for Dashboard. */
-export function InstallCoach() {
+export function InstallCoach({
+  demotePrimary = false,
+  onVisibilityChange,
+}: {
+  /** Use secondary/ghost so card CTA stays the only filled primary. */
+  demotePrimary?: boolean
+  onVisibilityChange?: (visible: boolean) => void
+} = {}) {
   const navigate = useNavigate()
   const {
     hasCompletedFirstWorkout,
@@ -67,7 +74,6 @@ export function InstallCoach() {
       } catch {
         track('standalone_true')
       }
-      // Only coach login when cloud is available and user is logged out
       if (isSupabaseConfigured && loggedIn === false && !hasSeenStandaloneLoginCoach) {
         setShowLoginCoach(true)
       } else {
@@ -96,6 +102,13 @@ export function InstallCoach() {
     loggedIn,
   ])
 
+  const visible = showLoginCoach || showInstall
+  useLayoutEffect(() => {
+    onVisibilityChange?.(visible)
+  }, [visible, onVisibilityChange])
+
+  const primaryVariant = demotePrimary ? 'secondary' : undefined
+
   if (showLoginCoach) {
     return (
       <div className="mb-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] p-4">
@@ -104,6 +117,7 @@ export function InstallCoach() {
         <div className="mt-3 flex flex-col gap-2">
           <Button
             fullWidth
+            variant={primaryVariant}
             onClick={() => {
               setHasSeenStandaloneLoginCoach(true)
               navigate('/setup/login', { state: { returnTo: '/' } })
@@ -138,6 +152,7 @@ export function InstallCoach() {
         {deferredInstall && (
           <Button
             fullWidth
+            variant={primaryVariant}
             onClick={async () => {
               await deferredInstall.prompt()
               setHasDismissedInstallPrompt(true)

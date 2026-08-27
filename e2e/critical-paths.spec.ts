@@ -28,9 +28,11 @@ async function seedLocalAppState(page: Page, extras: Record<string, unknown> = {
         hasCompletedFirstWorkout: false,
         hasDismissedInstallPrompt: true,
         hasSeenStandaloneLoginCoach: true,
+        dismissedHomeTipId: null,
+        dismissedHomeTipDay: null,
         ...payload,
       },
-      version: 0,
+      version: 3,
     }
     localStorage.setItem('smartreps-app', JSON.stringify(state))
   }, extras)
@@ -162,7 +164,18 @@ test.describe('SmartReps routing critical paths', () => {
     await page.goto('/setup/login')
     await page.getByRole('button', { name: 'Pomiń — trenuję bez konta' }).click()
     await expect(page).toHaveURL('/', { timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Trening' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible()
+  })
+
+  test('1b) seeded Dashboard home shows summary + card', async ({ page }) => {
+    await seedOnboardedWithProgress(page)
+    await page.goto('/')
+    await expect(page.getByRole('img', { name: 'SmartReps' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible()
+    await expect(page.getByText(/Cel: 3 zaliczone treningi/)).toBeVisible()
+    await expect(page.getByRole('button', { name: /Rozpocznij Dzień/ })).toBeVisible({
+      timeout: 15_000,
+    })
   })
 
   test('3) workout Done → rest → edit previous → finish → summary', async ({ page }) => {
@@ -172,9 +185,11 @@ test.describe('SmartReps routing critical paths', () => {
 
     await expect(page.getByRole('button', { name: 'Zrobione' })).toBeVisible({ timeout: 20_000 })
 
-    // Set 1
+    // Set 1 — rest opens expanded immediately
     await page.getByRole('button', { name: 'Zrobione' }).click()
-    await expect(page.getByText(/przerwa|odpoczynek|sek/i).first()).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Przerwa', { exact: true }).first()).toBeVisible({
+      timeout: 10_000,
+    })
 
     // Skip rest (confirm sheet)
     await page.getByRole('button', { name: 'Pomiń' }).click()
@@ -238,7 +253,9 @@ test.describe('SmartReps routing critical paths', () => {
     }
 
     await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Trening' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible({
+      timeout: 15_000,
+    })
     await expect(page.getByRole('button', { name: /Rozpocznij Dzień 1/ })).toBeVisible({
       timeout: 15_000,
     })

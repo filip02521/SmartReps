@@ -66,6 +66,9 @@ type AppStore = {
   hasCompletedFirstWorkout: boolean
   hasDismissedInstallPrompt: boolean
   hasSeenStandaloneLoginCoach: boolean
+  /** Home tip dismiss (id + local calendar day YYYY-MM-DD). */
+  dismissedHomeTipId: string | null
+  dismissedHomeTipDay: string | null
   setSettings: (partial: Partial<UserSettings>) => void
   setPendingTest: (test: PendingTest | null) => void
   clearPendingTest: () => void
@@ -79,6 +82,7 @@ type AppStore = {
   setHasCompletedFirstWorkout: (v: boolean) => void
   setHasDismissedInstallPrompt: (v: boolean) => void
   setHasSeenStandaloneLoginCoach: (v: boolean) => void
+  dismissHomeTip: (id: string, dayKey: string) => void
 }
 
 const UI_SYNC_KEYS: (keyof UserSettings)[] = [
@@ -119,6 +123,8 @@ export const useAppStore = create<AppStore>()(
       hasCompletedFirstWorkout: false,
       hasDismissedInstallPrompt: false,
       hasSeenStandaloneLoginCoach: false,
+      dismissedHomeTipId: null,
+      dismissedHomeTipDay: null,
       setSettings: (partial) =>
         set((s) => {
           const nextSettings = { ...s.settings, ...partial }
@@ -150,10 +156,12 @@ export const useAppStore = create<AppStore>()(
       setHasCompletedFirstWorkout: (hasCompletedFirstWorkout) => set({ hasCompletedFirstWorkout }),
       setHasDismissedInstallPrompt: (hasDismissedInstallPrompt) => set({ hasDismissedInstallPrompt }),
       setHasSeenStandaloneLoginCoach: (hasSeenStandaloneLoginCoach) => set({ hasSeenStandaloneLoginCoach }),
+      dismissHomeTip: (dismissedHomeTipId, dismissedHomeTipDay) =>
+        set({ dismissedHomeTipId, dismissedHomeTipDay }),
     }),
     {
       name: 'smartreps-app',
-      version: 2,
+      version: 3,
       migrate: (persisted) => {
         const p = (persisted ?? {}) as Partial<AppStore> & { settings?: Partial<UserSettings> }
         return {
@@ -168,6 +176,8 @@ export const useAppStore = create<AppStore>()(
           hasCompletedFirstWorkout: p.hasCompletedFirstWorkout ?? false,
           hasDismissedInstallPrompt: p.hasDismissedInstallPrompt ?? false,
           hasSeenStandaloneLoginCoach: p.hasSeenStandaloneLoginCoach ?? false,
+          dismissedHomeTipId: p.dismissedHomeTipId ?? null,
+          dismissedHomeTipDay: p.dismissedHomeTipDay ?? null,
         }
       },
       merge: (persisted, current) => {
@@ -190,6 +200,8 @@ export const useAppStore = create<AppStore>()(
         hasCompletedFirstWorkout: s.hasCompletedFirstWorkout,
         hasDismissedInstallPrompt: s.hasDismissedInstallPrompt,
         hasSeenStandaloneLoginCoach: s.hasSeenStandaloneLoginCoach,
+        dismissedHomeTipId: s.dismissedHomeTipId,
+        dismissedHomeTipDay: s.dismissedHomeTipDay,
       }),
     },
   ),
