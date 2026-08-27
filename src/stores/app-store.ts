@@ -124,7 +124,13 @@ function programsEqual(a: Program[], b: Program[]): boolean {
   return a.length === b.length && a.every((p, i) => p === b[i])
 }
 
+let storeHydrated = useAppStore.persist.hasHydrated()
+useAppStore.persist.onFinishHydration(() => {
+  storeHydrated = true
+})
+
 useAppStore.subscribe((state, prev) => {
+  if (!storeHydrated) return
   if (!programsEqual(state.settings.enabledPrograms, prev.settings.enabledPrograms)) {
     void import('@/lib/sync').then((m) => m.pushProfileSettingsOnly())
   }

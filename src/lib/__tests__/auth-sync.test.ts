@@ -27,6 +27,10 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+vi.mock('@/lib/onboarding-from-sync', () => ({
+  completeOnboardingIfSynced: vi.fn().mockResolvedValue(false),
+}))
+
 vi.mock('@/lib/post-auth-navigation', () => ({
   navigateAfterAuth: vi.fn(),
   resolvePostAuthNavigation: vi.fn(),
@@ -62,6 +66,7 @@ import { navigateAfterAuth, resolvePostAuthNavigation } from '@/lib/post-auth-na
 import { hasIncompleteSetup } from '@/lib/setup-flow'
 import { showToast } from '@/stores/toast-store'
 import {
+  completeSignInFlow,
   ensureAccountForSession,
   handleAuthSession,
   runAuthenticatedSync,
@@ -178,5 +183,40 @@ describe('runAuthenticatedSync', () => {
     await new Promise((r) => setTimeout(r, 500))
     expect(showToast).toHaveBeenCalledWith(expect.any(String), 'success')
     expect(showToast).not.toHaveBeenCalledWith(expect.any(String), 'error')
+  })
+})
+
+describe('completeSignInFlow', () => {
+  const navigate = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetState.mockReturnValue({
+      lastAuthUserId: 'user-a',
+      pendingStart: null,
+      settings: { onboardingComplete: true },
+    })
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'user-a' } } },
+    } as never)
+    vi.mocked(syncWithRemote).mockResolvedValue({ ok: true, errors: 0 })
+    vi.mocked(db.programProgress.count).mockResolvedValue(0)
+  })
+
+  it('dedupes concurrent sign-in flows', async () => {
+    let resolveSync!: (v: SyncResult) => void
+    vi.mocked(syncWithRemote).mockReturnValue(
+      new Promise((resolve) => {
+        resolveSync = resolve
+      }),
+    )
+
+    const p1 = completeSignInFlow(navigate, { returnTo: '/', showSuccessToast: true })
+    const p2 = completeSignInFlow(navigate, { returnTo: '/', showSuccessToast: true })
+    resolveSync({ ok: true, errors: 0 })
+    await Promise.all([p1, p2])
+
+    expect(syncWithRemote).toHaveBeenCalledTimes(1)
+    expect(resolvePostAuthNavigation).toHaveBeenCalledTimes(1)
   })
 })

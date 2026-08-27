@@ -16,10 +16,29 @@ import { pl } from '@/i18n/pl'
 import { completeOnboardingIfSynced } from '@/lib/onboarding-from-sync'
 
 const AUTH_RETURN_KEY = 'auth-return-to'
+const AUTH_FROM_ONBOARDING_KEY = 'auth-from-onboarding'
 
 export function setAuthReturnTo(path: string | null): void {
   if (typeof sessionStorage === 'undefined') return
   if (path) sessionStorage.setItem(AUTH_RETURN_KEY, path)
+}
+
+export function setAuthFromOnboarding(fromOnboarding: boolean): void {
+  if (typeof sessionStorage === 'undefined') return
+  if (fromOnboarding) sessionStorage.setItem(AUTH_FROM_ONBOARDING_KEY, '1')
+  else sessionStorage.removeItem(AUTH_FROM_ONBOARDING_KEY)
+}
+
+export function peekAuthFromOnboarding(): boolean {
+  if (typeof sessionStorage === 'undefined') return false
+  return sessionStorage.getItem(AUTH_FROM_ONBOARDING_KEY) === '1'
+}
+
+export function consumeAuthFromOnboarding(): boolean {
+  if (typeof sessionStorage === 'undefined') return false
+  const value = sessionStorage.getItem(AUTH_FROM_ONBOARDING_KEY)
+  if (value) sessionStorage.removeItem(AUTH_FROM_ONBOARDING_KEY)
+  return value === '1'
 }
 
 export function peekAuthReturnTo(): string | null {
@@ -108,6 +127,7 @@ async function syncForAccount(accountResult: AccountEnsureResult): Promise<SyncR
 type SyncToastOpts = { showSuccessToast?: boolean; showFailureToast?: boolean }
 
 let authenticatedSyncLock: Promise<SyncResult> | null = null
+let signInFlowLock: Promise<void> | null = null
 let pendingSyncToasts: SyncToastOpts = {}
 let syncToastTimer: ReturnType<typeof setTimeout> | null = null
 let pendingSyncToastResult: 'success' | 'failure' | null = null
@@ -164,6 +184,38 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
   return authenticatedSyncLock
 }
 
+/** Single-flight: sync + optional post-login navigation (OTP, magic link, Kontynuuj). */
+export async function completeSignInFlow(
+  navigate?: NavigateFunction,
+  opts?: {
+    returnTo?: string | null
+    showSuccessToast?: boolean
+    showFailureToast?: boolean
+  },
+): Promise<void> {
+  if (signInFlowLock) return signInFlowLock
+
+  signInFlowLock = (async () => {
+    await waitForStoreHydration()
+    await runAuthenticatedSync({
+      showSuccessToast: opts?.showSuccessToast ?? false,
+      showFailureToast: opts?.showFailureToast ?? false,
+    })
+    consumeAuthFromOnboarding()
+    if (navigate) {
+      try {
+        await resolvePostAuthNavigation(navigate, opts?.returnTo ?? consumeAuthReturnTo())
+      } catch (err) {
+        console.warn('[auth] post-sign-in navigation failed', err)
+      }
+    }
+  })().finally(() => {
+    signInFlowLock = null
+  })
+
+  return signInFlowLock
+}
+
 export async function shouldNavigateAfterAuth(): Promise<boolean> {
   const { pendingStart, settings } = useAppStore.getState()
   const incomplete = await hasIncompleteSetup()
@@ -186,16 +238,15 @@ export async function handleAuthSession(
 
   await waitForStoreHydration()
 
-  await runAuthenticatedSync({
-    showSuccessToast: event === 'SIGNED_IN',
-    showFailureToast: event === 'SIGNED_IN',
-  })
-
-  if (event === 'SIGNED_IN' && navigate && (await shouldNavigateAfterAuth())) {
-    try {
-      await resolvePostAuthNavigation(navigate, consumeAuthReturnTo())
-    } catch (err) {
-      console.warn('[auth] post-sign-in navigation failed', err)
-    }
+  if (event === 'SIGNED_IN') {
+    const shouldNav = navigate && (await shouldNavigateAfterAuth())
+    await completeSignInFlow(shouldNav ? navigate : undefined, {
+      returnTo: consumeAuthReturnTo(),
+      showSuccessToast: true,
+      showFailureToast: true,
+    })
+    return
   }
+
+  await runAuthenticatedSync({ showSuccessToast: false, showFailureToast: false })
 }

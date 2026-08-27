@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { SetupStepper } from '@/components/setup/SetupStepper'
@@ -7,9 +7,11 @@ import { PageLoader } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { isSafeReturnPath, resolvePostAuthNavigation } from '@/lib/post-auth-navigation'
 import {
+  completeSignInFlow,
   consumeAuthReturnTo,
+  peekAuthFromOnboarding,
   peekAuthReturnTo,
-  runAuthenticatedSync,
+  setAuthFromOnboarding,
   setAuthReturnTo,
 } from '@/lib/auth-sync'
 import { isStandalonePwa } from '@/lib/pwa-detect'
@@ -30,6 +32,31 @@ function readReturnTo(
   return null
 }
 
+function hasAuthCallbackInUrl(): boolean {
+  const search = new URLSearchParams(window.location.search)
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  return (
+    hash.has('access_token') ||
+    hash.has('refresh_token') ||
+    search.has('code') ||
+    search.has('token_hash')
+  )
+}
+
+function stripAuthParamsFromUrl(): void {
+  const url = new URL(window.location.href)
+  url.searchParams.delete('code')
+  url.searchParams.delete('token_hash')
+  url.hash = ''
+  window.history.replaceState({}, '', `${url.pathname}${url.search}`)
+}
+
+async function verifyEmailOtp(email: string, token: string) {
+  const attempt = await supabase.auth.verifyOtp({ email, token, type: 'email' })
+  if (!attempt.error) return attempt
+  return supabase.auth.verifyOtp({ email, token, type: 'signup' })
+}
+
 export default function Login() {
   const [email, setEmail] = useState('')
   const [otpCode, setOtpCode] = useState('')
@@ -40,12 +67,20 @@ export default function Login() {
   const location = useLocation()
   const hydrated = useStoreHydrated()
   const standalone = isStandalonePwa()
+  const verifyingRef = useRef(false)
   const returnTo = readReturnTo(location.state as LoginLocationState | null, location.search)
-  const fromOnboarding = (location.state as LoginLocationState | null)?.fromOnboarding === true
+  const fromOnboarding =
+    (location.state as LoginLocationState | null)?.fromOnboarding === true ||
+    peekAuthFromOnboarding() ||
+    new URLSearchParams(location.search).get('fromOnboarding') === '1'
 
   useEffect(() => {
     if (returnTo) setAuthReturnTo(returnTo)
   }, [returnTo])
+
+  useEffect(() => {
+    setAuthFromOnboarding(fromOnboarding)
+  }, [fromOnboarding])
 
   useEffect(() => {
     if (!hydrated || !isSupabaseConfigured) return
@@ -69,17 +104,37 @@ export default function Login() {
     return () => subscription.unsubscribe()
   }, [hydrated])
 
-  const effectiveReturnTo = () => returnTo ?? peekAuthReturnTo()
+  useEffect(() => {
+    if (!hydrated || !isSupabaseConfigured || !hasAuthCallbackInUrl()) return
 
-  const finishLogin = async () => {
-    await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
-    await resolvePostAuthNavigation(navigate, effectiveReturnTo() ?? consumeAuthReturnTo())
-  }
+    void (async () => {
+      setLoading(true)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        stripAuthParamsFromUrl()
+        if (session) {
+          await completeSignInFlow(navigate, {
+            returnTo: returnTo ?? consumeAuthReturnTo(),
+            showSuccessToast: true,
+            showFailureToast: true,
+          })
+        }
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [hydrated, navigate, returnTo])
+
+  const effectiveReturnTo = () => returnTo ?? peekAuthReturnTo()
 
   const continueSignedIn = async () => {
     setLoading(true)
     try {
-      await finishLogin()
+      await completeSignInFlow(navigate, {
+        returnTo: effectiveReturnTo() ?? consumeAuthReturnTo(),
+        showSuccessToast: true,
+        showFailureToast: true,
+      })
     } finally {
       setLoading(false)
     }
@@ -122,11 +177,12 @@ export default function Login() {
     const params = new URLSearchParams()
     const backPath = effectiveReturnTo()
     if (backPath) params.set('returnTo', backPath)
+    if (fromOnboarding) params.set('fromOnboarding', '1')
     const query = params.toString()
     const redirectTo = `${window.location.origin}/setup/login${query ? `?${query}` : ''}`
     const { error } = await supabase.auth.signInWithOtp({
       email: trimmed,
-      options: { emailRedirectTo: redirectTo },
+      options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
     })
     setLoading(false)
     if (error) {
@@ -138,29 +194,37 @@ export default function Login() {
   }
 
   const verifyCode = async () => {
+    if (verifyingRef.current) return
     const trimmed = email.trim()
     const code = otpCode.replace(/\s/g, '')
     if (!/^\d{6,8}$/.test(code)) {
       showToast(pl.loginOtpInvalid, 'error')
       return
     }
+    verifyingRef.current = true
     setLoading(true)
-    const { error } = await supabase.auth.verifyOtp({
-      email: trimmed,
-      token: code,
-      type: 'email',
-    })
-    if (error) {
-      setLoading(false)
-      showToast(error.message || pl.loginOtpInvalid, 'error')
-      return
-    }
     try {
-      await finishLogin()
+      const { error } = await verifyEmailOtp(trimmed, code)
+      if (error) {
+        showToast(error.message || pl.loginOtpInvalid, 'error')
+        return
+      }
+      await completeSignInFlow(navigate, {
+        returnTo: effectiveReturnTo() ?? consumeAuthReturnTo(),
+        showSuccessToast: true,
+        showFailureToast: true,
+      })
     } finally {
+      verifyingRef.current = false
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!sent || loading || otpCode.length !== 6) return
+    void verifyCode()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-submit when 6 digits entered
+  }, [otpCode, sent, loading])
 
   if (!hydrated) {
     return (
@@ -209,6 +273,9 @@ export default function Login() {
       {sent ? (
         <div className="mt-2 space-y-4">
           <p className="text-[var(--sr-success)]">{pl.loginSentCode}</p>
+          <p className="text-sm text-[var(--sr-text-secondary)]">
+            {pl.loginSentTo(email.trim())}
+          </p>
 
           <div>
             <label htmlFor="login-otp" className="block text-sm font-medium text-[var(--sr-text-secondary)]">

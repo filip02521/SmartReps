@@ -115,6 +115,7 @@ export const pl = {
   loginSendLink: 'Wyślij kod na e-mail',
   loginSent: 'Sprawdź skrzynkę — wpisz kod z e-maila poniżej.',
   loginSentCode: 'Kod wysłany! Wpisz go poniżej — działa w aplikacji na telefonie.',
+  loginSentTo: (email: string) => `Wysłano na ${email}`,
   loginOtpLabel: 'Kod z e-maila',
   loginOtpPlaceholder: '000000',
   loginOtpHint: '6-cyfrowy kod z wiadomości SmartReps (nie link).',

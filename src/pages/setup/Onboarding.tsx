@@ -8,8 +8,7 @@ import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
-import { runAuthenticatedSync } from '@/lib/auth-sync'
-import { completeOnboardingIfSynced } from '@/lib/onboarding-from-sync'
+import { runAuthenticatedSync, setAuthFromOnboarding } from '@/lib/auth-sync'
 import type { Program } from '@/data/plans/types'
 
 const rules = [
@@ -46,7 +45,7 @@ export default function Onboarding() {
         if (!data.session || cancelled) return
         await runAuthenticatedSync({ showSuccessToast: false, showFailureToast: false })
         if (cancelled) return
-        if (await completeOnboardingIfSynced()) {
+        if (useAppStore.getState().settings.onboardingComplete) {
           navigate('/', { replace: true })
         }
       } finally {
@@ -75,6 +74,7 @@ export default function Onboarding() {
   }
 
   const goToLogin = () => {
+    setAuthFromOnboarding(true)
     navigate('/setup/login', { state: { fromOnboarding: true } })
   }
 

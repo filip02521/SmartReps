@@ -5,7 +5,6 @@ import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { PageLoader } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { runAuthenticatedSync } from '@/lib/auth-sync'
-import { completeOnboardingIfSynced } from '@/lib/onboarding-from-sync'
 import { isProgram } from '@/lib/setup-flow'
 
 /** Redirects to onboarding when the user has not finished first-run setup. */
@@ -25,7 +24,6 @@ export function RequireOnboarding() {
         const { data } = await supabase.auth.getSession()
         if (!data.session || cancelled) return
         await runAuthenticatedSync({ showSuccessToast: false, showFailureToast: false })
-        if (!cancelled) await completeOnboardingIfSynced()
       } finally {
         if (!cancelled) setCheckingAccount(false)
       }
@@ -44,7 +42,8 @@ export function RequireOnboarding() {
     )
   }
 
-  if (!complete) {
+  const onboardingDone = useAppStore.getState().settings.onboardingComplete
+  if (!onboardingDone) {
     return <Navigate to="/setup/onboarding" replace state={{ from: location.pathname }} />
   }
 
