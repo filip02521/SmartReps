@@ -67,4 +67,5 @@
 - [x] Tab bar ukryty w treningu
 - [x] prefers-reduced-motion (tokens + timer ring)
 - [x] Filtry historii — status, bieżący cykl, zakres dat (30/90 dni)
+- [x] Audyt logiki ekranów (Critical/High) — MaxTest ±, magic link, onboarding gates, Profile
 - [ ] iPhone SE 375px — wymaga ręcznego QA urządzenia

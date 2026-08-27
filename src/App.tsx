@@ -38,11 +38,10 @@ export default function App() {
             <Route path="/plans" element={<PlansPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
+
+          <Route path="/workout/:program" element={<WorkoutPage />} />
+          <Route path="/workout/:program/summary" element={<SessionSummary />} />
         </Route>
-
-        <Route path="/workout/:program" element={<WorkoutPage />} />
-        <Route path="/workout/:program/summary" element={<SessionSummary />} />
-
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

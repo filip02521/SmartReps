@@ -118,19 +118,34 @@ async function upsertSession(userId: string, row: LocalWorkoutSession) {
   if (sessionError) throw sessionError
 
   if (row.setResults.length > 0) {
-    await supabase.from('set_results').delete().eq('session_id', row.id)
-    const { error: setsError } = await supabase.from('set_results').insert(
-      row.setResults.map((r) => ({
-        session_id: row.id,
-        set_number: r.setNumber,
-        target_kind: r.target.kind,
-        target_reps: r.target.kind !== 'max' ? ('reps' in r.target ? r.target.reps : null) : null,
-        min_reps: r.target.kind === 'max' ? r.target.minReps : null,
-        actual_reps: r.actual,
-        passed: r.passed,
-      })),
-    )
+    const payload = row.setResults.map((r) => ({
+      session_id: row.id,
+      set_number: r.setNumber,
+      target_kind: r.target.kind,
+      target_reps: r.target.kind !== 'max' ? ('reps' in r.target ? r.target.reps : null) : null,
+      min_reps: r.target.kind === 'max' ? r.target.minReps : null,
+      actual_reps: r.actual,
+      passed: r.passed,
+    }))
+    // Upsert by (session_id, set_number) — avoids wipe-then-insert gap if insert fails.
+    const { error: setsError } = await supabase.from('set_results').upsert(payload, {
+      onConflict: 'session_id,set_number',
+    })
     if (setsError) throw setsError
+
+    const keepSets = row.setResults.map((r) => r.setNumber)
+    const { data: remoteSets, error: listError } = await supabase
+      .from('set_results')
+      .select('id, set_number')
+      .eq('session_id', row.id)
+    if (listError) throw listError
+    const orphanIds = (remoteSets ?? [])
+      .filter((s) => !keepSets.includes(s.set_number))
+      .map((s) => s.id)
+    if (orphanIds.length > 0) {
+      const { error: delError } = await supabase.from('set_results').delete().in('id', orphanIds)
+      if (delError) throw delError
+    }
   }
 }
 
@@ -257,10 +272,6 @@ export async function syncAllLocalData(): Promise<SyncResult> {
   }
 
   return { ok: errors === 0, errors }
-}
-
-export async function pullRemoteProgress(): Promise<void> {
-  await pullRemoteData()
 }
 
 async function mergeProgressRemote(userId: string, remote: RemoteProgressRow) {

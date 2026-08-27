@@ -58,8 +58,23 @@ Bez `.env` ekran logowania ma opcję **„Później”** — trening działa w p
 2. W SQL Editor uruchom migracje w kolejności:
    - `supabase/migrations/001_initial_schema.sql`
    - `supabase/migrations/002_sync_and_constraints.sql`
-3. Wklej URL i anon key do `.env`
-4. W aplikacji: Profil → logowanie (magic link / email)
+   - `supabase/migrations/003_harden_handle_new_user.sql`
+3. Wklej URL i anon key do `.env` / Vercel env
+4. W **Authentication → URL Configuration** ustaw:
+   - **Site URL:** `https://smart-reps.vercel.app`
+   - **Redirect URLs:**
+     - `https://smart-reps.vercel.app/**`
+     - `http://localhost:5173/**`
+     - `https://smart-reps.vercel.app/setup/login`
+     - `http://localhost:5173/setup/login`
+5. W aplikacji: Profil → Zaloguj się (magic link)
+
+## Produkcja
+
+Live: **https://smart-reps.vercel.app**  
+Repo: https://github.com/filip02521/SmartReps
+
+Push na `main` automatycznie deployuje na Vercel. CI: `validate-plans` → `lint` → `test` → `build`.
 
 ## Deploy na Vercel
 

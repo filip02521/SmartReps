@@ -75,7 +75,6 @@ export const pl = {
   previewPlan: 'Podgląd planu',
   previewDay1: 'Podgląd dnia 1',
   previewFullCycle: 'Zobacz pełny cykl',
-  warmupRecommended: 'Rozgrzewka zalecana — możesz kontynuować bez zaznaczania.',
   tabRecords: 'Rekordy',
   recordBestTest: 'Najlepszy test',
   recordBestMaxSet: 'Najlepsza seria max',
