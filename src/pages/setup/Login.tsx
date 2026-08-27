@@ -12,6 +12,7 @@ import {
   runAuthenticatedSync,
   setAuthReturnTo,
 } from '@/lib/auth-sync'
+import { isStandalonePwa } from '@/lib/pwa-detect'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
@@ -31,12 +32,14 @@ function readReturnTo(
 
 export default function Login() {
   const [email, setEmail] = useState('')
+  const [otpCode, setOtpCode] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null)
   const navigate = useNavigate()
   const location = useLocation()
   const hydrated = useStoreHydrated()
+  const standalone = isStandalonePwa()
   const returnTo = readReturnTo(location.state as LoginLocationState | null, location.search)
   const fromOnboarding = (location.state as LoginLocationState | null)?.fromOnboarding === true
 
@@ -55,6 +58,7 @@ export default function Login() {
       if (event === 'SIGNED_OUT') {
         setSignedInEmail(null)
         setSent(false)
+        setOtpCode('')
         return
       }
       if (session?.user.email) {
@@ -67,11 +71,15 @@ export default function Login() {
 
   const effectiveReturnTo = () => returnTo ?? peekAuthReturnTo()
 
+  const finishLogin = async () => {
+    await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
+    await resolvePostAuthNavigation(navigate, effectiveReturnTo() ?? consumeAuthReturnTo())
+  }
+
   const continueSignedIn = async () => {
     setLoading(true)
     try {
-      await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
-      await resolvePostAuthNavigation(navigate, effectiveReturnTo() ?? consumeAuthReturnTo())
+      await finishLogin()
     } finally {
       setLoading(false)
     }
@@ -83,6 +91,7 @@ export default function Login() {
     setSignedInEmail(null)
     setSent(false)
     setEmail('')
+    setOtpCode('')
     setLoading(false)
     showToast(pl.loginLogoutToSwitchDone, 'info')
   }
@@ -95,7 +104,7 @@ export default function Login() {
     await resolvePostAuthNavigation(navigate, effectiveReturnTo() ?? consumeAuthReturnTo())
   }
 
-  const sendLink = async () => {
+  const sendOtp = async () => {
     if (!isSupabaseConfigured) {
       await skip()
       return
@@ -125,6 +134,32 @@ export default function Login() {
       return
     }
     setSent(true)
+    setOtpCode('')
+  }
+
+  const verifyCode = async () => {
+    const trimmed = email.trim()
+    const code = otpCode.replace(/\s/g, '')
+    if (!/^\d{6,8}$/.test(code)) {
+      showToast(pl.loginOtpInvalid, 'error')
+      return
+    }
+    setLoading(true)
+    const { error } = await supabase.auth.verifyOtp({
+      email: trimmed,
+      token: code,
+      type: 'email',
+    })
+    if (error) {
+      setLoading(false)
+      showToast(error.message || pl.loginOtpInvalid, 'error')
+      return
+    }
+    try {
+      await finishLogin()
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (!hydrated) {
@@ -172,15 +207,56 @@ export default function Login() {
       />
 
       {sent ? (
-        <div className="mt-2 space-y-3">
-          <p className="text-[var(--sr-success)]">{pl.loginSent}</p>
-          <p className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3 text-sm text-[var(--sr-text-secondary)]">
-            {pl.loginPwaHint}
-          </p>
+        <div className="mt-2 space-y-4">
+          <p className="text-[var(--sr-success)]">{pl.loginSentCode}</p>
+
+          <div>
+            <label htmlFor="login-otp" className="block text-sm font-medium text-[var(--sr-text-secondary)]">
+              {pl.loginOtpLabel}
+            </label>
+            <input
+              id="login-otp"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={8}
+              placeholder={pl.loginOtpPlaceholder}
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+              className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-center text-2xl tracking-[0.35em] text-[var(--sr-text-primary)]"
+            />
+            <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{pl.loginOtpHint}</p>
+          </div>
+
+          <Button
+            className="mt-2"
+            fullWidth
+            disabled={loading || otpCode.length < 6}
+            onClick={() => void verifyCode()}
+          >
+            {pl.loginVerifyCode}
+          </Button>
+
+          <Button variant="secondary" fullWidth disabled={loading} onClick={() => void sendOtp()}>
+            {pl.loginResendCode}
+          </Button>
+
+          {standalone ? (
+            <p className="rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] p-3 text-sm text-[var(--sr-text-secondary)]">
+              {pl.loginPwaCodeHint}
+            </p>
+          ) : (
+            <p className="text-xs leading-relaxed text-[var(--sr-text-muted)]">{pl.loginBrowserLinkHint}</p>
+          )}
         </div>
       ) : (
         <>
-          <label htmlFor="login-email" className="mt-2 block text-sm font-medium text-[var(--sr-text-secondary)]">
+          {standalone && (
+            <p className="mt-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] p-3 text-sm text-[var(--sr-text-secondary)]">
+              {pl.loginPwaCodeHint}
+            </p>
+          )}
+          <label htmlFor="login-email" className="mt-4 block text-sm font-medium text-[var(--sr-text-secondary)]">
             {pl.loginEmailLabel}
           </label>
           <input
@@ -192,10 +268,9 @@ export default function Login() {
             onChange={(e) => setEmail(e.target.value)}
             className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-[var(--sr-text-primary)]"
           />
-          <Button className="mt-4" fullWidth disabled={loading || !email.trim()} onClick={() => void sendLink()}>
-            {pl.loginSendLink}
+          <Button className="mt-4" fullWidth disabled={loading || !email.trim()} onClick={() => void sendOtp()}>
+            {pl.loginSendCode}
           </Button>
-          <p className="mt-3 text-xs leading-relaxed text-[var(--sr-text-muted)]">{pl.loginPwaHint}</p>
         </>
       )}
 
