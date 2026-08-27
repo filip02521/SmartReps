@@ -13,7 +13,7 @@ export async function requestWorkoutReminderPermission(): Promise<boolean> {
 export function showWorkoutReminder(title: string, body: string) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return
   try {
-    new Notification(title, { body, icon: '/brand/logo-mark.svg' })
+    new Notification(title, { body, icon: '/brand/notification-icon.png' })
   } catch {
     // Safari / restricted contexts
   }

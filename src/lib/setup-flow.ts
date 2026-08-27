@@ -78,6 +78,9 @@ export async function beginProgramSetup(
   opts?: { retest?: boolean; replace?: boolean },
 ): Promise<void> {
   await abandonAllInProgress(program)
+  if (opts?.retest) {
+    void import('@/lib/analytics').then((m) => m.track('retest_start', { program }))
+  }
   const q = opts?.retest ? '?retest=1' : ''
   navigate(`/setup/test/${program}${q}`, { replace: opts?.replace ?? true })
 }
@@ -93,5 +96,6 @@ export async function beginLevelChange(
 ): Promise<void> {
   await abandonAllInProgress(program)
   useAppStore.getState().clearPendingTest()
+  void import('@/lib/analytics').then((m) => m.track('level_change', { program }))
   navigate(`/setup/cycle/${program}?change=1`, { replace: opts?.replace ?? true })
 }

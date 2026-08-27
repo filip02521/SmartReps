@@ -12,6 +12,7 @@ import { legacyRestTimerFromStartedAt, reconcileRestTimerJson } from '@/lib/rest
 import {
   mergeEnabledProgramsFromProfile,
   mergeEnabledProgramsFromProgress,
+  mergeUiSettingsFromProfile,
 } from '@/lib/enabled-programs-sync'
 import { useAppStore } from '@/stores/app-store'
 
@@ -108,13 +109,31 @@ function mapActiveRestTimer(remote: RemoteActiveRow): string | null {
 }
 
 async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
-  const { settings, enabledProgramsUpdatedAt } = useAppStore.getState()
-  const updatedAt = enabledProgramsUpdatedAt ?? new Date().toISOString()
+  const state = useAppStore.getState()
+  // Stamp clocks only when missing AFTER pull-first in syncWithRemote — never invent a
+  // winning "now" that overwrites remote prefs on upgrade / second device.
+  let programsUpdatedAt = state.enabledProgramsUpdatedAt
+  let uiUpdatedAt = state.uiSettingsUpdatedAt
+  if (!programsUpdatedAt) {
+    programsUpdatedAt = new Date().toISOString()
+    useAppStore.setState({ enabledProgramsUpdatedAt: programsUpdatedAt })
+  }
+  if (!uiUpdatedAt) {
+    uiUpdatedAt = new Date().toISOString()
+    useAppStore.setState({ uiSettingsUpdatedAt: uiUpdatedAt })
+  }
+  const { settings } = useAppStore.getState()
   const { error } = await supabase.from('profiles').upsert(
     {
       id: userId,
       enabled_programs: settings.enabledPrograms,
-      enabled_programs_updated_at: updatedAt,
+      enabled_programs_updated_at: programsUpdatedAt,
+      theme_preference: settings.theme,
+      timer_sound: settings.timerSound,
+      timer_vibration: settings.timerVibration,
+      keep_screen_on: settings.keepScreenOn,
+      reminder_hour: settings.reminderHour,
+      ui_settings_updated_at: uiUpdatedAt,
     },
     { onConflict: 'id' },
   )
@@ -138,11 +157,14 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('enabled_programs, enabled_programs_updated_at')
+      .select(
+        'enabled_programs, enabled_programs_updated_at, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, ui_settings_updated_at',
+      )
       .eq('id', userId)
       .maybeSingle()
     if (error) throw error
     mergeEnabledProgramsFromProfile(data)
+    mergeUiSettingsFromProfile(data)
     return { ok: true, errors: 0 }
   } catch (err) {
     console.warn('[sync] pullProfileEnabledPrograms failed', err)
@@ -533,6 +555,13 @@ export async function pullRemoteData(): Promise<SyncResult> {
 export async function syncWithRemote(): Promise<SyncResult> {
   const userId = await getUserId()
   if (!userId) return { ok: true, errors: 0 }
+
+  // Pull profile clocks first when local LWW stamps are missing (upgrade / new device),
+  // so we don't overwrite remote theme/timer prefs with fresh defaults.
+  const { enabledProgramsUpdatedAt, uiSettingsUpdatedAt } = useAppStore.getState()
+  if (!enabledProgramsUpdatedAt || !uiSettingsUpdatedAt) {
+    await pullProfileEnabledPrograms(userId)
+  }
 
   const push = await syncAllLocalData()
   const pull = await pullRemoteData()

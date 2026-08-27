@@ -22,6 +22,13 @@ npm-debug.log*
 
 # Test / coverage
 coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Supabase CLI local temp
+supabase/.temp/
 
 # Vercel
 .vercel

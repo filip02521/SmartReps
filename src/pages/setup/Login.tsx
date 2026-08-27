@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { LogoFull } from '@/components/brand/Logo'
 import { Button } from '@/components/ui/Button'
 import { SetupStepper } from '@/components/setup/SetupStepper'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -206,9 +207,11 @@ export default function Login() {
     try {
       const { error } = await verifyEmailOtp(trimmed, code)
       if (error) {
+        void import('@/lib/analytics').then((m) => m.track('otp_verify_fail'))
         showToast(pl.loginOtpInvalid, 'error')
         return
       }
+      void import('@/lib/analytics').then((m) => m.track('otp_verify_ok'))
       await completeSignInFlow(navigate, {
         returnTo: effectiveReturnTo() ?? consumeAuthReturnTo(),
         showSuccessToast: true,
@@ -238,6 +241,7 @@ export default function Login() {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
         {!fromOnboarding && <SetupStepper current="login" />}
+        <LogoFull height={40} className="mx-auto mb-4" />
         <PageHeader
           title={fromOnboarding ? pl.loginTitleReturning : pl.loginTitle}
           subtitle={fromOnboarding ? pl.loginSubtitleReturning : pl.loginSubtitle}
@@ -265,6 +269,7 @@ export default function Login() {
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
       {!fromOnboarding && <SetupStepper current="login" />}
+      <LogoFull height={40} className="mx-auto mb-4" />
       <PageHeader
         title={fromOnboarding ? pl.loginTitleReturning : pl.loginTitle}
         subtitle={fromOnboarding ? pl.loginSubtitleReturning : pl.loginSubtitle}
@@ -344,6 +349,16 @@ export default function Login() {
       <Button variant="ghost" className="mt-4" fullWidth disabled={loading} onClick={() => void skip()}>
         {fromOnboarding ? pl.backToOnboarding : pl.loginSkip}
       </Button>
+
+      <p className="mt-6 text-center text-xs text-[var(--sr-text-muted)]">
+        <Link to="/privacy" className="text-[var(--sr-brand-primary)]">
+          {pl.privacyLink}
+        </Link>
+        {' · '}
+        <Link to="/terms" className="text-[var(--sr-brand-primary)]">
+          {pl.termsLink}
+        </Link>
+      </p>
     </div>
   )
 }

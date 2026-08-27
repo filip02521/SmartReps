@@ -173,7 +173,11 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
     scheduleSyncResultToast(result.ok, toastOpts)
 
     if (result.ok) {
+      useAppStore.getState().setLastSyncedAt(new Date().toISOString())
       await completeOnboardingIfSynced()
+      void import('@/lib/analytics').then((m) => m.track('sync_ok'))
+    } else {
+      void import('@/lib/analytics').then((m) => m.track('sync_failed', { errors: result.errors }))
     }
 
     return result

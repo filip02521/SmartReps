@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { ErrorBanner } from '@/components/ux/Feedback'
+import { trackError } from '@/lib/analytics'
 import { pl } from '@/i18n/pl'
 
 type Props = { children: ReactNode; fallback?: ReactNode }
@@ -13,7 +14,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('SmartReps error:', error, info)
+    trackError(error, info.componentStack?.slice(0, 80))
   }
 
   render() {

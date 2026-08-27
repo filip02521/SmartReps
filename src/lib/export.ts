@@ -83,6 +83,22 @@ export async function exportSessionsCsv(program: Program): Promise<string> {
   return [header, ...rows].join('\n')
 }
 
+/** Merge multiple program CSV exports into one file (single header, sorted by date). */
+export function mergeSessionCsvExports(csvChunks: string[]): string {
+  const header = 'data,session_id,program,cycle_id,day,attempt,status,passed,total_reps,sets'
+  const dataRows: string[] = []
+  for (const chunk of csvChunks) {
+    const lines = chunk.split('\n').map((l) => l.trim()).filter((l) => l.length > 0)
+    for (const line of lines) {
+      if (line === header) continue
+      if (line.startsWith('data,session_id,')) continue
+      dataRows.push(line)
+    }
+  }
+  dataRows.sort((a, b) => a.localeCompare(b))
+  return [header, ...dataRows].join('\n')
+}
+
 export function downloadCsv(filename: string, content: string) {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)

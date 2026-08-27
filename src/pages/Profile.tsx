@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { format } from 'date-fns'
+import { pl as plLocale } from 'date-fns/locale'
 import { useAppStore } from '@/stores/app-store'
 import { Button } from '@/components/ui/Button'
 import { Card, Badge } from '@/components/ui/Card'
@@ -7,8 +9,18 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
+import { runAuthenticatedSync } from '@/lib/auth-sync'
 import { pl } from '@/i18n/pl'
 import { requestWorkoutReminderPermission, scheduleDailyReminder, cancelReminder } from '@/lib/notifications'
+import {
+  getVapidPublicKey,
+  isWebPushSupported,
+  subscribeWebPush,
+  unsubscribeWebPush,
+  updatePushReminderHour,
+} from '@/lib/web-push'
+import { track } from '@/lib/analytics'
+import { applyThemeColor } from '@/lib/theme-color'
 import {
   getProgramProgress,
   getActiveWorkout,
@@ -19,10 +31,13 @@ import {
 import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import { clearAllLocalData } from '@/lib/local-data'
 import { getDeadLetterCount, retryDeadLetterItems } from '@/lib/sync'
+import { exportSessionsCsv, downloadCsv, mergeSessionCsvExports } from '@/lib/export'
 import { getCycleById } from '@/data/plans'
 import { showToast } from '@/stores/toast-store'
 import type { LocalProgramProgress } from '@/lib/db'
 import type { Program } from '@/data/plans/types'
+
+const appVersion = import.meta.env.VITE_APP_VERSION ?? '1.0.0'
 
 const programAccent: Record<Program, string> = {
   pushups: 'var(--sr-pushups-accent)',
@@ -35,6 +50,7 @@ function applyTheme(theme: 'system' | 'dark' | 'light') {
   } else {
     document.documentElement.setAttribute('data-theme', theme)
   }
+  applyThemeColor(theme)
 }
 
 function applyHighContrast(on: boolean) {
@@ -155,9 +171,11 @@ function ProgramSettingsBlock({
 }
 
 export default function ProfilePage() {
-  const { settings, setSettings } = useAppStore()
+  const { settings, setSettings, lastSyncedAt } = useAppStore()
   const navigate = useNavigate()
   const [email, setEmail] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true))
   const [pendingChangeLevel, setPendingChangeLevel] = useState<Program | null>(null)
   const [pendingRetest, setPendingRetest] = useState<Program | null>(null)
   const [pendingDisable, setPendingDisable] = useState<Program | null>(null)
@@ -165,6 +183,8 @@ export default function ProfilePage() {
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [progressByProgram, setProgressByProgram] = useState<Partial<Record<Program, LocalProgramProgress>>>({})
   const [deadLetter, setDeadLetter] = useState(0)
+  const remindersDenied =
+    typeof Notification !== 'undefined' && Notification.permission === 'denied'
 
   const reloadMeta = async () => {
     const map: Partial<Record<Program, LocalProgramProgress>> = {}
@@ -175,6 +195,17 @@ export default function ProfilePage() {
     setProgressByProgram(map)
     setDeadLetter(await getDeadLetterCount())
   }
+
+  useEffect(() => {
+    const onOnline = () => setOnline(true)
+    const onOffline = () => setOnline(false)
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+    return () => {
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
+  }, [])
 
   useEffect(() => {
     applyTheme(settings.theme)
@@ -199,6 +230,27 @@ export default function ProfilePage() {
 
     return () => subscription.unsubscribe()
   }, [settings.theme, settings.highContrast, settings.enabledPrograms])
+
+  const syncStatusLabel = !online
+    ? pl.syncNowOffline
+    : [
+        lastSyncedAt
+          ? pl.syncLastAt(format(new Date(lastSyncedAt), 'd MMM yyyy, HH:mm', { locale: plLocale }))
+          : pl.syncNever,
+        deadLetter > 0 ? pl.syncDeadLetter(deadLetter) : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+
+  const handleSyncNow = async () => {
+    if (!online || syncing) return
+    setSyncing(true)
+    try {
+      await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const logoutOnly = async () => {
     if (isSupabaseConfigured) await supabase.auth.signOut()
@@ -291,9 +343,21 @@ export default function ProfilePage() {
           </Button>
         )}
         {isSupabaseConfigured && email && (
-          <Button variant="ghost" className="mt-3" size="sm" fullWidth onClick={() => setShowLogoutConfirm(true)}>
-            {pl.logout}
-          </Button>
+          <>
+            <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{syncStatusLabel}</p>
+            <Button
+              className="mt-3"
+              size="sm"
+              fullWidth
+              disabled={!online || syncing}
+              onClick={() => void handleSyncNow()}
+            >
+              {syncing ? pl.syncInProgress : pl.syncNow}
+            </Button>
+            <Button variant="ghost" className="mt-2" size="sm" fullWidth onClick={() => setShowLogoutConfirm(true)}>
+              {pl.logout}
+            </Button>
+          </>
         )}
       </Card>
 
@@ -332,27 +396,108 @@ export default function ProfilePage() {
           <input type="checkbox" className="h-5 w-5" checked={settings.timerVibration} onChange={(e) => setSettings({ timerVibration: e.target.checked })} />
           {pl.timerVibration}
         </label>
-        <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{pl.keepScreenOn}</p>
         <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
           <input
             type="checkbox"
             className="h-5 w-5"
-            checked={settings.workoutReminders}
+            checked={settings.keepScreenOn}
+            onChange={(e) => setSettings({ keepScreenOn: e.target.checked })}
+          />
+          <span>
+            {pl.keepScreenOn}
+            <span className="mt-0.5 block text-xs font-normal text-[var(--sr-text-muted)]">{pl.keepScreenOnHint}</span>
+          </span>
+        </label>
+        <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="h-5 w-5"
+            checked={settings.pushNotifications}
+            disabled={
+              !email ||
+              !isWebPushSupported() ||
+              !getVapidPublicKey() ||
+              (remindersDenied && !settings.pushNotifications)
+            }
             onChange={async (e) => {
               const on = e.target.checked
               if (on) {
+                const ok = await subscribeWebPush(settings.reminderHour)
+                if (!ok) {
+                  showToast(pl.pushSubscribeFailed, 'error')
+                  return
+                }
+                cancelReminder()
+                setSettings({ pushNotifications: true, workoutReminders: false })
+                track('reminder_toggle', { mode: 'push', on: true })
+              } else {
+                await unsubscribeWebPush()
+                setSettings({ pushNotifications: false })
+                track('reminder_toggle', { mode: 'push', on: false })
+              }
+            }}
+          />
+          <span>
+            {pl.pushNotifications}
+            <span className="mt-0.5 block text-xs font-normal text-[var(--sr-text-muted)]">
+              {!email
+                ? pl.pushNeedsLogin
+                : !isWebPushSupported() || !getVapidPublicKey()
+                  ? pl.pushUnavailable
+                  : pl.pushNotificationsHint}
+            </span>
+          </span>
+        </label>
+        <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="h-5 w-5"
+            checked={settings.workoutReminders && !settings.pushNotifications}
+            disabled={
+              settings.pushNotifications || (remindersDenied && !settings.workoutReminders)
+            }
+            onChange={async (e) => {
+              const on = e.target.checked
+              if (on) {
+                if (typeof Notification !== 'undefined' && Notification.permission === 'denied') return
                 const granted = await requestWorkoutReminderPermission()
                 if (!granted) return
-                scheduleDailyReminder()
+                scheduleDailyReminder(settings.reminderHour, 0)
               } else {
                 cancelReminder()
               }
               setSettings({ workoutReminders: on && Notification.permission === 'granted' })
+              track('reminder_toggle', { mode: 'in_app', on })
             }}
           />
           {pl.workoutReminders}
         </label>
         <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.workoutRemindersHint}</p>
+        {remindersDenied && (
+          <p className="mt-2 text-xs text-[var(--sr-warning)]">{pl.workoutRemindersDenied}</p>
+        )}
+        <label className="mt-3 block text-sm">
+          <span className="font-medium">{pl.reminderHourLabel}</span>
+          <select
+            className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-3 text-[var(--sr-text-primary)]"
+            value={settings.reminderHour}
+            onChange={(e) => {
+              const hour = Number(e.target.value)
+              setSettings({ reminderHour: hour })
+              if (settings.pushNotifications) {
+                void updatePushReminderHour(hour)
+              } else if (settings.workoutReminders && Notification.permission === 'granted') {
+                scheduleDailyReminder(hour, 0)
+              }
+            }}
+          >
+            {Array.from({ length: 24 }, (_, h) => (
+              <option key={h} value={h}>
+                {pl.reminderHourOption(h)}
+              </option>
+            ))}
+          </select>
+        </label>
       </Card>
 
       <Card className="mt-4 sr-card">
@@ -397,6 +542,41 @@ export default function ProfilePage() {
 
       <Card className="mt-4 sr-card">
         <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.about}</p>
+        <div className="mt-3 flex flex-col gap-2 text-sm">
+          <Link to="/privacy" className="text-[var(--sr-brand-primary)]">
+            {pl.privacyLink}
+          </Link>
+          <Link to="/terms" className="text-[var(--sr-brand-primary)]">
+            {pl.termsLink}
+          </Link>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="mt-4"
+          fullWidth
+          onClick={async () => {
+            try {
+              const programs = settings.enabledPrograms
+              if (programs.length === 0) {
+                navigate('/progress')
+                return
+              }
+              const chunks: string[] = []
+              for (const program of programs) {
+                const csv = await exportSessionsCsv(program)
+                chunks.push(csv)
+              }
+              const merged = mergeSessionCsvExports(chunks)
+              downloadCsv(`smartreps-export-${new Date().toISOString().slice(0, 10)}.csv`, merged)
+              showToast(pl.toastExportDone, 'success')
+            } catch {
+              showToast(pl.exportFailed, 'error')
+            }
+          }}
+        >
+          {pl.exportHistory}
+        </Button>
         {deadLetter > 0 && (
           <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/40 bg-[var(--sr-warning)]/10 p-3">
             <p className="text-sm text-[var(--sr-warning)]">{pl.syncDeadLetter(deadLetter)}</p>
@@ -434,7 +614,7 @@ export default function ProfilePage() {
         </p>
       </Card>
 
-      <p className="mt-8 text-center text-xs text-[var(--sr-text-muted)]">{pl.appName} v1.0.0</p>
+      <p className="mt-8 text-center text-xs text-[var(--sr-text-muted)]">{pl.appVersion(appVersion)}</p>
 
       {pendingChangeLevel && (
         <ConfirmSheet

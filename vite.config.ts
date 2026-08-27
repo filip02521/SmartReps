@@ -9,23 +9,40 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['brand/favicon.svg', 'brand/logo-mark.svg'],
+      includeAssets: [
+        'brand/favicon.svg',
+        'brand/favicon-32.png',
+        'brand/favicon-48.png',
+        'brand/logo-mark.svg',
+        'brand/apple-touch-icon.png',
+        'brand/notification-icon.png',
+      ],
       manifest: {
+        id: '/',
         name: 'SmartReps',
         short_name: 'SmartReps',
         description: 'Inteligentne śledzenie treningu pompek i podciągania',
+        lang: 'pl',
+        start_url: '/',
         theme_color: '#6366F1',
         background_color: '#09090B',
         display: 'standalone',
         icons: [
           { src: '/brand/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/brand/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-          { src: '/brand/logo-mark.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: '/brand/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/brand/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+      },
+      devOptions: {
+        enabled: false,
+        type: 'module',
       },
     }),
   ],
@@ -33,6 +50,9 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version ?? '1.0.0'),
   },
   server: {
     // Bind IPv4+IPv6 so both http://localhost:5173 and http://127.0.0.1:5173 work

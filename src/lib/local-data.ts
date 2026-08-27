@@ -1,11 +1,17 @@
 import { db } from '@/lib/db'
-import { useAppStore } from '@/stores/app-store'
+import { useAppStore, defaultSettings } from '@/stores/app-store'
 import { useWorkoutStore } from '@/stores/workout-store'
 import { cancelReminder } from '@/lib/notifications'
 
 /** Wipe IndexedDB + persisted app settings (logout / privacy / account switch). */
 export async function clearAllLocalData(): Promise<void> {
   cancelReminder()
+  try {
+    const { unsubscribeWebPush } = await import('@/lib/web-push')
+    await unsubscribeWebPush()
+  } catch {
+    // best-effort — clearing local data must not fail on push unsubscribe
+  }
   await Promise.all([
     db.programProgress.clear(),
     db.workoutSessions.clear(),
@@ -15,22 +21,17 @@ export async function clearAllLocalData(): Promise<void> {
   ])
   useWorkoutStore.getState().reset()
   useAppStore.setState({
-    settings: {
-      theme: 'system',
-      highContrast: false,
-      timerSound: true,
-      timerVibration: true,
-      workoutReminders: false,
-      healthDisclaimerAccepted: false,
-      hasSeenWorkoutHint: false,
-      enabledPrograms: ['pushups'],
-      onboardingComplete: false,
-    },
+    settings: { ...defaultSettings },
     pendingTest: null,
     pendingStart: null,
     testDraft: null,
     setupQueue: [],
     lastAuthUserId: null,
     enabledProgramsUpdatedAt: null,
+    uiSettingsUpdatedAt: null,
+    lastSyncedAt: null,
+    hasCompletedFirstWorkout: false,
+    hasDismissedInstallPrompt: false,
+    hasSeenStandaloneLoginCoach: false,
   })
 }

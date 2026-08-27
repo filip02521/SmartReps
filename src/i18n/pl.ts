@@ -257,7 +257,11 @@ export const pl = {
   goalAchieved: 'Cel osiągnięty!',
   totalReps: 'Łącznie',
   nextWorkoutIn: (days: number) =>
-    days === 1 ? 'Następny trening: jutro' : `Następny trening: za ${days} dni`,
+    days <= 0
+      ? 'Następny trening: dziś'
+      : days === 1
+        ? 'Następny trening: jutro'
+        : `Następny trening: za ${days} dni`,
   backHome: 'Wróć do SmartReps',
   continueSetup: 'Kontynuuj konfigurację',
   techniqueContinueTest: 'Rozumiem — kontynuuj test',
@@ -352,12 +356,52 @@ export const pl = {
   trainingSettings: 'Trening',
   timerSound: 'Dźwięk timera',
   timerVibration: 'Wibracja',
-  keepScreenOn: 'Podczas przerwy ekran nie gaśnie (gdy przeglądarka na to pozwala).',
-  workoutReminders: 'Przypomnienia o treningu',
+  keepScreenOn: 'Nie gaś ekranu podczas przerwy',
+  keepScreenOnHint:
+    'Gdy włączone, aplikacja prosi przeglądarkę o Wake Lock w trakcie timera przerwy (nie wszystkie urządzenia wspierają).',
+  workoutReminders: 'Przypomnienie przy otwartej aplikacji',
   workoutRemindersHint:
-    'Codzienne powiadomienie o 18:00 (wymaga zgody przeglądarki). Działa tylko, gdy aplikacja jest otwarta — po zamknięciu karty przypomnienie nie zadziała.',
+    'Fallback gdy push jest niedostępny: o wybranej godzinie, tylko gdy SmartReps jest otwarty. Po zamknięciu karty / PWA nie zadziała.',
+  workoutRemindersDenied:
+    'Powiadomienia są zablokowane w ustawieniach systemu / przeglądarki. Włącz je, aby korzystać z przypomnień.',
+  pushNotifications: 'Powiadomienia push',
+  pushNotificationsHint:
+    'Prawdziwe przypomnienie nawet po zamknięciu aplikacji (wymaga instalacji PWA i konta).',
+  pushNeedsLogin: 'Zaloguj się, aby włączyć powiadomienia push.',
+  pushUnavailable: 'Push niedostępny na tym urządzeniu / w tej przeglądarce (brak VAPID lub Web Push).',
+  pushSubscribeFailed: 'Nie udało się włączyć powiadomień push.',
+  reminderHourLabel: 'Godzina przypomnienia',
+  reminderHourOption: (h: number) => `${String(h).padStart(2, '0')}:00`,
   reminderNotificationTitle: 'SmartReps',
   reminderNotificationBody: 'Czas na trening — sprawdź swój plan na dziś.',
+  syncNow: 'Synchronizuj teraz',
+  syncNowOffline: 'Brak sieci — synchronizacja niedostępna',
+  syncLastAt: (when: string) => `Ostatnia synchronizacja: ${when}`,
+  syncNever: 'Jeszcze nie synchronizowano z tego urządzenia',
+  syncInProgress: 'Synchronizacja…',
+  exportHistory: 'Eksportuj historię treningów',
+  exportFailed: 'Nie udało się wyeksportować historii',
+  privacyLink: 'Polityka prywatności',
+  termsLink: 'Regulamin',
+  privacyTitle: 'Polityka prywatności',
+  termsTitle: 'Regulamin',
+  legalBack: 'Wróć',
+  appVersion: (v: string) => `SmartReps v${v}`,
+  restPrimaryLabel: (when: string) => `Następny trening: ${when}`,
+  considerLowerLevel: 'Kilka restartów z rzędu — rozważ niższy poziom.',
+  summaryRecSuccess: 'Świetna robota. Zrób zaplanowaną przerwę — regeneracja buduje siłę.',
+  summaryRecFail: 'Po przerwie wrócisz do dnia 1 tego cyklu. Możesz też zmienić poziom w menu programu.',
+  summaryRecCycleDone: 'Cykl ukończony — wykonaj test max, żeby dobrać kolejny poziom.',
+  installPromptTitle: 'Dodaj SmartReps do ekranu głównego',
+  installPromptBody: 'Szybszy start jak z aplikacji. Na iPhonie: Udostępnij → Do ekranu początkowego.',
+  installPromptCta: 'Zainstaluj',
+  installPromptDismiss: 'Nie teraz',
+  installIosHint: 'Na iPhonie: przycisk Udostępnij, potem „Do ekranu początkowego”.',
+  standaloneLoginCoachTitle: 'Zaloguj się kodem e-mail',
+  standaloneLoginCoachBody:
+    'Żeby postęp wracał na innych urządzeniach, zaloguj się tym samym e-mailem (kod z wiadomości, nie link).',
+  standaloneLoginCoachCta: 'Zaloguj się',
+  standaloneLoginCoachDismiss: 'Później',
   programs: 'Programy',
   disableProgram: 'Wyłącz program',
   disableProgramConfirm:

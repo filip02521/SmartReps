@@ -1,14 +1,13 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { AuthBridge } from '@/components/ux/AuthBridge'
 import { GlobalOfflineBar } from '@/components/ux/GlobalOfflineBar'
 import { RequireOnboarding, RequireProgram } from '@/components/ux/RequireOnboarding'
+import { BrandLoader } from '@/components/ui/BrandLoader'
 import Dashboard from '@/pages/Dashboard'
 import WorkoutPage from '@/pages/Workout'
 import SessionSummary from '@/pages/SessionSummary'
-import ProgressPage from '@/pages/Progress'
-import PlansPage from '@/pages/Plans'
-import ProfilePage from '@/pages/Profile'
 import Onboarding from '@/pages/setup/Onboarding'
 import MaxTest from '@/pages/setup/MaxTest'
 import CyclePicker from '@/pages/setup/CyclePicker'
@@ -16,7 +15,27 @@ import ProgramStart from '@/pages/setup/ProgramStart'
 import Login from '@/pages/setup/Login'
 import TechniquePushups from '@/pages/setup/TechniquePushups'
 import NotFound from '@/pages/NotFound'
+import PrivacyPage from '@/pages/legal/Privacy'
+import TermsPage from '@/pages/legal/Terms'
 import { ToastHost } from '@/components/ux/Toast'
+
+const ProgressPage = lazy(() => import('@/pages/Progress'))
+const PlansPage = lazy(() => import('@/pages/Plans'))
+const ProfilePage = lazy(() => import('@/pages/Profile'))
+
+function LazyPage({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[40vh] items-center justify-center py-16">
+          <BrandLoader size={44} />
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  )
+}
 
 export default function App() {
   return (
@@ -25,6 +44,8 @@ export default function App() {
       <AuthBridge />
       <GlobalOfflineBar />
       <Routes>
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="/setup/onboarding" element={<Onboarding />} />
         <Route path="/setup/login" element={<Login />} />
         <Route path="/setup/technique" element={<TechniquePushups />} />
@@ -38,9 +59,30 @@ export default function App() {
 
           <Route element={<AppLayout />}>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/progress" element={<ProgressPage />} />
-            <Route path="/plans" element={<PlansPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
+            <Route
+              path="/progress"
+              element={
+                <LazyPage>
+                  <ProgressPage />
+                </LazyPage>
+              }
+            />
+            <Route
+              path="/plans"
+              element={
+                <LazyPage>
+                  <PlansPage />
+                </LazyPage>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <LazyPage>
+                  <ProfilePage />
+                </LazyPage>
+              }
+            />
           </Route>
 
           <Route element={<RequireProgram />}>

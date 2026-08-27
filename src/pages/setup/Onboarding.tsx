@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check } from 'lucide-react'
+import { LogoFull } from '@/components/brand/Logo'
 import { OnboardingIllustration } from '@/components/onboarding/OnboardingIllustrations'
 import { Button } from '@/components/ui/Button'
 import { StepIndicator, PageLoader } from '@/components/ux/Feedback'
@@ -70,6 +71,7 @@ export default function Onboarding() {
     const merged = Array.from(new Set([...prev, ...selected])) as Program[]
     setSettings({ onboardingComplete: true, enabledPrograms: merged.length ? merged : selected })
     setSetupQueue(selected.slice(1))
+    void import('@/lib/analytics').then((m) => m.track('onboarding_complete'))
     navigate(`/setup/test/${selected[0]}`)
   }
 
@@ -92,6 +94,7 @@ export default function Onboarding() {
 
       {step === 0 && (
         <div className="flex flex-1 flex-col items-center justify-center text-center">
+          <LogoFull height={44} className="mb-6" />
           <OnboardingIllustration step="welcome" />
           <h1 className="mt-2 sr-text-h1">{pl.onboardingWelcome}</h1>
           <p className="mt-2 text-[var(--sr-text-secondary)]">{pl.tagline}</p>

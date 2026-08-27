@@ -13,6 +13,7 @@ vi.mock('@/stores/app-store', () => ({
 import {
   mergeEnabledProgramsFromProfile,
   mergeEnabledProgramsFromProgress,
+  mergeUiSettingsFromProfile,
   parseEnabledPrograms,
 } from '@/lib/enabled-programs-sync'
 
@@ -70,6 +71,48 @@ describe('mergeEnabledProgramsFromProgress', () => {
     expect(mockSetState).toHaveBeenCalledWith(
       expect.objectContaining({
         settings: expect.objectContaining({ enabledPrograms: ['pushups', 'pullups'] }),
+      }),
+    )
+  })
+})
+
+describe('mergeUiSettingsFromProfile', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetState.mockReturnValue({
+      settings: {
+        theme: 'system',
+        timerSound: true,
+        timerVibration: true,
+        keepScreenOn: true,
+        reminderHour: 18,
+        enabledPrograms: ['pushups'],
+      },
+      uiSettingsUpdatedAt: '2026-01-01T00:00:00.000Z',
+    })
+  })
+
+  it('applies newer remote theme prefs', () => {
+    const changed = mergeUiSettingsFromProfile({
+      enabled_programs: null,
+      enabled_programs_updated_at: null,
+      theme_preference: 'light',
+      timer_sound: false,
+      timer_vibration: true,
+      keep_screen_on: false,
+      reminder_hour: 7,
+      ui_settings_updated_at: '2026-06-01T00:00:00.000Z',
+    })
+    expect(changed).toBe(true)
+    expect(mockSetState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        settings: expect.objectContaining({
+          theme: 'light',
+          timerSound: false,
+          keepScreenOn: false,
+          reminderHour: 7,
+        }),
+        uiSettingsUpdatedAt: '2026-06-01T00:00:00.000Z',
       }),
     )
   })

@@ -7,7 +7,14 @@ export type UserSettings = {
   highContrast: boolean
   timerSound: boolean
   timerVibration: boolean
+  /** In-app reminder while the tab/PWA JS is alive — not Web Push. */
   workoutReminders: boolean
+  /** Web Push reminders (requires installed PWA + VAPID + login). */
+  pushNotifications: boolean
+  /** Local hour 0–23 for reminders (in-app or push). */
+  reminderHour: number
+  /** When true, request Wake Lock during rest between sets. */
+  keepScreenOn: boolean
   healthDisclaimerAccepted: boolean
   hasSeenWorkoutHint: boolean
   enabledPrograms: Program[]
@@ -51,6 +58,14 @@ type AppStore = {
   lastAuthUserId: string | null
   /** Bumped when enabledPrograms changes — LWW sync with profiles.enabled_programs. */
   enabledProgramsUpdatedAt: string | null
+  /** Bumped when theme/timer/keepScreenOn/reminderHour change — LWW with profiles. */
+  uiSettingsUpdatedAt: string | null
+  /** ISO timestamp of last successful authenticated sync on this device. */
+  lastSyncedAt: string | null
+  /** Soft A2HS / install coach flags */
+  hasCompletedFirstWorkout: boolean
+  hasDismissedInstallPrompt: boolean
+  hasSeenStandaloneLoginCoach: boolean
   setSettings: (partial: Partial<UserSettings>) => void
   setPendingTest: (test: PendingTest | null) => void
   clearPendingTest: () => void
@@ -60,34 +75,59 @@ type AppStore = {
   clearTestDraft: () => void
   setSetupQueue: (queue: Program[]) => void
   shiftSetupQueue: () => Program | undefined
+  setLastSyncedAt: (iso: string | null) => void
+  setHasCompletedFirstWorkout: (v: boolean) => void
+  setHasDismissedInstallPrompt: (v: boolean) => void
+  setHasSeenStandaloneLoginCoach: (v: boolean) => void
+}
+
+const UI_SYNC_KEYS: (keyof UserSettings)[] = [
+  'theme',
+  'timerSound',
+  'timerVibration',
+  'keepScreenOn',
+  'reminderHour',
+]
+
+export const defaultSettings: UserSettings = {
+  theme: 'system',
+  highContrast: false,
+  timerSound: true,
+  timerVibration: true,
+  workoutReminders: false,
+  pushNotifications: false,
+  reminderHour: 18,
+  keepScreenOn: true,
+  healthDisclaimerAccepted: false,
+  hasSeenWorkoutHint: false,
+  enabledPrograms: ['pushups'],
+  onboardingComplete: false,
 }
 
 export const useAppStore = create<AppStore>()(
   persist(
     (set) => ({
-      settings: {
-        theme: 'system',
-        highContrast: false,
-        timerSound: true,
-        timerVibration: true,
-        workoutReminders: false,
-        healthDisclaimerAccepted: false,
-        hasSeenWorkoutHint: false,
-        enabledPrograms: ['pushups'],
-        onboardingComplete: false,
-      },
+      settings: { ...defaultSettings },
       pendingTest: null,
       pendingStart: null,
       testDraft: null,
       setupQueue: [],
       lastAuthUserId: null,
       enabledProgramsUpdatedAt: null,
+      uiSettingsUpdatedAt: null,
+      lastSyncedAt: null,
+      hasCompletedFirstWorkout: false,
+      hasDismissedInstallPrompt: false,
+      hasSeenStandaloneLoginCoach: false,
       setSettings: (partial) =>
         set((s) => {
           const nextSettings = { ...s.settings, ...partial }
           const patch: Partial<AppStore> = { settings: nextSettings }
           if (partial.enabledPrograms) {
             patch.enabledProgramsUpdatedAt = new Date().toISOString()
+          }
+          if (UI_SYNC_KEYS.some((k) => k in partial)) {
+            patch.uiSettingsUpdatedAt = new Date().toISOString()
           }
           return patch
         }),
@@ -106,9 +146,38 @@ export const useAppStore = create<AppStore>()(
         })
         return next
       },
+      setLastSyncedAt: (lastSyncedAt) => set({ lastSyncedAt }),
+      setHasCompletedFirstWorkout: (hasCompletedFirstWorkout) => set({ hasCompletedFirstWorkout }),
+      setHasDismissedInstallPrompt: (hasDismissedInstallPrompt) => set({ hasDismissedInstallPrompt }),
+      setHasSeenStandaloneLoginCoach: (hasSeenStandaloneLoginCoach) => set({ hasSeenStandaloneLoginCoach }),
     }),
     {
       name: 'smartreps-app',
+      version: 2,
+      migrate: (persisted) => {
+        const p = (persisted ?? {}) as Partial<AppStore> & { settings?: Partial<UserSettings> }
+        return {
+          settings: { ...defaultSettings, ...(p.settings ?? {}) },
+          pendingTest: p.pendingTest ?? null,
+          pendingStart: p.pendingStart ?? null,
+          setupQueue: p.setupQueue ?? [],
+          lastAuthUserId: p.lastAuthUserId ?? null,
+          enabledProgramsUpdatedAt: p.enabledProgramsUpdatedAt ?? null,
+          uiSettingsUpdatedAt: p.uiSettingsUpdatedAt ?? null,
+          lastSyncedAt: p.lastSyncedAt ?? null,
+          hasCompletedFirstWorkout: p.hasCompletedFirstWorkout ?? false,
+          hasDismissedInstallPrompt: p.hasDismissedInstallPrompt ?? false,
+          hasSeenStandaloneLoginCoach: p.hasSeenStandaloneLoginCoach ?? false,
+        }
+      },
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<AppStore>
+        return {
+          ...current,
+          ...p,
+          settings: { ...defaultSettings, ...current.settings, ...(p.settings ?? {}) },
+        }
+      },
       partialize: (s) => ({
         settings: s.settings,
         pendingTest: s.pendingTest,
@@ -116,7 +185,11 @@ export const useAppStore = create<AppStore>()(
         setupQueue: s.setupQueue,
         lastAuthUserId: s.lastAuthUserId,
         enabledProgramsUpdatedAt: s.enabledProgramsUpdatedAt,
-        // testDraft is session-only — not persisted across reloads intentionally via omit
+        uiSettingsUpdatedAt: s.uiSettingsUpdatedAt,
+        lastSyncedAt: s.lastSyncedAt,
+        hasCompletedFirstWorkout: s.hasCompletedFirstWorkout,
+        hasDismissedInstallPrompt: s.hasDismissedInstallPrompt,
+        hasSeenStandaloneLoginCoach: s.hasSeenStandaloneLoginCoach,
       }),
     },
   ),
@@ -124,6 +197,13 @@ export const useAppStore = create<AppStore>()(
 
 function programsEqual(a: Program[], b: Program[]): boolean {
   return a.length === b.length && a.every((p, i) => p === b[i])
+}
+
+function uiSettingsEqual(
+  a: UserSettings,
+  b: UserSettings,
+): boolean {
+  return UI_SYNC_KEYS.every((k) => a[k] === b[k])
 }
 
 let storeHydrated = useAppStore.persist.hasHydrated()
@@ -134,6 +214,8 @@ useAppStore.persist.onFinishHydration(() => {
 useAppStore.subscribe((state, prev) => {
   if (!storeHydrated) return
   if (!programsEqual(state.settings.enabledPrograms, prev.settings.enabledPrograms)) {
+    void import('@/lib/sync').then((m) => m.pushProfileSettingsOnly())
+  } else if (!uiSettingsEqual(state.settings, prev.settings)) {
     void import('@/lib/sync').then((m) => m.pushProfileSettingsOnly())
   }
 })

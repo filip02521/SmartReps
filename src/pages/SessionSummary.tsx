@@ -121,14 +121,21 @@ export default function SessionSummary() {
         <Card className="mt-4 border border-[var(--sr-brand-primary)] sr-card">
           <p className="font-semibold">{pl.cycleComplete}</p>
           <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.cycleCompleteHint}</p>
+          <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecCycleDone}</p>
           <Button className="mt-4" fullWidth onClick={() => navigate(`/setup/test/${program}?retest=1`)}>
             {pl.retestNow}
           </Button>
         </Card>
       )}
 
-      {!failed && progress && (
-        <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">{pl.nextWorkoutIn(daysLeft)}</p>
+      {!failed && progress && progress.status !== 'test_pending' && (
+        <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">
+          {pl.summaryRecSuccess}
+        </p>
+      )}
+
+      {!failed && progress && progress.status !== 'test_pending' && (
+        <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.nextWorkoutIn(daysLeft)}</p>
       )}
 
       {failed && (
@@ -136,6 +143,7 @@ export default function SessionSummary() {
           <p className="text-sm text-[var(--sr-error)]">
             {pl.dayFailedRestart(progress?.cycleAttempt ?? 1)}
           </p>
+          <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecFail}</p>
         </Card>
       )}
 

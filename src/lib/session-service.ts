@@ -3,12 +3,31 @@ import type { SetResultDraft } from '@/lib/progress-engine'
 import type { Program } from '@/data/plans/types'
 import { enqueueSync } from '@/lib/sync'
 import { clearActiveWorkout, completeWorkoutDay } from '@/lib/program-service'
+import { track } from '@/lib/analytics'
+import { useAppStore } from '@/stores/app-store'
 
 /** Session ids already advanced in progress — prevents double completeWorkoutDay. */
 const finalizedProgressKeys = new Set<string>()
 
 function progressKey(program: Program, sessionId: string) {
   return `${program}:${sessionId}`
+}
+
+function markFirstWorkoutAndTrack(passed: boolean, sessionId: string) {
+  const store = useAppStore.getState()
+  if (passed && !store.hasCompletedFirstWorkout) {
+    store.setHasCompletedFirstWorkout(true)
+    track('first_workout_done')
+  }
+  // Idempotent across retries / early-return finalize paths
+  const trackKey = `sr-tracked-day:${sessionId}`
+  try {
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(trackKey)) return
+    sessionStorage?.setItem(trackKey, '1')
+  } catch {
+    // private mode — still emit once per call stack via finalizedProgressKeys caller
+  }
+  track(passed ? 'day_completed' : 'day_failed')
 }
 
 export async function saveWorkoutSession(session: LocalWorkoutSession): Promise<void> {
@@ -57,6 +76,7 @@ export async function finalizeSuccessfulDay(
       await completeWorkoutDay(session.program, true, existing.totalReps ?? 0, session.id)
       finalizedProgressKeys.add(key)
     }
+    markFirstWorkoutAndTrack(true, session.id)
     return
   }
 
@@ -73,6 +93,7 @@ export async function finalizeSuccessfulDay(
   await clearActiveWorkout(session.program)
   await completeWorkoutDay(session.program, true, totalReps, session.id)
   finalizedProgressKeys.add(key)
+  markFirstWorkoutAndTrack(true, session.id)
 }
 
 export async function finalizeFailedDay(
@@ -88,6 +109,7 @@ export async function finalizeFailedDay(
       await completeWorkoutDay(program, false, existing.totalReps ?? 0, sessionId)
       finalizedProgressKeys.add(key)
     }
+    markFirstWorkoutAndTrack(false, sessionId)
     return
   }
 
@@ -104,6 +126,7 @@ export async function finalizeFailedDay(
   await clearActiveWorkout(program)
   await completeWorkoutDay(program, false, totalReps, sessionId)
   finalizedProgressKeys.add(key)
+  markFirstWorkoutAndTrack(false, sessionId)
 }
 
 export async function abandonWorkoutSession(program: Program, sessionId: string): Promise<void> {

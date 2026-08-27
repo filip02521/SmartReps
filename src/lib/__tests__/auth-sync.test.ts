@@ -130,6 +130,7 @@ describe('handleAuthSession', () => {
       lastAuthUserId: 'user-a',
       pendingStart: null,
       settings: { onboardingComplete: true },
+      setLastSyncedAt: vi.fn(),
     })
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-a' } } },
@@ -159,7 +160,7 @@ describe('handleAuthSession', () => {
 describe('runAuthenticatedSync', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetState.mockReturnValue({ lastAuthUserId: 'user-a' })
+    mockGetState.mockReturnValue({ lastAuthUserId: 'user-a', setLastSyncedAt: vi.fn() })
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-a' } } },
     } as never)
@@ -195,6 +196,7 @@ describe('completeSignInFlow', () => {
       lastAuthUserId: 'user-a',
       pendingStart: null,
       settings: { onboardingComplete: true },
+      setLastSyncedAt: vi.fn(),
     })
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-a' } } },

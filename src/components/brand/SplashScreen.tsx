@@ -27,8 +27,10 @@ export function SplashScreen() {
 
 export function hideSplash() {
   const el = document.getElementById('sr-splash')
-  if (!el) return
-  el.style.opacity = '0'
-  el.style.transition = 'opacity 0.35s ease'
-  window.setTimeout(() => el.remove(), 350)
+  if (el) {
+    el.style.opacity = '0'
+    el.style.transition = 'opacity 0.35s ease'
+    window.setTimeout(() => el.remove(), 350)
+  }
+  void import('@/lib/theme-color').then((m) => m.hideBootSplash())
 }

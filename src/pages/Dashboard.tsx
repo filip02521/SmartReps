@@ -32,6 +32,7 @@ import { getCycleById } from '@/data/plans'
 import { daysUntilWorkout, isWorkoutAvailable } from '@/lib/progress-engine'
 import type { LocalProgramProgress } from '@/lib/db'
 import type { Program } from '@/data/plans/types'
+import { InstallCoach } from '@/components/ux/InstallCoach'
 import { getCycleDayStatus } from '@/lib/cycle-progress'
 
 const programMeta: Record<Program, { label: string; accent: string }> = {
@@ -136,7 +137,8 @@ function ProgramCard({
   const isPaused = progress.status === 'paused'
   const isTestPending = progress.status === 'test_pending'
   const resting = !available && !isPaused && !isTestPending
-  const hasResume = !!resume && !isTestPending
+  // Paused programs must show "Wznów program", not Continue into a blocked Workout.
+  const hasResume = !!resume && !isTestPending && !isPaused
 
   const displayBadge = hasResume
     ? { label: pl.statusInProgress, variant: 'info' as const }
@@ -293,30 +295,67 @@ function ProgramCard({
         </div>
       )}
 
-      {/* Context banners */}
-      {hasResume && resting && (
-        <div className="mt-4">
-          <FeedbackBanner variant="info" message={pl.resumeDespiteRestHint} />
-        </div>
-      )}
-
-      {!hasResume && resting && !trainDespiteRest && (
-        <div className="mt-4 space-y-2">
-          <FeedbackBanner
-            variant="warning"
-            message={pl.restBlocked(pl.restIn(daysLeft))}
-          />
-          <p className="px-0.5 text-xs leading-relaxed text-[var(--sr-text-muted)]">
-            {pl.restGateHint(waitingRestDays)}
-          </p>
-        </div>
-      )}
-
-      {hasResume && resume?.stale && (
-        <div className="mt-4">
-          <FeedbackBanner variant="warning" message={pl.staleSession} />
-        </div>
-      )}
+      {/* Context banners — max 1 FeedbackBanner per card (plan S2) */}
+      {(() => {
+        if (hasResume && resume?.stale) {
+          return (
+            <div className="mt-4">
+              <FeedbackBanner variant="warning" message={pl.staleSession} />
+            </div>
+          )
+        }
+        if (isTestPending) {
+          return (
+            <div className="mt-4">
+              <FeedbackBanner variant="info" message={pl.cycleCompleteHint} />
+            </div>
+          )
+        }
+        if (hasResume && resting) {
+          return (
+            <div className="mt-4">
+              <FeedbackBanner variant="info" message={pl.resumeDespiteRestHint} />
+            </div>
+          )
+        }
+        // Rest: keep rest as the primary message; lower-level tip is secondary text under it
+        if (!hasResume && resting && !trainDespiteRest) {
+          return (
+            <div className="mt-4 space-y-2">
+              <FeedbackBanner
+                variant="info"
+                message={pl.restPrimaryLabel(pl.restIn(daysLeft))}
+                actionLabel={
+                  progress && progress.cycleAttempt >= 2 ? pl.menuChangeLevel : undefined
+                }
+                onAction={
+                  progress && progress.cycleAttempt >= 2
+                    ? () => void beginLevelChange(navigate, program)
+                    : undefined
+                }
+              />
+              <p className="px-0.5 text-xs leading-relaxed text-[var(--sr-text-muted)]">
+                {progress && progress.cycleAttempt >= 2
+                  ? pl.considerLowerLevel
+                  : pl.restGateHint(waitingRestDays)}
+              </p>
+            </div>
+          )
+        }
+        if (progress && progress.cycleAttempt >= 2 && !hasResume && !resting) {
+          return (
+            <div className="mt-4">
+              <FeedbackBanner
+                variant="info"
+                message={pl.considerLowerLevel}
+                actionLabel={pl.menuChangeLevel}
+                onAction={() => void beginLevelChange(navigate, program)}
+              />
+            </div>
+          )
+        }
+        return null
+      })()}
 
       {program === 'pullups' && resting && !hasResume && (
         <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3">
@@ -371,7 +410,6 @@ function ProgramCard({
 
         {!hasResume && isPaused && (
           <Button
-            variant="secondary"
             size="touch"
             fullWidth
             onClick={async () => {
@@ -384,31 +422,42 @@ function ProgramCard({
         )}
 
         {!hasResume && isTestPending && (
-          <Button
-            size="touch"
-            fullWidth
-            onClick={() => void beginProgramSetup(navigate, program, { retest: true })}
-          >
-            {pl.test}
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button
+              size="touch"
+              fullWidth
+              onClick={() => void beginProgramSetup(navigate, program, { retest: true })}
+            >
+              {pl.retestNow}
+            </Button>
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={() => void beginLevelChange(navigate, program)}
+            >
+              {pl.menuChangeLevel}
+            </Button>
+          </div>
         )}
 
         {!hasResume && !isPaused && !isTestPending && (
           <div className="flex flex-col gap-2">
             {resting && !trainDespiteRest ? (
-              <Button
-                variant="secondary"
-                size="touch"
-                fullWidth
-                onClick={() => setTrainDespiteRest(true)}
-              >
-                {pl.trainAnyway}
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="touch"
+                  fullWidth
+                  onClick={() => setTrainDespiteRest(true)}
+                >
+                  {pl.trainAnyway}
+                </Button>
+              </>
             ) : (
               <Button
                 size="touch"
                 fullWidth
-                disabled={!canStart}
+                disabled={!canStart && !trainDespiteRest}
                 onClick={() => {
                   navigate(
                     trainDespiteRest || !available
@@ -505,12 +554,14 @@ export default function Dashboard() {
   return (
     <div className="mx-auto max-w-lg px-4 py-6 safe-top safe-bottom">
       <header className="mb-6">
-        <LogoFull height={24} />
+        <LogoFull height={36} />
         <h1 className="mt-4 sr-text-h1">{pl.navWorkout}</h1>
         <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
           {pl.dashboardSubtitle}
         </p>
       </header>
+
+      <InstallCoach />
 
       {settings.enabledPrograms.length === 0 ? (
         <EmptyState

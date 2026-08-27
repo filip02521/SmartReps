@@ -42,6 +42,7 @@ export default function WorkoutPage() {
   const navigate = useNavigate()
   const timerSound = useAppStore((s) => s.settings.timerSound)
   const timerVibration = useAppStore((s) => s.settings.timerVibration)
+  const keepScreenOn = useAppStore((s) => s.settings.keepScreenOn)
   const finishingRef = useRef(false)
   const initGenerationRef = useRef(0)
   const checklistRef = useRef<HTMLDivElement>(null)
@@ -282,9 +283,9 @@ export default function WorkoutPage() {
   useEffect(() => {
     if (!restTimer || restTimer.mode === 'idle') {
       stopRestTimerWorker()
+      void releaseWakeLock()
       return
     }
-    requestWakeLock()
     startRestTimerWorker(restTimer, {
       getState: () => useWorkoutStore.getState().restTimer,
       onTick: (remainingSec) => {
@@ -311,6 +312,16 @@ export default function WorkoutPage() {
     timerSound,
     timerVibration,
   ])
+
+  useEffect(() => {
+    if (!restTimer || restTimer.mode === 'idle') {
+      void releaseWakeLock()
+      return
+    }
+    if (keepScreenOn) void requestWakeLock()
+    else void releaseWakeLock()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- wake lock only; worker has its own effect
+  }, [restTimer?.startedAt, restTimer?.mode, keepScreenOn])
 
   useEffect(() => {
     if (negativeCountdown === null || negativeCountdown <= 0) return
