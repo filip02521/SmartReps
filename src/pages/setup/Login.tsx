@@ -52,9 +52,14 @@ function stripAuthParamsFromUrl(): void {
   window.history.replaceState({}, '', `${url.pathname}${url.search}`)
 }
 
+/** Must match Supabase `mailer_otp_length` (scripts/configure-supabase-smtp.mjs). */
+const OTP_LENGTH = 6
+const OTP_PATTERN = new RegExp(`^\\d{${OTP_LENGTH}}$`)
+
 async function verifyEmailOtp(email: string, token: string) {
   const attempt = await supabase.auth.verifyOtp({ email, token, type: 'email' })
   if (!attempt.error) return attempt
+  // New accounts sometimes verify under signup until email is confirmed.
   return supabase.auth.verifyOtp({ email, token, type: 'signup' })
 }
 
@@ -197,8 +202,8 @@ export default function Login() {
   const verifyCode = async () => {
     if (verifyingRef.current) return
     const trimmed = email.trim()
-    const code = otpCode.replace(/\s/g, '')
-    if (!/^\d{6,8}$/.test(code)) {
+    const code = otpCode.replace(/\D/g, '')
+    if (!OTP_PATTERN.test(code)) {
       showToast(pl.loginOtpInvalid, 'error')
       return
     }
@@ -224,9 +229,9 @@ export default function Login() {
   }
 
   useEffect(() => {
-    if (!sent || loading || otpCode.length !== 6) return
+    if (!sent || loading || otpCode.length !== OTP_LENGTH) return
     void verifyCode()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-submit when 6 digits entered
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-submit when full OTP entered
   }, [otpCode, sent, loading])
 
   if (!hydrated) {
@@ -291,10 +296,10 @@ export default function Login() {
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={8}
+              maxLength={OTP_LENGTH}
               placeholder={pl.loginOtpPlaceholder}
               value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, OTP_LENGTH))}
               className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-center text-2xl tracking-[0.35em] text-[var(--sr-text-primary)]"
             />
             <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{pl.loginOtpHint}</p>
@@ -303,7 +308,7 @@ export default function Login() {
           <Button
             className="mt-2"
             fullWidth
-            disabled={loading || otpCode.length < 6}
+            disabled={loading || otpCode.length !== OTP_LENGTH}
             onClick={() => void verifyCode()}
           >
             {pl.loginVerifyCode}

@@ -76,8 +76,11 @@ Bez `.env` ekran logowania ma opcję pominięcia — trening działa w pełni lo
 5. W **Authentication → URL Configuration** ustaw:
    - **Site URL:** `https://smart-reps.vercel.app`
    - **Redirect URLs:** `https://smart-reps.vercel.app/**`, `http://localhost:5173/**`, oraz `/setup/login`
-6. W szablonie e-maila OTP umieść `{{ .Token }}` (6-cyfrowy kod) — w PWA używaj kodu, nie linku
-7. W aplikacji: Profil → Zaloguj się (kod z e-maila)
+6. **Custom SMTP + szablon OTP** (AWS SES): uzupełnij `SUPABASE_ACCESS_TOKEN` w
+   `.env.smtp.local` (gitignored), potem `node scripts/configure-supabase-smtp.mjs`.
+   Skrypt ustawia SMTP, szablon (`{{ .Token }}`), `mailer_otp_length=6` i Site URL.
+   Nadawca: `SmartReps <SR@ontime.mikran.pl>`. Logowanie wyłącznie kodem (bez magic linku w mailu).
+7. W aplikacji: Profil → Zaloguj się (6-cyfrowy kod z e-maila)
 
 ## Produkcja
 
@@ -91,7 +94,7 @@ Push na `main` automatycznie deployuje na Vercel. CI: `validate-plans` → `lint
 1. Otwórz aplikację w Chrome / Safari na telefonie
 2. **Chrome:** menu → „Zainstaluj aplikację” / „Dodaj do ekranu głównego”
 3. **Safari:** Udostępnij → „Do ekranu początkowego”
-4. W zainstalowanej aplikacji loguj się **kodem z e-maila** (link zwykle otwiera Safari bez sesji w PWA)
+4. W zainstalowanej aplikacji loguj się **6-cyfrowym kodem z e-maila** (nadawca: SR@ontime.mikran.pl)
 
 ## Dokumentacja
 

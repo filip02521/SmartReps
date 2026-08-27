@@ -164,18 +164,18 @@ export const pl = {
   loginSentTo: (email: string) => `Wysłano na adres ${email}`,
   loginOtpLabel: 'Kod z e-maila',
   loginOtpPlaceholder: '000000',
-  loginOtpHint: '6-cyfrowy kod z wiadomości SmartReps (nie klikaj w link).',
+  loginOtpHint: '6-cyfrowy kod z wiadomości od SmartReps (SR@ontime.mikran.pl).',
   loginVerifyCode: 'Zaloguj się kodem',
   loginOtpInvalid: 'Nieprawidłowy lub wygasły kod. Sprawdź e-mail i spróbuj ponownie.',
   loginResendCode: 'Wyślij kod ponownie',
   loginPwaCodeHint:
-    'Na telefonie link z e-maila często otwiera przeglądarkę zamiast tej aplikacji. Wpisz tutaj 6-cyfrowy kod z wiadomości — tak logujesz się po dodaniu SmartReps do ekranu głównego.',
+    'Wpisz tutaj 6-cyfrowy kod z e-maila — tak logujesz się po dodaniu SmartReps do ekranu głównego.',
   loginBrowserLinkHint:
-    'Możesz też kliknąć link w e-mailu — zaloguje Cię w tej karcie przeglądarki.',
+    'Jeśli nie widzisz wiadomości, sprawdź folder Spam / Oferty. Nadawca: SmartReps (SR@ontime.mikran.pl).',
   loginSkip: 'Pomiń — trenuję bez konta',
   loginInvalidEmail: 'Podaj poprawny adres e-mail.',
   loginPwaHint:
-    'W aplikacji z ekranu głównego używaj kodu z e-maila, nie linku — link otworzy przeglądarkę bez sesji w SmartReps.',
+    'W aplikacji z ekranu głównego loguj się 6-cyfrowym kodem z e-maila.',
   loginAlreadySignedIn: 'Jesteś zalogowany jako',
   loginContinue: 'Kontynuuj',
   loginLogoutToSwitch: 'Wyloguj, aby użyć innego konta',

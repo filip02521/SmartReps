@@ -188,7 +188,7 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
   return authenticatedSyncLock
 }
 
-/** Single-flight: sync + optional post-login navigation (OTP, magic link, Kontynuuj). */
+/** Single-flight: sync + optional post-login navigation (OTP code, Kontynuuj). */
 export async function completeSignInFlow(
   navigate?: NavigateFunction,
   opts?: {

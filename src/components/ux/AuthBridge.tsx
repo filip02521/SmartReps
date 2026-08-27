@@ -4,7 +4,8 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { handleAuthSession } from '@/lib/auth-sync'
 
 /**
- * Global auth bridge: magic-link returns to /setup/login (or any route).
+ * Global auth bridge: session restore / rare email-link returns.
+ * Primary login is email OTP code on /setup/login.
  * On SIGNED_IN / INITIAL_SESSION: account guard + sync (+ navigate on sign-in).
  */
 export function AuthBridge() {
