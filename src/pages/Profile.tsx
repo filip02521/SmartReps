@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/stores/app-store'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { pl } from '@/i18n/pl'
 import { requestWorkoutReminderPermission, scheduleDailyReminder, cancelReminder } from '@/lib/notifications'
@@ -26,6 +29,7 @@ export default function ProfilePage() {
   const { settings, setSettings } = useAppStore()
   const navigate = useNavigate()
   const [email, setEmail] = useState<string | null>(null)
+  const [pendingChangeLevel, setPendingChangeLevel] = useState<Program | null>(null)
 
   useEffect(() => {
     if (isSupabaseConfigured) {
@@ -43,10 +47,17 @@ export default function ProfilePage() {
   const changeLevel = async (program: Program) => {
     const active = await getActiveWorkout(program)
     if (active) {
-      const ok = window.confirm(pl.changeLevelActiveWarning)
-      if (!ok) return
-      await clearActiveWorkout(program)
+      setPendingChangeLevel(program)
+      return
     }
+    navigate(`/setup/test/${program}`)
+  }
+
+  const confirmChangeLevel = async () => {
+    if (!pendingChangeLevel) return
+    const program = pendingChangeLevel
+    setPendingChangeLevel(null)
+    await clearActiveWorkout(program)
     navigate(`/setup/test/${program}`)
   }
 
@@ -69,9 +80,9 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 safe-top">
-      <h1 className="sr-text-h1">{pl.navProfile}</h1>
+      <PageHeader title={pl.navProfile} />
 
-      <Card className="mt-6 sr-card">
+      <Card className="mt-2 sr-card">
         <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.account}</p>
         <p className="mt-2 text-sm">{email ?? pl.notLoggedIn}</p>
         {isSupabaseConfigured && !email && (
@@ -87,22 +98,23 @@ export default function ProfilePage() {
       </Card>
 
       <Card className="mt-4 sr-card">
-        <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.appearance}</p>
-        <div className="mt-3 flex gap-2">
-          {(['system', 'dark', 'light'] as const).map((t) => (
-            <Button
-              key={t}
-              variant={settings.theme === t ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => { setSettings({ theme: t }); applyTheme(t) }}
-            >
-              {t === 'system' ? pl.themeSystem : t === 'dark' ? pl.themeDark : pl.themeLight}
-            </Button>
-          ))}
-        </div>
-        <label className="mt-4 flex items-center gap-2 text-sm">
+        <p className="mb-3 text-sm font-medium text-[var(--sr-text-secondary)]">{pl.appearance}</p>
+        <SegmentedControl
+          options={[
+            { value: 'system' as const, label: pl.themeSystem },
+            { value: 'dark' as const, label: pl.themeDark },
+            { value: 'light' as const, label: pl.themeLight },
+          ]}
+          value={settings.theme}
+          onChange={(t) => {
+            setSettings({ theme: t })
+            applyTheme(t)
+          }}
+        />
+        <label className="mt-4 flex min-h-11 items-center gap-3 text-sm">
           <input
             type="checkbox"
+            className="h-5 w-5"
             checked={settings.highContrast}
             onChange={(e) => { setSettings({ highContrast: e.target.checked }); applyHighContrast(e.target.checked) }}
           />
@@ -112,18 +124,19 @@ export default function ProfilePage() {
 
       <Card className="mt-4 sr-card">
         <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.trainingSettings}</p>
-        <label className="mt-3 flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={settings.timerSound} onChange={(e) => setSettings({ timerSound: e.target.checked })} />
+        <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
+          <input type="checkbox" className="h-5 w-5" checked={settings.timerSound} onChange={(e) => setSettings({ timerSound: e.target.checked })} />
           {pl.timerSound}
         </label>
-        <label className="mt-2 flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={settings.timerVibration} onChange={(e) => setSettings({ timerVibration: e.target.checked })} />
+        <label className="mt-1 flex min-h-11 items-center gap-3 text-sm">
+          <input type="checkbox" className="h-5 w-5" checked={settings.timerVibration} onChange={(e) => setSettings({ timerVibration: e.target.checked })} />
           {pl.timerVibration}
         </label>
-        <p className="mt-3 text-xs text-[var(--sr-text-muted)]">{pl.keepScreenOn}</p>
-        <label className="mt-4 flex items-center gap-2 text-sm">
+        <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{pl.keepScreenOn}</p>
+        <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
           <input
             type="checkbox"
+            className="h-5 w-5"
             checked={settings.workoutReminders}
             onChange={async (e) => {
               const on = e.target.checked
@@ -147,20 +160,20 @@ export default function ProfilePage() {
         <div className="mt-2 flex flex-col gap-2">
           {settings.enabledPrograms.includes('pushups') && (
             <>
-              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => void changeLevel('pushups')}>
+              <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => void changeLevel('pushups')}>
                 {pl.changeLevelPushups}
               </Button>
-              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => retest('pushups')}>
+              <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => retest('pushups')}>
                 {pl.retestPushups}
               </Button>
             </>
           )}
           {settings.enabledPrograms.includes('pullups') && (
             <>
-              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => void changeLevel('pullups')}>
+              <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => void changeLevel('pullups')}>
                 {pl.changeLevelPullups}
               </Button>
-              <Button variant="ghost" size="sm" className="justify-start px-0" onClick={() => retest('pullups')}>
+              <Button variant="ghost" size="sm" className="min-h-11 justify-start px-0" onClick={() => retest('pullups')}>
                 {pl.retestPullups}
               </Button>
             </>
@@ -193,7 +206,18 @@ export default function ProfilePage() {
         </p>
       </Card>
 
-      <p className="mt-8 text-center text-xs text-[var(--sr-text-muted)]">SmartReps v1.0.0</p>
+      <p className="mt-8 text-center text-xs text-[var(--sr-text-muted)]">{pl.appName} v1.0.0</p>
+
+      {pendingChangeLevel && (
+        <ConfirmSheet
+          title={pl.menuChangeLevel}
+          message={pl.changeLevelActiveWarning}
+          confirmLabel={pl.confirm}
+          variant="danger"
+          onConfirm={() => void confirmChangeLevel()}
+          onCancel={() => setPendingChangeLevel(null)}
+        />
+      )}
     </div>
   )
 }

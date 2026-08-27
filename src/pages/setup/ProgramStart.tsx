@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { CycleCelebration } from '@/components/workout/WorkoutComponents'
+import { SetupStepper } from '@/components/setup/SetupStepper'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { SkeletonCard } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
@@ -43,7 +45,14 @@ export default function ProgramStart() {
     }
   }, [program])
 
-  if (!pendingStart) return null
+  if (!pendingStart) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+        <SkeletonCard className="h-48" />
+        <p className="mt-4 text-center text-sm text-[var(--sr-text-muted)]">{pl.restoringSetup}</p>
+      </div>
+    )
+  }
 
   if (!dismissedCelebration && pendingStart.celebration) {
     return (
@@ -68,12 +77,13 @@ export default function ProgramStart() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-      <h1 className="text-2xl font-bold">{pl.programReady}</h1>
-      <p className="mt-2 text-[var(--sr-text-secondary)]">
-        {program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram} · Cykl {pendingStart.cycleName}
-      </p>
+      <SetupStepper current="start" />
+      <PageHeader
+        title={pl.programReady}
+        subtitle={`${program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram} · Cykl ${pendingStart.cycleName}`}
+      />
 
-      <div className="mt-4 flex gap-1">
+      <div className="mt-2 flex gap-1" role="list" aria-label={pl.cycleDays}>
         {cycle?.days.map((d) => (
           <div
             key={d.dayNumber}

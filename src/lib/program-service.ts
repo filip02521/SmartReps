@@ -2,6 +2,7 @@ import { db, type LocalProgramProgress } from '@/lib/db'
 import { getCycleById } from '@/data/plans'
 import type { Program } from '@/data/plans/types'
 import { enqueueSync, enqueueActiveWorkoutSync } from '@/lib/sync'
+import { pl } from '@/i18n/pl'
 import {
   advanceAfterDayPassed,
   daysUntilWorkout,
@@ -112,13 +113,13 @@ export function getStatusLabel(progress: LocalProgramProgress): string {
   switch (progress.status) {
     case 'active':
     case 'rest':
-      return waitingRest ? 'Przerwa' : 'Gotowy'
+      return waitingRest ? pl.statusRest : pl.statusReady
     case 'test_pending':
-      return 'Test'
+      return pl.statusTest
     case 'cycle_failed':
-      return 'Restart'
+      return pl.statusRestart
     case 'paused':
-      return 'Wstrzymany'
+      return pl.statusPaused
     default:
       return progress.status
   }

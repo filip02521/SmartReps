@@ -112,7 +112,7 @@ export default function SessionSummary() {
       {failed && (
         <Card className="mt-4 border border-[var(--sr-error)] sr-card">
           <p className="text-sm text-[var(--sr-error)]">
-            Po przerwie wrócisz do dnia 1 tego cyklu (próba {(progress?.cycleAttempt ?? 1)}).
+            {pl.onboardingRulesTitle}: po przerwie wrócisz do dnia 1 tego cyklu ({pl.attemptLabel(progress?.cycleAttempt ?? 1)}).
           </p>
         </Card>
       )}
@@ -132,7 +132,7 @@ export default function SessionSummary() {
         </p>
       )}
 
-      <Button className="mt-8" fullWidth onClick={() => navigate('/')}>
+      <Button className="mt-8" fullWidth onClick={() => navigate('/', { replace: true })}>
         {pl.backHome}
       </Button>
     </div>

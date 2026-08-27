@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type MouseEvent, type TouchEvent } from 'r
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { SetupStepper } from '@/components/setup/SetupStepper'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { selectCycleByTest } from '@/lib/cycle-selector'
@@ -13,12 +15,12 @@ export function HealthDisclaimer({ onAccept }: { onAccept: () => void }) {
   const [checked, setChecked] = useState(false)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--sr-bg-overlay)] p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--sr-bg-overlay)] p-4" role="dialog" aria-modal="true" aria-labelledby="health-title">
       <div className="max-w-sm rounded-[var(--sr-radius-xl)] bg-[var(--sr-bg-elevated)] p-6">
-        <h2 className="text-lg font-semibold">Zdrowie i bezpieczeństwo</h2>
+        <h2 id="health-title" className="text-lg font-semibold">Zdrowie i bezpieczeństwo</h2>
         <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">{pl.healthDisclaimer}</p>
-        <label className="mt-4 flex items-start gap-2 text-sm">
-          <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} className="mt-0.5" />
+        <label className="mt-4 flex min-h-11 items-start gap-3 text-sm">
+          <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} className="mt-1 h-5 w-5" />
           {pl.healthAccept}
         </label>
         <Button className="mt-6" fullWidth disabled={!checked} onClick={onAccept}>{pl.confirm}</Button>
@@ -74,6 +76,8 @@ export default function MaxTest() {
   const submitLock = useRef(false)
   const hydratedRef = useRef(false)
 
+  const warmupItems = program === 'pullups' ? pl.warmupItemsPullups : pl.warmupItemsPushups
+
   useEffect(() => {
     if (hydratedRef.current) return
     hydratedRef.current = true
@@ -106,7 +110,6 @@ export default function MaxTest() {
 
     try {
       const progress = await getProgramProgress(program)
-      // Hard-block only on retest / test_pending rest window — not normal day rest for change-level.
       if (
         (isRetest || progress?.status === 'test_pending') &&
         progress?.nextWorkoutAfter &&
@@ -136,10 +139,12 @@ export default function MaxTest() {
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
       {showDisclaimer && <HealthDisclaimer onAccept={acceptDisclaimer} />}
 
-      <h1 className="text-xl font-bold">{title}</h1>
-      <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">
-        {isRetest ? 'Sprawdź postęp i wybierz kolejny cykl po teście.' : pl.testPrompt}
-      </p>
+      {!isRetest && <SetupStepper current="test" />}
+
+      <PageHeader
+        title={title}
+        subtitle={isRetest ? 'Sprawdź postęp i wybierz kolejny cykl po teście.' : pl.testPrompt}
+      />
 
       {blocked && (
         <p className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-warning)]/15 p-3 text-sm text-[var(--sr-warning)]">
@@ -148,18 +153,19 @@ export default function MaxTest() {
       )}
 
       {warmupError && !warmupComplete && (
-        <p className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-error)]/10 p-3 text-sm text-[var(--sr-error)]">
+        <p className="rounded-[var(--sr-radius-md)] bg-[var(--sr-error)]/10 p-3 text-sm text-[var(--sr-error)]">
           {pl.warmupRequired}
         </p>
       )}
 
-      <div className="mt-6">
+      <div className="mt-2">
         <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.warmup}</p>
-        <div className="mt-2 flex flex-col gap-2">
-          {pl.warmupItems.map((item, i) => (
-            <label key={item} className="flex items-center gap-2 text-sm">
+        <div className="mt-2 flex flex-col gap-1">
+          {warmupItems.map((item, i) => (
+            <label key={item} className="flex min-h-11 items-center gap-3 text-sm">
               <input
                 type="checkbox"
+                className="h-5 w-5 shrink-0"
                 checked={warmup[i]}
                 onChange={() => {
                   setWarmup((w) => w.map((v, j) => (j === i ? !v : v)))
@@ -186,6 +192,7 @@ export default function MaxTest() {
         <div className="mt-4 flex gap-6">
           <button
             type="button"
+            aria-label={pl.lessReps}
             className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sr-bg-surface)] select-none"
             {...minusPress}
           >
@@ -193,6 +200,7 @@ export default function MaxTest() {
           </button>
           <button
             type="button"
+            aria-label={pl.moreReps}
             className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sr-bg-surface)] select-none"
             {...plusPress}
           >

@@ -2,6 +2,7 @@ import { cn, formatRestTime, vibrate } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
 import { Check, ChevronRight, Minus, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { Sheet } from '@/components/ui/Sheet'
 import { getSetLabel, getTargetReps, formatSetTarget } from '@/lib/progress-engine'
 import type { SetTarget } from '@/data/plans/types'
 import type { Program } from '@/data/plans/types'
@@ -17,6 +18,7 @@ export function ConfirmSheet({
   cancelLabel,
   onConfirm,
   onCancel,
+  variant = 'primary',
 }: {
   title: string
   message: string
@@ -24,15 +26,41 @@ export function ConfirmSheet({
   cancelLabel?: string
   onConfirm: () => void
   onCancel: () => void
+  variant?: 'primary' | 'danger'
 }) {
+  const trapRef = useFocusTrap(true)
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-[var(--sr-bg-overlay)] safe-bottom">
-      <div className="w-full max-w-lg rounded-t-[var(--sr-radius-xl)] bg-[var(--sr-bg-elevated)] p-6">
-        <h3 className="text-lg font-semibold">{title}</h3>
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-[var(--sr-bg-overlay)] safe-bottom"
+      role="presentation"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onCancel()
+      }}
+    >
+      <div
+        ref={trapRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sr-confirm-title"
+        className="w-full max-w-lg rounded-t-[var(--sr-radius-xl)] bg-[var(--sr-bg-elevated)] p-6 animate-sheet-in"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onCancel()
+        }}
+      >
+        <h3 id="sr-confirm-title" className="text-lg font-semibold">{title}</h3>
         <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{message}</p>
         <div className="mt-6 flex flex-col gap-2">
-          <Button fullWidth onClick={onConfirm}>{confirmLabel ?? pl.confirm}</Button>
-          <Button variant="ghost" fullWidth onClick={onCancel}>{cancelLabel ?? pl.cancel}</Button>
+          <Button
+            fullWidth
+            variant={variant === 'danger' ? 'danger' : 'primary'}
+            onClick={onConfirm}
+          >
+            {confirmLabel ?? pl.confirm}
+          </Button>
+          <Button variant="ghost" fullWidth onClick={onCancel}>
+            {cancelLabel ?? pl.cancel}
+          </Button>
         </div>
       </div>
     </div>
@@ -47,6 +75,9 @@ export function RepCounter({
   onDone,
   lastActual,
   pulseFlash,
+  disabled,
+  disabledHint,
+  onDisabledTap,
 }: {
   target: SetTarget
   program: Program
@@ -55,11 +86,14 @@ export function RepCounter({
   onDone: () => void
   lastActual?: number
   pulseFlash?: boolean
+  disabled?: boolean
+  disabledHint?: string
+  onDisabledTap?: () => void
 }) {
   const targetReps = getTargetReps(target)
 
   return (
-    <div className="flex flex-col items-center gap-4 py-4">
+    <div className={cn('flex flex-col items-center gap-4 py-4', disabled && 'opacity-60')}>
       <p className="sr-text-overline text-[var(--sr-text-muted)]">
         {getSetLabel(target, program)}
       </p>
@@ -74,22 +108,38 @@ export function RepCounter({
       {lastActual !== undefined && (
         <PreviousResultBadge actual={lastActual} target={targetReps} />
       )}
+      {disabled && disabledHint && (
+        <p className="text-center text-sm text-[var(--sr-text-secondary)]">{disabledHint}</p>
+      )}
       <div className="flex w-full max-w-xs items-center gap-3">
         <button
           type="button"
-          aria-label="Mniej"
-          className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)]"
+          aria-label={pl.lessReps}
+          disabled={disabled}
+          className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] disabled:opacity-50"
           onClick={() => onActualChange(Math.max(0, actual - 1))}
         >
           <Minus size={24} />
         </button>
-        <Button size="touch" fullWidth onClick={onDone}>
+        <Button
+          size="touch"
+          fullWidth
+          disabled={disabled && !onDisabledTap}
+          onClick={() => {
+            if (disabled) {
+              onDisabledTap?.()
+              return
+            }
+            onDone()
+          }}
+        >
           {pl.done}
         </Button>
         <button
           type="button"
-          aria-label="Więcej"
-          className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)]"
+          aria-label={pl.moreReps}
+          disabled={disabled}
+          className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] disabled:opacity-50"
           onClick={() => onActualChange(actual + 1)}
         >
           <Plus size={24} />
@@ -100,7 +150,7 @@ export function RepCounter({
 }
 
 function SetStatusIcon({ state }: { state: 'pending' | 'active' | 'done' | 'failed' }) {
-  if (state === 'done') return <Check size={16} className="text-[var(--sr-success)]" />
+  if (state === 'done') return <Check size={16} className="text-[var(--sr-success)] animate-check-in" />
   if (state === 'failed') return <X size={16} className="text-[var(--sr-error)]" />
   if (state === 'active') return <ChevronRight size={16} className="text-[var(--sr-brand-primary)]" />
   return <span className="inline-block h-4 w-4" />
@@ -135,12 +185,12 @@ export function SetRow({
     >
       <span className="flex items-center gap-2 font-medium">
         <SetStatusIcon state={state} />
-        Seria {setNumber}
+        {pl.setColumn} {setNumber}
       </span>
       <span className="tabular-nums text-sm">
         {state === 'done' && actual !== undefined
           ? `${actual} / ${formatSetTarget(target)}`
-          : `cel ${formatSetTarget(target)}`}
+          : `${pl.targetColumn.toLowerCase()} ${formatSetTarget(target)}`}
       </span>
     </button>
   )
@@ -185,7 +235,7 @@ export function SetChecklist({
 export function NegativeBanner() {
   return (
     <div className="sticky top-0 z-10 rounded-[var(--sr-radius-md)] border border-[var(--sr-pullups-accent)] bg-[rgba(167,139,250,0.15)] px-4 py-2 text-sm text-[var(--sr-pullups-accent)]">
-      Opuszczaj powoli (3–5 s). Liczy się pełna kontrola ruchu.
+      {pl.negativeBanner}
     </div>
   )
 }
@@ -213,7 +263,7 @@ export function RestTimerPill({
         type="button"
         onClick={onExpand}
         aria-live="polite"
-        className="flex flex-1 items-center justify-between rounded-[var(--sr-radius-full)] bg-[var(--sr-bg-elevated)] px-5 py-3 shadow-[var(--sr-shadow-glow)]"
+        className="flex min-h-11 flex-1 items-center justify-between rounded-[var(--sr-radius-full)] bg-[var(--sr-bg-elevated)] px-5 py-3 shadow-[var(--sr-shadow-glow)]"
       >
         <span className="text-sm text-[var(--sr-text-secondary)]">{pl.restLabel}</span>
         <span className="tabular-nums text-xl font-bold text-[var(--sr-brand-secondary)]">
@@ -222,7 +272,7 @@ export function RestTimerPill({
         <ChevronRight size={18} className="text-[var(--sr-text-muted)] rotate-[-90deg]" />
       </button>
       {onAdd15 && (
-        <Button variant="secondary" size="sm" className="shrink-0" onClick={onAdd15}>
+        <Button variant="secondary" size="sm" className="min-h-11 shrink-0" onClick={onAdd15}>
           {pl.add15s}
         </Button>
       )}
@@ -258,12 +308,12 @@ export function RestTimerExpanded({
       className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[var(--sr-bg-overlay)] safe-top safe-bottom"
       role="dialog"
       aria-modal="true"
-      aria-label="Timer przerwy"
+      aria-label={pl.restLabel}
       onKeyDown={(e) => { if (e.key === 'Escape') onCollapse() }}
     >
       <button
         type="button"
-        className="absolute right-4 top-4 text-[var(--sr-text-secondary)]"
+        className="absolute right-4 top-4 min-h-11 min-w-11 text-[var(--sr-text-secondary)]"
         onClick={onCollapse}
       >
         {pl.collapseTimer}
@@ -281,9 +331,9 @@ export function RestTimerExpanded({
       </ProgressRing>
       <p className="mt-6 text-sm text-[var(--sr-text-secondary)]">{nextLabel}</p>
       <div className="mt-8 flex flex-wrap justify-center gap-3 px-4">
-        <Button variant="secondary" size="sm" onClick={onAdd15}>{pl.add15s}</Button>
-        <Button variant="secondary" size="sm" onClick={onAdd30}>{pl.add30s}</Button>
-        <Button variant="ghost" size="sm" onClick={() => setShowSkipConfirm(true)}>{pl.skipRest}</Button>
+        <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd15}>{pl.add15s}</Button>
+        <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd30}>{pl.add30s}</Button>
+        <Button variant="ghost" size="sm" className="min-h-11" onClick={() => setShowSkipConfirm(true)}>{pl.skipRest}</Button>
       </div>
       {showSkipConfirm && (
         <ConfirmSheet
@@ -308,31 +358,25 @@ export function DayPlanSheet({
   onClose: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-[55] flex items-end bg-[var(--sr-bg-overlay)] safe-bottom">
-      <div className="max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-t-[var(--sr-radius-xl)] bg-[var(--sr-bg-elevated)] p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-semibold">{pl.previewDayPlan}</h3>
-          <button type="button" onClick={onClose} className="text-[var(--sr-text-muted)]">{pl.close}</button>
-        </div>
-        <p className="mb-3 text-sm text-[var(--sr-text-secondary)]">Przerwa między seriami: {restSec}s</p>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-[var(--sr-text-muted)]">
-              <th className="pb-2">Seria</th>
-              <th className="pb-2">Cel</th>
+    <Sheet open onClose={onClose} title={pl.previewDayPlan}>
+      <p className="mb-3 text-sm text-[var(--sr-text-secondary)]">{pl.restBetweenSets(restSec)}</p>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-[var(--sr-text-muted)]">
+            <th className="pb-2">{pl.setColumn}</th>
+            <th className="pb-2">{pl.targetColumn}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sets.map((s, i) => (
+            <tr key={i} className="border-t border-[var(--sr-border-subtle)]">
+              <td className="py-2">{i + 1}</td>
+              <td className="py-2">{formatSetTarget(s)}</td>
             </tr>
-          </thead>
-          <tbody>
-            {sets.map((s, i) => (
-              <tr key={i} className="border-t border-[var(--sr-border-subtle)]">
-                <td className="py-2">{i + 1}</td>
-                <td className="py-2">{formatSetTarget(s)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+          ))}
+        </tbody>
+      </table>
+    </Sheet>
   )
 }
 

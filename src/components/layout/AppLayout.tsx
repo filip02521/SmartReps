@@ -17,25 +17,32 @@ export function AppLayout() {
   const hideTabs = immersive || location.pathname.startsWith('/workout') || location.pathname.startsWith('/setup')
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex min-h-full flex-col" data-tabs={hideTabs ? '0' : '1'}>
       <main className={cn('flex-1 min-h-0', !hideTabs && 'pb-[calc(5rem+env(safe-area-inset-bottom))]')}>
         <Outlet />
       </main>
       {!hideTabs && (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] safe-bottom">
-          <div className="mx-auto flex max-w-lg justify-around px-2 py-2">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] safe-bottom" aria-label="Główna nawigacja">
+          <div className="mx-auto flex max-w-lg justify-around px-2 py-1">
             {tabs.map(({ to, label, icon: Icon }) => {
               const active = location.pathname === to
               return (
                 <Link
                   key={to}
                   to={to}
+                  aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'flex flex-col items-center gap-1 px-3 py-2 text-xs',
+                    'relative flex min-h-11 min-w-[4.5rem] flex-col items-center justify-center gap-0.5 px-3 py-2 text-xs font-medium',
                     active ? 'text-[var(--sr-brand-primary)]' : 'text-[var(--sr-text-muted)]',
                   )}
                 >
-                  <Icon size={22} />
+                  {active && (
+                    <span
+                      className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-[var(--sr-brand-primary)]"
+                      aria-hidden
+                    />
+                  )}
+                  <Icon size={22} strokeWidth={active ? 2.5 : 2} />
                   {label}
                 </Link>
               )

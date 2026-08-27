@@ -20,9 +20,9 @@ export function SegmentedControl<T extends string>({
           role="tab"
           aria-selected={value === opt.value}
           className={cn(
-            'rounded-[var(--sr-radius-full)] px-3 py-1 text-xs font-medium transition-colors',
+            'min-h-11 rounded-[var(--sr-radius-full)] px-4 py-2.5 text-sm font-medium transition-colors',
             value === opt.value
-              ? 'bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)]'
+              ? 'bg-[var(--sr-brand-primary-muted)] font-semibold text-[var(--sr-brand-primary)]'
               : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
           )}
           onClick={() => onChange(opt.value)}

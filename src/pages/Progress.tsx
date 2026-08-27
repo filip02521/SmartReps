@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { format, subDays } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
@@ -7,6 +8,8 @@ import { buildActivityHeatmap, exportSessionsCsv, downloadCsv } from '@/lib/expo
 import { Button } from '@/components/ui/Button'
 import { StatTile } from '@/components/ui/StatTile'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Sheet } from '@/components/ui/Sheet'
 import { LogoMark } from '@/components/brand/Logo'
 import { Card } from '@/components/ui/Card'
 import { EmptyState, SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
@@ -26,6 +29,7 @@ type Tab = 'overview' | 'history' | 'cycle' | 'records'
 type HistoryDateFilter = 'all' | '30d' | '90d'
 
 export default function ProgressPage() {
+  const navigate = useNavigate()
   const { settings } = useAppStore()
   const [program, setProgram] = useState<Program>(settings.enabledPrograms[0] ?? 'pushups')
   const [tab, setTab] = useState<Tab>('overview')
@@ -39,6 +43,7 @@ export default function ProgressPage() {
   const [historyFilter, setHistoryFilter] = useState<'all' | 'passed' | 'failed'>('all')
   const [historyCycleFilter, setHistoryCycleFilter] = useState<'all' | 'current'>('all')
   const [historyDateFilter, setHistoryDateFilter] = useState<HistoryDateFilter>('all')
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [heatmap, setHeatmap] = useState<Awaited<ReturnType<typeof buildActivityHeatmap>>>([])
   const [selectedSession, setSelectedSession] = useState<LocalWorkoutSession | null>(null)
   const [cyclePreviewDay, setCyclePreviewDay] = useState<number | null>(null)
@@ -72,6 +77,8 @@ export default function ProgressPage() {
   }, [program])
 
   const cycle = progress ? getCycleById(progress.cycleId) : undefined
+  const filtersActive =
+    historyFilter !== 'all' || historyCycleFilter !== 'all' || historyDateFilter !== 'all'
   const filteredSessions = sessions.filter((s) => {
     if (historyFilter === 'passed') {
       if (!(s.status === 'completed' && s.passed)) return false
@@ -87,6 +94,12 @@ export default function ProgressPage() {
     }
     return true
   })
+
+  const clearFilters = () => {
+    setHistoryFilter('all')
+    setHistoryCycleFilter('all')
+    setHistoryDateFilter('all')
+  }
 
   const handleCycleDayTap = (dayNumber: number) => {
     if (!progress || !cycle) return
@@ -115,6 +128,11 @@ export default function ProgressPage() {
     { value: 'records', label: pl.tabRecords },
   ]
 
+  const programOptions = settings.enabledPrograms.map((p) => ({
+    value: p,
+    label: p === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram,
+  }))
+
   if (loading) {
     return (
       <div className="mx-auto max-w-lg px-4 py-6 safe-top">
@@ -133,24 +151,18 @@ export default function ProgressPage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 safe-top">
-      <h1 className="text-xl font-bold">{pl.navProgress}</h1>
+      <PageHeader title={pl.navProgress} />
 
-      <select
-        className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2 text-sm"
-        value={program}
-        onChange={(e) => setProgram(e.target.value as Program)}
-      >
-        {settings.enabledPrograms.map((p) => (
-          <option key={p} value={p}>{p === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram}</option>
-        ))}
-      </select>
+      {programOptions.length > 1 && (
+        <SegmentedControl className="mb-4" options={programOptions} value={program} onChange={setProgram} />
+      )}
 
-      <SegmentedControl className="mt-4" options={tabOptions} value={tab} onChange={setTab} />
+      <SegmentedControl options={tabOptions} value={tab} onChange={setTab} />
 
       {tab === 'overview' && (
         <>
           {stats && (
-            <div className="mt-4 grid grid-cols-3 gap-3">
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
               <StatTile label={pl.recordTest} value={stats.maxTestRecord ?? '—'} highlight={stats.maxTestRecord !== null} />
               <StatTile
                 label={pl.cycleDays}
@@ -179,7 +191,11 @@ export default function ProgressPage() {
               </ResponsiveContainer>
             </Card>
           ) : (
-            <EmptyState icon={<LogoMark size={48} />} title={pl.firstWorkout} />
+            <EmptyState
+              icon={<LogoMark size={48} />}
+              title={pl.firstWorkout}
+              action={{ label: pl.startFirstWorkout, onClick: () => navigate(`/workout/${program}`) }}
+            />
           )}
 
           {maxPerDay.length > 0 && (
@@ -213,7 +229,7 @@ export default function ProgressPage() {
 
       {tab === 'history' && (
         <div className="mt-4">
-          <div className="mb-3 flex flex-col gap-3">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
             <SegmentedControl
               options={[
                 { value: 'all' as const, label: pl.filterAll },
@@ -223,7 +239,12 @@ export default function ProgressPage() {
               value={historyFilter}
               onChange={setHistoryFilter}
             />
-            <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setFiltersOpen((v) => !v)}>
+              {filtersOpen ? pl.lessFilters : pl.moreFilters}
+            </Button>
+          </div>
+          {filtersOpen && (
+            <div className="mb-3 flex flex-col gap-2">
               <SegmentedControl
                 options={[
                   { value: 'all' as const, label: pl.filterCycleAll },
@@ -242,33 +263,49 @@ export default function ProgressPage() {
                 onChange={setHistoryDateFilter}
               />
             </div>
-            {sessions.length > 0 && (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="self-start"
-                onClick={async () => {
-                  const csv = await exportSessionsCsv(program)
-                  downloadCsv(`smartreps-${program}-${new Date().toISOString().slice(0, 10)}.csv`, csv)
-                  showToast(pl.toastExportDone, 'success')
-                }}
-              >
-                {pl.exportCsv}
-              </Button>
-            )}
-          </div>
+          )}
+          {sessions.length > 0 && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mb-3"
+              onClick={async () => {
+                const csv = await exportSessionsCsv(program)
+                downloadCsv(`smartreps-${program}-${new Date().toISOString().slice(0, 10)}.csv`, csv)
+                showToast(pl.toastExportDone, 'success')
+              }}
+            >
+              {pl.exportCsv}
+            </Button>
+          )}
           {filteredSessions.length === 0 ? (
-            <EmptyState icon={<LogoMark size={48} />} title={pl.firstWorkout} />
+            sessions.length === 0 ? (
+              <EmptyState
+                icon={<LogoMark size={48} />}
+                title={pl.firstWorkout}
+                action={{ label: pl.startFirstWorkout, onClick: () => navigate(`/workout/${program}`) }}
+              />
+            ) : (
+              <EmptyState
+                icon={<LogoMark size={48} />}
+                title={pl.filterEmptyHistory}
+                action={
+                  filtersActive
+                    ? { label: pl.clearFilters, onClick: clearFilters }
+                    : undefined
+                }
+              />
+            )
           ) : (
             <div className="flex flex-col gap-2">
               {filteredSessions.slice(0, 20).map((s) => (
                 <Card key={s.id} className="cursor-pointer py-3 sr-card" onClick={() => setSelectedSession(s)}>
                   <p className="text-sm font-medium">
                     {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })} · Dzień {s.dayNumber}
-                    {s.passed === false ? ' (nieudany)' : ' ✓'}
+                    {s.passed === false ? ` (${pl.failedShort})` : ` · ${pl.passedShort}`}
                   </p>
                   <p className="text-xs text-[var(--sr-text-muted)]">
-                    {getCycleById(s.cycleId)?.nameShort ?? s.cycleId} · {s.totalReps ?? 0} reps
+                    {getCycleById(s.cycleId)?.nameShort ?? s.cycleId} · {s.totalReps ?? 0} {pl.repsUnit}
                   </p>
                 </Card>
               ))}
@@ -289,11 +326,11 @@ export default function ProgressPage() {
               <button
                 key={d.dayNumber}
                 type="button"
-                className="flex-1 text-center"
+                className="flex min-h-11 flex-1 flex-col items-center justify-center"
                 onClick={() => handleCycleDayTap(d.dayNumber)}
               >
                 <div
-                  className="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full text-xs"
+                  className="mx-auto mb-1 flex h-11 w-11 items-center justify-center rounded-full text-xs font-medium"
                   style={{
                     background:
                       dayStatus === 'completed'
@@ -309,55 +346,56 @@ export default function ProgressPage() {
                           : 'var(--sr-text-muted)',
                   }}
                 >
-                  {dayStatus === 'completed' ? 'OK' : d.dayNumber}
+                  {dayStatus === 'completed' ? pl.ok : d.dayNumber}
                 </div>
                 <p className="text-[10px] text-[var(--sr-text-muted)]">D{d.dayNumber}</p>
               </button>
               )
             })}
           </div>
-          <p className="mt-2 text-xs text-[var(--sr-text-muted)]">Tap ukończony dzień → sesja · przyszły → plan</p>
+          <p className="mt-2 text-xs text-[var(--sr-text-muted)]">Ukończony dzień → sesja · przyszły → plan</p>
         </Card>
       )}
 
-      {selectedSession && (
-        <div className="fixed inset-0 z-50 flex items-end bg-[var(--sr-bg-overlay)] safe-bottom">
-          <div className="max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-t-[var(--sr-radius-xl)] bg-[var(--sr-bg-elevated)] p-6">
-            <h3 className="font-semibold">{pl.sessionDetails}</h3>
-            <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">
-              Dzień {selectedSession.dayNumber} · {selectedSession.totalReps ?? 0} reps
+      <Sheet open={!!selectedSession} onClose={() => setSelectedSession(null)} title={pl.sessionDetails}>
+        {selectedSession && (
+          <>
+            <p className="text-sm text-[var(--sr-text-secondary)]">
+              Dzień {selectedSession.dayNumber} · {selectedSession.totalReps ?? 0} {pl.repsUnit}
             </p>
             <ul className="mt-4 space-y-1 text-sm">
               {selectedSession.setResults.map((r) => (
-                <li key={r.setNumber}>S{r.setNumber}: {r.actual} {r.passed ? '' : '(fail)'}</li>
+                <li key={r.setNumber}>
+                  {pl.setColumn} {r.setNumber}: {r.actual}{' '}
+                  {r.passed ? '' : `(${pl.failedShort})`}
+                </li>
               ))}
             </ul>
-            <button type="button" className="mt-4 text-sm text-[var(--sr-brand-primary)]" onClick={() => setSelectedSession(null)}>
-              {pl.close}
-            </button>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Sheet>
 
-      {cyclePreviewDay !== null && cycle && (
-        <div className="fixed inset-0 z-50 flex items-end bg-[var(--sr-bg-overlay)] safe-bottom">
-          <div className="w-full max-w-lg rounded-t-[var(--sr-radius-xl)] bg-[var(--sr-bg-elevated)] p-6">
-            <h3 className="font-semibold">{pl.cycleDayPreview} {cyclePreviewDay}</h3>
-            {(() => {
-              const day = cycle.days.find((d) => d.dayNumber === cyclePreviewDay)
-              if (!day) return null
-              return (
-                <ul className="mt-3 space-y-1 text-sm text-[var(--sr-text-secondary)]">
-                  {day.sets.map((s, i) => (
-                    <li key={i}>Seria {i + 1}: {formatSetTarget(s)} · przerwa {day.restBetweenSetsSec}s</li>
-                  ))}
-                </ul>
-              )
-            })()}
-            <Button variant="ghost" className="mt-4" fullWidth onClick={() => setCyclePreviewDay(null)}>{pl.close}</Button>
-          </div>
-        </div>
-      )}
+      <Sheet
+        open={cyclePreviewDay !== null}
+        onClose={() => setCyclePreviewDay(null)}
+        title={`${pl.cycleDayPreview} ${cyclePreviewDay ?? ''}`}
+      >
+        {cyclePreviewDay !== null && cycle && (() => {
+          const day = cycle.days.find((d) => d.dayNumber === cyclePreviewDay)
+          if (!day) return null
+          return (
+            <ul className="space-y-2 text-sm text-[var(--sr-text-secondary)]">
+              {day.sets.map((s, i) => (
+                <li key={i} className="flex justify-between border-b border-[var(--sr-border-subtle)] py-2">
+                  <span>{pl.setColumn} {i + 1}</span>
+                  <span>{formatSetTarget(s)}</span>
+                </li>
+              ))}
+              <li className="pt-2 text-xs text-[var(--sr-text-muted)]">{pl.restBetweenSets(day.restBetweenSetsSec)}</li>
+            </ul>
+          )
+        })()}
+      </Sheet>
     </div>
   )
 }

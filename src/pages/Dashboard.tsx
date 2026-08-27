@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MoreVertical } from 'lucide-react'
 import { LogoFull } from '@/components/brand/Logo'
@@ -30,17 +30,10 @@ const programMeta: Record<Program, { label: string; accent: string }> = {
 
 function ProgramCard({
   program,
-  onGlobalResume,
+  reloadKey,
 }: {
   program: Program
-  onGlobalResume: (info: {
-    program: Program
-    day?: number
-    set?: number
-    total?: number
-    stale?: boolean
-    clear?: boolean
-  }) => void
+  reloadKey: number
 }) {
   const navigate = useNavigate()
   const [progress, setProgress] = useState<LocalProgramProgress | undefined>()
@@ -50,7 +43,6 @@ function ProgramCard({
   const [showMenu, setShowMenu] = useState(false)
   const [trainDespiteRest, setTrainDespiteRest] = useState(false)
   const [showStaleConfirm, setShowStaleConfirm] = useState(false)
-
   const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -66,17 +58,14 @@ function ProgramCard({
           if (active) {
             const cycle = getCycleById(prog.cycleId)
             const day = cycle?.days.find((d) => d.dayNumber === prog.currentDay)
-            const info = {
+            setResume({
               day: prog.currentDay,
               set: active.currentSetIndex + 1,
               total: day?.sets.length ?? 5,
               stale: isStaleActiveWorkout(active.updatedAt),
-            }
-            setResume(info)
-            onGlobalResume({ program, ...info })
+            })
           } else {
             setResume(null)
-            onGlobalResume({ program, clear: true })
           }
         }
       } catch {
@@ -85,8 +74,8 @@ function ProgramCard({
         setLoading(false)
       }
     }
-    load()
-  }, [program, onGlobalResume])
+    void load()
+  }, [program, reloadKey])
 
   if (loading) return <SkeletonCard className="h-40" />
 
@@ -124,7 +113,13 @@ function ProgramCard({
       : available || trainDespiteRest
 
   const badgeVariant =
-    status === 'Gotowy' ? 'success' : status === 'Przerwa' ? 'warning' : status === 'Test' ? 'info' : 'error'
+    status === pl.statusReady
+      ? 'success'
+      : status === pl.statusRest
+        ? 'warning'
+        : status === pl.statusTest
+          ? 'info'
+          : 'error'
 
   return (
     <Card id={`program-${program}`} className="border-l-4 sr-card scroll-mt-24" style={{ borderLeftColor: programMeta[program].accent }}>
@@ -132,34 +127,45 @@ function ProgramCard({
         <p className="font-semibold">{programMeta[program].label}</p>
         <div className="flex items-center gap-2">
           <Badge variant={badgeVariant}>{status}</Badge>
-          <button type="button" aria-label="Menu programu" onClick={() => setShowMenu((v) => !v)}>
+          <button
+            type="button"
+            aria-label={pl.menuProgram}
+            aria-expanded={showMenu}
+            className="flex min-h-11 min-w-11 items-center justify-center"
+            onClick={() => setShowMenu((v) => !v)}
+          >
             <MoreVertical size={18} className="text-[var(--sr-text-muted)]" />
           </button>
         </div>
       </div>
 
       {showMenu && (
-        <div className="mb-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] py-1 text-sm">
-          <button type="button" className="block w-full px-3 py-2 text-left" onClick={() => navigate(`/setup/test/${program}`)}>
-            {pl.menuChangeLevel}
-          </button>
-          <button type="button" className="block w-full px-3 py-2 text-left" onClick={() => navigate('/progress')}>
-            {pl.menuHistory}
-          </button>
-          <button type="button" className="block w-full px-3 py-2 text-left" onClick={() => navigate(`/setup/test/${program}?retest=1`)}>
-            {pl.menuRetest}
-          </button>
-        </div>
+        <>
+          <button type="button" className="fixed inset-0 z-10" aria-label={pl.close} onClick={() => setShowMenu(false)} />
+          <div className="relative z-20 mb-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] py-1 text-sm">
+            <button type="button" className="block min-h-11 w-full px-3 py-2 text-left" onClick={() => { setShowMenu(false); navigate(`/setup/test/${program}`) }}>
+              {pl.menuChangeLevel}
+            </button>
+            <button type="button" className="block min-h-11 w-full px-3 py-2 text-left" onClick={() => { setShowMenu(false); navigate('/progress') }}>
+              {pl.menuHistory}
+            </button>
+            <button type="button" className="block min-h-11 w-full px-3 py-2 text-left" onClick={() => { setShowMenu(false); navigate(`/setup/test/${program}?retest=1`) }}>
+              {pl.menuRetest}
+            </button>
+          </div>
+        </>
       )}
 
       {cycle && (
         <>
-          <div className="mb-2 flex gap-1">
+          <div className="mb-2 flex gap-1" role="list" aria-label={pl.cycleDays}>
             {cycle.days.map((d) => {
               const dayStatus = getCycleDayStatus(progress, d.dayNumber, cycle.days.length)
               return (
               <div
                 key={d.dayNumber}
+                role="listitem"
+                aria-label={`${pl.dayOfTotal(d.dayNumber, cycle.days.length)} — ${dayStatus}`}
                 className="h-1.5 flex-1 rounded-full"
                 style={{
                   background:
@@ -176,9 +182,9 @@ function ProgramCard({
           <p className="text-sm text-[var(--sr-text-secondary)]">
             {cycle.nameShort} ·{' '}
             {progress.status === 'test_pending'
-              ? `Cykl ukończony · ${cycle.days.length}/${cycle.days.length} dni`
-              : `Dzień ${progress.currentDay}/${cycle.days.length}`}{' '}
-            · Próba {progress.cycleAttempt}
+              ? pl.cycleDoneDays(cycle.days.length, cycle.days.length)
+              : pl.dayOfTotal(progress.currentDay, cycle.days.length)}{' '}
+            · {pl.attemptLabel(progress.cycleAttempt)}
           </p>
 
           {stats && (
@@ -192,7 +198,7 @@ function ProgramCard({
                 <p>{stats.nextWorkoutLabel}</p>
               </div>
               {stats.lastTotalReps !== null && (
-                <p className="col-span-2">{stats.lastTotalReps} reps łącznie (ostatni trening)</p>
+                <p className="col-span-2">{pl.totalRepsLastSession(stats.lastTotalReps)}</p>
               )}
               {stats.maxLastSetTrend.delta !== null && (
                 <p className="col-span-2">
@@ -209,13 +215,13 @@ function ProgramCard({
             </p>
           )}
 
-          {program === 'pullups' && status === 'Przerwa' && (
+          {program === 'pullups' && status === pl.statusRest && (
             <div className="mt-2">
               <p className="text-xs text-[var(--sr-text-muted)]">{pl.crossTraining}</p>
               <Button
                 variant="ghost"
                 size="sm"
-                className="mt-1 px-0"
+                className="mt-1 min-h-11 px-0"
                 onClick={() => {
                   const el = document.getElementById('program-pushups')
                   el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -256,7 +262,6 @@ function ProgramCard({
                 onClick={async () => {
                   await clearActiveWorkout(program)
                   setResume(null)
-                  onGlobalResume({ program, clear: true })
                 }}
               >
                 {pl.startFresh}
@@ -314,40 +319,7 @@ function ProgramCard({
 export default function Dashboard() {
   const { settings, setupQueue } = useAppStore()
   const navigate = useNavigate()
-  const [resumeByProgram, setResumeByProgram] = useState<
-    Partial<Record<Program, { day: number; set: number; total: number; stale?: boolean }>>
-  >({})
-  const [globalStale, setGlobalStale] = useState<{
-    program: Program
-    day: number
-    set: number
-    total: number
-  } | null>(null)
-  const [resumeEpoch, setResumeEpoch] = useState(0)
-
-  const handleGlobalResume = useCallback((info: {
-    program: Program
-    day?: number
-    set?: number
-    total?: number
-    stale?: boolean
-    clear?: boolean
-  }) => {
-    if (info.clear) {
-      setResumeByProgram((prev) => {
-        const next = { ...prev }
-        delete next[info.program]
-        return next
-      })
-      return
-    }
-    if (info.day != null && info.set != null && info.total != null) {
-      setResumeByProgram((prev) => ({
-        ...prev,
-        [info.program]: { day: info.day!, set: info.set!, total: info.total!, stale: info.stale },
-      }))
-    }
-  }, [])
+  const [resumeEpoch] = useState(0)
 
   useEffect(() => {
     if (!settings.onboardingComplete) {
@@ -379,67 +351,9 @@ export default function Dashboard() {
         <LogoFull />
       </header>
 
-      {Object.entries(resumeByProgram).map(([prog, resume]) => {
-        if (!resume) return null
-        const programKey = prog as Program
-        return (
-        <Card key={prog} className="mb-4 border border-[var(--sr-brand-primary)] sr-card">
-          <p className="text-sm font-medium">
-            {programMeta[programKey].label}: {pl.continueWorkout(resume.day, resume.set, resume.total)}
-          </p>
-          {resume.stale && (
-            <p className="mt-1 text-xs text-[var(--sr-warning)]">{pl.staleSession}</p>
-          )}
-          <Button
-            className="mt-3"
-            size="sm"
-            fullWidth
-            onClick={() => {
-              if (resume.stale) {
-                setGlobalStale({
-                  program: programKey,
-                  day: resume.day,
-                  set: resume.set,
-                  total: resume.total,
-                })
-              } else {
-                navigate(`/workout/${prog}`)
-              }
-            }}
-          >
-            {pl.continueWorkout(resume.day, resume.set, resume.total)}
-          </Button>
-        </Card>
-        )
-      })}
-
-      {globalStale && (
-        <ConfirmSheet
-          title={pl.staleSessionTitle}
-          message={pl.staleSessionConfirm}
-          confirmLabel={pl.continueWorkout(globalStale.day, globalStale.set, globalStale.total)}
-          cancelLabel={pl.startFresh}
-          onConfirm={() => {
-            const p = globalStale.program
-            setGlobalStale(null)
-            navigate(`/workout/${p}`)
-          }}
-          onCancel={async () => {
-            await clearActiveWorkout(globalStale.program)
-            setResumeByProgram((prev) => {
-              const next = { ...prev }
-              delete next[globalStale.program]
-              return next
-            })
-            setGlobalStale(null)
-            setResumeEpoch((n) => n + 1)
-          }}
-        />
-      )}
-
       <div className="flex flex-col gap-4">
         {settings.enabledPrograms.map((p) => (
-          <ProgramCard key={`${p}-${resumeEpoch}`} program={p} onGlobalResume={handleGlobalResume} />
+          <ProgramCard key={`${p}-${resumeEpoch}`} program={p} reloadKey={resumeEpoch} />
         ))}
       </div>
     </div>

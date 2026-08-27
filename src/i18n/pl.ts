@@ -38,12 +38,21 @@ export const pl = {
   restLabel: 'Przerwa',
   nextSet: (n: number, reps: number, unit: string) =>
     `Następnie: Seria ${n} · ${reps} ${unit}`,
-  workoutHint: 'Tap Zrobione = osiągnąłeś cel',
+  workoutHint:
+    'Ustaw liczbę powtórzeń, potem Zrobione. Cel = sukces; mniej niż cel = nieudana seria.',
+  workoutFailBanner: (actual: number, target: number) =>
+    `Cel ${target}, zrobione ${actual} — seria nieudana`,
+  restInProgress: 'Trwa przerwa — poczekaj lub otwórz timer',
   skipRestConfirm: 'Pominąć przerwę i przejść do następnej serii?',
   leaveWorkoutConfirm: 'Trening w toku. Wyjść? Postęp sesji zostanie zapisany.',
+  leaveWorkoutTitle: 'Wyjść z treningu?',
   previewDayPlan: 'Podgląd planu dnia',
   helpTechnique: 'Pomoc techniki',
-  negativeCountdown: (sec: number) => `Opuszczanie · ${sec}s`,
+  negativeCountdown: (sec: number) => `Przygotuj opuszczanie · ${sec}s`,
+  negativeBanner: 'Opuszczaj powoli (3–5 s). Liczy się pełna kontrola ruchu.',
+  restBetweenSets: (sec: number) => `Przerwa między seriami: ${sec}s`,
+  setColumn: 'Seria',
+  targetColumn: 'Cel',
 
   // Test
   testPushups: 'Test pompek',
@@ -55,9 +64,56 @@ export const pl = {
   cantPullup: 'Nie umiem się podciągnąć',
   warmup: 'Rozgrzewka (wymagana)',
   warmupRequired: 'Zaznacz wszystkie punkty rozgrzewki przed testem.',
+  warmupItemsPushups: ['Wymachy ramion', 'Skręty tułowia', '10 lekkich pompek'],
+  warmupItemsPullups: ['Wymachy i krążenia barków', 'Aktywacja łopatek (scapular pull)', '10–15 s zwisu na drążku'],
+  /** @deprecated use warmupItemsPushups / warmupItemsPullups */
   warmupItems: ['Wymachy ramion', 'Skręty tułowia', '10 lekkich pompek'],
   nextPickCycle: 'Dalej — wybierz cykl',
   testBlockedRest: 'Poczekaj co najmniej 2 dni przerwy przed i po teście max.',
+  setupProgress: 'Postęp konfiguracji',
+  setupStepTest: 'Test',
+  setupStepCycle: 'Poziom',
+  setupStepStart: 'Start',
+  setupStepLogin: 'Konto',
+  setupStepCurrent: 'aktualny krok',
+  restoringSetup: 'Przywracam konfigurację…',
+  lessReps: 'Mniej',
+  moreReps: 'Więcej',
+  back: 'Wstecz',
+  next: 'Dalej',
+  ok: 'OK',
+  repsUnit: 'powtórzeń',
+  failedShort: 'nieudana',
+  passedShort: 'udana',
+  filterEmptyHistory: 'Brak sesji dla wybranych filtrów',
+  clearFilters: 'Wyczyść filtry',
+  statusReady: 'Gotowy',
+  statusRest: 'Przerwa',
+  statusTest: 'Test',
+  statusRestart: 'Restart',
+  statusPaused: 'Wstrzymany',
+  heatmapSummary: (n: number, weeks: number) =>
+    `${n} treningów w ostatnich ${weeks} tyg.`,
+  loginTitle: 'Zapisz postęp w chmurze',
+  loginSubtitle: 'Opcjonalnie — możesz pominąć i trenować offline na tym urządzeniu.',
+  loginEmailLabel: 'E-mail',
+  loginEmailPlaceholder: 'jan@example.com',
+  loginSendLink: 'Wyślij link magiczny',
+  loginSent: 'Sprawdź skrzynkę — kliknij link, aby się zalogować.',
+  loginSkip: 'Pomiń — trenuję offline',
+  loginInvalidEmail: 'Podaj poprawny adres e-mail.',
+  onboardingWelcome: 'Witaj w SmartReps',
+  onboardingPickProgram: 'Wybierz program',
+  onboardingRulesTitle: 'Jak to działa',
+  restGateHint: (days: number) =>
+    `Program zaleca minimum ${days} ${days === 1 ? 'dzień' : 'dni'} przerwy po ostatnim treningu.`,
+  totalRepsLastSession: (n: number) => `${n} powtórzeń łącznie (ostatni trening)`,
+  cycleDoneDays: (done: number, total: number) => `Cykl ukończony · ${done}/${total} dni`,
+  dayOfTotal: (day: number, total: number) => `Dzień ${day}/${total}`,
+  attemptLabel: (n: number) => `Próba ${n}`,
+  pickLevelCta: 'Wybierz ten poziom',
+  menuProgram: 'Menu programu',
+  menuWorkout: 'Menu treningu',
 
   // Disclaimer
   healthDisclaimer:
@@ -86,6 +142,8 @@ export const pl = {
   cycleDayPreview: 'Podgląd dnia',
   showAllCycles: 'Pokaż wszystkie poziomy',
   hideOtherCycles: 'Ukryj inne poziomy',
+  moreFilters: 'Więcej filtrów',
+  lessFilters: 'Mniej filtrów',
   retestTitle: 'Wynik testu — wybierz następny cykl',
   repeatCycle: 'Powtórz poprzedni cykl',
   repeatPowyzej40: 'Powtórz cykl powyżej-40',
@@ -127,6 +185,7 @@ export const pl = {
 
   // Empty
   firstWorkout: 'Twój pierwszy trening czeka',
+  startFirstWorkout: 'Rozpocznij trening',
 
   // Offline
   offline: 'Offline · zapiszesz po połączeniu',

@@ -1,5 +1,6 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { pl } from '@/i18n/pl'
 
 function StepIllustration({ step }: { step: 1 | 2 | 3 }) {
@@ -18,10 +19,15 @@ export default function TechniquePushups() {
   const [searchParams] = useSearchParams()
   const fromWorkout = searchParams.get('from') === 'workout'
 
+  const goBack = () => {
+    if (window.history.length > 1) navigate(-1)
+    else navigate(fromWorkout ? '/' : '/setup/test/pushups')
+  }
+
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-      <h1 className="text-xl font-bold">Technika — pompki na kolanach</h1>
-      <div className="mt-6 space-y-6">
+      <PageHeader title="Technika — pompki na kolanach" onBack={goBack} />
+      <div className="mt-2 space-y-6">
         <div>
           <StepIllustration step={1} />
           <p className="text-sm text-[var(--sr-text-secondary)]">Ustaw dłonie na szerokość barków, ciało w linii prostej od kolan do głowy.</p>
@@ -35,7 +41,7 @@ export default function TechniquePushups() {
           <p className="text-sm text-[var(--sr-text-secondary)]">Wypchnij się do pozycji startowej — pełna amplituda.</p>
         </div>
       </div>
-      <Button className="mt-8" fullWidth onClick={() => navigate(-1)}>
+      <Button className="mt-8" fullWidth onClick={goBack}>
         {fromWorkout ? pl.techniqueContinueWorkout : pl.techniqueContinueTest}
       </Button>
     </div>

@@ -3,6 +3,9 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card, Badge } from '@/components/ui/Card'
+import { SetupStepper } from '@/components/setup/SetupStepper'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { SkeletonCard } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { selectCycleByTest, isHigherCycle, isLowerCycle, getRetestOptions } from '@/lib/cycle-selector'
@@ -11,6 +14,7 @@ import { getCyclesByProgram } from '@/data/plans'
 import { initProgramProgress, updateProgramProgress, getProgramProgress } from '@/lib/program-service'
 import { db } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
+import { Sheet } from '@/components/ui/Sheet'
 import { getCelebrationBadge, formatSetTarget } from '@/lib/progress-engine'
 import type { Program } from '@/data/plans/types'
 
@@ -51,7 +55,12 @@ export default function CyclePicker() {
   }, [pendingTest, program, isRetest, navigate])
 
   if (!pendingTest || pendingTest.program !== program) {
-    return null
+    return (
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+        <SkeletonCard className="h-48" />
+        <p className="mt-4 text-center text-sm text-[var(--sr-text-muted)]">{pl.restoringSetup}</p>
+      </div>
+    )
   }
 
   const recommended = selectCycleByTest(program, pendingTest.reps)
@@ -139,12 +148,13 @@ export default function CyclePicker() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-      <h1 className="text-xl font-bold">{isRetest ? pl.retestTitle : pl.pickLevel}</h1>
-      <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">
-        Test: {pendingTest.reps} {program === 'pushups' ? pl.pushups : pl.pullups}
-      </p>
+      {!isRetest && <SetupStepper current="cycle" />}
+      <PageHeader
+        title={isRetest ? pl.retestTitle : pl.pickLevel}
+        subtitle={`Test: ${pendingTest.reps} ${program === 'pushups' ? pl.pushups : pl.pullups}`}
+      />
 
-      {celebration && <Badge variant="success" className="mt-4">{celebration}</Badge>}
+      {celebration && <Badge variant="success">{celebration}</Badge>}
 
       {isRetest && retestOptions && (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -204,7 +214,7 @@ export default function CyclePicker() {
       )}
 
       <Button className="mt-6" fullWidth disabled={submitting} onClick={handleStart}>
-        Rozpocznij od {selected.nameShort}
+        {pl.pickLevelCta} — {selected.nameShort}
       </Button>
     </div>
   )
@@ -281,23 +291,22 @@ function FullCycleSheet({
   onClose: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-[55] flex items-end bg-[var(--sr-bg-overlay)] safe-bottom">
-      <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-t-[var(--sr-radius-xl)] bg-[var(--sr-bg-elevated)] p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-semibold">{pl.previewFullCycle} — {cycle.nameShort}</h3>
-          <button type="button" onClick={onClose} className="text-[var(--sr-text-muted)]">{pl.close}</button>
-        </div>
-        <div className="space-y-4">
-          {cycle.days.map((day) => (
-            <div key={day.dayNumber} className="border-t border-[var(--sr-border-subtle)] pt-3">
-              <p className="text-sm font-medium">Dzień {day.dayNumber} · przerwa {day.restBetweenSetsSec}s</p>
-              <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
-                {day.sets.map((s, i) => `S${i + 1}: ${formatSetTarget(s)}`).join(' · ')}
-              </p>
-            </div>
-          ))}
-        </div>
+    <Sheet open onClose={onClose} title={`${pl.previewFullCycle} — ${cycle.nameShort}`}>
+      <div className="space-y-4">
+        {cycle.days.map((day) => (
+          <div key={day.dayNumber} className="border-t border-[var(--sr-border-subtle)] pt-3">
+            <p className="text-sm font-medium">Dzień {day.dayNumber} · {pl.restBetweenSets(day.restBetweenSetsSec)}</p>
+            <ul className="mt-2 space-y-1 text-sm text-[var(--sr-text-secondary)]">
+              {day.sets.map((s, i) => (
+                <li key={i} className="flex justify-between">
+                  <span>{pl.setColumn} {i + 1}</span>
+                  <span>{formatSetTarget(s)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
-    </div>
+    </Sheet>
   )
 }

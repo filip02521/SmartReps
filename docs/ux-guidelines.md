@@ -69,4 +69,5 @@
 - [x] Filtry historii — status, bieżący cykl, zakres dat (30/90 dni)
 - [x] Audyt logiki ekranów (Critical/High) — MaxTest ±, magic link, onboarding gates, Profile
 - [x] Residual: dedup max_tests, testDraft, SE layout (dvh/min-h-0/offline/tab pad)
+- [x] Audyt UX/UI P0–P2 — rest gate, warmup per program, resume, fail model, sheets, stepper, Progress density, a11y
 - [ ] iPhone SE 375px — final smoke na urządzeniu (layout hardening done in CSS)

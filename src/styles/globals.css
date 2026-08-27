@@ -111,11 +111,44 @@ html[data-offline='1'] .safe-top {
   animation: pulse-success 0.4s ease;
 }
 
+@keyframes sheet-in {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-sheet-in {
+  animation: sheet-in 180ms ease-out;
+}
+
+@keyframes check-in {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.animate-check-in {
+  animation: check-in 200ms ease-out;
+}
+
 [data-high-contrast='true'] {
   --sr-border-subtle: #71717a;
   --sr-border-strong: #a1a1aa;
   --sr-text-primary: #ffffff;
-  --sr-text-secondary: #d4d4d8;
+  --sr-text-secondary: #e4e4e7;
+  --sr-text-muted: #a1a1aa;
+  --sr-brand-primary: #818cf8;
+  --sr-success: #4ade80;
+  --sr-error: #f87171;
+  --sr-warning: #fbbf24;
+}
+
+[data-theme='light'][data-high-contrast='true'] {
+  --sr-text-primary: #09090b;
+  --sr-text-secondary: #27272a;
+  --sr-text-muted: #52525b;
+  --sr-brand-primary: #4338ca;
+  --sr-success: #15803d;
+  --sr-error: #b91c1c;
+  --sr-warning: #a16207;
 }
 
 [data-high-contrast='true'] button,

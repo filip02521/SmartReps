@@ -21,33 +21,39 @@ export function ProgressRing({
   const cy = size / 2
   const circumference = 2 * Math.PI * r
   const clamped = Math.min(1, Math.max(0, progress))
-  const offset = circumference * (1 - clamped)
+  const offset = reducedMotion ? circumference * (1 - clamped) : circumference * (1 - clamped)
+  const gradId = `sr-ring-gradient-${Math.round(size)}-${strokeWidth}`
 
   return (
-    <div className={cn('relative inline-flex', className)} style={{ width: size, height: size }}>
-      {!reducedMotion && (
-        <svg width={size} height={size} className="-rotate-90" aria-hidden>
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--sr-bg-surface)" strokeWidth={strokeWidth} />
-          <circle
-            cx={cx}
-            cy={cy}
-            r={r}
-            fill="none"
-            stroke="url(#sr-ring-gradient)"
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            style={{ transition: 'stroke-dashoffset 300ms ease' }}
-          />
-          <defs>
-            <linearGradient id="sr-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop stopColor="var(--sr-brand-primary)" />
-              <stop offset="1" stopColor="var(--sr-brand-secondary)" />
-            </linearGradient>
-          </defs>
-        </svg>
-      )}
+    <div
+      className={cn('relative inline-flex', className)}
+      style={{ width: size, height: size }}
+      role="progressbar"
+      aria-valuenow={Math.round(clamped * 100)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--sr-bg-surface)" strokeWidth={strokeWidth} />
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          fill="none"
+          stroke={`url(#${gradId})`}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          style={reducedMotion ? undefined : { transition: 'stroke-dashoffset 300ms ease' }}
+        />
+        <defs>
+          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="var(--sr-brand-primary)" />
+            <stop offset="1" stopColor="var(--sr-brand-secondary)" />
+          </linearGradient>
+        </defs>
+      </svg>
       {children && (
         <div className="absolute inset-0 flex items-center justify-center">{children}</div>
       )}

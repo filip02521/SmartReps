@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
 import { ReactNode } from 'react'
 import { Button } from '@/components/ui/Button'
+import { pl } from '@/i18n/pl'
 
 export function EmptyState({
   icon,
@@ -72,8 +73,12 @@ export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: (
 
 export function OfflineBar() {
   return (
-    <div className="fixed left-0 right-0 top-0 z-[80] bg-[var(--sr-warning)]/20 px-4 py-2 text-center text-xs font-medium text-[var(--sr-warning)] safe-top">
-      Offline · zapiszesz po połączeniu
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed left-0 right-0 top-0 z-[80] bg-[var(--sr-warning)]/20 px-4 py-2 text-center text-xs font-medium text-[var(--sr-warning)] safe-top"
+    >
+      {pl.offline}
     </div>
   )
 }

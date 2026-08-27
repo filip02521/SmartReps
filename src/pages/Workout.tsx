@@ -56,8 +56,10 @@ export default function WorkoutPage() {
   const [testPendingBlocked, setTestPendingBlocked] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [showPlanSheet, setShowPlanSheet] = useState(false)
   const [negativeCountdown, setNegativeCountdown] = useState<number | null>(null)
+  const negativePrepForSetRef = useRef<number | null>(null)
   const [showStaleConfirm, setShowStaleConfirm] = useState(false)
   const [staleResume, setStaleResume] = useState<{ day: number; set: number; total: number } | null>(null)
   const staleConfirmedRef = useRef(false)
@@ -240,23 +242,11 @@ export default function WorkoutPage() {
     void initWorkout(generation)
     store.setImmersive(true)
 
-    const onPopState = () => {
-      const s = useWorkoutStore.getState()
-      if (s.sessionId && s.setResults.length < setsCountRef.current) {
-        const leave = window.confirm(pl.leaveWorkoutConfirm)
-        if (!leave) {
-          window.history.pushState(null, '', window.location.href)
-        }
-      }
-    }
-    window.addEventListener('popstate', onPopState)
-
     return () => {
       initGenerationRef.current += 1
       store.setImmersive(false)
       releaseWakeLock()
       stopRestTimerWorker()
-      window.removeEventListener('popstate', onPopState)
     }
   }, [store, program, forceStart, initWorkout])
 
@@ -299,6 +289,23 @@ export default function WorkoutPage() {
     return () => clearTimeout(t)
   }, [negativeCountdown])
 
+  // Pre-set negative prep when landing on an exact set (not after Done)
+  useEffect(() => {
+    if (!initialized || !day || !cycle) return
+    const resting = store.restTimer !== null && store.restTimer.mode !== 'idle'
+    if (resting) return
+    const target = day.sets[store.currentSetIndex]
+    if (cycle.variant !== 'negative' || !target || target.kind !== 'exact') {
+      setNegativeCountdown(null)
+      negativePrepForSetRef.current = null
+      return
+    }
+    if (negativePrepForSetRef.current === store.currentSetIndex) return
+    negativePrepForSetRef.current = store.currentSetIndex
+    setNegativeCountdown(4)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- react to set index + rest mode only
+  }, [initialized, day, cycle, store.currentSetIndex, store.restTimer?.mode])
+
   const persistState = async () => {
     const s = useWorkoutStore.getState()
     if (!s.sessionId) return
@@ -312,13 +319,14 @@ export default function WorkoutPage() {
 
   const handleDone = async () => {
     if (!currentTarget || !day || !progress || !sessionMeta || finishingRef.current) return
+    if (store.restTimer && store.restTimer.mode !== 'idle') {
+      store.setRestTimer({ ...store.restTimer, mode: 'expanded' })
+      return
+    }
+    if (negativeCountdown !== null && negativeCountdown > 0) return
     finishingRef.current = true
 
     try {
-      if (cycle?.variant === 'negative' && currentTarget.kind === 'exact') {
-        setNegativeCountdown(4)
-      }
-
       const passed = validateSet(currentTarget, actual)
       const result: SetResultDraft = {
         setNumber: store.currentSetIndex + 1,
@@ -337,7 +345,7 @@ export default function WorkoutPage() {
         }
         await finalizeFailedDay(sessionMeta.id, program, [...store.setResults, result])
         store.reset()
-        navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`)
+        navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`, { replace: true })
         return
       }
 
@@ -353,7 +361,7 @@ export default function WorkoutPage() {
       if (nextSetIndex >= day.sets.length) {
         await finalizeSuccessfulDay(sessionMeta, allResults)
         store.reset()
-        navigate(`/workout/${program}/summary?session=${sessionMeta.id}`)
+        navigate(`/workout/${program}/summary?session=${sessionMeta.id}`, { replace: true })
         return
       }
 
@@ -435,7 +443,7 @@ export default function WorkoutPage() {
       <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
         <h1 className="sr-text-h1">{pl.restBlocked(pl.restIn(daysLeft))}</h1>
         <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
-          Program zaleca minimum {daysLeft} {daysLeft === 1 ? 'dzień' : 'dni'} przerwy po ostatnim treningu.
+          {pl.restGateHint(daysLeft)}
         </p>
         <Button className="mt-6" fullWidth onClick={() => navigate(`/workout/${program}?force=1`, { replace: true })}>
           {pl.trainAnyway}
@@ -475,17 +483,14 @@ export default function WorkoutPage() {
       showHint={showHint}
       showMenu={showMenu}
       showCancelConfirm={showCancelConfirm}
+      showLeaveConfirm={showLeaveConfirm}
       showPlanSheet={showPlanSheet}
       negativeCountdown={negativeCountdown}
       failedRetryVisible={failedIndex === store.currentSetIndex}
       pulseFlash={pulseFlash}
       nextLabel={nextLabel}
       checklistRef={checklistRef}
-      onBack={() => {
-        if (window.confirm(pl.leaveWorkoutConfirm)) {
-          void persistState().finally(() => navigate('/'))
-        }
-      }}
+      onBack={() => setShowLeaveConfirm(true)}
       onToggleMenu={() => setShowMenu((v) => !v)}
       onShowPlan={() => { setShowPlanSheet(true); setShowMenu(false) }}
       onShowTechnique={() => {
@@ -505,7 +510,7 @@ export default function WorkoutPage() {
         try {
           await finalizeFailedDay(sessionMeta.id, program, store.setResults)
           store.reset()
-          navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`)
+          navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`, { replace: true })
         } catch {
           finishingRef.current = false
           setInitError('Nie udało się zakończyć dnia. Spróbuj ponownie.')
@@ -523,7 +528,13 @@ export default function WorkoutPage() {
         navigate('/')
       })()}
       onDismissCancel={() => setShowCancelConfirm(false)}
+      onConfirmLeave={() => {
+        setShowLeaveConfirm(false)
+        void persistState().finally(() => navigate('/'))
+      }}
+      onDismissLeave={() => setShowLeaveConfirm(false)}
       onClosePlan={() => setShowPlanSheet(false)}
+      onCloseMenu={() => setShowMenu(false)}
     />
   )
 }

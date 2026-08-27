@@ -1,4 +1,4 @@
-import { MoreVertical } from 'lucide-react'
+import { ArrowLeft, MoreVertical } from 'lucide-react'
 import type { RefObject } from 'react'
 import type { Program } from '@/data/plans/types'
 import type { SetTarget } from '@/data/plans/types'
@@ -32,6 +32,7 @@ export type ActiveWorkoutScreenProps = {
   showHint: boolean
   showMenu: boolean
   showCancelConfirm: boolean
+  showLeaveConfirm: boolean
   showPlanSheet: boolean
   negativeCountdown: number | null
   failedRetryVisible: boolean
@@ -55,7 +56,10 @@ export type ActiveWorkoutScreenProps = {
   onCollapseTimer: () => void
   onConfirmCancel: () => void
   onDismissCancel: () => void
+  onConfirmLeave: () => void
+  onDismissLeave: () => void
   onClosePlan: () => void
+  onCloseMenu: () => void
 }
 
 export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
@@ -73,6 +77,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     showHint,
     showMenu,
     showCancelConfirm,
+    showLeaveConfirm,
     showPlanSheet,
     negativeCountdown,
     failedRetryVisible,
@@ -96,56 +101,87 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     onCollapseTimer,
     onConfirmCancel,
     onDismissCancel,
+    onConfirmLeave,
+    onDismissLeave,
     onClosePlan,
+    onCloseMenu,
   } = props
 
   const currentTarget = day.sets[currentSetIndex]
   const unit = program === 'pushups' ? pl.pushups : pl.pullups
   const isResting = restTimer !== null && restTimer.mode !== 'idle'
+  const preparingNegative = negativeCountdown !== null && negativeCountdown > 0
+  const counterLocked = isResting || preparingNegative
+  const targetReps = getTargetReps(currentTarget)
 
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-lg flex-col safe-top safe-bottom">
-      <header className="flex shrink-0 items-center justify-between px-4 py-3">
-        <button type="button" onClick={onBack} className="text-[var(--sr-text-secondary)]" aria-label="Wstecz">
-          ←
+      <header className="flex shrink-0 items-center justify-between px-2 py-2">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex min-h-11 min-w-11 items-center justify-center text-[var(--sr-text-secondary)]"
+          aria-label={pl.back}
+        >
+          <ArrowLeft size={22} />
         </button>
-        <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-          {program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram} · Dzień {progress.currentDay} · Seria {currentSetIndex + 1}/{day.sets.length}
+        <p className="sr-text-body-sm text-center text-[var(--sr-text-secondary)]">
+          {program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram} · Dzień {progress.currentDay} · {pl.setColumn} {currentSetIndex + 1}/{day.sets.length}
         </p>
-        <button type="button" aria-label="Menu" onClick={onToggleMenu} className="text-[var(--sr-text-secondary)]">
+        <button
+          type="button"
+          aria-label={pl.menuWorkout}
+          aria-expanded={showMenu}
+          onClick={onToggleMenu}
+          className="flex min-h-11 min-w-11 items-center justify-center text-[var(--sr-text-secondary)]"
+        >
           <MoreVertical size={20} />
         </button>
       </header>
 
       {showMenu && (
-        <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] py-1">
-          <button type="button" className="block w-full px-4 py-2 text-left text-sm" onClick={onShowPlan}>
-            {pl.previewDayPlan}
-          </button>
-          <button type="button" className="block w-full px-4 py-2 text-left text-sm" onClick={onShowTechnique}>
-            {pl.helpTechnique}
-          </button>
-          <button type="button" className="block w-full px-4 py-2 text-left text-sm text-[var(--sr-error)]" onClick={onRequestCancel}>
-            {pl.cancelWorkout}
-          </button>
-        </div>
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-10"
+            aria-label={pl.close}
+            onClick={onCloseMenu}
+          />
+          <div className="relative z-20 mx-4 mb-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] py-1 animate-sheet-in">
+            <button type="button" className="block min-h-11 w-full px-4 py-2 text-left text-sm" onClick={onShowPlan}>
+              {pl.previewDayPlan}
+            </button>
+            <button type="button" className="block min-h-11 w-full px-4 py-2 text-left text-sm" onClick={onShowTechnique}>
+              {pl.helpTechnique}
+            </button>
+            <button type="button" className="block min-h-11 w-full px-4 py-2 text-left text-sm text-[var(--sr-error)]" onClick={onRequestCancel}>
+              {pl.cancelWorkout}
+            </button>
+          </div>
+        </>
       )}
 
       {cycleVariant === 'negative' && <div className="px-4"><NegativeBanner /></div>}
-      {negativeCountdown !== null && negativeCountdown > 0 && (
-        <NegativeCountdown seconds={negativeCountdown} />
+      {preparingNegative && (
+        <NegativeCountdown seconds={negativeCountdown!} />
       )}
 
       {showHint && (
         <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary-muted)] px-3 py-2 text-sm">
           {pl.workoutHint}
-          <button type="button" className="ml-2 underline" onClick={onDismissHint}>OK</button>
+          <button type="button" className="ml-2 min-h-11 underline" onClick={onDismissHint}>{pl.ok}</button>
+        </div>
+      )}
+
+      {failedRetryVisible && (
+        <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-error-muted)] px-3 py-2 text-sm text-[var(--sr-error)]">
+          {pl.workoutFailBanner(actual, targetReps)}
         </div>
       )}
 
       <div className="flex-shrink-0 px-4">
         <p className="sr-only" aria-live="polite" aria-atomic="true">
-          Seria {currentSetIndex + 1} z {day.sets.length}, cel {getTargetReps(currentTarget)} {unit}
+          {pl.setColumn} {currentSetIndex + 1} z {day.sets.length}, {pl.targetColumn.toLowerCase()} {targetReps} {unit}
         </p>
         <RepCounter
           target={currentTarget}
@@ -155,6 +191,9 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           onDone={onDone}
           lastActual={lastActual}
           pulseFlash={pulseFlash}
+          disabled={counterLocked}
+          disabledHint={isResting ? pl.restInProgress : preparingNegative ? pl.negativeCountdown(negativeCountdown!) : undefined}
+          onDisabledTap={isResting ? onExpandTimer : undefined}
         />
         {failedRetryVisible && (
           <div className="mt-2 flex gap-2">
@@ -203,8 +242,20 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           title={pl.cancelWorkout}
           message={pl.cancelWorkoutConfirm}
           confirmLabel={pl.cancelWorkout}
+          variant="danger"
           onConfirm={onConfirmCancel}
           onCancel={onDismissCancel}
+        />
+      )}
+
+      {showLeaveConfirm && (
+        <ConfirmSheet
+          title={pl.leaveWorkoutTitle}
+          message={pl.leaveWorkoutConfirm}
+          confirmLabel={pl.yes}
+          cancelLabel={pl.no}
+          onConfirm={onConfirmLeave}
+          onCancel={onDismissLeave}
         />
       )}
 

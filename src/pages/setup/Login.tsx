@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
+import { SetupStepper } from '@/components/setup/SetupStepper'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { navigateAfterAuth } from '@/lib/post-auth-navigation'
 import { showToast } from '@/stores/toast-store'
+import { pl } from '@/i18n/pl'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -27,10 +30,15 @@ export default function Login() {
       await skip()
       return
     }
+    const trimmed = email.trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      showToast(pl.loginInvalidEmail, 'error')
+      return
+    }
     setLoading(true)
     const redirectTo = `${window.location.origin}/setup/login`
     const { error } = await supabase.auth.signInWithOtp({
-      email,
+      email: trimmed,
       options: { emailRedirectTo: redirectTo },
     })
     setLoading(false)
@@ -43,30 +51,33 @@ export default function Login() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-      <h1 className="text-xl font-bold">Zaloguj się</h1>
-      <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">
-        Opcjonalnie — synchronizuj postęp między urządzeniami.
-      </p>
+      <SetupStepper current="login" />
+      <PageHeader title={pl.loginTitle} subtitle={pl.loginSubtitle} />
 
       {sent ? (
-        <p className="mt-6 text-[var(--sr-success)]">Link wysłany na {email}. Sprawdź skrzynkę.</p>
+        <p className="mt-2 text-[var(--sr-success)]">{pl.loginSent}</p>
       ) : (
         <>
+          <label htmlFor="login-email" className="mt-2 block text-sm font-medium text-[var(--sr-text-secondary)]">
+            {pl.loginEmailLabel}
+          </label>
           <input
+            id="login-email"
             type="email"
-            placeholder="email@example.com"
+            autoComplete="email"
+            placeholder={pl.loginEmailPlaceholder}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-6 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-[var(--sr-text-primary)]"
+            className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-[var(--sr-text-primary)]"
           />
-          <Button className="mt-4" fullWidth disabled={loading || !email} onClick={() => void sendLink()}>
-            Wyślij magic link
+          <Button className="mt-4" fullWidth disabled={loading || !email.trim()} onClick={() => void sendLink()}>
+            {pl.loginSendLink}
           </Button>
         </>
       )}
 
-      <Button variant="ghost" className="mt-4" fullWidth onClick={() => void skip()}>
-        Później — kontynuuj offline
+      <Button variant="ghost" className="mt-4" fullWidth disabled={loading} onClick={() => void skip()}>
+        {pl.loginSkip}
       </Button>
     </div>
   )
