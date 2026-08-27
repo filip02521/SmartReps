@@ -443,6 +443,13 @@ async function mergeActiveRemote(userId: string, remote: RemoteActiveRow) {
   // Prefer local tombstone (queued delete) over resurrecting remote active
   if (await hasPendingActiveDelete(program)) return
 
+  // Do not resurrect active for a session that is already finished/cancelled locally.
+  const session = await db.workoutSessions.get(remote.session_id)
+  if (session && session.status !== 'in_progress') {
+    await deleteActiveWorkoutRemote(userId, program)
+    return
+  }
+
   const local = await db.activeWorkout.get(program)
   const remoteUpdated = new Date(remote.updated_at).getTime()
   const localUpdated = local?.updatedAt ? new Date(local.updatedAt).getTime() : 0
@@ -574,7 +581,26 @@ export async function enqueueActiveWorkoutSync(program: string, state: ActiveWor
   if (state) {
     await enqueueSync('active_workout', 'update', state)
   } else {
+    // Drop stale updates so a late flush cannot resurrect after cancel.
+    await dropPendingActiveWorkoutUpdates(program)
     await enqueueSync('active_workout', 'delete', { program })
+  }
+}
+
+async function dropPendingActiveWorkoutUpdates(program: string) {
+  const items = await db.syncQueue.toArray()
+  for (const item of items) {
+    if (item.table !== 'active_workout') continue
+    if (item.action !== 'update' && item.action !== 'insert') continue
+    if (item.id === undefined) continue
+    try {
+      const payload = JSON.parse(item.payload) as { program?: string }
+      if (payload.program === program) {
+        await db.syncQueue.delete(item.id)
+      }
+    } catch {
+      // ignore malformed queue rows
+    }
   }
 }
 

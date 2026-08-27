@@ -28,7 +28,7 @@ import { track } from '@/lib/analytics'
 import { applyThemeColor } from '@/lib/theme-color'
 import {
   getProgramProgress,
-  getActiveWorkout,
+  reconcileActiveWorkout,
   getStatusLabel,
   getStatusTone,
   setProgramPaused,
@@ -266,7 +266,7 @@ export default function ProfilePage() {
   }
 
   const retest = async (program: Program) => {
-    const active = await getActiveWorkout(program)
+    const active = await reconcileActiveWorkout(program)
     if (active) {
       setPendingRetest(program)
       return
@@ -282,7 +282,7 @@ export default function ProfilePage() {
   }
 
   const changeLevel = async (program: Program) => {
-    const active = await getActiveWorkout(program)
+    const active = await reconcileActiveWorkout(program)
     if (active) {
       setPendingChangeLevel(program)
       return

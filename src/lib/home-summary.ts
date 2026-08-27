@@ -9,6 +9,7 @@ import {
 } from '@/lib/progress-engine'
 import { getProgramStats, type ProgramStats } from '@/lib/stats-engine'
 import { isStaleActiveWorkout } from '@/lib/sync'
+import { reconcileActiveWorkout } from '@/lib/program-service'
 import { pl } from '@/i18n/pl'
 
 export type ProgramBucket =
@@ -384,7 +385,7 @@ export async function loadHomeDashboard(
           }
         }
 
-        const active = await db.activeWorkout.get(program)
+        const active = await reconcileActiveWorkout(program)
         const resume = buildResume(progress, active)
         const stats = await getProgramStats(program, progress)
         const available = isWorkoutAvailable(

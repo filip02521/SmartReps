@@ -129,23 +129,22 @@ export async function finalizeFailedDay(
   markFirstWorkoutAndTrack(false, sessionId)
 }
 
-export async function abandonWorkoutSession(program: Program, sessionId: string): Promise<void> {
-  const existing = await db.workoutSessions.get(sessionId)
-  if (existing && existing.status === 'in_progress') {
-    await saveWorkoutSession({ ...existing, status: 'abandoned', completedAt: new Date().toISOString() })
-  }
-  await clearActiveWorkout(program)
+export async function abandonWorkoutSession(program: Program, _sessionId: string): Promise<void> {
+  // Always clear every in_progress row for the program — cancels must not leave ghosts
+  // that Workout init reconstructs into a resume when activeWorkout is missing.
+  await abandonAllInProgress(program)
 }
 
-/** Abandon every in_progress session for a program (start-fresh / setup). */
+/** Abandon every in_progress session for a program (cancel / start-fresh / setup). */
 export async function abandonAllInProgress(program: Program): Promise<void> {
   const orphans = await db.workoutSessions
     .where('program')
     .equals(program)
     .filter((s) => s.status === 'in_progress')
     .toArray()
+  const now = new Date().toISOString()
   for (const s of orphans) {
-    await saveWorkoutSession({ ...s, status: 'abandoned', completedAt: new Date().toISOString() })
+    await saveWorkoutSession({ ...s, status: 'abandoned', completedAt: now })
   }
   await clearActiveWorkout(program)
 }

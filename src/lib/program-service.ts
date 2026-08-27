@@ -1,4 +1,4 @@
-import { db, type LocalProgramProgress } from '@/lib/db'
+import { db, type ActiveWorkoutState, type LocalProgramProgress } from '@/lib/db'
 import { getCycleById } from '@/data/plans'
 import type { Program } from '@/data/plans/types'
 import { enqueueSync, enqueueActiveWorkoutSync } from '@/lib/sync'
@@ -175,6 +175,12 @@ export async function saveActiveWorkout(program: Program, state: {
   setResults: unknown[]
   restTimerJson: string | null
 }) {
+  // Never resurrect an active row after cancel/finish — late persist races must no-op.
+  const session = await db.workoutSessions.get(state.sessionId)
+  if (!session || session.status !== 'in_progress' || session.program !== program) {
+    return false
+  }
+
   const row = {
     program,
     sessionId: state.sessionId,
@@ -185,11 +191,24 @@ export async function saveActiveWorkout(program: Program, state: {
   }
   await db.activeWorkout.put(row)
   await enqueueActiveWorkoutSync(program, row)
+  return true
 }
 
 export async function clearActiveWorkout(program: Program) {
   await db.activeWorkout.delete(program)
   await enqueueActiveWorkoutSync(program, null)
+}
+
+/** Drop orphan active rows whose session is no longer in progress. */
+export async function reconcileActiveWorkout(program: Program): Promise<ActiveWorkoutState | undefined> {
+  const active = await db.activeWorkout.get(program)
+  if (!active) return undefined
+  const session = await db.workoutSessions.get(active.sessionId)
+  if (session && session.status === 'in_progress' && session.program === program) {
+    return active
+  }
+  await clearActiveWorkout(program)
+  return undefined
 }
 
 export async function getActiveWorkout(program: Program) {

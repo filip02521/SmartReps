@@ -27,7 +27,7 @@ import {
   getPreviousSetActual,
   saveWorkoutSession,
 } from '@/lib/session-service'
-import { getProgramProgress, saveActiveWorkout, markProgramActiveIfReady } from '@/lib/program-service'
+import { getProgramProgress, saveActiveWorkout, markProgramActiveIfReady, reconcileActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
 import { db } from '@/lib/db'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { generateId, playChime, vibrate } from '@/lib/utils'
@@ -45,6 +45,8 @@ export default function WorkoutPage() {
   const timerVibration = useAppStore((s) => s.settings.timerVibration)
   const keepScreenOn = useAppStore((s) => s.settings.keepScreenOn)
   const finishingRef = useRef(false)
+  /** Bumped on cancel/leave-finish so in-flight persistState cannot resurrect activeWorkout. */
+  const sessionEpochRef = useRef(0)
   const initGenerationRef = useRef(0)
   const checklistRef = useRef<HTMLDivElement>(null)
   const setsCountRef = useRef(5)
@@ -121,7 +123,7 @@ export default function WorkoutPage() {
       const available = isWorkoutAvailable(
         prog.nextWorkoutAfter ? new Date(prog.nextWorkoutAfter) : null,
       )
-      const existingActive = await db.activeWorkout.get(program)
+      const existingActive = await reconcileActiveWorkout(program)
       // Allow resuming an in-progress session during rest; block only new starts
       if (!available && !forceStart && !existingActive) {
         setRestBlocked(true)
@@ -351,14 +353,28 @@ export default function WorkoutPage() {
   }, [initialized, day, cycle, currentSetIndex, restTimer?.mode])
 
   const persistState = async () => {
+    const epoch = sessionEpochRef.current
     const s = useWorkoutStore.getState()
     if (!s.sessionId) return
-    await saveActiveWorkout(program, {
+    const snapshot = {
       sessionId: s.sessionId,
       currentSetIndex: s.currentSetIndex,
       setResults: s.setResults,
       restTimerJson: s.restTimer ? JSON.stringify(s.restTimer) : null,
-    })
+    }
+    const ok = await saveActiveWorkout(program, snapshot)
+    // Cancel/reset raced while we were writing — drop any ghost for this session.
+    if (
+      epoch !== sessionEpochRef.current ||
+      useWorkoutStore.getState().sessionId !== snapshot.sessionId
+    ) {
+      const still = await db.activeWorkout.get(program)
+      if (still?.sessionId === snapshot.sessionId) {
+        await clearActiveWorkout(program)
+      }
+      return
+    }
+    if (!ok) return
   }
 
   const handleEditPreviousSet = async () => {
@@ -628,9 +644,18 @@ export default function WorkoutPage() {
       }}
       onConfirmCancel={() => void (async () => {
         if (!sessionMeta) return
-        await abandonWorkoutSession(program, sessionMeta.id)
-        useWorkoutStore.getState().reset()
-        navigate('/', { replace: true })
+        finishingRef.current = true
+        sessionEpochRef.current += 1
+        setShowCancelConfirm(false)
+        try {
+          await abandonWorkoutSession(program, sessionMeta.id)
+          useWorkoutStore.getState().reset()
+          setSessionMeta(null)
+          navigate('/', { replace: true })
+        } catch {
+          finishingRef.current = false
+          setInitError(pl.errorSaveSet)
+        }
       })()}
       onDismissCancel={() => setShowCancelConfirm(false)}
       onConfirmLeave={() => {

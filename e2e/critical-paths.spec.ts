@@ -228,6 +228,49 @@ test.describe('SmartReps routing critical paths', () => {
     await expect(page).toHaveURL(/\/workout\/pushups\/summary/, { timeout: 30_000 })
   })
 
+  test('3b) cancel workout clears resume after reload', async ({ page }) => {
+    test.setTimeout(60_000)
+    await seedOnboardedWithProgress(page)
+    await page.goto('/workout/pushups?force=1')
+    await expect(page.getByRole('button', { name: 'Zrobione' })).toBeVisible({ timeout: 20_000 })
+
+    // Complete one set so activeWorkout has progress (harder race than cancel-at-start).
+    await page.getByRole('button', { name: 'Zrobione' }).click()
+    await expect(page.getByText('Przerwa', { exact: true }).first()).toBeVisible({
+      timeout: 10_000,
+    })
+
+    // Dismiss rest overlay so the workout menu is clickable.
+    await page.getByRole('button', { name: 'Pomiń' }).click()
+    const confirmSkip = page.getByRole('button', { name: 'Pomiń' }).last()
+    if (await confirmSkip.isVisible().catch(() => false)) {
+      await confirmSkip.click()
+    }
+    await expect(page.getByRole('button', { name: 'Zrobione' })).toBeVisible({ timeout: 10_000 })
+
+    await page.getByRole('button', { name: 'Menu treningu' }).click()
+    await page.getByRole('button', { name: 'Anuluj trening' }).click()
+    // Confirm sheet also titled Anuluj trening — confirm danger action
+    await page.getByRole('button', { name: 'Anuluj trening' }).last().click()
+
+    await expect(page).toHaveURL(/\/$/, { timeout: 15_000 })
+    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(page.getByText(/W toku:/)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Kontynuuj Dzień/ })).toHaveCount(0)
+
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(page.getByText(/W toku:/)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Kontynuuj Dzień/ })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Rozpocznij Dzień|Trenuję mimo to/ }).first()).toBeVisible({
+      timeout: 15_000,
+    })
+  })
+
   test('4) level-change ?change=1 → confirm → day 1 on Dashboard', async ({ page }) => {
     test.setTimeout(60_000)
     await seedOnboardedWithProgress(page, { cycleId: 'pushups-11-20', currentDay: 3 })
