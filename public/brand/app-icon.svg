@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="112" fill="#09090B"/>
+  <g transform="translate(256 256)">
+    <circle cx="0" cy="0" r="158" stroke="url(#sr-icon-grad)" stroke-width="22" stroke-dasharray="70 36" stroke-linecap="round"/>
+    <text x="0" y="52" text-anchor="middle" fill="#E0E7FF" font-size="138" font-weight="700" font-family="Plus Jakarta Sans, system-ui, sans-serif">R</text>
+  </g>
+  <defs>
+    <linearGradient id="sr-icon-grad" x1="-160" y1="-160" x2="160" y2="160">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -7,7 +7,7 @@ export function LogoMark({ size = 40 }: { size?: number }) {
   const gradId = `sr-logo-grad-${uid}`
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-hidden>
-      <circle cx="20" cy="20" r="18" stroke={`url(#${gradId})`} strokeWidth="3" strokeDasharray="8 4" />
+      <circle cx="20" cy="20" r="18" stroke={`url(#${gradId})`} strokeWidth="3" strokeDasharray="8 4" strokeLinecap="round" />
       <text x="20" y="25" textAnchor="middle" fill="var(--sr-brand-primary)" fontSize="14" fontWeight="700" fontFamily="var(--sr-font)">R</text>
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="40" y2="40">
