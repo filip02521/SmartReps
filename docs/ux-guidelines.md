@@ -68,10 +68,14 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 ## Wireframe — Postępy
 
 ```
-[PageHeader + status]
-[program SegmentedControl][tabs]
-[MetricStrip + NestedStat]
-[wykresy / CycleDayPicker / historia / rekordy]
+[PageHeader + kontekstowy subtitle]
+[program — jeśli 2+][tabs poziomo]
+[hint aktywnej zakładki]
+[ProgressSection — flow, bez cieni Card]
+  Przegląd: MetricStrip + wykresy + heatmap
+  Historia: filtry + lista z dividerami + „pokaż więcej”
+  Cykl: postęp X/Y + CycleDayPicker
+  Rekordy: hero test max + siatka
 ```
 
 ## Wireframe — Plany

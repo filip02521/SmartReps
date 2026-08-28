@@ -3,6 +3,7 @@ import type { Program } from '@/data/plans/types'
 import { subWeeks, startOfWeek, addDays, format, isSameDay } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { pl } from '@/i18n/pl'
+import { isProgressHistorySession } from '@/lib/progress-history'
 
 export type HeatmapCell = {
   date: string
@@ -61,7 +62,9 @@ export async function buildActivityHeatmap(
 }
 
 export async function exportSessionsCsv(program: Program): Promise<string> {
-  const sessions = await db.workoutSessions.where('program').equals(program).toArray()
+  const sessions = (
+    await db.workoutSessions.where('program').equals(program).toArray()
+  ).filter(isProgressHistorySession)
   sessions.sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime())
 
   const header = 'data,session_id,program,cycle_id,day,attempt,status,passed,total_reps,sets'

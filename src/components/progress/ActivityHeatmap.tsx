@@ -9,15 +9,23 @@ const colors: Record<HeatmapCell['status'], string> = {
   empty: 'bg-[var(--sr-bg-surface)]/40',
 }
 
-export function ActivityHeatmap({ grid }: { grid: HeatmapCell[][] }) {
+export function ActivityHeatmap({
+  grid,
+  showSummary = true,
+}: {
+  grid: HeatmapCell[][]
+  showSummary?: boolean
+}) {
   const workoutCount = grid.flat().filter((c) => c.status === 'passed' || c.status === 'failed').length
   const weeks = grid.length
 
   return (
     <div>
-      <p className="mb-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
-        {pl.heatmapSummary(workoutCount, weeks)}
-      </p>
+      {showSummary && (
+        <p className="mb-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
+          {workoutCount > 0 ? pl.heatmapSummary(workoutCount, weeks) : pl.progressHeatmapEmpty}
+        </p>
+      )}
       <div className="overflow-x-auto" role="img" aria-label={pl.heatmapSummary(workoutCount, weeks)}>
         <div className="inline-flex flex-col gap-1">
           {grid.map((week, wi) => (
