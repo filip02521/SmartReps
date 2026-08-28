@@ -60,7 +60,7 @@ export function HomeSummary({
       </header>
 
       <div className="mt-5 space-y-5">
-        <HomeSection title={pl.homeActivityTitle} hint={pl.homeActivityHint}>
+        <HomeSection title={pl.homeActivityTitle}>
           <MetricStrip
             metrics={[
               {

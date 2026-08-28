@@ -7,8 +7,8 @@ function repsComparisonMessage(insights: ActivityInsights): string | null {
   if (reps14d === 0 && repsPrev14d === 0) return pl.homeInsightNoActivity
   if (repsPrev14d === 0 && reps14d > 0) return pl.homeRepsChangeNew(reps14d)
   if (repsChangePct === null) return null
-  if (repsChangePct > 0) return pl.homeRepsChangeUp(repsChangePct)
-  if (repsChangePct < 0) return pl.homeRepsChangeDown(Math.abs(repsChangePct))
+  if (repsChangePct > 0) return pl.homeRepsChangeUp
+  if (repsChangePct < 0) return pl.homeRepsChangeDown
   return pl.homeRepsChangeSame
 }
 
@@ -35,12 +35,28 @@ function secondaryInsights(insights: ActivityInsights): string[] {
   return parts
 }
 
-function PctBadge({ pct, risingNew }: { pct: number | null; risingNew?: boolean }) {
+function badgeAccessibleLabel(insights: ActivityInsights): string {
+  const { reps14d, repsPrev14d, repsChangePct } = insights
+  if (repsPrev14d === 0 && reps14d > 0) return pl.homeRepsBadgeNew
+  if (repsChangePct === null || repsChangePct === 0) return pl.homeRepsBadgeSame
+  if (repsChangePct > 0) return pl.homeRepsBadgeUp(repsChangePct)
+  return pl.homeRepsBadgeDown(Math.abs(repsChangePct))
+}
+
+function PctBadge({
+  pct,
+  risingNew,
+  label,
+}: {
+  pct: number | null
+  risingNew?: boolean
+  label: string
+}) {
   if (risingNew) {
     return (
       <span
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--sr-success)_18%,transparent)] text-sm font-bold text-[var(--sr-success)]"
-        aria-hidden
+        className="flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--sr-success)_18%,transparent)] px-1 text-sm font-bold text-[var(--sr-success)]"
+        aria-label={label}
       >
         ↑
       </span>
@@ -49,23 +65,25 @@ function PctBadge({ pct, risingNew }: { pct: number | null; risingNew?: boolean 
   if (pct === null || pct === 0) {
     return (
       <span
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--sr-bg-surface)] text-sm font-bold text-[var(--sr-text-muted)]"
-        aria-hidden
+        className="flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-base)] px-1 text-sm font-bold text-[var(--sr-text-muted)]"
+        aria-label={label}
       >
         →
       </span>
     )
   }
   const up = pct > 0
+  const compact = Math.abs(pct) >= 100
   return (
     <span
       className={cn(
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold tabular-nums',
+        'flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full px-1 font-bold tabular-nums',
+        compact ? 'text-xs' : 'text-sm',
         up
           ? 'bg-[color-mix(in_srgb,var(--sr-success)_18%,transparent)] text-[var(--sr-success)]'
           : 'bg-[color-mix(in_srgb,var(--sr-error)_18%,transparent)] text-[var(--sr-error)]',
       )}
-      aria-hidden
+      aria-label={label}
     >
       {up ? '+' : '−'}
       {Math.abs(pct)}%
@@ -77,18 +95,29 @@ export function ActivityInsightsPanel({ insights }: { insights: ActivityInsights
   const repsMsg = repsComparisonMessage(insights)
   const sessionsMsg = sessionsComparisonMessage(insights)
   const secondary = secondaryInsights(insights)
+  const showRepsCompare = insights.repsPrev14d > 0
 
   if (!repsMsg && !sessionsMsg && secondary.length === 0) return null
 
   return (
     <div className="mt-3 space-y-2" aria-label={pl.homeActivityInsightsAria}>
       {repsMsg && (
-        <div className="flex items-center gap-3 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5">
-          <PctBadge
-            pct={insights.repsChangePct}
-            risingNew={insights.repsPrev14d === 0 && insights.reps14d > 0}
-          />
-          <p className="sr-text-body-sm leading-snug text-[var(--sr-text-primary)]">{repsMsg}</p>
+        <div className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-3 py-2.5">
+          <div className="flex items-center gap-3">
+            <PctBadge
+              pct={insights.repsChangePct}
+              risingNew={insights.repsPrev14d === 0 && insights.reps14d > 0}
+              label={badgeAccessibleLabel(insights)}
+            />
+            <div className="min-w-0">
+              <p className="sr-text-body-sm leading-snug text-[var(--sr-text-primary)]">{repsMsg}</p>
+              {showRepsCompare && (
+                <p className="mt-0.5 sr-text-body-sm tabular-nums text-[var(--sr-text-muted)]">
+                  {pl.homeActivityRepsCompare(insights.reps14d, insights.repsPrev14d)}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       )}
       {(sessionsMsg || secondary.length > 0) && (

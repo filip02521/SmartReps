@@ -10,31 +10,41 @@ export const pl = {
   homeYourPrograms: 'Twoje programy',
   homeAddSecondProgram: 'Dodaj drugi program',
   homeSessions14d: 'Treningi',
-  homeSessions14dHint: 'ostatnie 14 dni',
+  homeSessions14dHint: '14 dni',
   homeReps14d: 'Powtórzenia',
-  homeReps14dHint: 'ostatnie 14 dni',
+  homeReps14dHint: '14 dni',
   homeGoal3in14: '3 treningi w 14 dni',
   homeActivityTitle: 'Twoja aktywność',
-  homeActivityHint: 'Ostatnie 14 dni w porównaniu z poprzednimi 14 dniami.',
   homeStreakWeeksHint: 'obecna seria',
-  homeInsightNoActivity: 'Brak treningów w ostatnich 4 tygodniach — czas wrócić do planu.',
-  homeRepsChangeUp: (pct: number) =>
-    `O ${pct}% więcej powtórzeń niż w poprzednich 14 dniach`,
-  homeRepsChangeDown: (pct: number) =>
-    `O ${pct}% mniej powtórzeń niż w poprzednich 14 dniach`,
-  homeRepsChangeSame: 'Tyle samo powtórzeń co w poprzednich 14 dniach',
-  homeRepsChangeNew: (reps: number) =>
-    `${reps} powt. w ostatnich 14 dniach — w poprzednich 14 dniach było 0`,
+  homeInsightNoActivity: 'Od miesiąca bez treningu — czas wrócić do planu.',
+  homeRepsChangeUp: 'Więcej powtórzeń niż wcześniej',
+  homeRepsChangeDown: 'Mniej powtórzeń niż wcześniej',
+  homeRepsChangeSame: 'Tyle samo powtórzeń co wcześniej',
+  homeRepsChangeNew: (reps: number) => `${reps} powt. — wracasz po przerwie`,
+  homeRepsBadgeUp: (pct: number) => `Wzrost o ${pct} procent powtórzeń`,
+  homeRepsBadgeDown: (pct: number) => `Spadek o ${pct} procent powtórzeń`,
+  homeRepsBadgeSame: 'Bez zmiany liczby powtórzeń',
+  homeRepsBadgeNew: 'Powrót do treningu po przerwie',
+  homeActivityRepsCompare: (current: number, previous: number) =>
+    `${current} powt. · wcześniej ${previous}`,
   homeSessionsDeltaUp: (n: number) =>
-    n === 1 ? '+1 trening vs poprzednie 14 dni' : `+${n} treningów vs poprzednie 14 dni`,
+    n === 1
+      ? '+1 trening niż wcześniej'
+      : n >= 2 && n <= 4
+        ? `+${n} treningi niż wcześniej`
+        : `+${n} treningów niż wcześniej`,
   homeSessionsDeltaDown: (n: number) =>
-    n === 1 ? '−1 trening vs poprzednie 14 dni' : `−${n} treningów vs poprzednie 14 dni`,
-  homeSessionsDeltaSame: 'Tyle samo treningów co w poprzednich 14 dniach',
-  homeWeekRepsChangeUp: (pct: number) => `Ten tydzień: +${pct}% powt. vs zeszły`,
-  homeWeekRepsChangeDown: (pct: number) => `Ten tydzień: −${pct}% powt. vs zeszły`,
+    n === 1
+      ? '−1 trening niż wcześniej'
+      : n >= 2 && n <= 4
+        ? `−${n} treningi niż wcześniej`
+        : `−${n} treningów niż wcześniej`,
+  homeSessionsDeltaSame: 'Tyle samo treningów co wcześniej',
+  homeWeekRepsChangeUp: (pct: number) => `Ten tydzień: +${pct}% powt.`,
+  homeWeekRepsChangeDown: (pct: number) => `Ten tydzień: −${pct}% powt.`,
   homeBestStreakRecord: (n: number) =>
     n === 1 ? 'Rekord: 1 tydzień z treningiem' : `Rekord: ${n} tygodni z treningiem`,
-  homeActivityInsightsAria: 'Porównanie aktywności z poprzednim okresem',
+  homeActivityInsightsAria: 'Trend aktywności',
   homeProgramsQuickTitle: 'Skrót programów',
   homeProgramsQuickHint: 'Dotknij, aby przejść do pełnej karty programu.',
   homeStatusResume: 'Dokończ rozpoczęty trening',
