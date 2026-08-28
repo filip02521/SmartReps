@@ -15,6 +15,7 @@ import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { SkeletonCard } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { runAuthenticatedSync } from '@/lib/auth-sync'
+import { signOutUser } from '@/lib/auth-lifecycle'
 import { pl } from '@/i18n/pl'
 import { requestWorkoutReminderPermission, scheduleDailyReminder, cancelReminder } from '@/lib/notifications'
 import {
@@ -248,13 +249,13 @@ export default function ProfilePage() {
   }
 
   const logoutOnly = async () => {
-    if (isSupabaseConfigured) await supabase.auth.signOut()
+    await signOutUser()
     setEmail(null)
     setShowLogoutConfirm(false)
   }
 
   const logoutAndClear = async () => {
-    if (isSupabaseConfigured) await supabase.auth.signOut()
+    await signOutUser()
     await clearAllLocalData()
     setEmail(null)
     setShowLogoutConfirm(false)

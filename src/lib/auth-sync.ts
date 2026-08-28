@@ -15,6 +15,7 @@ import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
 import { completeOnboardingIfSynced } from '@/lib/onboarding-from-sync'
 import { track } from '@/lib/analytics'
+import { clearSignedOutPreference } from '@/lib/auth-lifecycle'
 
 const AUTH_RETURN_KEY = 'auth-return-to'
 const AUTH_FROM_ONBOARDING_KEY = 'auth-from-onboarding'
@@ -202,6 +203,7 @@ export async function completeSignInFlow(
 
   signInFlowLock = (async () => {
     await waitForStoreHydration()
+    clearSignedOutPreference()
     await runAuthenticatedSync({
       showSuccessToast: opts?.showSuccessToast ?? false,
       showFailureToast: opts?.showFailureToast ?? false,

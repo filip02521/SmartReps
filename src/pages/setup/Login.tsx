@@ -16,6 +16,7 @@ import {
   setAuthFromOnboarding,
   setAuthReturnTo,
 } from '@/lib/auth-sync'
+import { signOutUser } from '@/lib/auth-lifecycle'
 import { isStandalonePwa } from '@/lib/pwa-detect'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { showToast } from '@/stores/toast-store'
@@ -150,7 +151,7 @@ export default function Login() {
 
   const logoutToSwitch = async () => {
     setLoading(true)
-    await supabase.auth.signOut()
+    await signOutUser()
     setSignedInEmail(null)
     setSent(false)
     setEmail('')
