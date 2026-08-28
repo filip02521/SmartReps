@@ -22,12 +22,23 @@
     <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
     <title>SmartReps</title>
     <style>
+      /* Boot paint before CSS vars. Respect data-theme so forced dark ≠ light OS. */
       html, body { margin: 0; min-height: 100%; background: #09090b; }
-      @media (prefers-color-scheme: light) {
-        html, body { background: #fafafa; }
-        #sr-boot-splash { background: #fafafa; }
-        #sr-boot-splash .mark { border-color: #6366f1; color: #6366f1; }
+      html[data-theme='light'], html[data-theme='light'] body {
+        background: #fafafa;
       }
+      html[data-theme='dark'], html[data-theme='dark'] body {
+        background: #09090b;
+      }
+      @media (prefers-color-scheme: light) {
+        html:not([data-theme]), html:not([data-theme]) body {
+          background: #fafafa;
+        }
+        html:not([data-theme]) #sr-boot-splash { background: #fafafa; }
+        html:not([data-theme]) #sr-boot-splash .mark { border-color: #6366f1; color: #6366f1; }
+      }
+      html[data-theme='light'] #sr-boot-splash { background: #fafafa; }
+      html[data-theme='light'] #sr-boot-splash .mark { border-color: #6366f1; color: #6366f1; }
       #sr-boot-splash {
         position: fixed; inset: 0; z-index: 9999;
         display: flex; align-items: center; justify-content: center;

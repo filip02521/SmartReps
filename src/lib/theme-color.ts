@@ -1,11 +1,12 @@
 /** Apply theme-color meta for PWA chrome to match light/dark surfaces. */
 export function applyThemeColor(theme: 'system' | 'dark' | 'light'): void {
   const meta = document.querySelector('#sr-theme-color') as HTMLMetaElement | null
-  if (!meta) return
   const prefersDark =
     theme === 'dark' ||
     (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  meta.content = prefersDark ? '#09090B' : '#FAFAFA'
+  if (meta) meta.content = prefersDark ? '#09090B' : '#FAFAFA'
+  /* Helps iOS overscroll / form controls match the in-app theme. */
+  document.documentElement.style.colorScheme = prefersDark ? 'dark' : 'light'
 }
 
 export function hideBootSplash(): void {
