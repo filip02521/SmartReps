@@ -2,14 +2,13 @@ import type { ReactNode } from 'react'
 import type { HomeLoadResult } from '@/lib/home-summary'
 import { MetricStrip } from '@/components/ui/MetricStrip'
 import { Badge } from '@/components/ui/Card'
-import { WeeklyRecapPanel } from '@/components/dashboard/WeeklyRecap'
+import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import type { Program } from '@/data/plans/types'
 
 type Summary = HomeLoadResult['summary']
 
-/** Section label + spacing — no card chrome (flow layout). */
 function HomeSection({
   title,
   hint,
@@ -39,11 +38,9 @@ function HomeSection({
 
 export function HomeSummary({
   summary,
-  weeklyRecap,
   onScrollToProgram,
 }: {
   summary: Summary
-  weeklyRecap: HomeLoadResult['weeklyRecap']
   onScrollToProgram: (program: Program) => void
 }) {
   return (
@@ -63,7 +60,7 @@ export function HomeSummary({
       </header>
 
       <div className="mt-5 space-y-5">
-        <HomeSection title={pl.homeStats14dTitle} hint={pl.homeStats14dHint}>
+        <HomeSection title={pl.homeActivityTitle} hint={pl.homeActivityHint}>
           <MetricStrip
             metrics={[
               {
@@ -72,9 +69,9 @@ export function HomeSummary({
                 hint: pl.homeSessions14dHint,
               },
               {
-                value: summary.bestStreakWeeks,
+                value: summary.streakWeeks,
                 label: pl.streakWeeks,
-                hint: pl.streakWeeksHint,
+                hint: pl.homeStreakWeeksHint,
               },
               {
                 value: summary.reps14d,
@@ -88,9 +85,8 @@ export function HomeSummary({
               max: 3,
             }}
           />
+          <ActivityInsightsPanel insights={summary.activity} />
         </HomeSection>
-
-        <WeeklyRecapPanel recap={weeklyRecap} />
 
         {summary.programs.length > 0 && (
           <HomeSection title={pl.homeProgramsQuickTitle} hint={pl.homeProgramsQuickHint}>

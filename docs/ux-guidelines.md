@@ -58,8 +58,7 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 ```
 [Logo SmartReps]
 [Status dnia — headline + opcjonalny subtitle]
-[Ostatnie 14 dni — overline + MetricStrip + cel, separator]
-[Ten tydzień — zwijany wiersz + MetricStrip]
+[Twoja aktywność — 3× MetricStrip + cel + porównanie % powtórzeń vs popr. 14 dni]
 [Skrót programów — lista z dividerami]
 [Attention: InstallCoach XOR HomeTip]
 [Wybierz trening — ProgramHomeCard]

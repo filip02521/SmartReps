@@ -14,11 +14,29 @@ export const pl = {
   homeReps14d: 'Powtórzenia',
   homeReps14dHint: 'ostatnie 14 dni',
   homeGoal3in14: '3 treningi w 14 dni',
-  homeStats14dTitle: 'Ostatnie 14 dni',
-  homeStats14dHint: 'Podsumowanie aktywności z dwóch tygodni.',
+  homeActivityTitle: 'Twoja aktywność',
+  homeActivityHint: 'Ostatnie 14 dni w porównaniu z poprzednimi 14 dniami.',
+  homeStreakWeeksHint: 'obecna seria',
+  homeInsightNoActivity: 'Brak treningów w ostatnich 4 tygodniach — czas wrócić do planu.',
+  homeRepsChangeUp: (pct: number) =>
+    `O ${pct}% więcej powtórzeń niż w poprzednich 14 dniach`,
+  homeRepsChangeDown: (pct: number) =>
+    `O ${pct}% mniej powtórzeń niż w poprzednich 14 dniach`,
+  homeRepsChangeSame: 'Tyle samo powtórzeń co w poprzednich 14 dniach',
+  homeRepsChangeNew: (reps: number) =>
+    `${reps} powt. w ostatnich 14 dniach — w poprzednich 14 dniach było 0`,
+  homeSessionsDeltaUp: (n: number) =>
+    n === 1 ? '+1 trening vs poprzednie 14 dni' : `+${n} treningów vs poprzednie 14 dni`,
+  homeSessionsDeltaDown: (n: number) =>
+    n === 1 ? '−1 trening vs poprzednie 14 dni' : `−${n} treningów vs poprzednie 14 dni`,
+  homeSessionsDeltaSame: 'Tyle samo treningów co w poprzednich 14 dniach',
+  homeWeekRepsChangeUp: (pct: number) => `Ten tydzień: +${pct}% powt. vs zeszły`,
+  homeWeekRepsChangeDown: (pct: number) => `Ten tydzień: −${pct}% powt. vs zeszły`,
+  homeBestStreakRecord: (n: number) =>
+    n === 1 ? 'Rekord: 1 tydzień z treningiem' : `Rekord: ${n} tygodni z treningiem`,
+  homeActivityInsightsAria: 'Porównanie aktywności z poprzednim okresem',
   homeProgramsQuickTitle: 'Skrót programów',
   homeProgramsQuickHint: 'Dotknij, aby przejść do pełnej karty programu.',
-  weeklyRecapPeriodHint: 'ten tydzień',
   homeStatusResume: 'Dokończ rozpoczęty trening',
   homeStatusResumeStale: 'Masz niedokończony trening — sprawdź kartę poniżej',
   homeStatusResumeAndReady: 'Dokończ trening albo wybierz inny program',
@@ -64,25 +82,6 @@ export const pl = {
   homeTipTitleLoginBackup: 'Backup w chmurze',
   homeTipTitleHabitZero: 'Wróć do rytmu',
   homeTipTitleHabitMet: 'Cel nawyku zaliczony',
-  weeklyRecapTitle: 'Ten tydzień',
-  weeklyRecapSessions: 'Treningi',
-  weeklyRecapReps: 'Powtórzenia',
-  weeklyRecapLine: (sessions: number, reps: number) => {
-    const s =
-      sessions === 1 ? '1 trening' : sessions >= 2 && sessions <= 4 ? `${sessions} treningi` : `${sessions} treningów`
-    return `${s} · ${reps} powt.`
-  },
-  weeklyRecapDeltaUp: (n: number) =>
-    n === 1 ? '+1 trening vs poprzedni tydzień' : `+${n} treningów vs poprzedni tydzień`,
-  weeklyRecapDeltaDown: (n: number) =>
-    n === 1 ? '−1 trening vs poprzedni tydzień' : `−${n} treningów vs poprzedni tydzień`,
-  weeklyRecapDeltaSame: 'Tyle samo treningów co w poprzednim tygodniu',
-  weeklyRecapCurrentStreak: (n: number) =>
-    n === 1 ? 'Obecna seria: 1 tydzień' : `Obecna seria: ${n} tygodni`,
-  weeklyRecapBestStreak: (n: number) =>
-    n === 1 ? 'Najdłuższa seria: 1 tydzień' : `Najdłuższa seria: ${n} tygodni`,
-  weeklyRecapEmpty: 'W tym tygodniu jeszcze nie trenowałeś.',
-  weeklyRecapCollapsedHint: (sessions: number, reps: number) => pl.weeklyRecapLine(sessions, reps),
   trainAnywayNew: 'Trenuję mimo to',
   abandonResumeTrainAnywayTitle: 'Porzucić niedokończoną sesję?',
   abandonResumeTrainAnywayBody:

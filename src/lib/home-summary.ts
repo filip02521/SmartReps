@@ -10,7 +10,7 @@ import { getProgramStats, type ProgramStats } from '@/lib/stats-engine'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { reconcileActiveWorkout } from '@/lib/program-service'
 import { pl } from '@/i18n/pl'
-import { loadWeeklyRecap, daysSinceLastPassedSession, type WeeklyRecap } from '@/lib/weekly-recap'
+import { buildActivityInsights, daysSinceLastPassedSession, type ActivityInsights } from '@/lib/weekly-recap'
 
 export type ProgramBucket =
   | 'resume_stale'
@@ -102,17 +102,17 @@ export type HomeLoadResult = {
   summary: {
     sessions14d: number
     reps14d: number
-    bestStreakWeeks: number
+    streakWeeks: number
     statusHeadline: string
     statusSubtitle?: string
     allResting: boolean
     dateLabel: string
     programs: HomeProgramBar[]
+    activity: ActivityInsights
   }
   cards: ProgramCardModel[]
   tip: HomeTipModel | null
   tipSuppression: TipSuppression
-  weeklyRecap: WeeklyRecap
 }
 
 const BUCKET_ORDER: ProgramBucket[] = [
@@ -447,17 +447,11 @@ export async function loadHomeDashboard(
     showLoginBackup?: boolean
   },
 ): Promise<HomeLoadResult> {
-  const since = Date.now() - 14 * 86400000
   const allSessions = await db.workoutSessions.toArray()
-  const passed14d = allSessions.filter(
-    (s) =>
-      s.status === 'completed' &&
-      s.passed &&
-      new Date(s.startedAt).getTime() >= since,
-  )
   const passedAll = allSessions.filter((s) => s.status === 'completed' && s.passed)
-  const sessions14d = passed14d.length
-  const reps14d = passed14d.reduce((sum, s) => sum + (s.totalReps ?? 0), 0)
+  const activity = buildActivityInsights(passedAll)
+  const sessions14d = activity.sessions14d
+  const reps14d = activity.reps14d
   const daysSince = daysSinceLastPassedSession(passedAll)
 
   const cardModels = await Promise.all(
@@ -556,11 +550,6 @@ export async function loadHomeDashboard(
   const sortedPrograms = sortPrograms(enabledPrograms, bucketMap)
   const cards = sortedPrograms.map((p) => cardModels.find((c) => c.program === p)!)
 
-  let bestStreakWeeks = 0
-  for (const c of cards) {
-    if (c.stats) bestStreakWeeks = Math.max(bestStreakWeeks, c.stats.streakWeeks)
-  }
-
   const programs: HomeProgramBar[] = []
   for (const c of cards) {
     if (!c.progress || c.bucket === 'unconfigured') continue
@@ -598,23 +587,22 @@ export async function loadHomeDashboard(
     },
   )
 
-  const weeklyRecap = await loadWeeklyRecap()
   const status = buildStatusDisplay(cards)
 
   return {
     summary: {
       sessions14d,
       reps14d,
-      bestStreakWeeks,
+      streakWeeks: activity.streakWeeks,
       statusHeadline: status.headline,
       statusSubtitle: status.subtitle,
       allResting: isAllResting(cards),
       dateLabel: formatHomeDate(),
       programs,
+      activity,
     },
     cards,
     tip,
     tipSuppression: tipSuppressionFrom(tip),
-    weeklyRecap,
   }
 }

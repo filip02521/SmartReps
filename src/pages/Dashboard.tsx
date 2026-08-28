@@ -153,11 +153,7 @@ export default function Dashboard() {
         </>
       ) : (
         <>
-          <HomeSummary
-            summary={home.summary}
-            weeklyRecap={home.weeklyRecap}
-            onScrollToProgram={scrollToProgram}
-          />
+          <HomeSummary summary={home.summary} onScrollToProgram={scrollToProgram} />
 
           <div
             className={
