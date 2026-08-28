@@ -249,17 +249,25 @@ export default function ProfilePage() {
   }
 
   const logoutOnly = async () => {
-    await signOutUser()
-    setEmail(null)
-    setShowLogoutConfirm(false)
+    try {
+      await signOutUser()
+      setEmail(null)
+      setShowLogoutConfirm(false)
+    } catch {
+      showToast(pl.logoutFailed, 'error')
+    }
   }
 
   const logoutAndClear = async () => {
-    await signOutUser()
-    await clearAllLocalData()
-    setEmail(null)
-    setShowLogoutConfirm(false)
-    navigate('/setup/onboarding', { replace: true })
+    try {
+      await signOutUser()
+      await clearAllLocalData()
+      setEmail(null)
+      setShowLogoutConfirm(false)
+      navigate('/setup/onboarding', { replace: true })
+    } catch {
+      showToast(pl.logoutFailed, 'error')
+    }
   }
 
   const clearLocal = async () => {

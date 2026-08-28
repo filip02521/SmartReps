@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { useAppStore, defaultSettings } from '@/stores/app-store'
 import { useWorkoutStore } from '@/stores/workout-store'
 import { cancelReminder } from '@/lib/notifications'
+import { clearSignedOutPreference } from '@/lib/auth-lifecycle'
 
 /** Wipe IndexedDB + persisted app settings (logout / privacy / account switch). */
 export async function clearAllLocalData(): Promise<void> {
@@ -34,4 +35,6 @@ export async function clearAllLocalData(): Promise<void> {
     hasDismissedInstallPrompt: false,
     hasSeenStandaloneLoginCoach: false,
   })
+  // No remembered cloud account → drop voluntary/unexpected sign-out prefs.
+  clearSignedOutPreference()
 }

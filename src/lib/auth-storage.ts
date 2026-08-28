@@ -194,6 +194,46 @@ export const durableAuthStorage = {
   },
 }
 
+/** Wipe all mirrored auth keys (LS + IDB + memory). Used after successful sign-out. */
+export async function wipeDurableAuthStorage(): Promise<void> {
+  memory.clear()
+  deletedKeys.clear()
+
+  // Clear known Supabase auth keys from localStorage.
+  try {
+    const toRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (!k) continue
+      if (
+        k.includes('-auth-token') ||
+        (k.startsWith('sb-') && k.includes('auth')) ||
+        k === 'supabase.auth.token'
+      ) {
+        toRemove.push(k)
+      }
+    }
+    for (const k of toRemove) {
+      deletedKeys.add(k)
+      lsDel(k)
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    const db = await openAuthDb()
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite')
+      tx.objectStore(IDB_STORE).clear()
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  } catch {
+    // best-effort
+  }
+}
+
 /** Test-only: drop in-memory cache between cases. */
 export function __resetDurableAuthMemoryForTests(): void {
   memory.clear()

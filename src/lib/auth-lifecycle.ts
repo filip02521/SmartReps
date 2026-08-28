@@ -1,9 +1,12 @@
+import type { NavigateFunction } from 'react-router-dom'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
+import { wipeDurableAuthStorage } from '@/lib/auth-storage'
 import { useAppStore } from '@/stores/app-store'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
 
-/** Cleared after this SIGNED_OUT event is handled (same tick). */
+/** Must match auth-sync AUTH_RETURN_KEY — avoid importing auth-sync (cycle). */
+const AUTH_RETURN_KEY = 'auth-return-to'
 const INTENTIONAL_SIGNOUT_KEY = 'sr-auth-intentional-signout'
 /** Sticky until next successful login — suppresses "session lost" after voluntary logout. */
 const USER_SIGNED_OUT_PREF_KEY = 'sr-auth-user-signed-out'
@@ -113,12 +116,21 @@ export async function signOutUser(
     // Local session still present — don't suppress future unexpected-loss toasts.
     clearSignedOutPreference()
     if (error) throw error
+    return
   }
-  // Session cleared locally: keep sticky signed-out pref even if remote revoke failed.
+  // Belt-and-suspenders: clear durable mirror even if GoTrue removeItem raced.
+  await wipeDurableAuthStorage()
+}
+
+function isOnLoginRoute(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.location.pathname.startsWith('/setup/login')
 }
 
 /** Toast once when cloud session disappeared but local progress account is remembered. */
-export async function notifyUnexpectedSessionLoss(): Promise<void> {
+export async function notifyUnexpectedSessionLoss(
+  navigate?: NavigateFunction,
+): Promise<void> {
   await waitForStoreHydration()
   if (!useAppStore.getState().lastAuthUserId) return
   if (storageHas(USER_SIGNED_OUT_PREF_KEY)) {
@@ -126,16 +138,43 @@ export async function notifyUnexpectedSessionLoss(): Promise<void> {
     return
   }
   if (consumeIntentionalSignOut()) return
+  if (isOnLoginRoute()) return
 
   const now = Date.now()
   if (now - lastSessionLostToastAt < 8000) return
   lastSessionLostToastAt = now
-  showToast(pl.sessionLostReLogin, 'info')
+
+  const returnTo =
+    typeof window !== 'undefined' && !window.location.pathname.startsWith('/setup/')
+      ? window.location.pathname + window.location.search
+      : '/'
+
+  showToast(pl.sessionLostReLogin, 'info', {
+    durationMs: 12000,
+    action: {
+      label: pl.sessionLostReLoginAction,
+      onClick: () => {
+        try {
+          sessionStorage.setItem(AUTH_RETURN_KEY, returnTo)
+        } catch {
+          // ignore
+        }
+        if (navigate) {
+          navigate('/setup/login', { state: { returnTo } })
+        } else {
+          window.location.assign(
+            `/setup/login?returnTo=${encodeURIComponent(returnTo)}`,
+          )
+        }
+      },
+    },
+  })
 }
 
 /**
- * Recover session after iOS bfcache / PWA resume; keep auto-refresh under Supabase's
- * built-in visibility handler (do not call startAutoRefresh yourself).
+ * Recover session after iOS bfcache / PWA resume.
+ * Online recovery is owned by setupOnlineSync → runAuthenticatedSync (avoids double getSession).
+ * Do not call startAutoRefresh — GoTrue already ties refresh to visibility.
  */
 export function setupAuthLifecycle(): () => void {
   if (!isSupabaseConfigured || typeof window === 'undefined' || lifecycleStarted) {
@@ -153,7 +192,6 @@ export function setupAuthLifecycle(): () => void {
   }
 
   const onPageShow = (e: PageTransitionEvent) => {
-    // First load is handled by GoTrue initialize; only re-check bfcache restores here.
     if (e.persisted) recover()
   }
 
@@ -161,17 +199,13 @@ export function setupAuthLifecycle(): () => void {
     if (document.visibilityState === 'visible') recover()
   }
 
-  const onOnline = () => recover()
-
   window.addEventListener('pageshow', onPageShow)
   document.addEventListener('visibilitychange', onVisible)
-  window.addEventListener('online', onOnline)
 
   return () => {
     lifecycleStarted = false
     if (recoverTimer) clearTimeout(recoverTimer)
     window.removeEventListener('pageshow', onPageShow)
     document.removeEventListener('visibilitychange', onVisible)
-    window.removeEventListener('online', onOnline)
   }
 }

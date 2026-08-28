@@ -442,7 +442,9 @@ export const pl = {
   accountLoggedIn: (email: string) => `Zalogowany jako ${email}`,
   accountLocalOnly: 'Trenujesz lokalnie na tym urządzeniu — zaloguj się, aby syncować.',
   sessionLostReLogin:
-    'Sesja logowania wygasła lub została wyczyszczona przez system — treningi na telefonie są bezpieczne. Zaloguj się ponownie w Profilu, aby syncować.',
+    'Sesja logowania wygasła lub została wyczyszczona przez system — treningi na telefonie są bezpieczne.',
+  sessionLostReLoginAction: 'Zaloguj się ponownie',
+  logoutFailed: 'Nie udało się wylogować. Spróbuj ponownie.',
   dataSection: 'Dane',
   profileProgramsLoading: 'Ładowanie programów…',
   reminderHourLabel: 'Godzina przypomnienia',

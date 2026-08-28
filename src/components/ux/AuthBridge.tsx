@@ -28,7 +28,7 @@ export function AuthBridge() {
       if (cancelled) return
 
       if (event === 'SIGNED_OUT') {
-        await notifyUnexpectedSessionLoss()
+        await notifyUnexpectedSessionLoss(navigate)
         return
       }
 
@@ -38,8 +38,7 @@ export function AuthBridge() {
         if (initialSessionHandled) return
         initialSessionHandled = true
         if (!session) {
-          // Storage wiped or refresh failed — explain if we remember a prior login.
-          await notifyUnexpectedSessionLoss()
+          await notifyUnexpectedSessionLoss(navigate)
           return
         }
       }

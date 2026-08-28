@@ -27,6 +27,10 @@ function mockIdb() {
           ops.push(() => idbData.delete(key))
           return {}
         },
+        clear() {
+          ops.push(() => idbData.clear())
+          return {}
+        },
       }
       const tx: {
         objectStore: () => typeof storeApi
@@ -103,18 +107,15 @@ describe('durableAuthStorage', () => {
     expect(await durableAuthStorage.getItem('sb-auth')).toBeNull()
   })
 
-  it('does not resurrect IDB value after removeItem while mirror was queued', async () => {
-    const { durableAuthStorage, __resetDurableAuthMemoryForTests } = await import(
-      '@/lib/auth-storage'
-    )
-    await durableAuthStorage.setItem('sb-auth', 'alive')
-    // Warm LS hit schedules a mirror; remove immediately after.
-    await durableAuthStorage.getItem('sb-auth')
-    await durableAuthStorage.removeItem('sb-auth')
-    __resetDurableAuthMemoryForTests()
-    localStorage.clear()
-    // Tombstone is cleared on reset; ensure IDB was actually deleted by removeItem.
-    expect(idbData.has('sb-auth')).toBe(false)
+  it('wipeDurableAuthStorage clears IDB and matching localStorage keys', async () => {
+    const { durableAuthStorage, wipeDurableAuthStorage } = await import('@/lib/auth-storage')
+    await durableAuthStorage.setItem('sb-xyz-auth-token', 'secret')
+    localStorage.setItem('sb-xyz-auth-token', 'secret')
+    idbData.set('sb-xyz-auth-token', 'secret')
+    await wipeDurableAuthStorage()
+    expect(localStorage.getItem('sb-xyz-auth-token')).toBeNull()
+    expect(idbData.size).toBe(0)
+    expect(await durableAuthStorage.getItem('sb-xyz-auth-token')).toBeNull()
   })
 })
 
@@ -180,5 +181,13 @@ describe('auth lifecycle intentional sign-out', () => {
     const { notifyUnexpectedSessionLoss } = await import('@/lib/auth-lifecycle')
     await notifyUnexpectedSessionLoss()
     expect(showToast).toHaveBeenCalledOnce()
+    expect(showToast).toHaveBeenCalledWith(
+      expect.any(String),
+      'info',
+      expect.objectContaining({
+        action: expect.objectContaining({ label: expect.any(String) }),
+        durationMs: 12000,
+      }),
+    )
   })
 })

@@ -151,13 +151,18 @@ export default function Login() {
 
   const logoutToSwitch = async () => {
     setLoading(true)
-    await signOutUser()
-    setSignedInEmail(null)
-    setSent(false)
-    setEmail('')
-    setOtpCode('')
-    setLoading(false)
-    showToast(pl.loginLogoutToSwitchDone, 'info')
+    try {
+      await signOutUser()
+      setSignedInEmail(null)
+      setSent(false)
+      setEmail('')
+      setOtpCode('')
+      showToast(pl.loginLogoutToSwitchDone, 'info')
+    } catch {
+      showToast(pl.logoutFailed, 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const skip = async () => {

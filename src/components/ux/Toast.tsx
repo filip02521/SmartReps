@@ -96,9 +96,28 @@ export function ToastHost() {
             >
               {toastIcon(t.variant, t.message)}
             </div>
-            <p className="min-w-0 flex-1 pt-1.5 text-sm font-medium leading-snug text-[var(--sr-text-primary)]">
-              {t.message}
-            </p>
+            <div className="min-w-0 flex-1 pt-1.5">
+              <p className="text-sm font-medium leading-snug text-[var(--sr-text-primary)]">
+                {t.message}
+              </p>
+              {t.action && (
+                <button
+                  type="button"
+                  className={cn(
+                    'mt-2 min-h-11 rounded-[var(--sr-radius-md)] px-3 text-sm font-semibold',
+                    FOCUS_RING,
+                  )}
+                  style={{ color: chrome.accent }}
+                  onClick={() => {
+                    const run = t.action?.onClick
+                    dismiss(t.id)
+                    run?.()
+                  }}
+                >
+                  {t.action.label}
+                </button>
+              )}
+            </div>
             <button
               type="button"
               className={cn(
