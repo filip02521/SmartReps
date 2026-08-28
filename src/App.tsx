@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { lazyWithChunkRecovery } from '@/lib/chunk-load-recovery'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { AuthBridge } from '@/components/ux/AuthBridge'
 import { GlobalOfflineBar } from '@/components/ux/GlobalOfflineBar'
@@ -21,9 +22,9 @@ import TermsPage from '@/pages/legal/Terms'
 import { ToastHost } from '@/components/ux/Toast'
 import { AccountSwitchGate } from '@/components/ux/AccountSwitchGate'
 
-const ProgressPage = lazy(() => import('@/pages/Progress'))
-const PlansPage = lazy(() => import('@/pages/Plans'))
-const ProfilePage = lazy(() => import('@/pages/Profile'))
+const ProgressPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Progress')))
+const PlansPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Plans')))
+const ProfilePage = lazy(lazyWithChunkRecovery(() => import('@/pages/Profile')))
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return (

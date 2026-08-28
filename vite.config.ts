@@ -53,7 +53,9 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Keep hashed assets precached; index.html must stay network-first (see sw.ts).
+        globPatterns: ['**/*.{js,css,svg,png,woff2}'],
+        globIgnores: ['**/index.html'],
       },
       devOptions: {
         enabled: false,

@@ -12,6 +12,8 @@ export function PwaUpdatePrompt() {
   useEffect(() => {
     if (!import.meta.env.PROD) return
 
+    let registration: ServiceWorkerRegistration | undefined
+
     const updateSW = registerSW({
       onNeedRefresh() {
         setNeedsRefresh(true)
@@ -20,9 +22,20 @@ export function PwaUpdatePrompt() {
       onOfflineReady() {
         // optional — app works offline after first load
       },
+      onRegistered(reg) {
+        registration = reg
+      },
     })
 
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void registration?.update()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
+      document.removeEventListener('visibilitychange', onVisible)
       setUpdateFn(null)
     }
   }, [])

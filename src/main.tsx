@@ -11,12 +11,14 @@ import { scheduleDailyReminder } from '@/lib/notifications'
 import { applyThemeColor } from '@/lib/theme-color'
 import { initErrorReporting } from '@/lib/analytics'
 import { PwaUpdatePrompt } from '@/components/ux/PwaUpdatePrompt'
+import { setupChunkLoadRecovery } from '@/lib/chunk-load-recovery'
 import '@fontsource/plus-jakarta-sans/400.css'
 import '@fontsource/plus-jakarta-sans/500.css'
 import '@fontsource/plus-jakarta-sans/600.css'
 import '@fontsource/plus-jakarta-sans/700.css'
 
 initErrorReporting()
+setupChunkLoadRecovery()
 setupOnlineSync()
 
 function applyPersistedUi(settings: ReturnType<typeof useAppStore.getState>['settings']) {

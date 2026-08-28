@@ -1,23 +1,36 @@
 /// <reference lib="webworker" />
-import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
+import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
 import { clientsClaim } from 'workbox-core'
-import { NavigationRoute, registerRoute } from 'workbox-routing'
+import { registerRoute } from 'workbox-routing'
+import { NetworkFirst } from 'workbox-strategies'
+import { CacheableResponsePlugin } from 'workbox-cacheable-response'
+import { ExpirationPlugin } from 'workbox-expiration'
 
 declare let self: ServiceWorkerGlobalScope
 
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
+
+// HTML navigations: network-first so deploys never serve stale index.html + missing chunks.
+registerRoute(
+  ({ request }) => request.mode === 'navigate',
+  new NetworkFirst({
+    cacheName: 'sr-navigations',
+    networkTimeoutSeconds: 5,
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxEntries: 8, maxAgeSeconds: 7 * 24 * 3600 }),
+    ],
+  }),
+)
+
 clientsClaim()
 
-try {
-  registerRoute(
-    new NavigationRoute(createHandlerBoundToURL('/index.html'), {
-      denylist: [/^\/api\//],
-    }),
-  )
-} catch {
-  // createHandlerBoundToURL may fail in some preview contexts
-}
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+})
 
 self.addEventListener('push', (event) => {
   let title = 'SmartReps'
@@ -71,5 +84,3 @@ self.addEventListener('notificationclick', (event) => {
     })(),
   )
 })
-
-self.skipWaiting()
