@@ -221,7 +221,7 @@ export default function ProgressPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-6 safe-top">
+      <div className="mx-auto w-full min-w-0 max-w-lg px-4 py-6">
         <PageHeader title={pl.navProgress} subtitle={pl.progressOverviewHint} />
         <SkeletonCard className="mt-4 min-h-[8rem]" />
         <SkeletonCard className="mt-4 min-h-[12rem]" />
@@ -231,7 +231,7 @@ export default function ProgressPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-6 safe-top">
+      <div className="mx-auto w-full min-w-0 max-w-lg px-4 py-6">
         <PageHeader title={pl.navProgress} />
         <ErrorBanner message={error} onRetry={() => setReloadEpoch((n) => n + 1)} />
       </div>
@@ -239,7 +239,7 @@ export default function ProgressPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 safe-top">
+    <div className="mx-auto w-full min-w-0 max-w-lg px-4 py-6">
       <PageHeader title={pl.navProgress} subtitle={statusSubtitle} />
 
       {programOptions.length > 1 && (
@@ -307,7 +307,7 @@ export default function ProgressPage() {
             <>
               {tests.length > 0 ? (
                 <ProgressSection title={pl.chartTestOverTime} hint={pl.progressTestChartHint}>
-                  <div className="h-44 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-2 py-3">
+                  <div className="h-44 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] py-3">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={tests}>
                         <XAxis
@@ -345,7 +345,7 @@ export default function ProgressPage() {
 
               {maxPerDay.length > 0 && (
                 <ProgressSection title={pl.maxSetPerDay} hint={pl.progressMaxSetChartHint}>
-                  <div className="h-36 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-2 py-3">
+                  <div className="h-36 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] py-3">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={maxPerDay}>
                         <XAxis

@@ -27,15 +27,15 @@ export function ActivityHeatmap({
         </p>
       )}
       <div className="overflow-x-auto" role="img" aria-label={pl.heatmapSummary(workoutCount, weeks)}>
-        <div className="inline-flex flex-col gap-1">
+        <div className="flex w-full min-w-0 flex-col gap-1">
           {grid.map((week, wi) => (
-            <div key={wi} className="flex gap-1">
+            <div key={wi} className="grid grid-cols-7 gap-1">
               {week.map((cell) => (
                 <div
                   key={cell.date}
                   title={cell.detail ? `${cell.label}: ${cell.detail}` : cell.label}
                   aria-label={cell.detail ? `${cell.label}: ${cell.detail}` : cell.label}
-                  className={cn('h-4 w-4 rounded-[3px]', colors[cell.status])}
+                  className={cn('aspect-square min-h-4 w-full rounded-[3px]', colors[cell.status])}
                 />
               ))}
             </div>
