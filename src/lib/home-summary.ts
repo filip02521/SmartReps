@@ -1,7 +1,6 @@
 import { db, type LocalProgramProgress, type ActiveWorkoutState } from '@/lib/db'
 import { getCycleById } from '@/data/plans'
 import type { Program, SetTarget } from '@/data/plans/types'
-import { getCompletedDaysInCycle } from '@/lib/cycle-progress'
 import {
   getTargetReps,
   isWorkoutAvailable,
@@ -30,19 +29,6 @@ export type ResumeInfo = {
   currentSetIndex: number
 }
 
-export type HomeProgramBar = {
-  program: Program
-  label: string
-  completedDays: number
-  totalDays: number
-  fraction: number
-  cycleNameShort: string
-  attempt: number
-  dayLabel: string
-  paused: boolean
-  testPending: boolean
-}
-
 export type TipKind =
   | 'stale'
   | 'test_ready'
@@ -54,7 +40,6 @@ export type TipKind =
   | 'login_backup'
   | 'habit_zero'
   | 'habit_met'
-  | 'rest_all'
 
 export type HomeTipModel = {
   id: string
@@ -77,7 +62,6 @@ export type TipSuppression = {
   stale: boolean
   test: boolean
   level: boolean
-  allRest: boolean
 }
 
 export type ProgramCardModel = {
@@ -103,10 +87,10 @@ export type HomeLoadResult = {
   summary: {
     sessions14d: number
     reps14d: number
-    bestStreakWeeks: number
-    statusSentence: string
+    statusHeadline: string
+    statusSubtitle?: string
+    allResting: boolean
     dateLabel: string
-    programs: HomeProgramBar[]
   }
   cards: ProgramCardModel[]
   tip: HomeTipModel | null
@@ -202,7 +186,26 @@ function buildResume(
   }
 }
 
-export function buildStatusSentence(cards: ProgramCardModel[]): string {
+export function isAllPaused(cards: ProgramCardModel[]): boolean {
+  const configured = cards.filter((c) => c.bucket !== 'unconfigured')
+  return configured.length > 0 && configured.every((c) => c.bucket === 'paused')
+}
+
+export function isAllResting(cards: ProgramCardModel[]): boolean {
+  const configured = cards.filter((c) => c.bucket !== 'unconfigured')
+  return (
+    configured.length > 0 &&
+    configured.every((c) => c.bucket === 'resting' || c.bucket === 'paused') &&
+    configured.some((c) => c.bucket === 'resting')
+  )
+}
+
+export type HomeStatusDisplay = {
+  headline: string
+  subtitle?: string
+}
+
+export function buildStatusDisplay(cards: ProgramCardModel[]): HomeStatusDisplay {
   const configured = cards.filter((c) => c.bucket !== 'unconfigured')
   const hasResumeStale = cards.some((c) => c.bucket === 'resume_stale')
   const hasResumeFresh = cards.some((c) => c.bucket === 'resume')
@@ -211,25 +214,25 @@ export function buildStatusSentence(cards: ProgramCardModel[]): string {
   const testReady = cards.some((c) => c.bucket === 'test_pending_ready')
   const testRest = cards.find((c) => c.bucket === 'test_pending_rest')
   const anyReady = cards.some((c) => c.bucket === 'ready')
-  const allResting =
-    configured.length > 0 &&
-    configured.every((c) => c.bucket === 'resting' || c.bucket === 'paused') &&
-    configured.some((c) => c.bucket === 'resting')
-  const allPausedOrUnconfigured =
+  const allResting = isAllResting(cards)
+  const allPaused = isAllPaused(cards)
+  const allUnconfigured =
+    cards.length > 0 && cards.every((c) => c.bucket === 'unconfigured')
+  const setupOnly =
     cards.length > 0 &&
     cards.every((c) => c.bucket === 'paused' || c.bucket === 'unconfigured')
 
   if (hasResume) {
-    if (otherReady) return pl.homeStatusResumeAndReady
-    if (hasResumeStale && !hasResumeFresh) return pl.homeStatusResumeStale
-    return pl.homeStatusResume
+    if (otherReady) return { headline: pl.homeStatusResumeAndReady }
+    if (hasResumeStale && !hasResumeFresh) return { headline: pl.homeStatusResumeStale }
+    return { headline: pl.homeStatusResume }
   }
-  if (testReady) return pl.homeStatusTestReady
+  if (testReady) return { headline: pl.homeStatusTestReady }
   if (testRest) {
     const label = testRest.stats?.nextWorkoutLabel ?? pl.today
-    return pl.homeStatusTestRest(label)
+    return { headline: pl.homeStatusTestRest(label) }
   }
-  if (anyReady) return pl.homeStatusReady
+  if (anyReady) return { headline: pl.homeStatusReady }
   if (allResting) {
     const restingCards = configured.filter((c) => c.bucket === 'resting' && c.progress)
     let soonest: ProgramCardModel | null = null
@@ -243,10 +246,15 @@ export function buildStatusSentence(cards: ProgramCardModel[]): string {
       }
     }
     const next = soonest?.stats?.nextWorkoutLabel ?? pl.today
-    return pl.homeStatusAllRest(next)
+    return {
+      headline: pl.homeStatusRestHeadline,
+      subtitle: pl.homeStatusRestSubtitle(next),
+    }
   }
-  if (allPausedOrUnconfigured) return pl.homeStatusSetup
-  return pl.homeStatusFallback
+  if (allPaused) return { headline: pl.homeStatusAllPaused }
+  if (allUnconfigured) return { headline: pl.homeStatusSetup }
+  if (setupOnly) return { headline: pl.homeStatusSetupMixed }
+  return { headline: pl.homeStatusFallback }
 }
 
 export function pickTip(
@@ -403,18 +411,6 @@ export function pickTip(
     }
   }
 
-  const configured = cards.filter((c) => c.bucket !== 'unconfigured')
-  const allResting =
-    configured.length > 0 && configured.every((c) => c.bucket === 'resting')
-  if (allResting && !dismissed.has('rest-all')) {
-    return {
-      id: 'rest-all',
-      kind: 'rest_all',
-      message: pl.homeTipRestAll,
-      dismissible: true,
-    }
-  }
-
   return null
 }
 
@@ -423,7 +419,6 @@ export function tipSuppressionFrom(tip: HomeTipModel | null): TipSuppression {
     stale: tip?.kind === 'stale',
     test: tip?.kind === 'test_ready' || tip?.kind === 'test_rest',
     level: tip?.kind === 'level',
-    allRest: tip?.kind === 'rest_all',
   }
 }
 
@@ -544,35 +539,6 @@ export async function loadHomeDashboard(
   const sortedPrograms = sortPrograms(enabledPrograms, bucketMap)
   const cards = sortedPrograms.map((p) => cardModels.find((c) => c.program === p)!)
 
-  let bestStreakWeeks = 0
-  for (const c of cards) {
-    if (c.stats) bestStreakWeeks = Math.max(bestStreakWeeks, c.stats.streakWeeks)
-  }
-
-  const programs: HomeProgramBar[] = []
-  for (const c of cards) {
-    if (!c.progress || c.bucket === 'unconfigured') continue
-    const cycle = getCycleById(c.progress.cycleId)
-    if (!cycle) continue
-    const completed = getCompletedDaysInCycle(c.progress, cycle)
-    const total = cycle.days.length
-    const testPending = c.progress.status === 'test_pending'
-    programs.push({
-      program: c.program,
-      label: c.label,
-      completedDays: testPending ? total : completed,
-      totalDays: total,
-      fraction: total > 0 ? (testPending ? 1 : completed / total) : 0,
-      cycleNameShort: cycle.nameShort,
-      attempt: c.progress.cycleAttempt,
-      dayLabel: testPending
-        ? pl.cycleDoneTestLabel
-        : pl.dayOfTotal(c.progress.currentDay, total),
-      paused: c.progress.status === 'paused',
-      testPending,
-    })
-  }
-
   const tip = pickTip(
     cards,
     sessions14d,
@@ -586,15 +552,16 @@ export async function loadHomeDashboard(
   )
 
   const weeklyRecap = await loadWeeklyRecap()
+  const status = buildStatusDisplay(cards)
 
   return {
     summary: {
       sessions14d,
       reps14d,
-      bestStreakWeeks,
-      statusSentence: buildStatusSentence(cards),
+      statusHeadline: status.headline,
+      statusSubtitle: status.subtitle,
+      allResting: isAllResting(cards),
       dateLabel: formatHomeDate(),
-      programs,
     },
     cards,
     tip,

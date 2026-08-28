@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildStatusSentence,
+  buildStatusDisplay,
   deriveProgramBucket,
   localDayKey,
   pickTip,
@@ -107,9 +107,9 @@ describe('deriveProgramBucket', () => {
   })
 })
 
-describe('buildStatusSentence', () => {
+describe('buildStatusDisplay', () => {
   it('soft copy when resume and other ready', () => {
-    const sentence = buildStatusSentence([
+    const status = buildStatusDisplay([
       card({
         program: 'pushups',
         bucket: 'resume',
@@ -118,7 +118,8 @@ describe('buildStatusSentence', () => {
       }),
       card({ program: 'pullups', bucket: 'ready', progress: prog({ program: 'pullups' }) }),
     ])
-    expect(sentence).toBe(pl.homeStatusResumeAndReady)
+    expect(status.headline).toBe(pl.homeStatusResumeAndReady)
+    expect(status.subtitle).toBeUndefined()
   })
 
   it('picks soonest nextWorkoutAfter when all resting', () => {
@@ -126,7 +127,7 @@ describe('buildStatusSentence', () => {
     later.setDate(later.getDate() + 5)
     const sooner = new Date()
     sooner.setDate(sooner.getDate() + 1)
-    const sentence = buildStatusSentence([
+    const status = buildStatusDisplay([
       card({
         program: 'pushups',
         bucket: 'resting',
@@ -162,7 +163,20 @@ describe('buildStatusSentence', () => {
         },
       }),
     ])
-    expect(sentence).toBe(pl.homeStatusAllRest('jutro'))
+    expect(status.headline).toBe(pl.homeStatusRestHeadline)
+    expect(status.subtitle).toBe(pl.homeStatusRestSubtitle('jutro'))
+  })
+
+  it('shows paused headline when all programs paused', () => {
+    const status = buildStatusDisplay([
+      card({ program: 'pushups', bucket: 'paused', progress: prog({ status: 'paused' }) }),
+      card({
+        program: 'pullups',
+        bucket: 'paused',
+        progress: prog({ program: 'pullups', status: 'paused' }),
+      }),
+    ])
+    expect(status.headline).toBe(pl.homeStatusAllPaused)
   })
 })
 
@@ -286,7 +300,7 @@ describe('pickTip + tipSuppressionFrom', () => {
     expect(tipSuppressionFrom(withFail).level).toBe(true)
   })
 
-  it('rest_all tip sets allRest suppression', () => {
+  it('does not show a tip when all programs are resting and nothing else applies', () => {
     const future = new Date()
     future.setDate(future.getDate() + 2)
     const tip = pickTip(
@@ -302,7 +316,6 @@ describe('pickTip + tipSuppressionFrom', () => {
       localDayKey(),
       { daysSinceLastPassedSession: 1, enabledProgramCount: 1 },
     )
-    expect(tip?.kind).toBe('rest_all')
-    expect(tipSuppressionFrom(tip).allRest).toBe(true)
+    expect(tip).toBeNull()
   })
 })

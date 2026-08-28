@@ -6,36 +6,42 @@ export const pl = {
   ready: 'Gotowy do treningu',
   dashboardSubtitle: 'Wybierz program i zacznij dzień',
   homeChooseTraining: 'Wybierz trening',
-  homeChooseTrainingHint: 'Otwórz kartę programu, który chcesz ćwiczyć.',
+  homeChooseTrainingHint: 'Dotknij karty programu, aby rozpocząć.',
+  homeYourPrograms: 'Twoje programy',
   homeAddSecondProgram: 'Dodaj drugi program',
-  homeSessions14d: 'Sesje 14 dni',
-  homeSessions14dHint: 'zaliczone',
-  homeReps14d: 'Powtórzenia 14 dni',
-  homeGoal3in14: 'Cel: 3 zaliczone treningi / 14 dni',
-  homeStatusResume: 'Masz niedokończoną sesję',
-  homeStatusResumeStale: 'Niedokończona sesja czeka — sprawdź kartę',
-  homeStatusResumeAndReady: 'Niedokończona sesja · możesz też trenować drugi program',
-  homeStatusTestReady: 'Czas na test max po cyklu',
-  homeStatusTestRest: (when: string) => `Test max po odpoczynku — ${when}`,
+  homeSessions14d: 'Treningi',
+  homeSessions14dHint: 'ostatnie 14 dni',
+  homeReps14d: 'Powtórzenia',
+  homeReps14dHint: 'ostatnie 14 dni',
+  homeGoal3in14: '3 treningi w 14 dni',
+  homeStatusResume: 'Dokończ rozpoczęty trening',
+  homeStatusResumeStale: 'Masz niedokończony trening — sprawdź kartę poniżej',
+  homeStatusResumeAndReady: 'Dokończ trening albo wybierz inny program',
+  homeStatusTestReady: 'Czas na test maksymalny',
+  homeStatusTestRest: (when: string) => `Test po odpoczynku — ${when}`,
   homeStatusReady: 'Możesz trenować dziś',
-  homeStatusAllRest: (when: string) => `Dziś regeneracja — następny: ${when}`,
-  homeStatusSetup: 'Wznów lub skonfiguruj program',
-  homeStatusFallback: 'Twój plan na dziś',
-  homeTodaySession: 'Dzisiejsza sesja',
+  homeStatusRestHeadline: 'Dziś odpoczynek',
+  homeStatusRestSubtitle: (when: string) => `Następny trening ${when}`,
+  homeStatusAllPaused: 'Programy wstrzymane — wznów, gdy będziesz gotowy',
+  homeStatusSetup: 'Skonfiguruj program, aby zacząć',
+  homeStatusSetupMixed: 'Wznów program lub dokończ konfigurację',
+  homeStatusFallback: 'Twój plan treningowy',
+  homeProgramLevelDay: (level: string, day: number, total: number) =>
+    level ? `Poziom ${level} · Dzień ${day} z ${total}` : `Dzień ${day} z ${total}`,
+  homeCycleRestart: (n: number) => `${n}. podejście do cyklu`,
+  homeTodaySession: 'Plan na dziś',
   homeInProgressSets: (set: number, total: number, day: number) =>
-    `W toku: seria ${set}/${total} · Dzień ${day}`,
-  homeNowDay: (n: number) => `Teraz: Dzień ${n}`,
+    `Seria ${set}/${total} · Dzień ${day}`,
   homeProgramPaused: 'Program wstrzymany',
-  homeTipTestRest: (when: string) => `Test max będzie dostępny ${when}.`,
-  homeTipHabitZero: 'Zaplanuj krótki trening — wystarczy jeden dzień, by wrócić.',
-  homeTipHabitMet: 'Cel 3/14 dni zaliczony. Trzymaj rytm.',
-  homeTipRestAll: 'Regeneracja jest częścią planu. Wróć, gdy odblokuje się dzień.',
+  homeTipTestRest: (when: string) => `Test będzie dostępny ${when}.`,
+  homeTipHabitZero: 'Jeden krótki trening wystarczy, żeby wrócić do rytmu.',
+  homeTipHabitMet: 'Cel nawyku zaliczony — utrzymaj tempo.',
   homeTipReturnAfterBreak: (days: number) =>
     `Minęło ${days} dni od ostatniego treningu — wróć do planu, nawet krótką sesją.`,
   homeTipHabitAlmost: (n: number) =>
     n === 1
-      ? 'Jeden trening w 14 dni — jeszcze dwa do celu 3/14.'
-      : 'Dwa treningi w 14 dni — jeszcze jeden do celu 3/14.',
+      ? 'Masz 1 trening w 14 dni — brakuje jeszcze 2 do celu.'
+      : 'Masz 2 treningi w 14 dni — brakuje jeszcze 1 do celu.',
   homeTipDualProgram:
     'Masz dwa programy — jeden możesz trenować dziś, drugi czeka na konfigurację lub regenerację.',
   homeTipLoginBackup:
@@ -51,21 +57,26 @@ export const pl = {
   homeTipTitleDualProgram: 'Dwa programy',
   homeTipTitleLoginBackup: 'Backup w chmurze',
   homeTipTitleHabitZero: 'Wróć do rytmu',
-  homeTipTitleHabitMet: 'Cel 3/14 zaliczony',
-  homeTipTitleRestAll: 'Dzień regeneracji',
+  homeTipTitleHabitMet: 'Cel nawyku zaliczony',
   weeklyRecapTitle: 'Ten tydzień',
-  weeklyRecapSessions: 'Sesje',
+  weeklyRecapSessions: 'Treningi',
   weeklyRecapReps: 'Powtórzenia',
+  weeklyRecapLine: (sessions: number, reps: number) => {
+    const s =
+      sessions === 1 ? '1 trening' : sessions >= 2 && sessions <= 4 ? `${sessions} treningi` : `${sessions} treningów`
+    return `${s} · ${reps} powt.`
+  },
   weeklyRecapDeltaUp: (n: number) =>
-    n === 1 ? '+1 sesja vs poprzedni tydzień' : `+${n} sesji vs poprzedni tydzień`,
+    n === 1 ? '+1 trening vs poprzedni tydzień' : `+${n} treningów vs poprzedni tydzień`,
   weeklyRecapDeltaDown: (n: number) =>
-    n === 1 ? '−1 sesja vs poprzedni tydzień' : `−${n} sesji vs poprzedni tydzień`,
-  weeklyRecapDeltaSame: 'Tyle samo sesji co w poprzednim tygodniu',
+    n === 1 ? '−1 trening vs poprzedni tydzień' : `−${n} treningów vs poprzedni tydzień`,
+  weeklyRecapDeltaSame: 'Tyle samo treningów co w poprzednim tygodniu',
+  weeklyRecapCurrentStreak: (n: number) =>
+    n === 1 ? 'Obecna seria: 1 tydzień' : `Obecna seria: ${n} tygodni`,
   weeklyRecapBestStreak: (n: number) =>
-    n === 1 ? 'Rekord: 1 tydzień z treningiem' : `Rekord: ${n} tyg. z treningiem`,
-  weeklyRecapEmpty: 'Brak sesji w tym tygodniu — czas wrócić do planu.',
-  weeklyRecapCollapsedHint: (sessions: number, reps: number) =>
-    `${sessions} sesji · ${reps} powt.`,
+    n === 1 ? 'Najdłuższa seria: 1 tydzień' : `Najdłuższa seria: ${n} tygodni`,
+  weeklyRecapEmpty: 'W tym tygodniu jeszcze nie trenowałeś.',
+  weeklyRecapCollapsedHint: (sessions: number, reps: number) => pl.weeklyRecapLine(sessions, reps),
   trainAnywayNew: 'Trenuję mimo to',
   abandonResumeTrainAnywayTitle: 'Porzucić niedokończoną sesję?',
   abandonResumeTrainAnywayBody:
@@ -176,7 +187,7 @@ export const pl = {
   filterEmptyHistory: 'Brak sesji dla wybranych filtrów.',
   clearFilters: 'Wyczyść filtry',
   statusReady: 'Gotowy',
-  statusRest: 'Przerwa',
+  statusRest: 'Odpoczynek',
   statusTest: 'Test',
   statusRestart: 'Restart',
   statusPaused: 'Wstrzymany',
@@ -232,7 +243,7 @@ export const pl = {
   onboardingPickProgram: 'Wybierz program',
   onboardingRulesTitle: 'Jak to działa',
   restGateHint: (days: number) =>
-    `Program zaleca minimum ${days} ${days === 1 ? 'dzień' : 'dni'} przerwy po ostatnim treningu.`,
+    days === 1 ? '1 dzień przerwy między treningami' : `${days} dni przerwy między treningami`,
   totalRepsLastSession: (n: number) => `${n} powtórzeń łącznie (ostatni trening)`,
   cycleDoneDays: (done: number, total: number) => `Cykl ukończony · ${done}/${total} dni`,
   dayOfTotal: (day: number, total: number) => `Dzień ${day}/${total}`,
@@ -569,7 +580,7 @@ export const pl = {
   termsTitle: 'Regulamin',
   legalBack: 'Wróć',
   appVersion: (v: string) => `SmartReps v${v}`,
-  restPrimaryLabel: (when: string) => `Następny trening: ${when}`,
+  restPrimaryLabel: (when: string) => `Trening ${when}`,
   considerLowerLevel: 'Kilka restartów z rzędu — rozważ niższy poziom.',
   summaryRecSuccess: 'Świetna robota. Zrób zaplanowaną przerwę — regeneracja buduje siłę.',
   summaryRecFail: 'Po przerwie wrócisz do dnia 1 tego cyklu. Możesz też zmienić poziom w menu programu.',

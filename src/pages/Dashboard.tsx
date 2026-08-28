@@ -125,6 +125,14 @@ export default function Dashboard() {
 
   const reload = () => setReloadEpoch((n) => n + 1)
   const showTip = installVisible === false && !!home?.tip
+  const canChooseTraining =
+    home?.cards.some(
+      (c) =>
+        c.bucket === 'ready' ||
+        c.bucket === 'resume' ||
+        c.bucket === 'resume_stale' ||
+        c.bucket === 'test_pending_ready',
+    ) ?? false
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
@@ -137,8 +145,7 @@ export default function Dashboard() {
         <>
           <div className="mb-5 space-y-3" aria-busy aria-label={pl.loading}>
             <SkeletonCard className="min-h-[3.5rem]" />
-            <div className="grid grid-cols-3 gap-2">
-              <SkeletonCard className="min-h-[4.5rem]" />
+            <div className="grid grid-cols-2 gap-2">
               <SkeletonCard className="min-h-[4.5rem]" />
               <SkeletonCard className="min-h-[4.5rem]" />
             </div>
@@ -156,7 +163,6 @@ export default function Dashboard() {
           <HomeSummary
             summary={home.summary}
             weeklyRecap={home.weeklyRecap}
-            onScrollToProgram={scrollToProgram}
           />
 
           <div
@@ -198,20 +204,26 @@ export default function Dashboard() {
               action={{ label: pl.goToProfile, onClick: () => navigate('/profile') }}
             />
           ) : (
-            <section aria-label={pl.homeChooseTraining}>
-              <h2 className="sr-text-h2 text-[var(--sr-text-primary)]">{pl.homeChooseTraining}</h2>
-              <p className="mt-1 mb-4 text-sm text-[var(--sr-text-secondary)]">
-                {pl.homeChooseTrainingHint}
-              </p>
+            <section aria-label={canChooseTraining ? pl.homeChooseTraining : pl.homeYourPrograms}>
+              <h2 className="sr-text-h2 text-[var(--sr-text-primary)]">
+                {canChooseTraining ? pl.homeChooseTraining : pl.homeYourPrograms}
+              </h2>
+              {canChooseTraining && (
+                <p className="mt-1 mb-4 text-sm text-[var(--sr-text-secondary)]">
+                  {pl.homeChooseTrainingHint}
+                </p>
+              )}
+              {!canChooseTraining && <div className="mb-4" />}
               <div className="flex flex-col gap-5">
                 {home.cards.map((card) => (
                   <ProgramHomeCard
                     key={`${card.program}-${reloadEpoch}`}
                     model={card}
+                    allResting={home.summary.allResting}
                     tipSuppression={
                       showTip
                         ? home.tipSuppression
-                        : { stale: false, test: false, level: false, allRest: false }
+                        : { stale: false, test: false, level: false }
                     }
                     onReload={reload}
                   />

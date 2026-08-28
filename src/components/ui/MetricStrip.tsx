@@ -21,7 +21,12 @@ export function MetricStrip({
 
   return (
     <div className={cn(className)}>
-      <div className="grid grid-cols-3 gap-2">
+      <div
+        className={cn(
+          'grid gap-2',
+          items.length <= 2 ? 'grid-cols-2' : 'grid-cols-3',
+        )}
+      >
         {items.map((m, i) => (
           <div
             key={i}

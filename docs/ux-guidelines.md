@@ -57,12 +57,14 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 
 ```
 [Logo SmartReps]
-[HomeSummary — data, status, MetricStrip, paski cyklu]
+[HomeSummary — data, status (headline + subtitle), 2× MetricStrip, cel nawyku, WeeklyRecap zwinięty]
 [Attention: InstallCoach XOR HomeTip — min-height band]
-[Wybierz trening]
-[ProgramHomeCard — CycleDayRail, NestedStat, CTA 1+1]
+[Wybierz trening | Twoje programy — kontekstowo]
+[ProgramHomeCard — poziom + dzień, CycleDayRail, NestedStat, CTA]
 [Tab bar]
 ```
+
+Copy: **Odpoczynek** = dzień regeneracji w planie (badge programu); **Przerwa** = timer między seriami w treningu.
 
 ## Wireframe — Postępy
 
@@ -130,7 +132,7 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 
 Uruchom dev/preview na urządzeniu 375×667 (lub symulator). Sprawdź brak treści pod notch i stabilne tło nagłówka:
 
-1. **Dashboard** (`/`) — logo + „Wybierz trening”, karta programu, tab bar
+1. **Dashboard** (`/`) — status dnia + karta programu, tab bar
 2. **Postępy** (`/progress`) — wykres / lista sesji, filtry
 3. **Plany** (`/plans`) — lista cykli, badge „Twój cykl”
 4. **Profil** (`/profile`) — sekcja Konto + SyncStatusPanel

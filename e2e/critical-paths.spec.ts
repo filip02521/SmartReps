@@ -243,7 +243,7 @@ test.describe('SmartReps routing critical paths', () => {
     await page.goto('/')
     await expect(page.getByRole('img', { name: 'SmartReps' })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible()
-    await expect(page.getByText(/Cel: 3 zaliczone treningi/)).toBeVisible()
+    await expect(page.getByText(/3 treningi w 14 dni/)).toBeVisible()
     await expect(page.getByRole('button', { name: /Rozpocznij Dzień/ })).toBeVisible({
       timeout: 15_000,
     })
