@@ -57,14 +57,14 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 
 ```
 [Logo SmartReps]
-[HomeSummary — data, status (headline + subtitle), 2× MetricStrip, cel nawyku, WeeklyRecap zwinięty]
-[Attention: InstallCoach XOR HomeTip — min-height band]
-[Wybierz trening | Twoje programy — kontekstowo]
-[ProgramHomeCard — poziom + dzień, CycleDayRail, NestedStat, CTA]
+[Status dnia — headline + opcjonalny subtitle]
+[Panel: Ostatnie 14 dni — 3× MetricStrip + cel nawyku]
+[Panel: Ten tydzień — zwijany, MetricStrip + porównanie]
+[Panel: Skrót programów — szybka nawigacja do kart]
+[Attention: InstallCoach XOR HomeTip]
+[Wybierz trening — ProgramHomeCard]
 [Tab bar]
 ```
-
-Copy: **Odpoczynek** = dzień regeneracji w planie (badge programu); **Przerwa** = timer między seriami w treningu.
 
 ## Wireframe — Postępy
 

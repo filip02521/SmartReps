@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import type { WeeklyRecap } from '@/lib/weekly-recap'
+import { MetricStrip } from '@/components/ui/MetricStrip'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
@@ -23,11 +24,14 @@ function recapDetails(recap: WeeklyRecap): string {
 }
 
 export function WeeklyRecapPanel({ recap }: { recap: WeeklyRecap }) {
-  const [collapsed, setCollapsed] = useState(true)
-  const hasActivity = recap.sessionsThisWeek > 0
+  const collapsedDefault = recap.sessionsThisWeek === 0
+  const [collapsed, setCollapsed] = useState(collapsedDefault)
 
   return (
-    <section className="mt-4" aria-label={pl.weeklyRecapTitle}>
+    <section
+      className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3"
+      aria-label={pl.weeklyRecapTitle}
+    >
       <button
         type="button"
         className={cn(
@@ -39,7 +43,7 @@ export function WeeklyRecapPanel({ recap }: { recap: WeeklyRecap }) {
       >
         <span className="sr-text-overline text-[var(--sr-text-muted)]">{pl.weeklyRecapTitle}</span>
         <span className="flex items-center gap-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
-          {collapsed && hasActivity && (
+          {collapsed && recap.sessionsThisWeek > 0 && (
             <span className="tabular-nums">
               {pl.weeklyRecapCollapsedHint(recap.sessionsThisWeek, recap.repsThisWeek)}
             </span>
@@ -49,17 +53,29 @@ export function WeeklyRecapPanel({ recap }: { recap: WeeklyRecap }) {
       </button>
 
       {!collapsed && (
-        <div className="mt-2 space-y-1 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-3">
-          <p className="sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
-            {hasActivity
-              ? pl.weeklyRecapLine(recap.sessionsThisWeek, recap.repsThisWeek)
-              : pl.weeklyRecapEmpty}
+        <div className="mt-3 border-t border-[var(--sr-border-subtle)] pt-3">
+          <MetricStrip
+            metrics={[
+              {
+                value: recap.sessionsThisWeek,
+                label: pl.weeklyRecapSessions,
+                hint: pl.weeklyRecapPeriodHint,
+              },
+              {
+                value: recap.repsThisWeek,
+                label: pl.weeklyRecapReps,
+                hint: pl.weeklyRecapPeriodHint,
+              },
+              {
+                value: recap.streakWeeks,
+                label: pl.streakWeeks,
+                hint: pl.weeklyRecapPeriodHint,
+              },
+            ]}
+          />
+          <p className="mt-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
+            {recap.sessionsThisWeek > 0 ? recapDetails(recap) : pl.weeklyRecapEmpty}
           </p>
-          {hasActivity && (
-            <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-              {recapDetails(recap)}
-            </p>
-          )}
         </div>
       )}
     </section>

@@ -59,7 +59,7 @@ export function ProgramHomeCard({
   const isTestPending = progress?.status === 'test_pending'
   const resting = bucket === 'resting' || (resume != null && !available && !isPaused && !isTestPending)
   const hasResume = bucket === 'resume' || bucket === 'resume_stale'
-  const compactRest = Boolean(allResting && resting && !hasResume)
+  const hideRestPreview = Boolean(allResting && resting && !hasResume)
   const cycle = progress ? getCycleById(progress.cycleId) : null
   const waitingRestDays = Math.max(1, daysLeft)
 
@@ -105,6 +105,15 @@ export function ProgramHomeCard({
     )
   }
 
+  const completedDays =
+    isTestPending && cycle
+      ? cycle.days.length
+      : Math.max(0, progress.currentDay - 1)
+  const pct =
+    cycle && cycle.days.length > 0
+      ? Math.round((completedDays / cycle.days.length) * 100)
+      : 0
+
   return (
     <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
       <div className="flex items-start justify-between gap-3">
@@ -112,8 +121,13 @@ export function ProgramHomeCard({
           <h2 className="sr-text-h2 text-[var(--sr-text-primary)]" title={model.label}>
             {model.label}
           </h2>
-          <div className="mt-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant={displayBadge.variant}>{displayBadge.label}</Badge>
+            {model.cycleNameShort && (
+              <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+                {model.cycleNameShort}
+              </span>
+            )}
           </div>
         </div>
         <button
@@ -185,30 +199,42 @@ export function ProgramHomeCard({
 
       {cycle && (
         <div className="mt-4">
-          <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-            {isTestPending
-              ? pl.cycleDoneTestLabel
-              : pl.homeProgramLevelDay(
-                  model.cycleNameShort ?? '',
-                  progress.currentDay,
-                  cycle.days.length,
-                )}
-            {progress.cycleAttempt >= 2 && (
-              <>
-                {' · '}
-                {pl.homeCycleRestart(progress.cycleAttempt)}
-              </>
-            )}
-          </p>
+          <div className="mb-2.5 flex items-center justify-between gap-2">
+            <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+              {isTestPending
+                ? pl.cycleDoneTestLabel
+                : pl.homeProgramLevelDay(
+                    model.cycleNameShort ?? '',
+                    progress.currentDay,
+                    cycle.days.length,
+                  )}
+              {progress.cycleAttempt >= 2 && (
+                <>
+                  {' · '}
+                  {pl.homeCycleRestart(progress.cycleAttempt)}
+                </>
+              )}
+            </p>
+            <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
+              {pct}%
+            </p>
+          </div>
 
           <CycleDayRail
-            className="mt-3"
             totalDays={cycle.days.length}
             days={cycle.days.map((d) => ({
               dayNumber: d.dayNumber,
               status: getCycleDayStatus(progress, d.dayNumber, cycle.days.length),
             }))}
           />
+          {!isTestPending &&
+            cycle.days.some(
+              (d) => getCycleDayStatus(progress, d.dayNumber, cycle.days.length) === 'current',
+            ) && (
+              <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
+                {pl.homeNowDay(progress.currentDay)}
+              </p>
+            )}
         </div>
       )}
 
@@ -248,13 +274,17 @@ export function ProgramHomeCard({
         }
         if (bucket === 'test_pending_ready') return null
         if (bucket === 'resting' || bucket === 'test_pending_rest') {
-          if (compactRest) return null
+          if (hideRestPreview) return null
           return (
             <NestedStat
               className="mt-4"
               size="md"
               value={pl.restPrimaryLabel(stats?.nextWorkoutLabel ?? pl.restIn(daysLeft))}
-              hint={bucket === 'resting' ? pl.restGateHint(waitingRestDays) : undefined}
+              hint={
+                bucket === 'resting'
+                  ? pl.restGateHint(waitingRestDays)
+                  : pl.homeTipTestRest(stats?.nextWorkoutLabel ?? pl.today)
+              }
             />
           )
         }
@@ -275,7 +305,6 @@ export function ProgramHomeCard({
       })()}
 
       {stats &&
-        !compactRest &&
         (stats.lastSession ||
           stats.lastTotalReps !== null ||
           stats.maxLastSetTrend.delta !== null) && (
@@ -341,7 +370,7 @@ export function ProgramHomeCard({
           !hasResume &&
           bucket === 'resting' &&
           !trainDespiteRest &&
-          !allResting &&
+          !hideRestPreview &&
           progress.cycleAttempt >= 2 &&
           model.lastFailed &&
           !tipSuppression.level

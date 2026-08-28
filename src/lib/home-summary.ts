@@ -1,6 +1,7 @@
 import { db, type LocalProgramProgress, type ActiveWorkoutState } from '@/lib/db'
 import { getCycleById } from '@/data/plans'
 import type { Program, SetTarget } from '@/data/plans/types'
+import { getCompletedDaysInCycle } from '@/lib/cycle-progress'
 import {
   getTargetReps,
   isWorkoutAvailable,
@@ -27,6 +28,20 @@ export type ResumeInfo = {
   total: number
   stale: boolean
   currentSetIndex: number
+}
+
+export type HomeProgramBar = {
+  program: Program
+  label: string
+  completedDays: number
+  totalDays: number
+  currentDay: number
+  fraction: number
+  cycleNameShort: string
+  attempt: number
+  dayLabel: string
+  paused: boolean
+  testPending: boolean
 }
 
 export type TipKind =
@@ -87,10 +102,12 @@ export type HomeLoadResult = {
   summary: {
     sessions14d: number
     reps14d: number
+    bestStreakWeeks: number
     statusHeadline: string
     statusSubtitle?: string
     allResting: boolean
     dateLabel: string
+    programs: HomeProgramBar[]
   }
   cards: ProgramCardModel[]
   tip: HomeTipModel | null
@@ -539,6 +556,36 @@ export async function loadHomeDashboard(
   const sortedPrograms = sortPrograms(enabledPrograms, bucketMap)
   const cards = sortedPrograms.map((p) => cardModels.find((c) => c.program === p)!)
 
+  let bestStreakWeeks = 0
+  for (const c of cards) {
+    if (c.stats) bestStreakWeeks = Math.max(bestStreakWeeks, c.stats.streakWeeks)
+  }
+
+  const programs: HomeProgramBar[] = []
+  for (const c of cards) {
+    if (!c.progress || c.bucket === 'unconfigured') continue
+    const cycle = getCycleById(c.progress.cycleId)
+    if (!cycle) continue
+    const completed = getCompletedDaysInCycle(c.progress, cycle)
+    const total = cycle.days.length
+    const testPending = c.progress.status === 'test_pending'
+    programs.push({
+      program: c.program,
+      label: c.label,
+      completedDays: testPending ? total : completed,
+      totalDays: total,
+      currentDay: testPending ? total : c.progress.currentDay,
+      fraction: total > 0 ? (testPending ? 1 : completed / total) : 0,
+      cycleNameShort: cycle.nameShort,
+      attempt: c.progress.cycleAttempt,
+      dayLabel: testPending
+        ? pl.cycleDoneTestLabel
+        : pl.dayOfTotal(c.progress.currentDay, total),
+      paused: c.progress.status === 'paused',
+      testPending,
+    })
+  }
+
   const tip = pickTip(
     cards,
     sessions14d,
@@ -558,10 +605,12 @@ export async function loadHomeDashboard(
     summary: {
       sessions14d,
       reps14d,
+      bestStreakWeeks,
       statusHeadline: status.headline,
       statusSubtitle: status.subtitle,
       allResting: isAllResting(cards),
       dateLabel: formatHomeDate(),
+      programs,
     },
     cards,
     tip,
