@@ -2,6 +2,9 @@
  * Durable auth storage for iOS Safari / PWA.
  * Mirrors Supabase session to IndexedDB so a localStorage wipe (ITP, storage
  * pressure, "Clear Website Data") does not silently drop the login when IDB survives.
+ *
+ * Per-key write queue + in-realm tombstones prevent a stale getItem→mirror from
+ * resurrecting a session after removeItem (sign-out).
  */
 
 const IDB_NAME = 'SmartRepsAuth'
@@ -9,10 +12,27 @@ const IDB_STORE = 'kv'
 const IDB_VERSION = 1
 
 const memory = new Map<string, string>()
+/** Keys deleted in this JS realm until IDB delete completes. */
+const deletedKeys = new Set<string>()
+const keyChains = new Map<string, Promise<void>>()
+
+let sharedDb: IDBDatabase | null = null
+let opening: Promise<IDBDatabase> | null = null
+
+function enqueueKey(key: string, op: () => Promise<void>): Promise<void> {
+  const prev = keyChains.get(key) ?? Promise.resolve()
+  const next = prev.then(op, op).catch(() => undefined)
+  keyChains.set(key, next)
+  return next
+}
 
 function openAuthDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  if (sharedDb) return Promise.resolve(sharedDb)
+  if (opening) return opening
+
+  opening = new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
+      opening = null
       reject(new Error('indexedDB unavailable'))
       return
     }
@@ -23,54 +43,55 @@ function openAuthDb(): Promise<IDBDatabase> {
         db.createObjectStore(IDB_STORE)
       }
     }
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error ?? new Error('indexedDB open failed'))
+    req.onsuccess = () => {
+      sharedDb = req.result
+      sharedDb.onversionchange = () => {
+        sharedDb?.close()
+        sharedDb = null
+      }
+      opening = null
+      resolve(sharedDb)
+    }
+    req.onerror = () => {
+      opening = null
+      reject(req.error ?? new Error('indexedDB open failed'))
+    }
   })
+
+  return opening
 }
 
 async function idbGet(key: string): Promise<string | null> {
   const db = await openAuthDb()
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB_STORE, 'readonly')
-      const req = tx.objectStore(IDB_STORE).get(key)
-      req.onsuccess = () => {
-        const v = req.result
-        resolve(typeof v === 'string' ? v : v == null ? null : String(v))
-      }
-      req.onerror = () => reject(req.error)
-    })
-  } finally {
-    db.close()
-  }
+  return await new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly')
+    const req = tx.objectStore(IDB_STORE).get(key)
+    req.onsuccess = () => {
+      const v = req.result
+      resolve(typeof v === 'string' ? v : v == null ? null : String(v))
+    }
+    req.onerror = () => reject(req.error)
+  })
 }
 
 async function idbSet(key: string, value: string): Promise<void> {
   const db = await openAuthDb()
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(IDB_STORE, 'readwrite')
-      tx.objectStore(IDB_STORE).put(value, key)
-      tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
-    })
-  } finally {
-    db.close()
-  }
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite')
+    tx.objectStore(IDB_STORE).put(value, key)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
 }
 
 async function idbDel(key: string): Promise<void> {
   const db = await openAuthDb()
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(IDB_STORE, 'readwrite')
-      tx.objectStore(IDB_STORE).delete(key)
-      tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
-    })
-  } finally {
-    db.close()
-  }
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite')
+    tx.objectStore(IDB_STORE).delete(key)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
 }
 
 function lsGet(key: string): string | null {
@@ -97,47 +118,84 @@ function lsDel(key: string): void {
   }
 }
 
+/** Re-mirror LS → IDB only if the value was not signed out meanwhile. */
+function scheduleMirrorFromLs(key: string, expected: string): void {
+  void enqueueKey(key, async () => {
+    if (deletedKeys.has(key)) return
+    if (lsGet(key) !== expected) return
+    if (memory.get(key) !== expected) return
+    await idbSet(key, expected)
+  })
+}
+
 /** Supabase SupportedStorage — async restore from IndexedDB when localStorage is empty. */
 export const durableAuthStorage = {
   getItem: async (key: string): Promise<string | null> => {
     const fromLs = lsGet(key)
     if (fromLs != null) {
       memory.set(key, fromLs)
-      void idbSet(key, fromLs).catch(() => undefined)
+      deletedKeys.delete(key)
+      scheduleMirrorFromLs(key, fromLs)
       return fromLs
     }
 
+    if (deletedKeys.has(key)) return null
+
+    let fromIdb: string | null = null
     try {
-      const fromIdb = await idbGet(key)
-      if (fromIdb != null) {
-        memory.set(key, fromIdb)
-        lsSet(key, fromIdb)
-        return fromIdb
-      }
+      await enqueueKey(key, async () => {
+        if (deletedKeys.has(key)) {
+          fromIdb = null
+          return
+        }
+        fromIdb = await idbGet(key)
+      })
     } catch {
-      // IDB blocked — fall through
+      fromIdb = null
+    }
+
+    if (deletedKeys.has(key)) return null
+
+    if (fromIdb != null) {
+      const raced = lsGet(key)
+      if (raced != null) {
+        memory.set(key, raced)
+        return raced
+      }
+      memory.set(key, fromIdb)
+      lsSet(key, fromIdb)
+      return fromIdb
     }
 
     return memory.get(key) ?? null
   },
 
   setItem: async (key: string, value: string): Promise<void> => {
+    deletedKeys.delete(key)
     memory.set(key, value)
     lsSet(key, value)
-    try {
+    await enqueueKey(key, async () => {
+      if (deletedKeys.has(key)) return
+      if (memory.get(key) !== value) return
       await idbSet(key, value)
-    } catch {
-      // best-effort mirror
-    }
+    })
   },
 
   removeItem: async (key: string): Promise<void> => {
+    // Sync layers first so concurrent getItem cannot schedule a mirror of the old token.
     memory.delete(key)
     lsDel(key)
-    try {
+    deletedKeys.add(key)
+    await enqueueKey(key, async () => {
       await idbDel(key)
-    } catch {
-      // best-effort
-    }
+      // Keep tombstone: prevents later IDB read of a value written by a raced mirror
+      // that somehow slipped through. Cleared on next setItem/getItem LS hit.
+    })
   },
+}
+
+/** Test-only: drop in-memory cache between cases. */
+export function __resetDurableAuthMemoryForTests(): void {
+  memory.clear()
+  deletedKeys.clear()
 }

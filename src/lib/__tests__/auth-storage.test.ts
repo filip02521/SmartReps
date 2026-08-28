@@ -70,28 +70,51 @@ function mockIdb() {
 }
 
 describe('durableAuthStorage', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     idbData.clear()
     localStorage.clear()
     mockIdb()
+    vi.resetModules()
+    const { __resetDurableAuthMemoryForTests } = await import('@/lib/auth-storage')
+    __resetDurableAuthMemoryForTests()
   })
 
-  it('writes to localStorage and restores from IndexedDB when LS is empty', async () => {
-    const { durableAuthStorage } = await import('@/lib/auth-storage')
+  it('writes to localStorage and restores from IndexedDB when LS + memory are empty', async () => {
+    const { durableAuthStorage, __resetDurableAuthMemoryForTests } = await import(
+      '@/lib/auth-storage'
+    )
     await durableAuthStorage.setItem('sb-auth', '{"access_token":"x"}')
     expect(localStorage.getItem('sb-auth')).toContain('access_token')
 
     localStorage.removeItem('sb-auth')
+    __resetDurableAuthMemoryForTests()
+
     const restored = await durableAuthStorage.getItem('sb-auth')
     expect(restored).toContain('access_token')
     expect(localStorage.getItem('sb-auth')).toContain('access_token')
   })
 
-  it('removeItem clears both layers', async () => {
+  it('removeItem clears both layers and blocks resurrection', async () => {
     const { durableAuthStorage } = await import('@/lib/auth-storage')
     await durableAuthStorage.setItem('sb-auth', 'token')
+    // Simulate leftover IDB after a partial failure — remove must still win.
+    idbData.set('sb-auth', 'stale-should-not-return')
     await durableAuthStorage.removeItem('sb-auth')
     expect(await durableAuthStorage.getItem('sb-auth')).toBeNull()
+  })
+
+  it('does not resurrect IDB value after removeItem while mirror was queued', async () => {
+    const { durableAuthStorage, __resetDurableAuthMemoryForTests } = await import(
+      '@/lib/auth-storage'
+    )
+    await durableAuthStorage.setItem('sb-auth', 'alive')
+    // Warm LS hit schedules a mirror; remove immediately after.
+    await durableAuthStorage.getItem('sb-auth')
+    await durableAuthStorage.removeItem('sb-auth')
+    __resetDurableAuthMemoryForTests()
+    localStorage.clear()
+    // Tombstone is cleared on reset; ensure IDB was actually deleted by removeItem.
+    expect(idbData.has('sb-auth')).toBe(false)
   })
 })
 
@@ -116,7 +139,12 @@ describe('auth lifecycle intentional sign-out', () => {
     vi.doMock('@/stores/toast-store', () => ({ showToast }))
     vi.doMock('@/lib/supabase/client', () => ({
       isSupabaseConfigured: true,
-      supabase: { auth: { signOut: vi.fn(), getSession: vi.fn() } },
+      supabase: {
+        auth: {
+          signOut: vi.fn().mockResolvedValue({ error: null }),
+          getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+        },
+      },
     }))
 
     const { markIntentionalSignOut, notifyUnexpectedSessionLoss } = await import(
@@ -141,7 +169,12 @@ describe('auth lifecycle intentional sign-out', () => {
     vi.doMock('@/stores/toast-store', () => ({ showToast }))
     vi.doMock('@/lib/supabase/client', () => ({
       isSupabaseConfigured: true,
-      supabase: { auth: { signOut: vi.fn(), getSession: vi.fn() } },
+      supabase: {
+        auth: {
+          signOut: vi.fn().mockResolvedValue({ error: null }),
+          getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+        },
+      },
     }))
 
     const { notifyUnexpectedSessionLoss } = await import('@/lib/auth-lifecycle')

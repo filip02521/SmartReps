@@ -22,8 +22,11 @@ export function AuthBridge() {
 
     const stopLifecycle = setupAuthLifecycle()
     let initialSessionHandled = false
+    let cancelled = false
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (cancelled) return
+
       if (event === 'SIGNED_OUT') {
         await notifyUnexpectedSessionLoss()
         return
@@ -35,7 +38,7 @@ export function AuthBridge() {
         if (initialSessionHandled) return
         initialSessionHandled = true
         if (!session) {
-          // Storage wiped or refresh failed before hydrate — explain if we remember a login.
+          // Storage wiped or refresh failed — explain if we remember a prior login.
           await notifyUnexpectedSessionLoss()
           return
         }
@@ -53,6 +56,7 @@ export function AuthBridge() {
     })
 
     return () => {
+      cancelled = true
       stopLifecycle()
       subscription.unsubscribe()
     }

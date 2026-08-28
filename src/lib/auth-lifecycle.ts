@@ -107,7 +107,14 @@ export async function signOutUser(
 ): Promise<void> {
   if (!isSupabaseConfigured) return
   markIntentionalSignOut()
-  await supabase.auth.signOut(options)
+  const { error } = await supabase.auth.signOut(options)
+  const { data } = await supabase.auth.getSession()
+  if (data.session) {
+    // Local session still present — don't suppress future unexpected-loss toasts.
+    clearSignedOutPreference()
+    if (error) throw error
+  }
+  // Session cleared locally: keep sticky signed-out pref even if remote revoke failed.
 }
 
 /** Toast once when cloud session disappeared but local progress account is remembered. */
@@ -136,12 +143,18 @@ export function setupAuthLifecycle(): () => void {
   }
   lifecycleStarted = true
 
+  let recoverTimer: ReturnType<typeof setTimeout> | null = null
   const recover = () => {
-    void supabase.auth.getSession().catch(() => undefined)
+    if (recoverTimer) clearTimeout(recoverTimer)
+    recoverTimer = setTimeout(() => {
+      recoverTimer = null
+      void supabase.auth.getSession().catch(() => undefined)
+    }, 50)
   }
 
   const onPageShow = (e: PageTransitionEvent) => {
-    if (e.persisted || document.visibilityState === 'visible') recover()
+    // First load is handled by GoTrue initialize; only re-check bfcache restores here.
+    if (e.persisted) recover()
   }
 
   const onVisible = () => {
@@ -156,6 +169,7 @@ export function setupAuthLifecycle(): () => void {
 
   return () => {
     lifecycleStarted = false
+    if (recoverTimer) clearTimeout(recoverTimer)
     window.removeEventListener('pageshow', onPageShow)
     document.removeEventListener('visibilitychange', onVisible)
     window.removeEventListener('online', onOnline)
