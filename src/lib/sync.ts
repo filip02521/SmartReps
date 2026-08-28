@@ -458,6 +458,13 @@ async function mergeActiveRemote(userId: string, remote: RemoteActiveRow) {
     return
   }
 
+  const remoteSets = remote.set_results_json ?? []
+  const sessionSets = session?.setResults.length ?? 0
+  if (remoteSets.length === 0 && sessionSets === 0) {
+    await deleteActiveWorkoutRemote(userId, program)
+    return
+  }
+
   const local = await db.activeWorkout.get(program)
   const remoteUpdated = new Date(remote.updated_at).getTime()
   const localUpdated = local?.updatedAt ? new Date(local.updatedAt).getTime() : 0

@@ -2,6 +2,7 @@ import { db, type ActiveWorkoutState, type LocalProgramProgress } from '@/lib/db
 import { getCycleById } from '@/data/plans'
 import type { Program } from '@/data/plans/types'
 import { enqueueSync, enqueueActiveWorkoutSync } from '@/lib/sync'
+import { cleanupEmptyInProgressSessions } from '@/lib/session-service'
 import { pl } from '@/i18n/pl'
 import {
   advanceAfterDayPassed,
@@ -199,12 +200,21 @@ export async function clearActiveWorkout(program: Program) {
   await enqueueActiveWorkoutSync(program, null)
 }
 
-/** Drop orphan active rows whose session is no longer in progress. */
+/** Drop orphan active rows whose session is no longer in progress or has no completed sets. */
 export async function reconcileActiveWorkout(program: Program): Promise<ActiveWorkoutState | undefined> {
+  await cleanupEmptyInProgressSessions(program)
+
   const active = await db.activeWorkout.get(program)
   if (!active) return undefined
   const session = await db.workoutSessions.get(active.sessionId)
-  if (session && session.status === 'in_progress' && session.program === program) {
+  const progressInActive = active.setResults.length > 0
+  const progressInSession = (session?.setResults.length ?? 0) > 0
+  if (
+    session &&
+    session.status === 'in_progress' &&
+    session.program === program &&
+    (progressInActive || progressInSession)
+  ) {
     return active
   }
   await clearActiveWorkout(program)

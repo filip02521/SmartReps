@@ -42,6 +42,7 @@ export type ActiveWorkoutScreenProps = {
   nextLabel: string
   checklistRef?: RefObject<HTMLDivElement | null>
   showTechniqueLink?: boolean
+  sessionHasProgress?: boolean
   onBack: () => void
   onToggleMenu: () => void
   onShowPlan: () => void
@@ -90,6 +91,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     nextLabel,
     checklistRef,
     showTechniqueLink = false,
+    sessionHasProgress = false,
     onBack,
     onToggleMenu,
     onShowPlan,
@@ -266,7 +268,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
       {showCancelConfirm && (
         <ConfirmSheet
           title={pl.cancelWorkout}
-          message={pl.cancelWorkoutConfirm}
+          message={sessionHasProgress ? pl.cancelWorkoutConfirm : pl.cancelWorkoutConfirmEmpty}
           confirmLabel={pl.cancelWorkout}
           variant="danger"
           onConfirm={onConfirmCancel}

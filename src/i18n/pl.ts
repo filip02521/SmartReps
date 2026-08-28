@@ -27,23 +27,13 @@ export const pl = {
   homeRepsBadgeNew: 'Powrót do treningu po przerwie',
   homeActivityRepsCompare: (current: number, previous: number) =>
     `${current} powt. · wcześniej ${previous}`,
-  homeSessionsDeltaUp: (n: number) =>
-    n === 1
-      ? '+1 trening niż wcześniej'
-      : n >= 2 && n <= 4
-        ? `+${n} treningi niż wcześniej`
-        : `+${n} treningów niż wcześniej`,
-  homeSessionsDeltaDown: (n: number) =>
-    n === 1
-      ? '−1 trening niż wcześniej'
-      : n >= 2 && n <= 4
-        ? `−${n} treningi niż wcześniej`
-        : `−${n} treningów niż wcześniej`,
-  homeSessionsDeltaSame: 'Tyle samo treningów co wcześniej',
-  homeWeekRepsChangeUp: (pct: number) => `Ten tydzień: +${pct}% powt.`,
-  homeWeekRepsChangeDown: (pct: number) => `Ten tydzień: −${pct}% powt.`,
+  homeActivitySessionsCompare: (current: number, previous: number) => {
+    const label = (n: number) =>
+      n === 1 ? '1 trening' : n >= 2 && n <= 4 ? `${n} treningi` : `${n} treningów`
+    return `${label(current)} · wcześniej ${previous}`
+  },
   homeBestStreakRecord: (n: number) =>
-    n === 1 ? 'Rekord: 1 tydzień z treningiem' : `Rekord: ${n} tygodni z treningiem`,
+    n === 1 ? 'Twój rekord: 1 tydzień z treningiem' : `Twój rekord: ${n} tygodni z treningiem`,
   homeActivityInsightsAria: 'Trend aktywności',
   homeProgramsQuickTitle: 'Skrót programów',
   homeProgramsQuickHint: 'Dotknij, aby przejść do pełnej karty programu.',
@@ -141,6 +131,7 @@ export const pl = {
   finishDay: 'Zakończ dzień',
   cancelWorkout: 'Anuluj trening',
   cancelWorkoutConfirm: 'Postęp tej sesji zostanie utracony. Anulować trening?',
+  cancelWorkoutConfirmEmpty: 'Wyjdź bez rozpoczynania treningu?',
   lastTime: (actual: number, target: number) => `Ostatnio: ${actual}/${target}`,
   restLabel: 'Przerwa',
   nextSet: (n: number, reps: number, unit: string) =>

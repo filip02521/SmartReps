@@ -43,7 +43,7 @@ vi.mock('@/lib/analytics', () => ({
 }))
 
 import { saveActiveWorkout, reconcileActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
-import { abandonAllInProgress } from '@/lib/session-service'
+import { abandonAllInProgress, cleanupEmptyInProgressSessions } from '@/lib/session-service'
 
 function inProgressSession(id = 's1') {
   return {
@@ -61,6 +61,13 @@ function inProgressSession(id = 's1') {
 describe('cancel / abandon active workout', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    workoutSessionsWhere.mockReturnValue({
+      equals: () => ({
+        filter: () => ({
+          toArray: async () => [],
+        }),
+      }),
+    })
   })
 
   it('saveActiveWorkout refuses writes when session is abandoned', async () => {
@@ -135,6 +142,46 @@ describe('cancel / abandon active workout', () => {
     expect(workoutSessionsPut.mock.calls.every((c) => c[0].status === 'abandoned')).toBe(true)
     expect(activeWorkoutDelete).toHaveBeenCalledWith('pushups')
     expect(enqueueActiveWorkoutSync).toHaveBeenCalledWith('pushups', null)
+  })
+
+  it('reconcileActiveWorkout clears active when session has zero completed sets', async () => {
+    activeWorkoutGet.mockResolvedValue({
+      program: 'pushups',
+      sessionId: 's1',
+      currentSetIndex: 0,
+      setResults: [],
+      restTimerJson: null,
+      updatedAt: '2026-08-27T10:05:00.000Z',
+    })
+    workoutSessionsGet.mockResolvedValue(inProgressSession())
+    workoutSessionsWhere.mockReturnValue({
+      equals: () => ({
+        filter: () => ({
+          toArray: async () => [inProgressSession()],
+        }),
+      }),
+    })
+
+    const result = await reconcileActiveWorkout('pushups')
+
+    expect(result).toBeUndefined()
+    expect(activeWorkoutDelete).toHaveBeenCalledWith('pushups')
+  })
+
+  it('cleanupEmptyInProgressSessions abandons zero-set in_progress rows', async () => {
+    workoutSessionsWhere.mockReturnValue({
+      equals: () => ({
+        filter: () => ({
+          toArray: async () => [inProgressSession()],
+        }),
+      }),
+    })
+    activeWorkoutGet.mockResolvedValue(undefined)
+
+    await cleanupEmptyInProgressSessions('pushups')
+
+    expect(workoutSessionsPut).toHaveBeenCalledOnce()
+    expect(workoutSessionsPut.mock.calls[0][0].status).toBe('abandoned')
   })
 
   it('clearActiveWorkout enqueues delete (tombstone for sync)', async () => {

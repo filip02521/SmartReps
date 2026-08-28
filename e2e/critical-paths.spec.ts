@@ -342,6 +342,23 @@ test.describe('SmartReps routing critical paths', () => {
     })
   })
 
+  test('3c) peek workout and leave without a set does not show resume', async ({ page }) => {
+    test.setTimeout(60_000)
+    await seedOnboardedWithProgress(page)
+    await page.goto('/workout/pushups?force=1')
+    await expect(page.getByRole('button', { name: 'Zrobione' })).toBeVisible({ timeout: 20_000 })
+
+    await page.getByRole('button', { name: 'Wstecz' }).click()
+
+    await expect(page).toHaveURL(/\/$/, { timeout: 15_000 })
+    await expect(page.getByText(/W toku:/)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Kontynuuj Dzień/ })).toHaveCount(0)
+
+    await page.reload()
+    await expect(page.getByText(/W toku:/)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Kontynuuj Dzień/ })).toHaveCount(0)
+  })
+
   test('4) level-change ?change=1 → confirm → day 1 on Dashboard', async ({ page }) => {
     test.setTimeout(60_000)
     await seedOnboardedWithProgress(page, { cycleId: 'pushups-11-20', currentDay: 3 })

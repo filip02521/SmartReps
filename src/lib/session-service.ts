@@ -2,7 +2,12 @@ import { db, type LocalWorkoutSession } from '@/lib/db'
 import type { SetResultDraft } from '@/lib/progress-engine'
 import type { Program } from '@/data/plans/types'
 import { enqueueSync } from '@/lib/sync'
-import { clearActiveWorkout, completeWorkoutDay } from '@/lib/program-service'
+import {
+  clearActiveWorkout,
+  completeWorkoutDay,
+  markProgramActiveIfReady,
+  saveActiveWorkout,
+} from '@/lib/program-service'
 import { track } from '@/lib/analytics'
 import { useAppStore } from '@/stores/app-store'
 
@@ -28,6 +33,68 @@ function markFirstWorkoutAndTrack(passed: boolean, sessionId: string) {
     // private mode — still emit once per call stack via finalizedProgressKeys caller
   }
   track(passed ? 'day_completed' : 'day_failed')
+}
+
+export function sessionHasProgress(setResults: SetResultDraft[]): boolean {
+  return setResults.length > 0
+}
+
+/** Drop in_progress rows with zero completed sets — peek-and-leave should not leave resume ghosts. */
+export async function cleanupEmptyInProgressSessions(program: Program): Promise<void> {
+  const orphans = await db.workoutSessions
+    .where('program')
+    .equals(program)
+    .filter((s) => s.status === 'in_progress' && s.setResults.length === 0)
+    .toArray()
+  if (orphans.length === 0) return
+
+  const now = new Date().toISOString()
+  for (const s of orphans) {
+    await saveWorkoutSession({ ...s, status: 'abandoned', completedAt: now })
+  }
+
+  const active = await db.activeWorkout.get(program)
+  if (!active) return
+  const linked = await db.workoutSessions.get(active.sessionId)
+  if (
+    !linked ||
+    linked.status !== 'in_progress' ||
+    !sessionHasProgress(linked.setResults)
+  ) {
+    await clearActiveWorkout(program)
+  }
+}
+
+/** First completed set creates the DB session + activeWorkout row. */
+export async function ensureWorkoutSessionPersisted(
+  session: LocalWorkoutSession,
+  state: {
+    currentSetIndex: number
+    setResults: SetResultDraft[]
+    restTimerJson: string | null
+  },
+): Promise<void> {
+  if (!sessionHasProgress(state.setResults)) return
+
+  const existing = await db.workoutSessions.get(session.id)
+  const row: LocalWorkoutSession = {
+    ...session,
+    status: 'in_progress',
+    setResults: state.setResults,
+  }
+  if (!existing) {
+    await saveWorkoutSession(row)
+  } else if (existing.status === 'in_progress') {
+    await saveWorkoutSession({ ...existing, setResults: state.setResults })
+  }
+
+  await saveActiveWorkout(session.program, {
+    sessionId: session.id,
+    currentSetIndex: state.currentSetIndex,
+    setResults: state.setResults,
+    restTimerJson: state.restTimerJson,
+  })
+  await markProgramActiveIfReady(session.program)
 }
 
 export async function saveWorkoutSession(session: LocalWorkoutSession): Promise<void> {

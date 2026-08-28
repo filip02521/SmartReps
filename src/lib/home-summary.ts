@@ -191,7 +191,7 @@ function buildResume(
   progress: LocalProgramProgress,
   active: ActiveWorkoutState | undefined,
 ): ResumeInfo | null {
-  if (!active) return null
+  if (!active || active.setResults.length === 0) return null
   const cycle = getCycleById(progress.cycleId)
   const day = cycle?.days.find((d) => d.dayNumber === progress.currentDay)
   return {

@@ -24,10 +24,11 @@ import {
   finalizeSuccessfulDay,
   abandonWorkoutSession,
   abandonAllInProgress,
+  cleanupEmptyInProgressSessions,
+  ensureWorkoutSessionPersisted,
   getPreviousSetActual,
-  saveWorkoutSession,
 } from '@/lib/session-service'
-import { getProgramProgress, saveActiveWorkout, markProgramActiveIfReady, reconcileActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
+import { getProgramProgress, reconcileActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
 import { db } from '@/lib/db'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { generateId, playChime, vibrate } from '@/lib/utils'
@@ -132,8 +133,6 @@ export default function WorkoutPage() {
         return
       }
 
-      await markProgramActiveIfReady(program)
-
       setProgress(prog)
       let active = existingActive
 
@@ -168,7 +167,7 @@ export default function WorkoutPage() {
           .equals(program)
           .filter((s) => s.status === 'in_progress')
           .first()
-        if (existingInProgress) {
+        if (existingInProgress && existingInProgress.setResults.length > 0) {
           active = {
             program,
             sessionId: existingInProgress.id,
@@ -177,6 +176,8 @@ export default function WorkoutPage() {
             restTimerJson: null,
             updatedAt: new Date().toISOString(),
           }
+        } else if (existingInProgress) {
+          await cleanupEmptyInProgressSessions(program)
         }
       }
 
@@ -206,20 +207,14 @@ export default function WorkoutPage() {
               : restTimer,
         })
         const existing = await db.workoutSessions.get(active.sessionId)
-        session = existing ?? {
-          id: active.sessionId,
-          program,
-          cycleId: prog.cycleId,
-          dayNumber: prog.currentDay,
-          cycleAttempt: prog.cycleAttempt,
-          status: 'in_progress',
-          startedAt: new Date().toISOString(),
-          setResults: active.setResults,
+        if (!existing) {
+          setInitError(pl.errorStartWorkout)
+          setInitialized(true)
+          return
         }
-        if (!existing) await saveWorkoutSession(session)
+        session = existing
       } else {
-        // Ensure no orphan in_progress ghosts before creating a fresh session
-        await abandonAllInProgress(program)
+        await cleanupEmptyInProgressSessions(program)
 
         const sessionId = generateId()
         session = {
@@ -238,13 +233,6 @@ export default function WorkoutPage() {
           cycleId: prog.cycleId,
           dayNumber: prog.currentDay,
           cycleAttempt: prog.cycleAttempt,
-        })
-        await saveWorkoutSession(session)
-        await saveActiveWorkout(program, {
-          sessionId,
-          currentSetIndex: 0,
-          setResults: [],
-          restTimerJson: null,
         })
       }
 
@@ -355,14 +343,18 @@ export default function WorkoutPage() {
   const persistState = async () => {
     const epoch = sessionEpochRef.current
     const s = useWorkoutStore.getState()
-    if (!s.sessionId) return
+    if (!s.sessionId || !sessionMeta || s.setResults.length === 0) return
     const snapshot = {
       sessionId: s.sessionId,
       currentSetIndex: s.currentSetIndex,
       setResults: s.setResults,
       restTimerJson: s.restTimer ? JSON.stringify(s.restTimer) : null,
     }
-    const ok = await saveActiveWorkout(program, snapshot)
+    await ensureWorkoutSessionPersisted(sessionMeta, {
+      currentSetIndex: snapshot.currentSetIndex,
+      setResults: snapshot.setResults,
+      restTimerJson: snapshot.restTimerJson,
+    })
     // Cancel/reset raced while we were writing — drop any ghost for this session.
     if (
       epoch !== sessionEpochRef.current ||
@@ -372,9 +364,13 @@ export default function WorkoutPage() {
       if (still?.sessionId === snapshot.sessionId) {
         await clearActiveWorkout(program)
       }
-      return
     }
-    if (!ok) return
+  }
+
+  const discardEphemeralSession = () => {
+    sessionEpochRef.current += 1
+    useWorkoutStore.getState().reset()
+    setSessionMeta(null)
   }
 
   const handleEditPreviousSet = async () => {
@@ -436,7 +432,13 @@ export default function WorkoutPage() {
           finishingRef.current = false
           return
         }
-        await finalizeFailedDay(sessionMeta.id, program, [...workout.setResults, result])
+        const failedResults = [...workout.setResults, result]
+        await ensureWorkoutSessionPersisted(sessionMeta, {
+          currentSetIndex: workout.currentSetIndex,
+          setResults: failedResults,
+          restTimerJson: null,
+        })
+        await finalizeFailedDay(sessionMeta.id, program, failedResults)
         workout.reset()
         navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`, { replace: true })
         return
@@ -450,8 +452,14 @@ export default function WorkoutPage() {
       workout.completeSet(result)
       setFailedIndex(undefined)
 
+      const afterSet = useWorkoutStore.getState()
+      await ensureWorkoutSessionPersisted(sessionMeta, {
+        currentSetIndex: afterSet.currentSetIndex,
+        setResults: afterSet.setResults,
+        restTimerJson: afterSet.restTimer ? JSON.stringify(afterSet.restTimer) : null,
+      })
+
       if (nextSetIndex >= day.sets.length) {
-        await persistState()
         await finalizeSuccessfulDay(sessionMeta, allResults)
         workout.reset()
         navigate(`/workout/${program}/summary?session=${sessionMeta.id}`, { replace: true })
@@ -562,6 +570,8 @@ export default function WorkoutPage() {
     ? pl.nextSet(currentSetIndex + 2, getTargetReps(nextTarget), unit)
     : ''
 
+  const hasSessionProgress = setResults.length > 0
+
   return (
     <ActiveWorkoutScreen
       program={program}
@@ -585,7 +595,14 @@ export default function WorkoutPage() {
       nextLabel={nextLabel}
       checklistRef={checklistRef}
       showTechniqueLink={program === 'pushups'}
-      onBack={() => setShowLeaveConfirm(true)}
+      onBack={() => {
+        if (!hasSessionProgress) {
+          discardEphemeralSession()
+          navigate('/', { replace: true })
+          return
+        }
+        setShowLeaveConfirm(true)
+      }}
       onToggleMenu={() => setShowMenu((v) => !v)}
       onShowPlan={() => { setShowPlanSheet(true); setShowMenu(false) }}
       onShowTechnique={() => {
@@ -612,7 +629,13 @@ export default function WorkoutPage() {
             actual,
             passed: false,
           }
-          await finalizeFailedDay(sessionMeta.id, program, [...workout.setResults, failedResult])
+          const failedResults = [...workout.setResults, failedResult]
+          await ensureWorkoutSessionPersisted(sessionMeta, {
+            currentSetIndex: workout.currentSetIndex,
+            setResults: failedResults,
+            restTimerJson: null,
+          })
+          await finalizeFailedDay(sessionMeta.id, program, failedResults)
           workout.reset()
           navigate(`/workout/${program}/summary?failed=1&session=${sessionMeta.id}`, { replace: true })
         } catch {
@@ -643,12 +666,13 @@ export default function WorkoutPage() {
         }
       }}
       onConfirmCancel={() => void (async () => {
-        if (!sessionMeta) return
         finishingRef.current = true
         sessionEpochRef.current += 1
         setShowCancelConfirm(false)
         try {
-          await abandonWorkoutSession(program, sessionMeta.id)
+          if (hasSessionProgress && sessionMeta) {
+            await abandonWorkoutSession(program, sessionMeta.id)
+          }
           useWorkoutStore.getState().reset()
           setSessionMeta(null)
           navigate('/', { replace: true })
@@ -660,8 +684,14 @@ export default function WorkoutPage() {
       onDismissCancel={() => setShowCancelConfirm(false)}
       onConfirmLeave={() => {
         setShowLeaveConfirm(false)
+        if (!hasSessionProgress) {
+          discardEphemeralSession()
+          navigate('/', { replace: true })
+          return
+        }
         void persistState().finally(() => navigate('/', { replace: true }))
       }}
+      sessionHasProgress={hasSessionProgress}
       onDismissLeave={() => setShowLeaveConfirm(false)}
       onClosePlan={() => setShowPlanSheet(false)}
       onCloseMenu={() => setShowMenu(false)}
