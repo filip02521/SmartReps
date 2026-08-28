@@ -393,6 +393,9 @@ export const pl = {
     'Katalog cykli — poziom i start wybierasz na Treningu lub w Profilu.',
   plansProgramHint: 'Rozwiń cykl, aby zobaczyć cele serii w kolejnych dniach.',
   plansDayCount: (n: number) => (n === 1 ? '1 dzień' : `${n} dni`),
+  plansPeakDay: (day: number, reps: number) => `szczyt D${day} · ~${reps} powt.`,
+  plansDayReps: (sets: number, total: number) =>
+    sets === 1 ? `1 seria · ~${total}` : `${sets} serie · ~${total}`,
   resistanceBandsTitle: 'Gumy oporowe (podciąganie)',
   resistanceBandsIntro:
     'Jeśli nie podciągasz się jeszcze samodzielnie, możesz zacząć od wariantu z gumą — tak sugeruje program podciąganie.pl.',

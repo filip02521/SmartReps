@@ -151,7 +151,7 @@ export default function SessionSummary() {
       </div>
 
       {cycle && (
-        <p className="mt-2 text-center text-xs text-[var(--sr-text-muted)]">
+        <p className="mt-3 text-center sr-text-body-sm text-[var(--sr-text-secondary)]">
           {cycle.nameShort} ·{' '}
           {pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}
         </p>

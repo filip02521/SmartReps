@@ -178,24 +178,40 @@ export function SetRow({
           : undefined
       }
       className={cn(
-        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] px-4 py-3 text-left transition-colors',
+        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] px-4 py-3.5 text-left transition-colors',
         state === 'active' && 'border-2 border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]',
-        state === 'done' && 'bg-[var(--sr-success-muted)] text-[var(--sr-success)]',
-        state === 'failed' && 'bg-[var(--sr-error-muted)] text-[var(--sr-error)]',
-        state === 'pending' && 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
+        state === 'done' && 'bg-[var(--sr-success-muted)]',
+        state === 'failed' && 'bg-[var(--sr-error-muted)]',
+        state === 'pending' && 'bg-[var(--sr-bg-surface)]',
         editable && 'ring-1 ring-[var(--sr-brand-primary)]/40',
       )}
     >
-      <span className="flex items-center gap-2 font-medium">
+      <span
+        className={cn(
+          'flex items-center gap-2 font-medium',
+          state === 'done' && 'text-[var(--sr-success)]',
+          state === 'failed' && 'text-[var(--sr-error)]',
+          state === 'pending' && 'text-[var(--sr-text-secondary)]',
+          state === 'active' && 'text-[var(--sr-text-primary)]',
+        )}
+      >
         <SetStatusIcon state={state} />
         {pl.setColumn} {setNumber}
       </span>
-      <span className="tabular-nums text-sm">
+      <span
+        className={cn(
+          'tabular-nums text-base font-semibold',
+          state === 'done' && 'text-[var(--sr-text-primary)]',
+          state === 'failed' && 'text-[var(--sr-error)]',
+          state === 'pending' && 'text-[var(--sr-text-primary)]',
+          state === 'active' && 'text-[var(--sr-text-primary)]',
+        )}
+      >
         {state === 'done' && actual !== undefined
           ? editable
             ? `${actual} / ${formatSetTarget(target)} · ${pl.editShort}`
             : `${actual} / ${formatSetTarget(target)}`
-          : `${pl.targetColumn.toLowerCase()} ${formatSetTarget(target)}`}
+          : formatSetTarget(target)}
       </span>
     </button>
   )

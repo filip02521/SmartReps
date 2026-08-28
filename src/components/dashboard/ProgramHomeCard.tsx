@@ -8,6 +8,7 @@ import { TrendIndicator } from '@/components/ui/TrendIndicator'
 import { ProgramAccentCard } from '@/components/ui/ProgramAccentCard'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { CycleDayRail } from '@/components/ui/CycleDayRail'
+import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { ErrorBanner, FeedbackBanner } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
@@ -114,13 +115,15 @@ export function ProgramHomeCard({
     <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-lg font-semibold leading-tight text-[var(--sr-text-primary)]">
+          <h2 className="sr-text-h2 text-[var(--sr-text-primary)]" title={model.label}>
             {model.label}
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant={displayBadge.variant}>{displayBadge.label}</Badge>
             {model.cycleNameShort && (
-              <span className="text-xs text-[var(--sr-text-muted)]">{model.cycleNameShort}</span>
+              <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+                {model.cycleNameShort}
+              </span>
             )}
           </div>
         </div>
@@ -177,15 +180,16 @@ export function ProgramHomeCard({
       </Sheet>
 
       {cycle && (
-        <div className="mt-4">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-xs font-medium tabular-nums text-[var(--sr-text-secondary)]">
+        <div className="mt-5">
+          <div className="mb-2.5 flex items-center justify-between gap-2">
+            <p className="sr-text-body-sm font-medium tabular-nums text-[var(--sr-text-secondary)]">
               {isTestPending
                 ? pl.cycleDoneDays(cycle.days.length, cycle.days.length)
                 : pl.dayOfTotal(progress.currentDay, cycle.days.length)}
               {' · '}
               {pl.attemptLabel(progress.cycleAttempt)}
-              {' · '}
+            </p>
+            <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
               {pct}%
             </p>
           </div>
@@ -201,7 +205,7 @@ export function ProgramHomeCard({
             cycle.days.some(
               (d) => getCycleDayStatus(progress, d.dayNumber, cycle.days.length) === 'current',
             ) && (
-              <p className="mt-1.5 text-xs text-[var(--sr-text-muted)]">
+              <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
                 {pl.homeNowDay(progress.currentDay)}
               </p>
             )}
@@ -214,20 +218,22 @@ export function ProgramHomeCard({
           return (
             <NestedStat
               className="mt-4"
+              size="md"
+              overline={pl.statusInProgress}
               value={pl.homeInProgressSets(resume.set, resume.total, resume.day)}
             >
-              <div className="mt-2 flex gap-1.5" aria-hidden>
+              <div className="mt-3 flex gap-1.5" aria-hidden>
                 {Array.from({ length: resume.total }, (_, i) => (
                   <span
                     key={i}
-                    className="h-2 w-2 rounded-full"
+                    className="h-2.5 flex-1 rounded-full"
                     style={{
                       background:
                         i < resume.currentSetIndex
                           ? 'var(--sr-success)'
                           : i === resume.currentSetIndex
                             ? 'var(--sr-brand-primary)'
-                            : 'color-mix(in srgb, var(--sr-text-muted) 30%, transparent)',
+                            : 'var(--sr-bg-elevated)',
                     }}
                   />
                 ))}
@@ -237,7 +243,7 @@ export function ProgramHomeCard({
         }
         if (bucket === 'paused') {
           return (
-            <NestedStat className="mt-4" value={pl.homeProgramPaused} />
+            <NestedStat className="mt-4" size="md" value={pl.homeProgramPaused} />
           )
         }
         if (bucket === 'test_pending_ready') return null
@@ -246,6 +252,7 @@ export function ProgramHomeCard({
           return (
             <NestedStat
               className="mt-4"
+              size="md"
               value={pl.restPrimaryLabel(stats?.nextWorkoutLabel ?? pl.restIn(daysLeft))}
               hint={
                 bucket === 'resting'
@@ -255,17 +262,17 @@ export function ProgramHomeCard({
             />
           )
         }
-        if (bucket === 'ready' && model.setsPreviewLine && model.setsTargetTotal != null) {
+        if (bucket === 'ready' && model.currentDaySets && model.setsTargetTotal != null) {
           return (
-            <NestedStat
-              className="mt-4"
-              overline={pl.homeTodaySession}
-              value={pl.homeSessionSetsSummary(
-                model.currentDaySets?.length ?? 0,
-                model.setsTargetTotal,
-              )}
-              hint={model.setsPreviewLine}
-            />
+            <div className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-3">
+              <div className="mb-2.5 flex items-baseline justify-between gap-2">
+                <p className="sr-text-overline text-[var(--sr-text-muted)]">{pl.homeTodaySession}</p>
+                <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
+                  {pl.plansDayReps(model.currentDaySets.length, model.setsTargetTotal)}
+                </p>
+              </div>
+              <SetTargetsRow sets={model.currentDaySets} size="md" />
+            </div>
           )
         }
         return null
@@ -278,23 +285,27 @@ export function ProgramHomeCard({
         <div className="mt-3 grid grid-cols-2 gap-2">
           {stats.lastSession && (
             <NestedStat
+              size="md"
               overline={pl.lastWorkout}
               value={pl.dayDoneCheck(stats.lastSession.dayNumber)}
             />
           )}
           <NestedStat
+            size="md"
             className={!stats.lastSession ? 'col-span-2' : undefined}
             overline={pl.nextWorkout}
             value={stats.nextWorkoutLabel}
           />
           {(stats.lastTotalReps !== null || stats.maxLastSetTrend.delta !== null) && (
-            <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5 text-sm text-[var(--sr-text-secondary)]">
+            <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
               {stats.lastTotalReps !== null && (
-                <span>{pl.totalRepsLastSession(stats.lastTotalReps)}</span>
+                <span>
+                  {pl.totalRepsLastSession(stats.lastTotalReps)}
+                </span>
               )}
               {stats.maxLastSetTrend.delta !== null && (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[var(--sr-text-muted)]">{pl.maxSetTrend}</span>
+                  <span>{pl.maxSetTrend}</span>
                   <span className="font-semibold tabular-nums text-[var(--sr-text-primary)]">
                     {stats.maxLastSetTrend.current}
                   </span>

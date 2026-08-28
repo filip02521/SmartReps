@@ -18,11 +18,22 @@ export function ProgramAccentCard({
   program: Program
   children: ReactNode
 }) {
+  const accent = accentVar[program]
   return (
     <Card
       {...props}
-      className={cn('border-l-4', className)}
-      style={{ ...style, borderLeftColor: accentVar[program] } as CSSProperties}
+      className={cn('relative overflow-hidden border-l-4', className)}
+      style={
+        {
+          ...style,
+          borderLeftColor: accent,
+          backgroundImage: `linear-gradient(
+            135deg,
+            color-mix(in srgb, ${accent} 12%, var(--sr-bg-elevated)) 0%,
+            var(--sr-bg-elevated) 42%
+          )`,
+        } as CSSProperties
+      }
     >
       {children}
     </Card>

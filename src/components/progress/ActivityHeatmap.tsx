@@ -15,7 +15,7 @@ export function ActivityHeatmap({ grid }: { grid: HeatmapCell[][] }) {
 
   return (
     <div>
-      <p className="mb-2 text-xs text-[var(--sr-text-secondary)]">
+      <p className="mb-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
         {pl.heatmapSummary(workoutCount, weeks)}
       </p>
       <div className="overflow-x-auto" role="img" aria-label={pl.heatmapSummary(workoutCount, weeks)}>
@@ -27,17 +27,17 @@ export function ActivityHeatmap({ grid }: { grid: HeatmapCell[][] }) {
                   key={cell.date}
                   title={cell.detail ? `${cell.label}: ${cell.detail}` : cell.label}
                   aria-label={cell.detail ? `${cell.label}: ${cell.detail}` : cell.label}
-                  className={cn('h-3.5 w-3.5 rounded-sm', colors[cell.status])}
+                  className={cn('h-4 w-4 rounded-[3px]', colors[cell.status])}
                 />
               ))}
             </div>
           ))}
         </div>
       </div>
-      <div className="mt-2 flex flex-wrap gap-3 sr-text-caption text-[var(--sr-text-muted)]">
-        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-[var(--sr-success)]" /> {pl.passedShort}</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-[var(--sr-error)]" /> {pl.failedShort}</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-[var(--sr-bg-surface)] ring-1 ring-[var(--sr-border-subtle)]" /> {pl.rest}</span>
+      <div className="mt-3 flex flex-wrap gap-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
+        <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-[var(--sr-success)]" /> {pl.passedShort}</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-[var(--sr-error)]" /> {pl.failedShort}</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-[var(--sr-bg-surface)] ring-1 ring-[var(--sr-border-subtle)]" /> {pl.rest}</span>
       </div>
     </div>
   )

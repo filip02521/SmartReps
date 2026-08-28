@@ -18,7 +18,8 @@
 |---|---|
 | MetricStrip | `src/components/ui/MetricStrip.tsx` |
 | ProgramAccentCard | `src/components/ui/ProgramAccentCard.tsx` |
-| NestedStat | `src/components/ui/NestedStat.tsx` |
+| SetTargetsRow | `src/components/ui/SetTargetsRow.tsx` (cele serii — home / Plany) |
+| NestedStat | `src/components/ui/NestedStat.tsx` (size: sm / md / lg) |
 | CycleDayRail | `src/components/ui/CycleDayRail.tsx` (home / ProgramStart) |
 | CycleDayPicker | `src/components/ui/CycleDayPicker.tsx` (Progress) |
 | PageSection | `src/components/ui/PageSection.tsx` |

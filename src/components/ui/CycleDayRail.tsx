@@ -42,7 +42,7 @@ export function CycleDayRail({
                   ? 'var(--sr-success)'
                   : d.status === 'current'
                     ? 'var(--sr-brand-primary)'
-                    : 'color-mix(in srgb, var(--sr-text-muted) 22%, transparent)',
+                    : 'var(--sr-bg-surface)',
             }}
           />
         )

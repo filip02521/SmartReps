@@ -26,6 +26,7 @@ export function CycleDayPicker({
       {days.map((d) => {
         const selected = selectedDay === d.dayNumber
         const isCurrent = d.status === 'current'
+        const completed = d.status === 'completed'
         return (
           <button
             key={d.dayNumber}
@@ -35,28 +36,26 @@ export function CycleDayPicker({
             aria-current={isCurrent ? 'step' : undefined}
             aria-label={`${pl.dayOfTotal(d.dayNumber, totalDays)} — ${d.status}`}
             className={cn(
-              'flex min-h-11 min-w-11 flex-col items-center justify-center rounded-full border text-center transition-colors',
+              'flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] border text-center transition-colors',
               FOCUS_RING,
-              selected
-                ? 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]'
-                : 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',
+              selected && 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] ring-2 ring-[var(--sr-brand-primary)]/30',
+              !selected && completed && 'border-[var(--sr-success)]/40 bg-[var(--sr-success-muted)]',
+              !selected && isCurrent && 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]',
+              !selected && !completed && !isCurrent && 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',
             )}
             onClick={() => onSelect(d.dayNumber)}
           >
             <span
               className={cn(
-                'text-sm font-semibold tabular-nums',
-                d.status === 'completed'
+                'text-base font-semibold tabular-nums',
+                completed
                   ? 'text-[var(--sr-success)]'
-                  : isCurrent
+                  : isCurrent || selected
                     ? 'text-[var(--sr-brand-primary)]'
                     : 'text-[var(--sr-text-primary)]',
               )}
             >
               {d.dayNumber}
-            </span>
-            <span className="sr-text-caption text-[var(--sr-text-muted)]">
-              {d.status === 'completed' ? '✓' : d.status === 'current' ? '·' : ''}
             </span>
           </button>
         )

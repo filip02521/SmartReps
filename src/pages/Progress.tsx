@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { MetricStrip } from '@/components/ui/MetricStrip'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { CycleDayPicker } from '@/components/ui/CycleDayPicker'
+import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Sheet } from '@/components/ui/Sheet'
@@ -16,7 +17,6 @@ import { LogoMark } from '@/components/brand/Logo'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Card'
 import { EmptyState, SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
-import { formatSetTarget } from '@/lib/progress-engine'
 import { db } from '@/lib/db'
 import { getProgramProgress } from '@/lib/program-service'
 import { navigateToTrain } from '@/lib/setup-flow'
@@ -203,8 +203,8 @@ export default function ProgressPage() {
                 ]}
               />
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <NestedStat overline={pl.sessionsTotal} value={stats.passedSessionCount} />
-                <NestedStat overline={pl.totalRepsLabel} value={stats.totalRepsAllTime} />
+                <NestedStat size="md" overline={pl.sessionsTotal} value={stats.passedSessionCount} />
+                <NestedStat size="md" overline={pl.totalRepsLabel} value={stats.totalRepsAllTime} />
               </div>
             </>
           )}
@@ -220,8 +220,8 @@ export default function ProgressPage() {
               <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">{pl.chartTestOverTime}</p>
               <ResponsiveContainer width="100%" height="85%">
                 <LineChart data={tests}>
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="var(--sr-text-muted)" />
-                  <YAxis tick={{ fontSize: 10 }} stroke="var(--sr-text-muted)" />
+                  <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'var(--sr-text-muted)' }} stroke="var(--sr-border-subtle)" />
+                  <YAxis tick={{ fontSize: 12, fill: 'var(--sr-text-muted)' }} stroke="var(--sr-border-subtle)" />
                   <Tooltip contentStyle={chartTooltipStyle} />
                   <Line type="monotone" dataKey="reps" stroke="var(--sr-brand-primary)" strokeWidth={2} dot />
                 </LineChart>
@@ -255,13 +255,14 @@ export default function ProgressPage() {
       {tab === 'records' && records && (
         <div className="mt-4 grid grid-cols-2 gap-2">
           <NestedStat
+            size="lg"
             overline={pl.recordBestTest}
             value={records.bestTest ?? '—'}
             highlight={records.bestTest !== null}
           />
-          <NestedStat overline={pl.recordBestMaxSet} value={records.bestMaxSet ?? '—'} />
-          <NestedStat overline={pl.recordBestSession} value={records.bestSessionTotal ?? '—'} />
-          <NestedStat overline={pl.recordHighestCycle} value={records.highestCycleName ?? '—'} />
+          <NestedStat size="md" overline={pl.recordBestMaxSet} value={records.bestMaxSet ?? '—'} />
+          <NestedStat size="md" overline={pl.recordBestSession} value={records.bestSessionTotal ?? '—'} />
+          <NestedStat size="md" overline={pl.recordHighestCycle} value={records.highestCycleName ?? '—'} />
         </div>
       )}
 
@@ -332,18 +333,23 @@ export default function ProgressPage() {
                     className="w-full rounded-[var(--sr-radius-lg)] bg-[var(--sr-bg-elevated)] p-4 text-left shadow-[var(--sr-shadow-card)] transition-opacity hover:opacity-90"
                     onClick={() => setSelectedSession(s)}
                   >
-                    <p className="sr-text-overline text-[var(--sr-text-muted)]">
-                      {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
-                    </p>
-                    <div className="mt-1 flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-[var(--sr-text-primary)]">
-                        {pl.dayLabel(s.dayNumber)} · {s.totalReps ?? 0} {pl.repsUnit}
-                      </p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+                          {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
+                        </p>
+                        <p className="mt-1 sr-text-h3 text-[var(--sr-text-primary)]">
+                          {pl.dayLabel(s.dayNumber)}
+                          <span className="ml-2 tabular-nums text-[var(--sr-text-secondary)]">
+                            {s.totalReps ?? 0} {pl.repsUnit}
+                          </span>
+                        </p>
+                        <p className="mt-1 sr-text-body-sm text-[var(--sr-text-muted)]">
+                          {getCycleById(s.cycleId)?.nameShort ?? s.cycleId}
+                        </p>
+                      </div>
                       <Badge variant={badgeVariant}>{statusLabel}</Badge>
                     </div>
-                    <p className="mt-1 sr-text-caption text-[var(--sr-text-muted)]">
-                      {getCycleById(s.cycleId)?.nameShort ?? s.cycleId}
-                    </p>
                   </button>
                 )
               })}
@@ -367,7 +373,7 @@ export default function ProgressPage() {
                 status: getCycleDayStatus(progress, d.dayNumber, cycle.days.length),
               }))}
             />
-            <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">{pl.cycleMapHint}</p>
+            <p className="mt-3 sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.cycleMapHint}</p>
           </Card>
         ) : (
           <EmptyState
@@ -443,18 +449,12 @@ export default function ProgressPage() {
             const day = cycle.days.find((d) => d.dayNumber === cyclePreviewDay)
             if (!day) return null
             return (
-              <ul className="space-y-2">
-                {day.sets.map((s, i) => (
-                  <NestedStat
-                    key={i}
-                    overline={`${pl.setColumn} ${i + 1}`}
-                    value={formatSetTarget(s)}
-                  />
-                ))}
-                <p className="pt-2 sr-text-caption text-[var(--sr-text-muted)]">
+              <div>
+                <SetTargetsRow sets={day.sets} size="md" />
+                <p className="mt-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
                   {pl.restBetweenSets(day.restBetweenSetsSec)}
                 </p>
-              </ul>
+              </div>
             )
           })()}
       </Sheet>

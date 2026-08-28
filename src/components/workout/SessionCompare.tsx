@@ -1,4 +1,5 @@
 import { Card } from '@/components/ui/Card'
+import { NestedStat } from '@/components/ui/NestedStat'
 import { TrendIndicator } from '@/components/ui/TrendIndicator'
 import { formatSetTarget } from '@/lib/progress-engine'
 import { pl } from '@/i18n/pl'
@@ -22,31 +23,64 @@ export function SessionCompare({
 
   return (
     <>
-      <Card className="overflow-x-auto sr-card">
+      <div className="mb-4 grid grid-cols-2 gap-2">
+        <NestedStat
+          size="lg"
+          highlight
+          overline={pl.totalReps}
+          value={totalReps}
+          hint={
+            totalDelta !== null && totalDelta !== 0
+              ? pl.totalRepsDelta(totalDelta)
+              : previousTotalReps != null
+                ? pl.prevColumn
+                : undefined
+          }
+        />
+        <NestedStat
+          size="lg"
+          overline={pl.setColumn}
+          value={`${rows.filter((r) => r.passed).length}/${rows.length}`}
+          hint={pl.youColumn}
+        />
+      </div>
+
+      <Card className="overflow-x-auto p-4">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-[var(--sr-text-muted)]">
-              <th className="pb-2">{pl.setColumn}</th>
-              <th className="pb-2">{pl.targetColumn}</th>
-              <th className="pb-2">{pl.youColumn}</th>
-              <th className="pb-2">{pl.prevColumn}</th>
+            <tr className="text-left sr-text-overline text-[var(--sr-text-muted)]">
+              <th className="pb-2.5 font-semibold">{pl.setColumn}</th>
+              <th className="pb-2.5 font-semibold">{pl.targetColumn}</th>
+              <th className="pb-2.5 font-semibold">{pl.youColumn}</th>
+              <th className="pb-2.5 font-semibold">{pl.prevColumn}</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
+            {rows.map((r, idx) => {
               const prev = previousRows?.find((p) => p.setNumber === r.setNumber)
               const diff = prev ? r.actual - prev.actual : null
               return (
-                <tr key={r.setNumber} className="border-t border-[var(--sr-border-subtle)]">
-                  <td className="py-2">{r.setNumber}</td>
-                  <td className="py-2">{formatSetTarget(r.target)}</td>
-                  <td className="py-2 tabular-nums">{r.actual}</td>
-                  <td className="py-2 tabular-nums text-[var(--sr-text-muted)]">
+                <tr
+                  key={r.setNumber}
+                  className={
+                    idx % 2 === 0
+                      ? 'border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]/40'
+                      : 'border-t border-[var(--sr-border-subtle)]'
+                  }
+                >
+                  <td className="py-2.5 font-medium text-[var(--sr-text-secondary)]">{r.setNumber}</td>
+                  <td className="py-2.5 tabular-nums text-[var(--sr-text-secondary)]">
+                    {formatSetTarget(r.target)}
+                  </td>
+                  <td className="py-2.5 text-base font-semibold tabular-nums text-[var(--sr-text-primary)]">
+                    {r.actual}
+                  </td>
+                  <td className="py-2.5 tabular-nums text-[var(--sr-text-muted)]">
                     {prev ? (
-                      <>
-                        {prev.actual}{' '}
+                      <span className="inline-flex items-center gap-1">
+                        {prev.actual}
                         <TrendIndicator delta={diff} />
-                      </>
+                      </span>
                     ) : (
                       '—'
                     )}
@@ -57,14 +91,6 @@ export function SessionCompare({
           </tbody>
         </table>
       </Card>
-      <p className="mt-4 text-center text-[var(--sr-text-secondary)]">
-        {pl.totalReps}: <span className="font-semibold text-[var(--sr-text-primary)]">{totalReps}</span>
-        {totalDelta !== null && totalDelta !== 0 && (
-          <span className="ml-2 text-sm text-[var(--sr-success)]">
-            {pl.totalRepsDelta(totalDelta)}
-          </span>
-        )}
-      </p>
     </>
   )
 }

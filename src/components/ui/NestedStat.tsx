@@ -6,6 +6,7 @@ export function NestedStat({
   value,
   hint,
   highlight,
+  size = 'sm',
   className,
   children,
 }: {
@@ -13,13 +14,16 @@ export function NestedStat({
   value?: ReactNode
   hint?: ReactNode
   highlight?: boolean
+  /** sm = compact; md = scannable daily; lg = hero number */
+  size?: 'sm' | 'md' | 'lg'
   className?: string
   children?: ReactNode
 }) {
   return (
     <div
       className={cn(
-        'rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2.5',
+        'rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)]',
+        size === 'lg' ? 'px-4 py-3.5' : 'px-3 py-2.5',
         highlight && 'ring-1 ring-[var(--sr-brand-primary)]',
         className,
       )}
@@ -30,8 +34,11 @@ export function NestedStat({
       {value != null && (
         <p
           className={cn(
-            'text-sm font-semibold text-[var(--sr-text-primary)]',
+            'font-semibold tabular-nums text-[var(--sr-text-primary)]',
             overline && 'mt-0.5',
+            size === 'sm' && 'text-sm',
+            size === 'md' && 'sr-text-h3 leading-snug',
+            size === 'lg' && 'text-2xl leading-tight',
             highlight && 'text-[var(--sr-brand-primary)]',
           )}
         >
@@ -39,7 +46,7 @@ export function NestedStat({
         </p>
       )}
       {hint != null && (
-        <p className="mt-0.5 sr-text-caption text-[var(--sr-text-muted)]">{hint}</p>
+        <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">{hint}</p>
       )}
       {children}
     </div>

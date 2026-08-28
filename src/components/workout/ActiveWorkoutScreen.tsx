@@ -139,7 +139,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         >
           <ArrowLeft size={22} />
         </button>
-        <p className="sr-text-body-sm text-center text-[var(--sr-text-secondary)]">
+        <p className="text-center sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
           {pl.workoutHeader(programLabel, progress.currentDay, currentSetIndex + 1, day.sets.length)}
         </p>
         <button

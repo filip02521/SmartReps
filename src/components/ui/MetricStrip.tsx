@@ -23,13 +23,18 @@ export function MetricStrip({
     <div className={cn(className)}>
       <div className="grid grid-cols-3 gap-2">
         {items.map((m, i) => (
-          <div key={i} className="text-center">
-            <p className="tabular-nums text-xl font-bold text-[var(--sr-text-primary)]">{m.value}</p>
-            <p className="mt-0.5 sr-text-overline leading-tight text-[var(--sr-text-muted)] normal-case tracking-normal">
+          <div
+            key={i}
+            className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-2 py-3 text-center"
+          >
+            <p className="text-xl font-bold tabular-nums leading-none text-[var(--sr-text-primary)]">
+              {m.value}
+            </p>
+            <p className="mt-1.5 sr-text-body-sm leading-tight text-[var(--sr-text-secondary)]">
               {m.label}
             </p>
             {m.hint && (
-              <p className="sr-text-caption text-[var(--sr-text-muted)]">{m.hint}</p>
+              <p className="mt-0.5 sr-text-caption text-[var(--sr-text-muted)]">{m.hint}</p>
             )}
           </div>
         ))}
@@ -37,14 +42,14 @@ export function MetricStrip({
 
       {goal && (
         <div className="mt-3">
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <p className="sr-text-caption text-[var(--sr-text-muted)]">{goal.label}</p>
-            <p className="sr-text-caption tabular-nums text-[var(--sr-text-muted)]">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">{goal.label}</p>
+            <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
               {Math.min(goal.current, goal.max)}/{goal.max}
             </p>
           </div>
           <div
-            className="h-1.5 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--sr-text-muted)_22%,transparent)]"
+            className="h-2 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
             role="progressbar"
             aria-valuenow={Math.min(goal.current, goal.max)}
             aria-valuemin={0}

@@ -97,7 +97,8 @@ function ProgramSettingsBlock({
       <div className="flex items-start justify-between gap-3">
         <h3
           id={`program-settings-${program}`}
-          className="truncate text-base font-semibold text-[var(--sr-text-primary)]"
+          className="sr-text-h3 text-[var(--sr-text-primary)]"
+          title={label}
         >
           {label}
         </h3>
@@ -107,12 +108,13 @@ function ProgramSettingsBlock({
       {cycle ? (
         <NestedStat
           className="mt-3"
+          size="md"
           overline={cycle.nameShort}
           value={progress ? pl.dayOfTotal(progress.currentDay, cycle.days.length) : undefined}
           hint={cycleHint}
         />
       ) : (
-        <NestedStat className="mt-3" value={pl.notConfigured} />
+        <NestedStat className="mt-3" size="md" value={pl.notConfigured} />
       )}
 
       <div className="mt-4 flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] pt-3">
