@@ -29,7 +29,7 @@ export function WeeklyRecapPanel({ recap }: { recap: WeeklyRecap }) {
 
   return (
     <section
-      className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3"
+      className="border-t border-[var(--sr-border-subtle)] pt-5"
       aria-label={pl.weeklyRecapTitle}
     >
       <button
@@ -53,7 +53,7 @@ export function WeeklyRecapPanel({ recap }: { recap: WeeklyRecap }) {
       </button>
 
       {!collapsed && (
-        <div className="mt-3 border-t border-[var(--sr-border-subtle)] pt-3">
+        <div className="mt-3">
           <MetricStrip
             metrics={[
               {

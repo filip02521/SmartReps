@@ -9,7 +9,8 @@ import type { Program } from '@/data/plans/types'
 
 type Summary = HomeLoadResult['summary']
 
-function HomePanel({
+/** Section label + spacing — no card chrome (flow layout). */
+function HomeSection({
   title,
   hint,
   children,
@@ -23,7 +24,7 @@ function HomePanel({
   return (
     <div
       className={cn(
-        'rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3',
+        'border-t border-[var(--sr-border-subtle)] pt-5 first:border-t-0 first:pt-0',
         className,
       )}
     >
@@ -46,7 +47,7 @@ export function HomeSummary({
   onScrollToProgram: (program: Program) => void
 }) {
   return (
-    <section className="mb-5 space-y-4" aria-label={pl.navWorkout}>
+    <section className="mb-5" aria-label={pl.navWorkout}>
       <header>
         <p className="sr-text-body-sm capitalize text-[var(--sr-text-secondary)]">
           {summary.dateLabel}
@@ -61,85 +62,90 @@ export function HomeSummary({
         )}
       </header>
 
-      <HomePanel title={pl.homeStats14dTitle} hint={pl.homeStats14dHint}>
-        <MetricStrip
-          metrics={[
-            {
-              value: summary.sessions14d,
-              label: pl.homeSessions14d,
-              hint: pl.homeSessions14dHint,
-            },
-            {
-              value: summary.bestStreakWeeks,
-              label: pl.streakWeeks,
-              hint: pl.streakWeeksHint,
-            },
-            {
-              value: summary.reps14d,
-              label: pl.homeReps14d,
-              hint: pl.homeReps14dHint,
-            },
-          ]}
-          goal={{
-            label: pl.homeGoal3in14,
-            current: summary.sessions14d,
-            max: 3,
-          }}
-        />
-      </HomePanel>
+      <div className="mt-5 space-y-5">
+        <HomeSection title={pl.homeStats14dTitle} hint={pl.homeStats14dHint}>
+          <MetricStrip
+            metrics={[
+              {
+                value: summary.sessions14d,
+                label: pl.homeSessions14d,
+                hint: pl.homeSessions14dHint,
+              },
+              {
+                value: summary.bestStreakWeeks,
+                label: pl.streakWeeks,
+                hint: pl.streakWeeksHint,
+              },
+              {
+                value: summary.reps14d,
+                label: pl.homeReps14d,
+                hint: pl.homeReps14dHint,
+              },
+            ]}
+            goal={{
+              label: pl.homeGoal3in14,
+              current: summary.sessions14d,
+              max: 3,
+            }}
+          />
+        </HomeSection>
 
-      <WeeklyRecapPanel recap={weeklyRecap} />
+        <WeeklyRecapPanel recap={weeklyRecap} />
 
-      {summary.programs.length > 0 && (
-        <HomePanel title={pl.homeProgramsQuickTitle} hint={pl.homeProgramsQuickHint}>
-          <ul className="space-y-3">
-            {summary.programs.map((p) => (
-              <li key={p.program}>
-                <button
-                  type="button"
-                  className={cn(
-                    'flex w-full min-h-11 flex-col gap-2 rounded-[var(--sr-radius-md)] text-left',
-                    'transition-colors hover:bg-[var(--sr-bg-surface)]',
-                  )}
-                  onClick={() => onScrollToProgram(p.program)}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-[var(--sr-text-primary)]">{p.label}</span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      {p.paused && <Badge variant="warning">{pl.statusPaused}</Badge>}
-                      <span className="sr-text-body-sm tabular-nums text-[var(--sr-text-secondary)]">
-                        {p.dayLabel}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]">
-                    <div
-                      className="h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
-                      style={{
-                        width: `${Math.round(p.fraction * 100)}%`,
-                        background: p.testPending
-                          ? 'var(--sr-brand-primary)'
-                          : 'var(--sr-success)',
-                      }}
-                    />
-                  </div>
-                  <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-                    {p.testPending
-                      ? pl.cycleDoneTestLabel
-                      : pl.homeProgramLevelDay(p.cycleNameShort, p.currentDay, p.totalDays)}
-                    {p.attempt >= 2 && (
-                      <>
-                        {' · '}
-                        {pl.homeCycleRestart(p.attempt)}
-                      </>
+        {summary.programs.length > 0 && (
+          <HomeSection title={pl.homeProgramsQuickTitle} hint={pl.homeProgramsQuickHint}>
+            <ul className="divide-y divide-[var(--sr-border-subtle)]">
+              {summary.programs.map((p) => (
+                <li key={p.program}>
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex w-full min-h-11 flex-col gap-2 py-3 text-left',
+                      'rounded-[var(--sr-radius-md)] transition-colors',
+                      'hover:bg-[var(--sr-bg-surface)] active:bg-[var(--sr-bg-surface)]',
                     )}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </HomePanel>
-      )}
+                    onClick={() => onScrollToProgram(p.program)}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-[var(--sr-text-primary)]">
+                        {p.label}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2">
+                        {p.paused && <Badge variant="warning">{pl.statusPaused}</Badge>}
+                        <span className="sr-text-body-sm tabular-nums text-[var(--sr-text-secondary)]">
+                          {p.dayLabel}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]">
+                      <div
+                        className="h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
+                        style={{
+                          width: `${Math.round(p.fraction * 100)}%`,
+                          background: p.testPending
+                            ? 'var(--sr-brand-primary)'
+                            : 'var(--sr-success)',
+                        }}
+                      />
+                    </div>
+                    <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+                      {p.testPending
+                        ? pl.cycleDoneTestLabel
+                        : pl.homeProgramLevelDay(p.cycleNameShort, p.currentDay, p.totalDays)}
+                      {p.attempt >= 2 && (
+                        <>
+                          {' · '}
+                          {pl.homeCycleRestart(p.attempt)}
+                        </>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </HomeSection>
+        )}
+      </div>
     </section>
   )
 }
