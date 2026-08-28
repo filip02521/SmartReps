@@ -34,6 +34,11 @@ export async function clearAllLocalData(): Promise<void> {
     hasCompletedFirstWorkout: false,
     hasDismissedInstallPrompt: false,
     hasSeenStandaloneLoginCoach: false,
+    hasSeenLoginCloudPrompt: false,
+    dismissedLoginBackupTip: false,
+    lastSyncFailureReason: null,
+    dismissedHomeTipId: null,
+    dismissedHomeTipDay: null,
   })
   // No remembered cloud account → drop voluntary/unexpected sign-out prefs.
   clearSignedOutPreference()

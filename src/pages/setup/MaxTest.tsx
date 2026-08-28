@@ -13,6 +13,10 @@ import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { selectCycleByTest } from '@/lib/cycle-selector'
 import { getProgramProgress } from '@/lib/program-service'
 import { isWorkoutAvailable } from '@/lib/progress-engine'
+import {
+  techniqueLinkForProgram,
+  techniqueLinkLabel,
+} from '@/components/setup/TechniqueGuide'
 import type { Program } from '@/data/plans/types'
 
 export function HealthDisclaimer({
@@ -254,19 +258,22 @@ export default function MaxTest() {
         </Button>
       )}
 
-      {program === 'pushups' && reps <= 2 && !isRetest && (
+      {(program === 'pushups' && reps <= 2 && !isRetest) ||
+      (program === 'pullups' && reps <= 2) ? (
         <Button
           variant="ghost"
           className="mt-4"
           fullWidth
           onClick={() => {
-            setTestDraft({ program, reps, warmup })
-            navigate('/setup/technique?from=test')
+            if (program === 'pushups') {
+              setTestDraft({ program, reps, warmup })
+            }
+            navigate(techniqueLinkForProgram(program, 'test'))
           }}
         >
-          {pl.howToPushup}
+          {techniqueLinkLabel(program)}
         </Button>
-      )}
+      ) : null}
 
       <p className="mt-4 text-center text-xs text-[var(--sr-text-muted)]">{pl.testHonesty}</p>
 

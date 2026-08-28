@@ -18,7 +18,15 @@ import { useAppStore } from '@/stores/app-store'
 
 type SyncAction = 'insert' | 'update' | 'delete'
 
-export type SyncResult = { ok: boolean; errors: number }
+export type SyncFailureReason =
+  | 'offline'
+  | 'no_session'
+  | 'auth_expired'
+  | 'remote_error'
+  | 'dead_letter'
+  | 'unknown'
+
+export type SyncResult = { ok: boolean; errors: number; reason?: SyncFailureReason }
 
 export async function enqueueSync(table: string, action: SyncAction, payload: unknown) {
   await db.syncQueue.add({

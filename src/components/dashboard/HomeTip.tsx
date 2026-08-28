@@ -15,6 +15,14 @@ function tipMeta(kind: TipKind): { tone: NoticeTone; title: string; icon: ReactN
       return { tone: 'info', title: pl.homeTipTitleTestRest, icon: <Info size={20} strokeWidth={2.25} /> }
     case 'level':
       return { tone: 'warning', title: pl.homeTipTitleLevel, icon: <AlertTriangle size={20} strokeWidth={2.25} /> }
+    case 'return_after_break':
+      return { tone: 'neutral', title: pl.homeTipTitleReturnAfterBreak, icon: <Lightbulb size={20} strokeWidth={2.25} /> }
+    case 'habit_almost':
+      return { tone: 'neutral', title: pl.homeTipTitleHabitAlmost, icon: <Lightbulb size={20} strokeWidth={2.25} /> }
+    case 'dual_program':
+      return { tone: 'info', title: pl.homeTipTitleDualProgram, icon: <Info size={20} strokeWidth={2.25} /> }
+    case 'login_backup':
+      return { tone: 'info', title: pl.homeTipTitleLoginBackup, icon: <Info size={20} strokeWidth={2.25} /> }
     case 'habit_met':
       return { tone: 'success', title: pl.homeTipTitleHabitMet, icon: <CheckCircle2 size={20} strokeWidth={2.25} /> }
     case 'habit_zero':
@@ -31,22 +39,26 @@ export function HomeTip({
   onDismiss,
   onAction,
   onScroll,
+  onNavigate,
 }: {
   tip: HomeTipModel
   onDismiss: (id: string) => void
   onAction?: (program: Program) => void
   onScroll?: (program: Program) => void
+  onNavigate?: (path: string) => void
 }) {
   const meta = tipMeta(tip.kind)
   const actionLabel =
     tip.actionLabel ??
     (tip.scrollProgram ? pl.homeTipShowCard : undefined)
   const handleAction =
-    tip.actionLabel && tip.actionProgram && onAction
-      ? () => onAction(tip.actionProgram!)
-      : tip.scrollProgram && onScroll
-        ? () => onScroll(tip.scrollProgram!)
-        : undefined
+    tip.navigateTo && onNavigate
+      ? () => onNavigate(tip.navigateTo!)
+      : tip.actionLabel && tip.actionProgram && onAction
+        ? () => onAction(tip.actionProgram!)
+        : tip.scrollProgram && onScroll
+          ? () => onScroll(tip.scrollProgram!)
+          : undefined
 
   return (
     <NoticeCard

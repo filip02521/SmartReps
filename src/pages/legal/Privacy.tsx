@@ -27,9 +27,17 @@ export default function PrivacyPage() {
           aplikacji. Endpoint subskrypcji push jest powiązany z Twoim kontem.
         </p>
         <p>
-          Możesz w każdej chwili wyczyścić dane lokalne w Profilu oraz wylogować się. Usunięcie
-          konta w chmurze: napisz na adres właściciela projektu (patrz repozytorium) z adresu
-          użytego do logowania — usuniemy rekordy powiązane z kontem.
+          <strong>Eksport danych:</strong> w Profilu → sekcja „Dane” możesz pobrać historię treningów
+          (CSV) lub pełny backup (JSON) z postępem i ustawieniami na tym urządzeniu.
+        </p>
+        <p>
+          <strong>Usunięcie konta:</strong> zalogowany użytkownik może w Profilu trwale usunąć konto
+          w chmurze (postęp, sesje, subskrypcje push). Usunięcie konta nie kasuje automatycznie danych
+          lokalnych — możesz je wyczyścić osobno. Przed usunięciem zalecamy pobrać backup.
+        </p>
+        <p>
+          Możesz w każdej chwili wyczyścić dane lokalne w Profilu oraz wylogować się bez usuwania
+          konta w chmurze.
         </p>
         <p>Kontakt w sprawach prywatności: poprzez issues w repozytorium SmartReps na GitHubie.</p>
       </div>

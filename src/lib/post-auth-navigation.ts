@@ -52,6 +52,12 @@ async function executeAuthNavigation(
   if (pendingStart) {
     const { program, navigateToWorkout } = pendingStart
     clearPendingStart()
+
+    if (await hasIncompleteSetup()) {
+      const drained = await drainIncompleteSetup(navigate)
+      if (drained) return
+    }
+
     if (navigateToWorkout) {
       const prog = await getProgramProgress(program)
       const ready = !prog?.nextWorkoutAfter || isWorkoutAvailable(new Date(prog.nextWorkoutAfter))

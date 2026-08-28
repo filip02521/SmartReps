@@ -104,7 +104,11 @@ export async function getProgramStats(
   }
 }
 
-function computeStreakWeeks(passedSessions: LocalWorkoutSession[]): number {
+export function getWeekKey(d: Date): string {
+  return `${d.getFullYear()}-W${getWeekNumber(d)}`
+}
+
+export function computeStreakWeeks(passedSessions: LocalWorkoutSession[]): number {
   if (!passedSessions.length) return 0
 
   const weeksWithTraining = new Set<string>()
@@ -134,10 +138,6 @@ function getWeekNumber(d: Date): number {
   date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
   return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
-}
-
-function getWeekKey(d: Date): string {
-  return `${d.getFullYear()}-W${getWeekNumber(d)}`
 }
 
 export async function getProgramRecords(program: Program): Promise<{

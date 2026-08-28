@@ -19,7 +19,11 @@ export function setupOnlineSync() {
   window.addEventListener('online', onOnline)
 
   void useAppStore.persist.onFinishHydration(() => {
-    void runAuthenticatedSync({ showSuccessToast: false, showFailureToast: false })
+    void runAuthenticatedSync({
+      showSuccessToast: false,
+      showFailureToast: false,
+      silentOffline: true,
+    })
   })
 
   return () => window.removeEventListener('online', onOnline)

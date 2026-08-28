@@ -12,7 +12,7 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: [
         'brand/favicon.svg',
         'brand/favicon-32.png',
@@ -35,6 +35,20 @@ export default defineConfig({
           { src: '/brand/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: '/brand/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           { src: '/brand/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        shortcuts: [
+          {
+            name: 'Trening',
+            short_name: 'Trening',
+            url: '/',
+            icons: [{ src: '/brand/icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Postępy',
+            short_name: 'Postępy',
+            url: '/progress',
+            icons: [{ src: '/brand/icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
         ],
       },
       injectManifest: {

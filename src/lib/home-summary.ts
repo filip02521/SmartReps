@@ -10,6 +10,7 @@ import { getProgramStats, type ProgramStats } from '@/lib/stats-engine'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { reconcileActiveWorkout } from '@/lib/program-service'
 import { pl } from '@/i18n/pl'
+import { loadWeeklyRecap, daysSinceLastPassedSession, type WeeklyRecap } from '@/lib/weekly-recap'
 
 export type ProgramBucket =
   | 'resume_stale'
@@ -47,6 +48,10 @@ export type TipKind =
   | 'test_ready'
   | 'test_rest'
   | 'level'
+  | 'return_after_break'
+  | 'habit_almost'
+  | 'dual_program'
+  | 'login_backup'
   | 'habit_zero'
   | 'habit_met'
   | 'rest_all'
@@ -59,6 +64,13 @@ export type HomeTipModel = {
   actionLabel?: string
   actionProgram?: Program
   scrollProgram?: Program
+  navigateTo?: string
+}
+
+export type PickTipOpts = {
+  daysSinceLastPassedSession: number | null
+  enabledProgramCount: number
+  showLoginBackup?: boolean
 }
 
 export type TipSuppression = {
@@ -99,6 +111,7 @@ export type HomeLoadResult = {
   cards: ProgramCardModel[]
   tip: HomeTipModel | null
   tipSuppression: TipSuppression
+  weeklyRecap: WeeklyRecap
 }
 
 const BUCKET_ORDER: ProgramBucket[] = [
@@ -241,6 +254,7 @@ export function pickTip(
   sessions14d: number,
   dismissedId: string | null,
   dismissedDay: string | null,
+  opts?: PickTipOpts,
 ): HomeTipModel | null {
   const today = localDayKey()
   const dismissed =
@@ -295,6 +309,77 @@ export function pickTip(
     }
   }
 
+  const daysSince = opts?.daysSinceLastPassedSession ?? null
+  if (
+    daysSince !== null &&
+    daysSince >= 7 &&
+    !dismissed.has('return-after-break')
+  ) {
+    const active = cards.find((c) => c.bucket === 'ready' || c.bucket === 'resting')
+    if (active) {
+      return {
+        id: 'return-after-break',
+        kind: 'return_after_break',
+        message: pl.homeTipReturnAfterBreak(daysSince),
+        dismissible: true,
+        scrollProgram: active.program,
+      }
+    }
+  }
+
+  if (
+    (sessions14d === 1 || sessions14d === 2) &&
+    !dismissed.has('habit-almost')
+  ) {
+    const scroll =
+      cards.find((c) => c.bucket === 'ready' || c.bucket.startsWith('resume'))?.program ??
+      cards.find((c) => c.bucket !== 'unconfigured')?.program
+    return {
+      id: 'habit-almost',
+      kind: 'habit_almost',
+      message: pl.homeTipHabitAlmost(sessions14d),
+      dismissible: true,
+      scrollProgram: scroll,
+    }
+  }
+
+  const enabledCount = opts?.enabledProgramCount ?? cards.length
+  if (enabledCount === 2 && !dismissed.has('dual-program')) {
+    const ready = cards.find((c) => c.bucket === 'ready')
+    const other = cards.find(
+      (c) =>
+        c.program !== ready?.program &&
+        (c.bucket === 'unconfigured' || c.bucket === 'resting'),
+    )
+    if (ready && other) {
+      return {
+        id: 'dual-program',
+        kind: 'dual_program',
+        message: pl.homeTipDualProgram,
+        dismissible: true,
+        scrollProgram: other.bucket === 'unconfigured' ? other.program : ready.program,
+        actionLabel: other.bucket === 'unconfigured' ? pl.startSetup : pl.homeTipShowCard,
+        actionProgram: other.bucket === 'unconfigured' ? other.program : undefined,
+      }
+    }
+  }
+
+  if (
+    opts?.showLoginBackup &&
+    daysSince !== null &&
+    daysSince >= 3 &&
+    !dismissed.has('login-backup')
+  ) {
+    return {
+      id: 'login-backup',
+      kind: 'login_backup',
+      message: pl.homeTipLoginBackup,
+      dismissible: true,
+      actionLabel: pl.login,
+      navigateTo: '/setup/login',
+    }
+  }
+
   const configuredCount = cards.filter((c) => c.bucket !== 'unconfigured').length
   if (sessions14d === 0 && configuredCount >= 1 && !dismissed.has('habit-zero')) {
     const scroll =
@@ -344,7 +429,11 @@ export function tipSuppressionFrom(tip: HomeTipModel | null): TipSuppression {
 
 export async function loadHomeDashboard(
   enabledPrograms: Program[],
-  opts?: { dismissedHomeTipId?: string | null; dismissedHomeTipDay?: string | null },
+  opts?: {
+    dismissedHomeTipId?: string | null
+    dismissedHomeTipDay?: string | null
+    showLoginBackup?: boolean
+  },
 ): Promise<HomeLoadResult> {
   const since = Date.now() - 14 * 86400000
   const allSessions = await db.workoutSessions.toArray()
@@ -354,8 +443,10 @@ export async function loadHomeDashboard(
       s.passed &&
       new Date(s.startedAt).getTime() >= since,
   )
+  const passedAll = allSessions.filter((s) => s.status === 'completed' && s.passed)
   const sessions14d = passed14d.length
   const reps14d = passed14d.reduce((sum, s) => sum + (s.totalReps ?? 0), 0)
+  const daysSince = daysSinceLastPassedSession(passedAll)
 
   const cardModels = await Promise.all(
     enabledPrograms.map(async (program): Promise<ProgramCardModel> => {
@@ -487,7 +578,14 @@ export async function loadHomeDashboard(
     sessions14d,
     opts?.dismissedHomeTipId ?? null,
     opts?.dismissedHomeTipDay ?? null,
+    {
+      daysSinceLastPassedSession: daysSince,
+      enabledProgramCount: enabledPrograms.length,
+      showLoginBackup: opts?.showLoginBackup,
+    },
   )
+
+  const weeklyRecap = await loadWeeklyRecap()
 
   return {
     summary: {
@@ -501,5 +599,6 @@ export async function loadHomeDashboard(
     cards,
     tip,
     tipSuppression: tipSuppressionFrom(tip),
+    weeklyRecap,
   }
 }

@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
 import { useAppStore } from '@/stores/app-store'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Card'
@@ -12,8 +10,10 @@ import { ProgramAccentCard } from '@/components/ui/ProgramAccentCard'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { CheckboxField } from '@/components/ui/TextField'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
+import { Sheet } from '@/components/ui/Sheet'
 import { SkeletonCard } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
+import { SyncStatusPanel } from '@/components/profile/SyncStatusPanel'
 import { runAuthenticatedSync } from '@/lib/auth-sync'
 import { signOutUser } from '@/lib/auth-lifecycle'
 import { pl } from '@/i18n/pl'
@@ -36,8 +36,11 @@ import {
 } from '@/lib/program-service'
 import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import { clearAllLocalData } from '@/lib/local-data'
-import { getDeadLetterCount, retryDeadLetterItems } from '@/lib/sync'
 import { exportSessionsCsv, downloadCsv, mergeSessionCsvExports } from '@/lib/export'
+import { exportBackupSnapshot, downloadBackupJson } from '@/lib/export-backup'
+import { deleteRemoteAccount } from '@/lib/account-delete'
+import { ImportBackupSheet } from '@/components/profile/ImportBackupSheet'
+import { TextField } from '@/components/ui/TextField'
 import { getCycleById } from '@/data/plans'
 import { showToast } from '@/stores/toast-store'
 import type { LocalProgramProgress } from '@/lib/db'
@@ -167,7 +170,7 @@ function ProgramSettingsBlock({
 }
 
 export default function ProfilePage() {
-  const { settings, setSettings, lastSyncedAt } = useAppStore()
+  const { settings, setSettings } = useAppStore()
   const navigate = useNavigate()
   const [email, setEmail] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
@@ -177,9 +180,12 @@ export default function ProfilePage() {
   const [pendingDisable, setPendingDisable] = useState<Program | null>(null)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [showImportSheet, setShowImportSheet] = useState(false)
   const [progressByProgram, setProgressByProgram] = useState<Partial<Record<Program, LocalProgramProgress>>>({})
   const [programsReady, setProgramsReady] = useState(false)
-  const [deadLetter, setDeadLetter] = useState(0)
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(() =>
     typeof Notification !== 'undefined' ? Notification.permission : null,
   )
@@ -194,7 +200,6 @@ export default function ProfilePage() {
       if (prog) map[p] = prog
     }
     setProgressByProgram(map)
-    setDeadLetter(await getDeadLetterCount())
     setProgramsReady(true)
   }
 
@@ -226,17 +231,6 @@ export default function ProfilePage() {
     // reloadMeta reads settings.enabledPrograms; theme/contrast/programs drive this effect
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.theme, settings.highContrast, settings.enabledPrograms])
-
-  const syncStatusLabel = !online
-    ? pl.syncNowOffline
-    : [
-        lastSyncedAt
-          ? pl.syncLastAt(format(new Date(lastSyncedAt), 'd MMM yyyy, HH:mm', { locale: plLocale }))
-          : pl.syncNever,
-        deadLetter > 0 ? pl.syncDeadLetter(deadLetter) : null,
-      ]
-        .filter(Boolean)
-        .join(' · ')
 
   const handleSyncNow = async () => {
     if (!online || syncing) return
@@ -274,6 +268,40 @@ export default function ProfilePage() {
     await clearAllLocalData()
     setShowClearConfirm(false)
     navigate('/setup/onboarding', { replace: true })
+  }
+
+  const exportJsonBackup = async () => {
+    try {
+      const snapshot = await exportBackupSnapshot()
+      downloadBackupJson(snapshot)
+      showToast(pl.toastExportDone, 'success')
+    } catch {
+      showToast(pl.exportFailed, 'error')
+    }
+  }
+
+  const deleteAccount = async () => {
+    if (deleteConfirmText !== pl.deleteAccountConfirmWord) return
+    setDeletingAccount(true)
+    try {
+      const result = await deleteRemoteAccount()
+      if (!result.ok) {
+        showToast(
+          result.error === 'unauthorized' ? pl.deleteAccountSessionExpired : pl.deleteAccountFailed,
+          'error',
+        )
+        return
+      }
+      await signOutUser()
+      await clearAllLocalData()
+      setShowDeleteConfirm(false)
+      navigate('/setup/onboarding', { replace: true })
+      showToast(pl.deleteAccountDone, 'success')
+    } catch {
+      showToast(pl.deleteAccountFailed, 'error')
+    } finally {
+      setDeletingAccount(false)
+    }
   }
 
   const retest = async (program: Program) => {
@@ -346,7 +374,7 @@ export default function ProfilePage() {
       : pl.pushNotificationsHint
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 safe-top">
+    <div className="mx-auto max-w-lg px-4 py-6">
       <PageHeader
         title={pl.navProfile}
         subtitle={email ? pl.accountLoggedIn(email) : pl.accountLocalOnly}
@@ -354,36 +382,22 @@ export default function ProfilePage() {
 
       <PageSection title={pl.account} className="mt-2">
         <div className="flex flex-col gap-3">
-          <NestedStat value={email ? syncStatusLabel : pl.notLoggedIn} />
-          {isSupabaseConfigured && !email && (
-            <Button
-              size="touch"
-              fullWidth
-              onClick={() => navigate('/setup/login', { state: { returnTo: '/profile' } })}
-            >
-              {pl.login}
-            </Button>
-          )}
+          <SyncStatusPanel
+            syncing={syncing}
+            online={online}
+            onSyncNow={handleSyncNow}
+            onLogin={() => navigate('/setup/login', { state: { returnTo: '/profile' } })}
+          />
           {isSupabaseConfigured && email && (
-            <>
-              <Button
-                size="touch"
-                fullWidth
-                disabled={!online || syncing}
-                onClick={() => void handleSyncNow()}
-              >
-                {syncing ? pl.syncInProgress : pl.syncNow}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                fullWidth
-                className="justify-start px-4"
-                onClick={() => setShowLogoutConfirm(true)}
-              >
-                {pl.logout}
-              </Button>
-            </>
+            <Button
+              variant="ghost"
+              size="sm"
+              fullWidth
+              className="justify-start px-4"
+              onClick={() => setShowLogoutConfirm(true)}
+            >
+              {pl.logout}
+            </Button>
           )}
         </div>
       </PageSection>
@@ -578,6 +592,24 @@ export default function ProfilePage() {
             size="md"
             fullWidth
             className="justify-start px-4"
+            onClick={() => setShowImportSheet(true)}
+          >
+            {pl.importBackupTitle}
+          </Button>
+          <Button
+            variant="secondary"
+            size="md"
+            fullWidth
+            className="justify-start px-4"
+            onClick={() => void exportJsonBackup()}
+          >
+            {pl.exportBackupJson}
+          </Button>
+          <Button
+            variant="secondary"
+            size="md"
+            fullWidth
+            className="justify-start px-4"
             onClick={async () => {
               try {
                 // All programs with local history — not only currently enabled.
@@ -595,24 +627,6 @@ export default function ProfilePage() {
           >
             {pl.exportAllPrograms}
           </Button>
-          {deadLetter > 0 && (
-            <div className="mt-1 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/40 bg-[var(--sr-warning)]/10 p-3">
-              <p className="text-sm text-[var(--sr-warning)]">{pl.syncDeadLetter(deadLetter)}</p>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="mt-3 justify-start px-4"
-                fullWidth
-                onClick={async () => {
-                  const { ok } = await retryDeadLetterItems()
-                  showToast(ok ? pl.toastSyncDone : pl.toastSyncFailed, ok ? 'success' : 'error')
-                  await reloadMeta()
-                }}
-              >
-                {pl.syncRetryDead}
-              </Button>
-            </div>
-          )}
           <div className="mt-2 border-t border-[var(--sr-border-subtle)] pt-3">
             <Button
               variant="ghost"
@@ -623,6 +637,20 @@ export default function ProfilePage() {
             >
               {pl.clearLocalData}
             </Button>
+            {isSupabaseConfigured && email && (
+              <Button
+                variant="ghost"
+                size="md"
+                fullWidth
+                className="justify-start px-4 text-[var(--sr-error)] hover:text-[var(--sr-error)]"
+                onClick={() => {
+                  setDeleteConfirmText('')
+                  setShowDeleteConfirm(true)
+                }}
+              >
+                {pl.deleteAccount}
+              </Button>
+            )}
           </div>
         </div>
       </PageSection>
@@ -700,6 +728,42 @@ export default function ProfilePage() {
           onCancel={() => setShowClearConfirm(false)}
         />
       )}
+      {showDeleteConfirm && (
+        <Sheet open onClose={() => setShowDeleteConfirm(false)} title={pl.deleteAccount} showClose>
+          <p className="text-sm text-[var(--sr-text-secondary)]">{pl.deleteAccountHint}</p>
+          <p className="mt-2 text-sm text-[var(--sr-warning)]">{pl.deleteAccountWarning}</p>
+          <TextField
+            id="delete-confirm"
+            className="mt-4"
+            label={pl.deleteAccountTypeConfirm(pl.deleteAccountConfirmWord)}
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            autoComplete="off"
+          />
+          <Button
+            className="mt-6"
+            variant="danger"
+            fullWidth
+            disabled={deleteConfirmText !== pl.deleteAccountConfirmWord || deletingAccount}
+            onClick={() => void deleteAccount()}
+          >
+            {deletingAccount ? pl.deleteAccountInProgress : pl.deleteAccountConfirm}
+          </Button>
+          <Button
+            variant="ghost"
+            className="mt-2"
+            fullWidth
+            onClick={() => setShowDeleteConfirm(false)}
+          >
+            {pl.cancel}
+          </Button>
+        </Sheet>
+      )}
+      <ImportBackupSheet
+        open={showImportSheet}
+        onClose={() => setShowImportSheet(false)}
+        onImported={() => void reloadMeta()}
+      />
     </div>
   )
 }

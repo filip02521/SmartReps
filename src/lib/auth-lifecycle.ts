@@ -1,15 +1,21 @@
 import type { NavigateFunction } from 'react-router-dom'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { wipeDurableAuthStorage } from '@/lib/auth-storage'
+import {
+  clearSignedOutPreferenceKeys,
+  hasSignedOutPreference,
+  setIntentionalSignOutFlag,
+  setSignedOutPreference,
+  takeIntentionalSignOutFlag,
+} from '@/lib/auth-prefs'
 import { useAppStore } from '@/stores/app-store'
 import { showToast } from '@/stores/toast-store'
+import { trackSessionLostUnexpected } from '@/lib/analytics'
 import { pl } from '@/i18n/pl'
+import { unsubscribeWebPush } from '@/lib/web-push'
 
 /** Must match auth-sync AUTH_RETURN_KEY — avoid importing auth-sync (cycle). */
 const AUTH_RETURN_KEY = 'auth-return-to'
-const INTENTIONAL_SIGNOUT_KEY = 'sr-auth-intentional-signout'
-/** Sticky until next successful login — suppresses "session lost" after voluntary logout. */
-const USER_SIGNED_OUT_PREF_KEY = 'sr-auth-user-signed-out'
 
 let lastSessionLostToastAt = 0
 let lifecycleStarted = false
@@ -28,81 +34,19 @@ async function waitForStoreHydration(timeoutMs = 3000): Promise<void> {
   })
 }
 
-function storageSet(key: string, value: string): void {
-  try {
-    sessionStorage.setItem(key, value)
-  } catch {
-    // ignore
-  }
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    // ignore
-  }
-}
-
-function storageTake(key: string): boolean {
-  let marked = false
-  try {
-    if (sessionStorage.getItem(key) === '1') {
-      marked = true
-      sessionStorage.removeItem(key)
-    }
-  } catch {
-    // ignore
-  }
-  try {
-    if (localStorage.getItem(key) === '1') {
-      marked = true
-      localStorage.removeItem(key)
-    }
-  } catch {
-    // ignore
-  }
-  return marked
-}
-
-function storageHas(key: string): boolean {
-  try {
-    if (sessionStorage.getItem(key) === '1') return true
-  } catch {
-    // ignore
-  }
-  try {
-    if (localStorage.getItem(key) === '1') return true
-  } catch {
-    // ignore
-  }
-  return false
-}
-
-function storageClear(key: string): void {
-  try {
-    sessionStorage.removeItem(key)
-  } catch {
-    // ignore
-  }
-  try {
-    localStorage.removeItem(key)
-  } catch {
-    // ignore
-  }
-}
-
 /** Call immediately before user-initiated signOut so we don't show "session lost". */
 export function markIntentionalSignOut(): void {
-  storageSet(INTENTIONAL_SIGNOUT_KEY, '1')
-  storageSet(USER_SIGNED_OUT_PREF_KEY, '1')
+  setIntentionalSignOutFlag()
+  setSignedOutPreference()
 }
 
 /** After a successful login, allow future unexpected-loss toasts again. */
 export function clearSignedOutPreference(): void {
-  storageClear(USER_SIGNED_OUT_PREF_KEY)
-  storageClear(INTENTIONAL_SIGNOUT_KEY)
+  clearSignedOutPreferenceKeys()
 }
 
 export function consumeIntentionalSignOut(): boolean {
-  return storageTake(INTENTIONAL_SIGNOUT_KEY)
+  return takeIntentionalSignOutFlag()
 }
 
 export async function signOutUser(
@@ -110,6 +54,9 @@ export async function signOutUser(
 ): Promise<void> {
   if (!isSupabaseConfigured) return
   markIntentionalSignOut()
+  if (useAppStore.getState().settings.pushNotifications) {
+    await unsubscribeWebPush()
+  }
   const { error } = await supabase.auth.signOut(options)
   const { data } = await supabase.auth.getSession()
   if (data.session) {
@@ -133,7 +80,7 @@ export async function notifyUnexpectedSessionLoss(
 ): Promise<void> {
   await waitForStoreHydration()
   if (!useAppStore.getState().lastAuthUserId) return
-  if (storageHas(USER_SIGNED_OUT_PREF_KEY)) {
+  if (hasSignedOutPreference()) {
     consumeIntentionalSignOut()
     return
   }
@@ -143,6 +90,8 @@ export async function notifyUnexpectedSessionLoss(
   const now = Date.now()
   if (now - lastSessionLostToastAt < 8000) return
   lastSessionLostToastAt = now
+
+  trackSessionLostUnexpected()
 
   const returnTo =
     typeof window !== 'undefined' && !window.location.pathname.startsWith('/setup/')

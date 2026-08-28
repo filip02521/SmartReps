@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LogoFull, LogoMark } from '@/components/brand/Logo'
 import { Button } from '@/components/ui/Button'
 import { PageLoader, SkeletonCard, EmptyState } from '@/components/ux/Feedback'
@@ -11,6 +11,7 @@ import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { drainIncompleteSetup, beginLevelChange } from '@/lib/setup-flow'
+import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import {
   loadHomeDashboard,
   localDayKey,
@@ -27,12 +28,18 @@ export default function Dashboard() {
   const settings = useAppStore((s) => s.settings)
   const dismissedHomeTipId = useAppStore((s) => s.dismissedHomeTipId)
   const dismissedHomeTipDay = useAppStore((s) => s.dismissedHomeTipDay)
+  const hasCompletedFirstWorkout = useAppStore((s) => s.hasCompletedFirstWorkout)
+  const dismissedLoginBackupTip = useAppStore((s) => s.dismissedLoginBackupTip)
+  const hasSeenLoginCloudPrompt = useAppStore((s) => s.hasSeenLoginCloudPrompt)
   const dismissHomeTip = useAppStore((s) => s.dismissHomeTip)
+  const setDismissedLoginBackupTip = useAppStore((s) => s.setDismissedLoginBackupTip)
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const hydrated = useStoreHydrated()
   const [reloadEpoch, setReloadEpoch] = useState(0)
   const [home, setHome] = useState<HomeLoadResult | null>(null)
   const [loading, setLoading] = useState(true)
+  const [hasSession, setHasSession] = useState<boolean | null>(null)
   /** null = InstallCoach not yet reported — tip withheld to avoid dual attention. */
   const [installVisible, setInstallVisible] = useState<boolean | null>(null)
 
@@ -57,11 +64,27 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!hydrated) return
+    if (!isSupabaseConfigured) {
+      setHasSession(false)
+      return
+    }
+    void supabase.auth.getSession().then(({ data }) => setHasSession(!!data.session))
+  }, [hydrated, reloadEpoch])
+
+  useEffect(() => {
+    if (!hydrated) return
     let cancelled = false
     setLoading(true)
+    const showLoginBackup =
+      installVisible === false &&
+      hasCompletedFirstWorkout &&
+      !dismissedLoginBackupTip &&
+      !hasSeenLoginCloudPrompt &&
+      hasSession === false
     void loadHomeDashboard(settings.enabledPrograms, {
       dismissedHomeTipId,
       dismissedHomeTipDay,
+      showLoginBackup,
     }).then((result) => {
       if (!cancelled) {
         setHome(result)
@@ -77,11 +100,24 @@ export default function Dashboard() {
     reloadEpoch,
     dismissedHomeTipId,
     dismissedHomeTipDay,
+    installVisible,
+    hasCompletedFirstWorkout,
+    dismissedLoginBackupTip,
+    hasSeenLoginCloudPrompt,
+    hasSession,
   ])
+
+  useEffect(() => {
+    if (!hydrated || loading || !home) return
+    const programParam = searchParams.get('program')
+    if (programParam !== 'pushups' && programParam !== 'pullups') return
+    scrollToProgram(programParam)
+    setSearchParams({}, { replace: true })
+  }, [hydrated, loading, home, searchParams, setSearchParams])
 
   if (!hydrated) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-6 safe-top">
+      <div className="mx-auto max-w-lg px-4 py-6">
         <PageLoader />
       </div>
     )
@@ -91,7 +127,7 @@ export default function Dashboard() {
   const showTip = installVisible === false && !!home?.tip
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 safe-top">
+    <div className="mx-auto max-w-lg px-4 py-6">
       <header className="mb-5">
         <LogoFull height={36} />
         <h1 className="sr-only">{pl.navWorkout}</h1>
@@ -117,7 +153,11 @@ export default function Dashboard() {
         </>
       ) : (
         <>
-          <HomeSummary summary={home.summary} onScrollToProgram={scrollToProgram} />
+          <HomeSummary
+            summary={home.summary}
+            weeklyRecap={home.weeklyRecap}
+            onScrollToProgram={scrollToProgram}
+          />
 
           <div
             className={
@@ -131,8 +171,20 @@ export default function Dashboard() {
             {showTip && home.tip && (
               <HomeTip
                 tip={home.tip}
-                onDismiss={(id) => dismissHomeTip(id, localDayKey())}
-                onAction={(program) => void beginLevelChange(navigate, program)}
+                onDismiss={(id) => {
+                  dismissHomeTip(id, localDayKey())
+                  if (home.tip?.kind === 'login_backup') {
+                    setDismissedLoginBackupTip(true)
+                  }
+                }}
+                onAction={(program) => {
+                  if (home.tip?.kind === 'dual_program' && home.tip.actionProgram) {
+                    navigate(`/setup/test/${home.tip.actionProgram}`)
+                    return
+                  }
+                  void beginLevelChange(navigate, program)
+                }}
+                onNavigate={(path) => navigate(path, { state: { returnTo: '/' } })}
                 onScroll={scrollToProgram}
               />
             )}

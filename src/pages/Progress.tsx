@@ -158,7 +158,7 @@ export default function ProgressPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-6 safe-top">
+      <div className="mx-auto max-w-lg px-4 py-6">
         <PageHeader title={pl.navProgress} subtitle={pl.progressOverviewHint} />
         <SkeletonCard className="mt-4 min-h-[8rem]" />
         <SkeletonCard className="mt-4 min-h-[12rem]" />
@@ -168,7 +168,7 @@ export default function ProgressPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-6 safe-top">
+      <div className="mx-auto max-w-lg px-4 py-6">
         <PageHeader title={pl.navProgress} />
         <ErrorBanner message={error} onRetry={() => setReloadEpoch((n) => n + 1)} />
       </div>
@@ -176,7 +176,7 @@ export default function ProgressPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 safe-top">
+    <div className="mx-auto max-w-lg px-4 py-6">
       <PageHeader title={pl.navProgress} subtitle={statusSubtitle} />
 
       {programOptions.length > 1 && (
@@ -374,6 +374,15 @@ export default function ProgressPage() {
               }))}
             />
             <p className="mt-3 sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.cycleMapHint}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-4"
+              fullWidth
+              onClick={() => navigate(`/plans?highlight=${progress.cycleId}`)}
+            >
+              {pl.progressFullCyclePlan}
+            </Button>
           </Card>
         ) : (
           <EmptyState

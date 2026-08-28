@@ -164,6 +164,9 @@ export const durableAuthStorage = {
       }
       memory.set(key, fromIdb)
       lsSet(key, fromIdb)
+      void import('@/lib/analytics').then(({ trackSessionRestoredFromIdb }) => {
+        trackSessionRestoredFromIdb()
+      })
       return fromIdb
     }
 

@@ -10,8 +10,25 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4173',
     trace: 'on-first-retry',
-    ...devices['Desktop Chrome'],
   },
+  projects: [
+    {
+      name: 'desktop-chrome',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /smoke-iphone/,
+    },
+    {
+      name: 'iphone-se',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 375, height: 667 },
+        userAgent: devices['iPhone SE'].userAgent,
+        isMobile: true,
+        hasTouch: true,
+      },
+      testMatch: /smoke-iphone/,
+    },
+  ],
   webServer: {
     command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173',
     url: 'http://127.0.0.1:4173',

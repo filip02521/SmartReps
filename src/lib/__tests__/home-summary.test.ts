@@ -196,14 +196,61 @@ describe('pickTip + tipSuppressionFrom', () => {
     expect(tip?.id === 'habit-zero').toBe(false)
   })
 
-  it('no tip when sessions 1–2 and ready', () => {
+  it('no tip when sessions 1–2 and ready if habit-almost dismissed', () => {
+    const tip = pickTip(
+      [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],
+      2,
+      'habit-almost',
+      localDayKey(),
+    )
+    expect(tip).toBeNull()
+  })
+
+  it('habit_almost tip for sessions 1–2', () => {
     const tip = pickTip(
       [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],
       2,
       null,
       null,
     )
-    expect(tip).toBeNull()
+    expect(tip?.kind).toBe('habit_almost')
+  })
+
+  it('return_after_break after 7+ days', () => {
+    const tip = pickTip(
+      [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],
+      1,
+      null,
+      null,
+      { daysSinceLastPassedSession: 8, enabledProgramCount: 1 },
+    )
+    expect(tip?.kind).toBe('return_after_break')
+  })
+
+  it('dual_program when one ready and one unconfigured', () => {
+    const tip = pickTip(
+      [
+        card({ program: 'pushups', bucket: 'ready', progress: prog({}) }),
+        card({ program: 'pullups', bucket: 'unconfigured' }),
+      ],
+      3,
+      null,
+      null,
+      { daysSinceLastPassedSession: 1, enabledProgramCount: 2 },
+    )
+    expect(tip?.kind).toBe('dual_program')
+  })
+
+  it('login_backup when flagged and 3+ days since last session', () => {
+    const tip = pickTip(
+      [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],
+      3,
+      null,
+      null,
+      { daysSinceLastPassedSession: 4, enabledProgramCount: 1, showLoginBackup: true },
+    )
+    expect(tip?.kind).toBe('login_backup')
+    expect(tip?.navigateTo).toBe('/setup/login')
   })
 
   it('level tip requires lastFailed', () => {
@@ -250,9 +297,10 @@ describe('pickTip + tipSuppressionFrom', () => {
           progress: prog({ nextWorkoutAfter: future.toISOString() }),
         }),
       ],
-      1,
-      null,
-      null,
+      0,
+      'habit-zero',
+      localDayKey(),
+      { daysSinceLastPassedSession: 1, enabledProgramCount: 1 },
     )
     expect(tip?.kind).toBe('rest_all')
     expect(tipSuppressionFrom(tip).allRest).toBe(true)

@@ -10,6 +10,7 @@ import { SplashScreen, hideSplash } from '@/components/brand/SplashScreen'
 import { scheduleDailyReminder } from '@/lib/notifications'
 import { applyThemeColor } from '@/lib/theme-color'
 import { initErrorReporting } from '@/lib/analytics'
+import { PwaUpdatePrompt } from '@/components/ux/PwaUpdatePrompt'
 import '@fontsource/plus-jakarta-sans/400.css'
 import '@fontsource/plus-jakarta-sans/500.css'
 import '@fontsource/plus-jakarta-sans/600.css'
@@ -58,6 +59,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <App />
+      <PwaUpdatePrompt />
       <Analytics />
     </ErrorBoundary>
   </StrictMode>,

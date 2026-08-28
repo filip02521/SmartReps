@@ -30,15 +30,42 @@ export const pl = {
   homeTipHabitZero: 'Zaplanuj krótki trening — wystarczy jeden dzień, by wrócić.',
   homeTipHabitMet: 'Cel 3/14 dni zaliczony. Trzymaj rytm.',
   homeTipRestAll: 'Regeneracja jest częścią planu. Wróć, gdy odblokuje się dzień.',
+  homeTipReturnAfterBreak: (days: number) =>
+    `Minęło ${days} dni od ostatniego treningu — wróć do planu, nawet krótką sesją.`,
+  homeTipHabitAlmost: (n: number) =>
+    n === 1
+      ? 'Jeden trening w 14 dni — jeszcze dwa do celu 3/14.'
+      : 'Dwa treningi w 14 dni — jeszcze jeden do celu 3/14.',
+  homeTipDualProgram:
+    'Masz dwa programy — jeden możesz trenować dziś, drugi czeka na konfigurację lub regenerację.',
+  homeTipLoginBackup:
+    'Trenujesz lokalnie — zaloguj się, aby mieć kopię postępu w chmurze na innych urządzeniach.',
   homeTipShowCard: 'Pokaż program',
   homeTipTitleDefault: 'Wskazówka',
   homeTipTitleStale: 'Niedokończona sesja',
   homeTipTitleTestReady: 'Czas na test max',
   homeTipTitleTestRest: 'Test max wkrótce',
   homeTipTitleLevel: 'Rozważ niższy poziom',
+  homeTipTitleReturnAfterBreak: 'Wróć do treningu',
+  homeTipTitleHabitAlmost: 'Blisko celu 3/14',
+  homeTipTitleDualProgram: 'Dwa programy',
+  homeTipTitleLoginBackup: 'Backup w chmurze',
   homeTipTitleHabitZero: 'Wróć do rytmu',
   homeTipTitleHabitMet: 'Cel 3/14 zaliczony',
   homeTipTitleRestAll: 'Dzień regeneracji',
+  weeklyRecapTitle: 'Ten tydzień',
+  weeklyRecapSessions: 'Sesje',
+  weeklyRecapReps: 'Powtórzenia',
+  weeklyRecapDeltaUp: (n: number) =>
+    n === 1 ? '+1 sesja vs poprzedni tydzień' : `+${n} sesji vs poprzedni tydzień`,
+  weeklyRecapDeltaDown: (n: number) =>
+    n === 1 ? '−1 sesja vs poprzedni tydzień' : `−${n} sesji vs poprzedni tydzień`,
+  weeklyRecapDeltaSame: 'Tyle samo sesji co w poprzednim tygodniu',
+  weeklyRecapBestStreak: (n: number) =>
+    n === 1 ? 'Rekord: 1 tydzień z treningiem' : `Rekord: ${n} tyg. z treningiem`,
+  weeklyRecapEmpty: 'Brak sesji w tym tygodniu — czas wrócić do planu.',
+  weeklyRecapCollapsedHint: (sessions: number, reps: number) =>
+    `${sessions} sesji · ${reps} powt.`,
   trainAnywayNew: 'Trenuję mimo to',
   abandonResumeTrainAnywayTitle: 'Porzucić niedokończoną sesję?',
   abandonResumeTrainAnywayBody:
@@ -73,6 +100,7 @@ export const pl = {
   nextWorkout: 'Następny',
   maxSetTrend: 'Seria max (ostatnia)',
   menuChangeLevel: 'Zmień poziom',
+  menuFullCycle: 'Cały cykl',
   menuHistory: 'Historia',
   menuRetest: 'Wykonaj test',
   staleSession: 'Sesja sprzed ponad 24 godzin — kontynuuj lub zacznij od nowa.',
@@ -190,6 +218,14 @@ export const pl = {
   backToOnboarding: 'Wróć do konfiguracji',
   accountSwitchCleared:
     'Zalogowano innym kontem — dane lokalne na tym urządzeniu zostały wyczyszczone przed synchronizacją.',
+  accountSwitchConfirmTitle: 'Inne konto',
+  accountSwitchConfirmMessage:
+    'Na tym urządzeniu są zapisane postępy innego użytkownika. Wyczyść dane lokalne, aby zsynchronizować to konto, albo anuluj i zaloguj się na właściwe konto.',
+  accountSwitchClearLocal: 'Wyczyść lokalne i kontynuuj',
+  accountSwitchCancel: 'Anuluj — wyloguj',
+  accountSwitchWrongAccount: 'To nie moje konto',
+  accountSwitchWrongAccountToast:
+    'Wylogowano. Zaloguj się właściwym adresem e-mail, aby zsynchronizować swoje dane.',
   onboardingWelcome: 'Witaj w SmartReps',
   onboardingNewUser: 'Pierwszy raz — skonfiguruj program',
   onboardingHaveAccount: 'Mam już konto — zaloguj się',
@@ -225,6 +261,18 @@ export const pl = {
   techniqueStep3: 'Wypchnij się do pozycji startowej — pełna amplituda.',
   retestSubtitle: 'Sprawdź postęp i wybierz kolejny cykl po teście.',
   howToPushup: 'Jak robić pompkę?',
+  howToPullup: 'Technika podciągania',
+  techniquePullupsTitle: 'Technika podciągania',
+  techniquePullupsStep1:
+    'Chwyt na szerokość barków, aktywne łopatki — „schowaj” je w dół przed startem.',
+  techniquePullupsStep2:
+    'Podciągnij się tak, by broda znalazła się nad drążkiem. Unikaj „kangurzych” ruchów.',
+  techniquePullupsStep3:
+    'Opuszczaj się kontrolowanie — pełna amplituda buduje siłę na kolejne powtórzenia.',
+  techniquePullupsPoseHang: 'Zwis',
+  techniquePullupsPoseTop: 'Góra',
+  techniquePullupsPoseBottom: 'Opusz.',
+  helpTechniquePullups: 'Technika podciągania',
   plansAttribution: 'SmartReps implementuje plany z 100pompek.pl i podciaganie.pl',
   noPlans: 'Brak planów treningowych.',
   dayFailedRestart: (attempt: number) =>
@@ -378,6 +426,61 @@ export const pl = {
   exportCsv: 'Eksport CSV',
   exportThisProgram: 'Eksport CSV tego programu',
   exportAllPrograms: 'Eksport CSV wszystkich programów',
+  exportJsonBackup: 'Eksport backupu (JSON)',
+  exportBackupJson: 'Eksport backupu (JSON)',
+  importBackup: 'Importuj backup',
+  importBackupTitle: 'Import backupu',
+  importBackupHint: 'Wybierz plik CSV (sesje) lub JSON (pełny backup). Duplikaty można pominąć lub nadpisać.',
+  importChooseFile: 'Wybierz plik',
+  importMergeSkipDuplicates: 'Importuj (pomiń duplikaty)',
+  importReplaceDuplicates: 'Nadpisz duplikaty',
+  importReplaceConfirmTitle: 'Nadpisać istniejące dane?',
+  importReplaceConfirmBody:
+    'Istniejące sesje lub nowszy postęp lokalny mogą zostać zastąpione danymi z pliku. Tej operacji nie da się cofnąć.',
+  importFileTooLarge: 'Plik jest za duży (max 5 MB).',
+  importInvalidFile: 'Nie rozpoznano formatu backupu.',
+  importSuccess: 'Backup zaimportowany.',
+  importCsvDuplicatesHint: 'Duplikaty (ten sam identyfikator sesji) zostaną pominięte.',
+  importProgressConflictHint: 'Postęp programów zostanie scalony — nowszy wpis wygrywa.',
+  importProgressConflictTitle: 'Scal postęp programów?',
+  importActiveWorkoutSkipped: 'Trwający trening lokalnie — stan activeWorkout z pliku zostanie pominięty.',
+  importActiveWorkoutConfirmTitle: 'Przerwać bieżący trening?',
+  importActiveWorkoutConfirmBody:
+    'Na urządzeniu trwa trening. Import zastąpi go stanem z pliku backupu. Tej operacji nie da się cofnąć.',
+  importCsv: 'Importuj sesje (CSV)',
+  importJson: 'Przywróć z JSON',
+  importConfirmTitle: 'Potwierdź import',
+  importConfirm: 'Importuj',
+  importCsvPreview: (add: number, skip: number) =>
+    `Dodamy ${add} sesji${skip ? `, pominę ${skip} duplikatów` : ''}.`,
+  importJsonPreview: (sessions: number, skipped: number, progress: number, tests: number) =>
+    `Sesje: +${sessions}${skipped ? ` (${skipped} pominięte)` : ''}. Postęp: ${progress} programów. Testy: +${tests}.`,
+  importTooLarge: 'Plik jest za duży (max 5 MB).',
+  importInvalid: 'Nie rozpoznano formatu backupu.',
+  importFailed: 'Import nieudany — sprawdź plik i spróbuj ponownie.',
+  importDone: (n: number) =>
+    n === 1 ? 'Zaimportowano 1 sesję.' : `Zaimportowano ${n} sesji.`,
+  importInProgress: 'Importuję…',
+  deleteAccount: 'Usuń konto w chmurze',
+  deleteAccountHint:
+    'Trwale usuwa konto, postęp i dane synchronizacji z serwera SmartReps. Tej operacji nie da się cofnąć.',
+  deleteAccountWarning:
+    'Zalecamy wcześniej pobrać backup JSON. Lokalne dane na telefonie zostaną wyczyszczone po sukcesie.',
+  deleteAccountConfirmWord: 'USUŃ',
+  deleteAccountTypeConfirm: (word: string) => `Wpisz ${word}, aby potwierdzić`,
+  deleteAccountConfirm: 'Usuń konto na zawsze',
+  deleteAccountInProgress: 'Usuwanie konta…',
+  deleteAccountDone: 'Konto w chmurze zostało usunięte.',
+  deleteAccountFailed: 'Nie udało się usunąć konta. Spróbuj ponownie lub napisz przez GitHub.',
+  deleteAccountSessionExpired: 'Sesja wygasła — zaloguj się ponownie, aby usunąć konto.',
+  summaryShare: 'Udostępnij wynik',
+  summaryShareDone: 'Karta wyniku gotowa do udostępnienia.',
+  summaryShareFailed: 'Nie udało się utworzyć karty wyniku.',
+  shareCardAlt: 'Karta wyniku SmartReps',
+  pwaUpdateTitle: 'Nowa wersja SmartReps',
+  pwaUpdateBody: 'Dostępna jest aktualizacja aplikacji. Odśwież, aby wczytać najnowsze zmiany.',
+  pwaUpdateReload: 'Odśwież teraz',
+  pwaUpdateLater: 'Później',
   progressOverviewHint: 'Podsumowanie testów, sesji i nawyku dla wybranego programu.',
   progressStatusEmpty: 'Brak sesji — czas na pierwszy trening.',
   progressStatusStreak: (n: number) =>
@@ -385,6 +488,7 @@ export const pl = {
   progressStatusSessions: (n: number) =>
     n === 1 ? '1 ukończona sesja w tym programie.' : `${n} ukończonych sesji w tym programie.`,
   progressFilters: 'Filtry',
+  progressFullCyclePlan: 'Pełny plan cyklu',
   progressChartEmpty: 'Wykres pojawi się po pierwszym teście max.',
   toastExportDone: 'Historia została wyeksportowana do pliku CSV',
   toastSyncDone: 'Zsynchronizowano — postęp bezpieczny w chmurze',
@@ -397,6 +501,7 @@ export const pl = {
   plansCatalogHint:
     'Katalog cykli — poziom i start wybierasz na Treningu lub w Profilu.',
   plansProgramHint: 'Rozwiń cykl, aby zobaczyć cele serii w kolejnych dniach.',
+  plansYourCycle: 'Twój cykl',
   plansDayCount: (n: number) => (n === 1 ? '1 dzień' : `${n} dni`),
   plansPeakDay: (day: number, reps: number) => `szczyt D${day} · ~${reps} powt.`,
   plansDayReps: (sets: number, total: number) =>
@@ -469,6 +574,12 @@ export const pl = {
   summaryRecSuccess: 'Świetna robota. Zrób zaplanowaną przerwę — regeneracja buduje siłę.',
   summaryRecFail: 'Po przerwie wrócisz do dnia 1 tego cyklu. Możesz też zmienić poziom w menu programu.',
   summaryRecCycleDone: 'Cykl ukończony — wykonaj test max, żeby dobrać kolejny poziom.',
+  summaryCtaProgress: 'Zobacz postępy',
+  summaryCtaLevelChange: 'Zmień poziom',
+  summaryCtaRetest: 'Wykonaj test',
+  summaryCtaLater: 'Później',
+  summaryLoginBackup:
+    'Zaloguj się, aby kopia zapasowa postępu trafiła do chmury i wracała na innych urządzeniach.',
   installPromptTitle: 'Dodaj SmartReps do ekranu głównego',
   installPromptBody: 'Szybszy start jak z aplikacji. Na iPhonie: Udostępnij → Do ekranu początkowego.',
   installPromptCta: 'Zainstaluj',
@@ -497,6 +608,41 @@ export const pl = {
       ? '1 element czeka na ponowną synchronizację'
       : `${n} elementów czeka na ponowną synchronizację`,
   syncRetryDead: 'Ponów synchronizację',
+  syncStatusLocalOnly: 'Tylko na tym urządzeniu',
+  syncStatusLoggedIn: 'Połączono z chmurą',
+  syncStatusLoggedOutLocally: 'Wylogowano — dane zostają lokalnie',
+  syncStatusSessionExpired: 'Sesja wygasła — zaloguj ponownie',
+  syncStatusSyncing: 'Synchronizacja…',
+  syncStatusSyncError: 'Problem z synchronizacją',
+  syncQueuePending: (n: number) =>
+    n === 1 ? '1 zmiana czeka na sync' : `${n} zmian czeka na sync`,
+  syncErrorReason: (reason: string) => {
+    const labels: Record<string, string> = {
+      offline: 'Brak sieci',
+      no_session: 'Brak aktywnej sesji',
+      auth_expired: 'Sesja wygasła',
+      remote_error: 'Błąd serwera',
+      dead_letter: 'Nieudane zmiany w kolejce',
+      unknown: 'Nieznany błąd',
+    }
+    return labels[reason] ?? labels.unknown
+  },
+  syncFaqTitle: 'Jak działa synchronizacja?',
+  syncFaqLocal: 'Możesz trenować bez logowania — postęp zostaje na telefonie.',
+  syncFaqLogin:
+    'Logowanie kodem e-mail tworzy kopię w chmurze i pozwala wrócić na innym urządzeniu.',
+  syncFaqWhat:
+    'Sync obejmuje postęp programów, sesje treningowe, testy max i ustawienia (motyw, programy).',
+  syncFaqMidWorkout:
+    'Trening w trakcie synchronizuje się dopiero po zakończeniu dnia — nie w czasie serii.',
+  syncCtaLoginBackup: 'Zaloguj się, aby backupować postęp',
+  syncCtaLoginAgain: 'Zaloguj ponownie',
+  syncCtaSessionExpired: 'Zaloguj się ponownie',
+  toastSyncFailedOffline: 'Brak sieci — synchronizacja wznowi się po połączeniu',
+  toastSyncFailedSession: 'Sesja wygasła — zaloguj się ponownie, aby syncować',
+  toastSyncFailedDeadLetter:
+    'Część zmian nie poszła do chmury — sprawdź panel synchronizacji w Profilu',
+  toastSyncFailedRemote: 'Synchronizacja nie powiodła się — spróbuj ponownie',
   changeLevelPushups: 'Zmień poziom — Pompki',
   changeLevelPullups: 'Zmień poziom — Podciąganie',
   retestPushups: 'Test pompek',

@@ -2,6 +2,9 @@ import { test, expect, type Page } from '@playwright/test'
 
 async function seedLocalAppState(page: Page, extras: Record<string, unknown> = {}) {
   await page.addInitScript((payload) => {
+    const { settings: settingsOverride, ...rest } = payload as {
+      settings?: Record<string, unknown>
+    }
     const state = {
       state: {
         settings: {
@@ -17,6 +20,7 @@ async function seedLocalAppState(page: Page, extras: Record<string, unknown> = {
           hasSeenWorkoutHint: true,
           enabledPrograms: ['pushups'],
           onboardingComplete: true,
+          ...(settingsOverride ?? {}),
         },
         pendingTest: null,
         pendingStart: null,
@@ -30,9 +34,12 @@ async function seedLocalAppState(page: Page, extras: Record<string, unknown> = {
         hasSeenStandaloneLoginCoach: true,
         dismissedHomeTipId: null,
         dismissedHomeTipDay: null,
-        ...payload,
+        hasSeenLoginCloudPrompt: false,
+        dismissedLoginBackupTip: false,
+        lastSyncFailureReason: null,
+        ...rest,
       },
-      version: 3,
+      version: 4,
     }
     localStorage.setItem('smartreps-app', JSON.stringify(state))
   }, extras)
@@ -43,10 +50,17 @@ async function seedLocalAppState(page: Page, extras: Record<string, unknown> = {
  */
 async function upsertProgramProgress(
   page: Page,
-  opts?: { status?: string; cycleId?: string; currentDay?: number },
+  opts?: {
+    program?: 'pushups' | 'pullups'
+    status?: string
+    cycleId?: string
+    currentDay?: number
+  },
 ) {
+  const program = opts?.program ?? 'pushups'
   const status = opts?.status ?? 'active'
-  const cycleId = opts?.cycleId ?? 'pushups-6-10'
+  const cycleId =
+    opts?.cycleId ?? (program === 'pullups' ? 'pullups-4-5' : 'pushups-6-10')
   const currentDay = opts?.currentDay ?? 1
 
   await page.waitForFunction(async () => {
@@ -62,7 +76,7 @@ async function upsertProgramProgress(
   }, undefined, { timeout: 15_000 })
 
   await page.evaluate(
-    async ({ status: st, cycleId: cid, currentDay: day }) => {
+    async ({ program: prog, status: st, cycleId: cid, currentDay: day }) => {
       await new Promise<void>((resolve, reject) => {
         const req = indexedDB.open('SmartRepsDB')
         req.onerror = () => reject(req.error ?? new Error('idb open failed'))
@@ -79,7 +93,7 @@ async function upsertProgramProgress(
           const finishPut = (existing?: { id?: number }) => {
             store.put({
               ...(existing?.id != null ? { id: existing.id } : {}),
-              program: 'pushups',
+              program: prog,
               cycleId: cid,
               currentDay: day,
               status: st,
@@ -95,7 +109,7 @@ async function upsertProgramProgress(
           }
           tx.onerror = () => reject(tx.error ?? new Error('idb put failed'))
           if (index) {
-            const getReq = index.get('pushups')
+            const getReq = index.get(prog)
             getReq.onsuccess = () => finishPut(getReq.result as { id?: number } | undefined)
             getReq.onerror = () => finishPut()
           } else {
@@ -104,7 +118,7 @@ async function upsertProgramProgress(
         }
       })
     },
-    { status, cycleId, currentDay },
+    { program, status, cycleId, currentDay },
   )
 }
 
@@ -156,6 +170,63 @@ test.describe('SmartReps routing critical paths', () => {
     await page.getByRole('button', { name: 'Pomiń — trenuję bez konta' }).click()
 
     await expect(page).toHaveURL(/\/workout\/pushups/, { timeout: 20_000 })
+    await expect(page.getByRole('button', { name: 'Zrobione' })).toBeVisible({ timeout: 15_000 })
+  })
+
+  test('1c) onboarding dual program drains to pullups test', async ({ page }) => {
+    test.setTimeout(120_000)
+    await page.goto('/setup/onboarding')
+    await expect(page.getByRole('heading', { name: 'Witaj w SmartReps' })).toBeVisible({
+      timeout: 15_000,
+    })
+    await page.getByRole('button', { name: 'Pierwszy raz — skonfiguruj program' }).click()
+
+    await page.getByRole('button', { name: 'Podciąganie' }).click()
+    await page.getByRole('button', { name: 'Dalej' }).click()
+    await page.getByRole('button', { name: 'Wykonaj test' }).click()
+
+    await expect(page).toHaveURL(/\/setup\/test\/pushups/)
+
+    await page.getByRole('checkbox', { name: 'Rozumiem i chcę kontynuować' }).check()
+    await page.getByRole('button', { name: 'Potwierdź' }).click()
+    for (const label of ['Wymachy ramion', 'Skręty tułowia', '10 lekkich pompek']) {
+      await page.getByRole('checkbox', { name: label }).check()
+    }
+    for (let i = 0; i < 8; i += 1) {
+      await page.getByRole('button', { name: 'Więcej' }).click()
+    }
+    await page.getByRole('button', { name: 'Dalej — wybierz cykl' }).click()
+
+    await expect(page).toHaveURL(/\/setup\/cycle\/pushups/)
+    await page.getByRole('button', { name: /Wybierz ten poziom/ }).first().click()
+
+    await expect(page).toHaveURL(/\/setup\/start\/pushups/)
+    await page.getByRole('button', { name: /Rozpocznij Dzień 1|Kontynuuj/ }).click()
+
+    await expect(page).toHaveURL(/\/setup\/login/)
+    await page.getByRole('button', { name: 'Pomiń — trenuję bez konta' }).click()
+
+    await expect(page).toHaveURL(/\/setup\/test\/pullups/, { timeout: 25_000 })
+    await expect(page.getByRole('heading', { name: /Test podciągania/i })).toBeVisible({
+      timeout: 15_000,
+    })
+  })
+
+  test('1d) seeded pullups progress → start workout', async ({ page }) => {
+    test.setTimeout(60_000)
+    await seedLocalAppState(page, { settings: { enabledPrograms: ['pullups'] } })
+    await page.goto('/profile')
+    await expect(page.getByRole('heading', { name: 'Profil' })).toBeVisible({ timeout: 20_000 })
+    await upsertProgramProgress(page, { program: 'pullups', cycleId: 'pullups-4-5' })
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(page.getByRole('heading', { name: 'Podciąganie', level: 2 })).toBeVisible({
+      timeout: 15_000,
+    })
+    await page.getByRole('button', { name: /Rozpocznij Dzień 1/ }).click()
+    await expect(page).toHaveURL(/\/workout\/pullups/, { timeout: 20_000 })
     await expect(page.getByRole('button', { name: 'Zrobione' })).toBeVisible({ timeout: 15_000 })
   })
 
@@ -294,6 +365,35 @@ test.describe('SmartReps routing critical paths', () => {
         await page.getByRole('button', { name: 'Pomiń — trenuję bez konta' }).click()
       }
     }
+
+    await page.waitForFunction(async () => {
+      return await new Promise<boolean>((resolve) => {
+        const req = indexedDB.open('SmartRepsDB')
+        req.onerror = () => resolve(false)
+        req.onsuccess = () => {
+          const idb = req.result
+          if (!idb.objectStoreNames.contains('programProgress')) {
+            idb.close()
+            resolve(false)
+            return
+          }
+          const tx = idb.transaction('programProgress', 'readonly')
+          const store = tx.objectStore('programProgress')
+          const index = store.indexNames.contains('program') ? store.index('program') : null
+          const finish = (row?: { currentDay?: number }) => {
+            idb.close()
+            resolve(row?.currentDay === 1)
+          }
+          if (index) {
+            const getReq = index.get('pushups')
+            getReq.onsuccess = () => finish(getReq.result as { currentDay?: number } | undefined)
+            getReq.onerror = () => finish()
+          } else {
+            finish()
+          }
+        }
+      })
+    }, undefined, { timeout: 20_000 })
 
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible({

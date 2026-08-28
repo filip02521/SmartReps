@@ -122,4 +122,18 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 - [x] Toast nie zasłania RestTimerPill
 - [x] Profile CSV = wszystkie programy; Progress CSV = bieżący
 - [x] Attention band min-height stabilny (coach → tip)
-- [ ] iPhone SE 375px — final smoke na urządzeniu
+- [x] iOS status bar: `black-translucent` + `.safe-header` (sticky tło pod notch) — [`index.html`](../index.html), [`globals.css`](../src/styles/globals.css), [`AppLayout.tsx`](../src/components/layout/AppLayout.tsx)
+- [x] iPhone SE 375px — Playwright `smoke-iphone` (automatyczny smoke)
+- [ ] iPhone SE 375px — manual smoke (7 ekranów, patrz niżej)
+
+### iPhone SE — manual smoke (7 ekranów)
+
+Uruchom dev/preview na urządzeniu 375×667 (lub symulator). Sprawdź brak treści pod notch i stabilne tło nagłówka:
+
+1. **Dashboard** (`/`) — logo + „Wybierz trening”, karta programu, tab bar
+2. **Postępy** (`/progress`) — wykres / lista sesji, filtry
+3. **Plany** (`/plans`) — lista cykli, badge „Twój cykl”
+4. **Profil** (`/profile`) — sekcja Konto + SyncStatusPanel
+5. **Onboarding** (`/setup/onboarding`) — hero + CTA, bez ucięcia u góry
+6. **Login** (`/setup/login`) — formularz e-mail + „Pomiń”
+7. **Trening aktywny** (`/workout/pushups?force=1`) — licznik serii, menu treningu, bez nachodzenia na home indicator

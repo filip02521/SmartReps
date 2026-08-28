@@ -1,6 +1,7 @@
 import type { HomeLoadResult } from '@/lib/home-summary'
 import { MetricStrip } from '@/components/ui/MetricStrip'
 import { Badge } from '@/components/ui/Card'
+import { WeeklyRecapPanel } from '@/components/dashboard/WeeklyRecap'
 import { pl } from '@/i18n/pl'
 import type { Program } from '@/data/plans/types'
 
@@ -8,9 +9,11 @@ type Summary = HomeLoadResult['summary']
 
 export function HomeSummary({
   summary,
+  weeklyRecap,
   onScrollToProgram,
 }: {
   summary: Summary
+  weeklyRecap: HomeLoadResult['weeklyRecap']
   onScrollToProgram: (program: Program) => void
 }) {
   return (
@@ -37,6 +40,8 @@ export function HomeSummary({
           max: 3,
         }}
       />
+
+      <WeeklyRecapPanel recap={weeklyRecap} />
 
       {summary.programs.length > 0 && (
         <ul className="mt-4 space-y-3">

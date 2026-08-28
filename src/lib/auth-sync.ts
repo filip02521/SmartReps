@@ -6,6 +6,8 @@ import {
   pullRemoteData,
   syncAllLocalData,
   syncWithRemote,
+  getDeadLetterCount,
+  type SyncFailureReason,
   type SyncResult,
 } from '@/lib/sync'
 import { useAppStore } from '@/stores/app-store'
@@ -69,7 +71,7 @@ export async function waitForStoreHydration(timeoutMs = 3000): Promise<void> {
   })
 }
 
-export type AccountEnsureResult = 'cleared' | 'same' | 'first'
+export type AccountEnsureResult = 'cleared' | 'same' | 'first' | 'needs_confirm'
 
 /** Prevent pushing one user's local Dexie data into another user's cloud account. */
 export async function ensureAccountForSession(userId: string): Promise<AccountEnsureResult> {
@@ -77,6 +79,13 @@ export async function ensureAccountForSession(userId: string): Promise<AccountEn
   const { lastAuthUserId } = useAppStore.getState()
 
   if (lastAuthUserId && lastAuthUserId !== userId) {
+    const progressCount = await db.programProgress.count()
+    if (progressCount > 0) {
+      const { setAccountSwitchPending } = await import('@/lib/account-switch-gate')
+      setAccountSwitchPending({ userId })
+      track('account_switch_prompt_shown')
+      return 'needs_confirm'
+    }
     await clearAllLocalData()
     useAppStore.setState({ lastAuthUserId: userId })
     showToast(pl.accountSwitchCleared, 'info')
@@ -126,28 +135,89 @@ async function syncForAccount(accountResult: AccountEnsureResult): Promise<SyncR
   return syncWithRemote()
 }
 
-type SyncToastOpts = { showSuccessToast?: boolean; showFailureToast?: boolean }
+type SyncToastOpts = {
+  showSuccessToast?: boolean
+  showFailureToast?: boolean
+  /** Skip offline failure toast (boot sync while offline). */
+  silentOffline?: boolean
+}
 
 let authenticatedSyncLock: Promise<SyncResult> | null = null
 let signInFlowLock: Promise<void> | null = null
 let pendingSyncToasts: SyncToastOpts = {}
 let syncToastTimer: ReturnType<typeof setTimeout> | null = null
-let pendingSyncToastResult: 'success' | 'failure' | null = null
+let pendingSyncToastResult: { ok: boolean; reason?: SyncFailureReason } | null = null
+
+function loginToastAction() {
+  const returnTo =
+    typeof window !== 'undefined' && !window.location.pathname.startsWith('/setup/')
+      ? window.location.pathname + window.location.search
+      : '/'
+  return {
+    label: pl.sessionLostReLoginAction,
+    onClick: () => {
+      try {
+        sessionStorage.setItem(AUTH_RETURN_KEY, returnTo)
+      } catch {
+        // ignore
+      }
+      window.location.assign(`/setup/login?returnTo=${encodeURIComponent(returnTo)}`)
+    },
+  }
+}
+
+function failureToastForReason(reason: SyncFailureReason): {
+  message: string
+  variant: 'info' | 'warning' | 'error'
+  action?: { label: string; onClick: () => void }
+} {
+  switch (reason) {
+    case 'offline':
+      return { message: pl.toastSyncFailedOffline, variant: 'info' }
+    case 'auth_expired':
+      return {
+        message: pl.toastSyncFailedSession,
+        variant: 'info',
+        action: loginToastAction(),
+      }
+    case 'dead_letter':
+      return { message: pl.toastSyncFailedDeadLetter, variant: 'warning' }
+    case 'remote_error':
+      return { message: pl.toastSyncFailedRemote, variant: 'error' }
+    case 'no_session':
+      return { message: pl.toastSyncFailed, variant: 'info' }
+    default:
+      return { message: pl.toastSyncFailed, variant: 'error' }
+  }
+}
+
+async function inferFailureReason(errors: number): Promise<SyncFailureReason> {
+  if ((await getDeadLetterCount()) > 0) return 'dead_letter'
+  if (errors > 0) return 'remote_error'
+  return 'unknown'
+}
 
 /** Coalesce rapid sync result toasts — success wins over a late failure toast. */
-function scheduleSyncResultToast(ok: boolean, opts: SyncToastOpts) {
+function scheduleSyncResultToast(
+  ok: boolean,
+  opts: SyncToastOpts,
+  reason?: SyncFailureReason,
+) {
   if (ok && !opts.showSuccessToast) return
   if (!ok && !opts.showFailureToast) return
+  if (!ok && reason === 'offline' && opts.silentOffline) return
+  if (!ok && reason === 'no_session') return
 
-  if (ok) pendingSyncToastResult = 'success'
-  else if (pendingSyncToastResult !== 'success') pendingSyncToastResult = 'failure'
+  if (ok) pendingSyncToastResult = { ok: true }
+  else if (!pendingSyncToastResult?.ok) pendingSyncToastResult = { ok: false, reason }
 
   if (syncToastTimer) clearTimeout(syncToastTimer)
   syncToastTimer = setTimeout(() => {
-    if (pendingSyncToastResult === 'success') {
+    if (pendingSyncToastResult?.ok) {
       showToast(pl.toastSyncDone, 'success')
-    } else if (pendingSyncToastResult === 'failure') {
-      showToast(pl.toastSyncFailed, 'error')
+    } else if (pendingSyncToastResult && !pendingSyncToastResult.ok) {
+      const toast = failureToastForReason(pendingSyncToastResult.reason ?? 'unknown')
+      showToast(toast.message, toast.variant, toast.action ? { action: toast.action } : undefined)
     }
     pendingSyncToastResult = null
     syncToastTimer = null
@@ -157,32 +227,61 @@ function scheduleSyncResultToast(ok: boolean, opts: SyncToastOpts) {
 export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncResult> {
   if (!isSupabaseConfigured) return { ok: true, errors: 0 }
 
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const reason: SyncFailureReason = 'offline'
+    useAppStore.getState().setLastSyncFailureReason(reason)
+    scheduleSyncResultToast(false, opts ?? {}, reason)
+    return { ok: false, errors: 0, reason }
+  }
+
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.user) return { ok: true, errors: 0 }
+  if (!session?.user) {
+    const { lastAuthUserId } = useAppStore.getState()
+    if (lastAuthUserId) {
+      const reason: SyncFailureReason = 'auth_expired'
+      useAppStore.getState().setLastSyncFailureReason(reason)
+      scheduleSyncResultToast(false, opts ?? {}, reason)
+      return { ok: false, errors: 0, reason }
+    }
+    return { ok: true, errors: 0, reason: 'no_session' }
+  }
 
   if (opts?.showSuccessToast) pendingSyncToasts.showSuccessToast = true
   if (opts?.showFailureToast) pendingSyncToasts.showFailureToast = true
+  if (opts?.silentOffline) pendingSyncToasts.silentOffline = true
 
   if (authenticatedSyncLock) return authenticatedSyncLock
 
   authenticatedSyncLock = (async () => {
     const accountResult = await ensureAccountForSession(session.user.id)
+    if (accountResult === 'needs_confirm') {
+      return { ok: false, errors: 0, reason: 'unknown' as SyncFailureReason }
+    }
     const result = await syncForAccount(accountResult)
+
+    let reason = result.reason
+    if (!result.ok && !reason) {
+      reason = await inferFailureReason(result.errors)
+    }
+
+    const finalResult: SyncResult = reason ? { ...result, reason } : result
 
     const toastOpts = { ...pendingSyncToasts }
     pendingSyncToasts = {}
 
-    scheduleSyncResultToast(result.ok, toastOpts)
+    scheduleSyncResultToast(finalResult.ok, toastOpts, reason)
 
-    if (result.ok) {
+    if (finalResult.ok) {
       useAppStore.getState().setLastSyncedAt(new Date().toISOString())
+      useAppStore.getState().setLastSyncFailureReason(null)
       await completeOnboardingIfSynced()
       track('sync_ok')
     } else {
-      track('sync_failed', { errors: result.errors })
+      if (reason) useAppStore.getState().setLastSyncFailureReason(reason)
+      track('sync_failed', { errors: finalResult.errors, reason: reason ?? 'unknown' })
     }
 
-    return result
+    return finalResult
   })().finally(() => {
     authenticatedSyncLock = null
   })
@@ -208,6 +307,12 @@ export async function completeSignInFlow(
       showSuccessToast: opts?.showSuccessToast ?? false,
       showFailureToast: opts?.showFailureToast ?? false,
     })
+
+    const { getAccountSwitchPending } = await import('@/lib/account-switch-gate')
+    if (getAccountSwitchPending()) {
+      return
+    }
+
     consumeAuthFromOnboarding()
     if (navigate) {
       try {

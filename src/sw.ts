@@ -22,27 +22,41 @@ try {
 self.addEventListener('push', (event) => {
   let title = 'SmartReps'
   let body = 'Czas na trening — sprawdź swój plan na dziś.'
+  let url = '/'
+  let program: string | undefined
   try {
-    const data = event.data?.json() as { title?: string; body?: string } | undefined
+    const data = event.data?.json() as
+      | { title?: string; body?: string; url?: string; program?: string }
+      | undefined
     if (data?.title) title = data.title
     if (data?.body) body = data.body
+    if (data?.url) url = data.url
+    if (data?.program) program = data.program
   } catch {
     const text = event.data?.text()
     if (text) body = text
   }
+
+  let targetUrl = url
+  if (program && !targetUrl.includes('program=')) {
+    const sep = targetUrl.includes('?') ? '&' : '?'
+    targetUrl = `${targetUrl}${sep}program=${encodeURIComponent(program)}`
+  }
+
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
       icon: '/brand/notification-icon.png',
       badge: '/brand/favicon-48.png',
-      data: { url: '/' },
+      data: { url: targetUrl, program },
     }),
   )
 })
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const target = (event.notification.data as { url?: string } | undefined)?.url ?? '/'
+  const data = event.notification.data as { url?: string } | undefined
+  const target = data?.url ?? '/'
   event.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })

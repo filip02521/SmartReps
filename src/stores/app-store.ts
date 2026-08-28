@@ -70,6 +70,11 @@ type AppStore = {
   /** Home tip dismiss (id + local calendar day YYYY-MM-DD). */
   dismissedHomeTipId: string | null
   dismissedHomeTipDay: string | null
+  /** LoginPromptPolicy — Summary post-D1 cloud backup prompt shown once. */
+  hasSeenLoginCloudPrompt: boolean
+  dismissedLoginBackupTip: boolean
+  /** Last sync failure reason for SyncStatusPanel (A1/A2). */
+  lastSyncFailureReason: string | null
   setSettings: (partial: Partial<UserSettings>) => void
   setPendingTest: (test: PendingTest | null) => void
   clearPendingTest: () => void
@@ -84,6 +89,9 @@ type AppStore = {
   setHasDismissedInstallPrompt: (v: boolean) => void
   setHasSeenStandaloneLoginCoach: (v: boolean) => void
   dismissHomeTip: (id: string, dayKey: string) => void
+  setHasSeenLoginCloudPrompt: (v: boolean) => void
+  setDismissedLoginBackupTip: (v: boolean) => void
+  setLastSyncFailureReason: (reason: string | null) => void
 }
 
 const UI_SYNC_KEYS: (keyof UserSettings)[] = [
@@ -126,6 +134,9 @@ export const useAppStore = create<AppStore>()(
       hasSeenStandaloneLoginCoach: false,
       dismissedHomeTipId: null,
       dismissedHomeTipDay: null,
+      hasSeenLoginCloudPrompt: false,
+      dismissedLoginBackupTip: false,
+      lastSyncFailureReason: null,
       setSettings: (partial) =>
         set((s) => {
           const nextSettings = { ...s.settings, ...partial }
@@ -159,13 +170,16 @@ export const useAppStore = create<AppStore>()(
       setHasSeenStandaloneLoginCoach: (hasSeenStandaloneLoginCoach) => set({ hasSeenStandaloneLoginCoach }),
       dismissHomeTip: (dismissedHomeTipId, dismissedHomeTipDay) =>
         set({ dismissedHomeTipId, dismissedHomeTipDay }),
+      setHasSeenLoginCloudPrompt: (hasSeenLoginCloudPrompt) => set({ hasSeenLoginCloudPrompt }),
+      setDismissedLoginBackupTip: (dismissedLoginBackupTip) => set({ dismissedLoginBackupTip }),
+      setLastSyncFailureReason: (lastSyncFailureReason) => set({ lastSyncFailureReason }),
     }),
     {
       name: 'smartreps-app',
-      version: 3,
-      migrate: (persisted) => {
+      version: 4,
+      migrate: (persisted, fromVersion) => {
         const p = (persisted ?? {}) as Partial<AppStore> & { settings?: Partial<UserSettings> }
-        return {
+        const base = {
           settings: { ...defaultSettings, ...(p.settings ?? {}) },
           pendingTest: p.pendingTest ?? null,
           pendingStart: p.pendingStart ?? null,
@@ -179,6 +193,20 @@ export const useAppStore = create<AppStore>()(
           hasSeenStandaloneLoginCoach: p.hasSeenStandaloneLoginCoach ?? false,
           dismissedHomeTipId: p.dismissedHomeTipId ?? null,
           dismissedHomeTipDay: p.dismissedHomeTipDay ?? null,
+        }
+        if (fromVersion < 4) {
+          return {
+            ...base,
+            hasSeenLoginCloudPrompt: false,
+            dismissedLoginBackupTip: false,
+            lastSyncFailureReason: null,
+          }
+        }
+        return {
+          ...base,
+          hasSeenLoginCloudPrompt: p.hasSeenLoginCloudPrompt ?? false,
+          dismissedLoginBackupTip: p.dismissedLoginBackupTip ?? false,
+          lastSyncFailureReason: p.lastSyncFailureReason ?? null,
         }
       },
       merge: (persisted, current) => {
@@ -203,6 +231,9 @@ export const useAppStore = create<AppStore>()(
         hasSeenStandaloneLoginCoach: s.hasSeenStandaloneLoginCoach,
         dismissedHomeTipId: s.dismissedHomeTipId,
         dismissedHomeTipDay: s.dismissedHomeTipDay,
+        hasSeenLoginCloudPrompt: s.hasSeenLoginCloudPrompt,
+        dismissedLoginBackupTip: s.dismissedLoginBackupTip,
+        lastSyncFailureReason: s.lastSyncFailureReason,
       }),
     },
   ),

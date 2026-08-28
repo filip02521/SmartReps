@@ -23,6 +23,7 @@ export function AppLayout() {
       <main
         className={cn(
           'flex min-h-0 flex-1 flex-col transition-[padding] duration-200 motion-reduce:transition-none',
+          !hideTabs && 'safe-header',
           !hideTabs && 'pb-[calc(5rem+env(safe-area-inset-bottom))]',
         )}
       >

@@ -6,12 +6,20 @@ import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SessionCompare } from '@/components/workout/SessionCompare'
 import { ErrorBanner, PageLoader } from '@/components/ux/Feedback'
+import { NoticeCard, LogIn } from '@/components/ux/NoticeCard'
 import { getProgramProgress } from '@/lib/program-service'
 import { getSessionComparison } from '@/lib/session-service'
+import { getSummaryActions, shouldShowLoginCloudPrompt } from '@/lib/summary-actions'
+import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
+import { track } from '@/lib/analytics'
 import { useWorkoutStore } from '@/stores/workout-store'
+import { useAppStore } from '@/stores/app-store'
 import { daysUntilWorkout } from '@/lib/progress-engine'
 import { getCycleById } from '@/data/plans'
 import type { Program } from '@/data/plans/types'
+import { shareSessionCard } from '@/lib/share-card'
+import { trackShareCard } from '@/lib/analytics'
+import { showToast } from '@/stores/toast-store'
 
 export default function SessionSummary() {
   const { program: programParam } = useParams<{ program: Program }>()
@@ -21,13 +29,18 @@ export default function SessionSummary() {
   const sessionId = searchParams.get('session')
   const navigate = useNavigate()
   const setResults = useWorkoutStore((s) => s.setResults)
+  const hasSeenLoginCloudPrompt = useAppStore((s) => s.hasSeenLoginCloudPrompt)
+  const setHasSeenLoginCloudPrompt = useAppStore((s) => s.setHasSeenLoginCloudPrompt)
   const processedRef = useRef(false)
+  const loginPromptTrackedRef = useRef(false)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [email, setEmail] = useState<string | null | undefined>(undefined)
   const [current, setCurrent] = useState<Awaited<ReturnType<typeof getSessionComparison>>['current']>()
   const [previous, setPrevious] = useState<Awaited<ReturnType<typeof getSessionComparison>>['previous']>()
   const [progress, setProgress] = useState<Awaited<ReturnType<typeof getProgramProgress>>>(undefined)
+  const [sharing, setSharing] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -55,7 +68,18 @@ export default function SessionSummary() {
 
   useEffect(() => {
     processedRef.current = false
+    loginPromptTrackedRef.current = false
   }, [program, sessionId, failed])
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setEmail(null)
+      return
+    }
+    void supabase.auth.getSession().then(({ data }) => {
+      setEmail(data.session?.user?.email ?? null)
+    })
+  }, [])
 
   useEffect(() => {
     if (processedRef.current) return
@@ -63,6 +87,22 @@ export default function SessionSummary() {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when summary identity changes
   }, [program, sessionId, failed])
+
+  const showLoginPrompt =
+    !loading &&
+    !error &&
+    email !== undefined &&
+    shouldShowLoginCloudPrompt({
+      passed: !failed,
+      email,
+      hasSeenLoginCloudPrompt,
+    })
+
+  useEffect(() => {
+    if (!showLoginPrompt || loginPromptTrackedRef.current) return
+    loginPromptTrackedRef.current = true
+    track('login_cloud_prompt_shown')
+  }, [showLoginPrompt])
 
   if (loading) {
     return (
@@ -100,6 +140,8 @@ export default function SessionSummary() {
   const daysLeft = daysUntilWorkout(
     progress?.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
   )
+  const summaryActions = getSummaryActions({ failed, progress, program })
+  const dismissLoginPrompt = () => setHasSeenLoginCloudPrompt(true)
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
@@ -117,14 +159,22 @@ export default function SessionSummary() {
           <p className="font-semibold">{pl.cycleComplete}</p>
           <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.cycleCompleteHint}</p>
           <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecCycleDone}</p>
-          <Button
-            className="mt-4"
-            size="touch"
-            fullWidth
-            onClick={() => navigate(`/setup/test/${program}?retest=1`)}
-          >
-            {pl.retestNow}
-          </Button>
+          <div className="mt-4 flex flex-col gap-2">
+            <Button size="touch" fullWidth onClick={() => navigate(`/setup/test/${program}?retest=1`)}>
+              {pl.retestNow}
+            </Button>
+            {summaryActions.secondary.map((action) => (
+              <Button
+                key={action.label}
+                size="touch"
+                fullWidth
+                variant={action.variant ?? 'secondary'}
+                onClick={() => action.onClick({ navigate })}
+              >
+                {action.label}
+              </Button>
+            ))}
+          </div>
         </Card>
       )}
 
@@ -138,6 +188,9 @@ export default function SessionSummary() {
             {pl.dayFailedRestart(progress?.cycleAttempt ?? 1)}
           </p>
           <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecFail}</p>
+          <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">
+            {pl.restPrimaryLabel(pl.restIn(daysLeft))}
+          </p>
         </Card>
       )}
 
@@ -157,9 +210,77 @@ export default function SessionSummary() {
         </p>
       )}
 
-      <Button className="mt-8" size="touch" fullWidth onClick={() => navigate('/', { replace: true })}>
-        {pl.backHome}
-      </Button>
+      {summaryActions.secondary.length > 0 && progress?.status !== 'test_pending' && (
+        <div className="mt-4 flex flex-col gap-2">
+          {summaryActions.secondary.map((action) => (
+            <Button
+              key={action.label}
+              size="touch"
+              fullWidth
+              variant={action.variant ?? 'secondary'}
+              onClick={() => action.onClick({ navigate })}
+            >
+              {action.label}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {showLoginPrompt && (
+        <NoticeCard
+          className="mt-6"
+          tone="brand"
+          icon={<LogIn size={20} strokeWidth={2.25} />}
+          title={pl.standaloneLoginCoachTitle}
+          message={pl.summaryLoginBackup}
+          actionLabel={pl.standaloneLoginCoachCta}
+          onAction={() => {
+            dismissLoginPrompt()
+            track('login_cloud_prompt_clicked')
+            navigate('/setup/login', {
+              state: { returnTo: `/workout/${program}/summary?session=${sessionId}` },
+            })
+          }}
+          dismissLabel={pl.standaloneLoginCoachDismiss}
+          onDismiss={dismissLoginPrompt}
+          stackActions
+        />
+      )}
+
+      <div className="mt-6 flex flex-col gap-2">
+        {!failed && (
+          <Button
+            variant="secondary"
+            size="touch"
+            fullWidth
+            disabled={sharing}
+            onClick={() => {
+              void (async () => {
+                setSharing(true)
+                try {
+                  await shareSessionCard({
+                    program,
+                    dayNumber: current?.dayNumber ?? progress?.currentDay ?? 1,
+                    totalReps,
+                    passed: true,
+                  })
+                  trackShareCard(program, true)
+                  showToast(pl.summaryShareDone, 'success')
+                } catch {
+                  showToast(pl.summaryShareFailed, 'error')
+                } finally {
+                  setSharing(false)
+                }
+              })()
+            }}
+          >
+            {pl.summaryShare}
+          </Button>
+        )}
+        <Button size="touch" fullWidth onClick={() => navigate('/', { replace: true })}>
+          {pl.backHome}
+        </Button>
+      </div>
     </div>
   )
 }

@@ -14,10 +14,12 @@ import CyclePicker from '@/pages/setup/CyclePicker'
 import ProgramStart from '@/pages/setup/ProgramStart'
 import Login from '@/pages/setup/Login'
 import TechniquePushups from '@/pages/setup/TechniquePushups'
+import TechniquePullups from '@/pages/setup/TechniquePullups'
 import NotFound from '@/pages/NotFound'
 import PrivacyPage from '@/pages/legal/Privacy'
 import TermsPage from '@/pages/legal/Terms'
 import { ToastHost } from '@/components/ux/Toast'
+import { AccountSwitchGate } from '@/components/ux/AccountSwitchGate'
 
 const ProgressPage = lazy(() => import('@/pages/Progress'))
 const PlansPage = lazy(() => import('@/pages/Plans'))
@@ -42,6 +44,7 @@ export default function App() {
     <BrowserRouter>
       <ToastHost />
       <AuthBridge />
+      <AccountSwitchGate />
       <GlobalOfflineBar />
       <Routes>
         <Route path="/privacy" element={<PrivacyPage />} />
@@ -49,6 +52,7 @@ export default function App() {
         <Route path="/setup/onboarding" element={<Onboarding />} />
         <Route path="/setup/login" element={<Login />} />
         <Route path="/setup/technique" element={<TechniquePushups />} />
+        <Route path="/setup/technique-pullups" element={<TechniquePullups />} />
 
         <Route element={<RequireOnboarding />}>
           <Route element={<RequireProgram />}>

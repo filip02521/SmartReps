@@ -159,6 +159,21 @@ export function ProgramHomeCard({
             className="justify-start px-3"
             onClick={() => {
               setShowMenu(false)
+              if (progress) {
+                navigate(`/plans?highlight=${progress.cycleId}`)
+              } else {
+                navigate('/plans')
+              }
+            }}
+          >
+            {pl.menuFullCycle}
+          </Button>
+          <Button
+            variant="ghost"
+            fullWidth
+            className="justify-start px-3"
+            onClick={() => {
+              setShowMenu(false)
               navigate('/progress')
             }}
           >

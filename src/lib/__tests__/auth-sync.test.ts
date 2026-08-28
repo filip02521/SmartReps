@@ -17,6 +17,7 @@ vi.mock('@/lib/sync', () => ({
   syncWithRemote: vi.fn(),
   pullRemoteData: vi.fn(),
   syncAllLocalData: vi.fn(),
+  getDeadLetterCount: vi.fn().mockResolvedValue(0),
 }))
 
 vi.mock('@/lib/db', () => ({
@@ -72,11 +73,17 @@ import {
   runAuthenticatedSync,
   shouldNavigateAfterAuth,
 } from '@/lib/auth-sync'
+import {
+  clearAccountSwitchPending,
+  getAccountSwitchPending,
+} from '@/lib/account-switch-gate'
 
 describe('ensureAccountForSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearAccountSwitchPending()
     mockGetState.mockReturnValue({ lastAuthUserId: null })
+    vi.mocked(db.programProgress.count).mockResolvedValue(0)
   })
 
   it('sets lastAuthUserId on first login', async () => {
@@ -93,19 +100,30 @@ describe('ensureAccountForSession', () => {
     expect(clearAllLocalData).not.toHaveBeenCalled()
   })
 
-  it('clears local data when account switches', async () => {
+  it('clears local data when account switches without local progress', async () => {
     mockGetState.mockReturnValue({ lastAuthUserId: 'user-a' })
+    vi.mocked(db.programProgress.count).mockResolvedValue(0)
     const result = await ensureAccountForSession('user-b')
     expect(result).toBe('cleared')
     expect(clearAllLocalData).toHaveBeenCalled()
     expect(mockSetState).toHaveBeenCalledWith({ lastAuthUserId: 'user-b' })
     expect(showToast).toHaveBeenCalled()
   })
+
+  it('returns needs_confirm when account switches with local progress', async () => {
+    mockGetState.mockReturnValue({ lastAuthUserId: 'user-a' })
+    vi.mocked(db.programProgress.count).mockResolvedValue(2)
+    const result = await ensureAccountForSession('user-b')
+    expect(result).toBe('needs_confirm')
+    expect(clearAllLocalData).not.toHaveBeenCalled()
+    expect(getAccountSwitchPending()?.userId).toBe('user-b')
+  })
 })
 
 describe('shouldNavigateAfterAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearAccountSwitchPending()
     vi.mocked(hasIncompleteSetup).mockResolvedValue(false)
   })
 
@@ -126,11 +144,13 @@ describe('handleAuthSession', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    clearAccountSwitchPending()
     mockGetState.mockReturnValue({
       lastAuthUserId: 'user-a',
       pendingStart: null,
       settings: { onboardingComplete: true },
       setLastSyncedAt: vi.fn(),
+      setLastSyncFailureReason: vi.fn(),
     })
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-a' } } },
@@ -158,9 +178,17 @@ describe('handleAuthSession', () => {
 })
 
 describe('runAuthenticatedSync', () => {
+  const setLastSyncFailureReason = vi.fn()
+
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetState.mockReturnValue({ lastAuthUserId: 'user-a', setLastSyncedAt: vi.fn() })
+    clearAccountSwitchPending()
+    setLastSyncFailureReason.mockReset()
+    mockGetState.mockReturnValue({
+      lastAuthUserId: 'user-a',
+      setLastSyncedAt: vi.fn(),
+      setLastSyncFailureReason,
+    })
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-a' } } },
     } as never)
@@ -185,6 +213,42 @@ describe('runAuthenticatedSync', () => {
     expect(showToast).toHaveBeenCalledWith(expect.any(String), 'success')
     expect(showToast).not.toHaveBeenCalledWith(expect.any(String), 'error')
   })
+
+  it('returns offline reason when navigator is offline', async () => {
+    const prev = navigator.onLine
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+
+    const result = await runAuthenticatedSync({ showFailureToast: true })
+
+    expect(result).toEqual({ ok: false, errors: 0, reason: 'offline' })
+    expect(setLastSyncFailureReason).toHaveBeenCalledWith('offline')
+
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: prev })
+  })
+
+  it('returns auth_expired when session missing but lastAuthUserId set', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+    } as never)
+
+    const result = await runAuthenticatedSync({ showFailureToast: true })
+
+    expect(result).toEqual({ ok: false, errors: 0, reason: 'auth_expired' })
+    expect(setLastSyncFailureReason).toHaveBeenCalledWith('auth_expired')
+  })
+
+  it('shows human-readable toast for remote_error', async () => {
+    vi.mocked(syncWithRemote).mockResolvedValue({ ok: false, errors: 2 })
+
+    await runAuthenticatedSync({ showFailureToast: true })
+    await new Promise((r) => setTimeout(r, 500))
+
+    expect(showToast).toHaveBeenCalledWith(
+      expect.stringContaining('nie powiod'),
+      'error',
+      undefined,
+    )
+  })
 })
 
 describe('completeSignInFlow', () => {
@@ -192,11 +256,13 @@ describe('completeSignInFlow', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    clearAccountSwitchPending()
     mockGetState.mockReturnValue({
       lastAuthUserId: 'user-a',
       pendingStart: null,
       settings: { onboardingComplete: true },
       setLastSyncedAt: vi.fn(),
+      setLastSyncFailureReason: vi.fn(),
     })
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-a' } } },
@@ -220,5 +286,21 @@ describe('completeSignInFlow', () => {
 
     expect(syncWithRemote).toHaveBeenCalledTimes(1)
     expect(resolvePostAuthNavigation).toHaveBeenCalledTimes(1)
+  })
+
+  it('skips navigation when account switch confirmation is pending', async () => {
+    mockGetState.mockReturnValue({
+      lastAuthUserId: 'user-b',
+      pendingStart: null,
+      settings: { onboardingComplete: true },
+      setLastSyncedAt: vi.fn(),
+      setLastSyncFailureReason: vi.fn(),
+    })
+    vi.mocked(db.programProgress.count).mockResolvedValue(1)
+
+    await completeSignInFlow(navigate, { returnTo: '/', showSuccessToast: true })
+
+    expect(getAccountSwitchPending()?.userId).toBe('user-a')
+    expect(resolvePostAuthNavigation).not.toHaveBeenCalled()
   })
 })
