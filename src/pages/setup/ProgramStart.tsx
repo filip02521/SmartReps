@@ -12,7 +12,8 @@ import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { getCycleById } from '@/data/plans'
 import { getProgramProgress } from '@/lib/program-service'
-import { formatSetTarget, isWorkoutAvailable, daysUntilWorkout } from '@/lib/progress-engine'
+import { isWorkoutAvailable, daysUntilWorkout } from '@/lib/progress-engine'
+import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import type { Program } from '@/data/plans/types'
 
 export default function ProgramStart() {
@@ -130,13 +131,10 @@ export default function ProgramStart() {
       {day1 && (
         <Card className="mt-6 sr-card">
           <p className="font-medium">{pl.firstTraining}</p>
-          <ul className="mt-3 space-y-1 text-sm text-[var(--sr-text-secondary)]">
-            {day1.sets.map((s, i) => (
-              <li key={i}>
-                {pl.setColumn} {i + 1}: {formatSetTarget(s)} · {pl.restBetweenSets(day1.restBetweenSetsSec)}
-              </li>
-            ))}
-          </ul>
+          <SetTargetsRow className="mt-3" sets={day1.sets} size="md" />
+          <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
+            {pl.restBetweenSets(day1.restBetweenSetsSec)}
+          </p>
         </Card>
       )}
 

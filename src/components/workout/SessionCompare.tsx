@@ -33,7 +33,7 @@ export function SessionCompare({
             totalDelta !== null && totalDelta !== 0
               ? pl.totalRepsDelta(totalDelta)
               : previousTotalReps != null
-                ? pl.prevColumn
+                ? pl.summaryUnchanged
                 : undefined
           }
         />
@@ -41,7 +41,7 @@ export function SessionCompare({
           size="lg"
           overline={pl.setColumn}
           value={`${rows.filter((r) => r.passed).length}/${rows.length}`}
-          hint={pl.youColumn}
+          hint={pl.summarySetsPassed}
         />
       </div>
 

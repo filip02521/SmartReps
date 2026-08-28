@@ -28,7 +28,7 @@
 | SegmentedControl | `src/components/ui/SegmentedControl.tsx` |
 | TrendIndicator | `src/components/ui/TrendIndicator.tsx` |
 | SessionCompare | `src/components/workout/SessionCompare.tsx` |
-| FeedbackBanner | `src/components/ux/Feedback.tsx` |
+| FeedbackBanner / NoticeCard | `src/components/ux/NoticeCard.tsx` + Feedback — tipy, coach, bannery |
 | ConfirmSheet | wrapper nad `Sheet` (`showClose={false}`) |
 
 ## Chrome stacking

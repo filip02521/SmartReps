@@ -3,6 +3,7 @@ import { ReactNode } from 'react'
 import { Button } from '@/components/ui/Button'
 import { pl } from '@/i18n/pl'
 import { Z_OFFLINE } from '@/lib/ui-chrome'
+import { NoticeCard, noticeIcon } from '@/components/ux/NoticeCard'
 
 export { BrandLoader, PageLoader } from '@/components/ui/BrandLoader'
 
@@ -33,44 +34,41 @@ export function EmptyState({
 
 export function FeedbackBanner({
   variant = 'info',
+  title,
   message,
   actionLabel,
   onAction,
+  density = 'compact',
 }: {
   variant?: 'info' | 'warning' | 'error' | 'success'
+  title?: string
   message: string
   actionLabel?: string
   onAction?: () => void
+  density?: 'default' | 'compact'
 }) {
-  const styles = {
-    info: 'border-[var(--sr-info)] bg-[var(--sr-info)]/10 text-[var(--sr-info)]',
-    warning: 'border-[var(--sr-warning)] bg-[var(--sr-warning)]/15 text-[var(--sr-warning)]',
-    error: 'border-[var(--sr-error)] bg-[var(--sr-error-muted)] text-[var(--sr-error)]',
-    success: 'border-[var(--sr-success)] bg-[var(--sr-success-muted)] text-[var(--sr-success)]',
-  }[variant]
-
   return (
-    <div className={cn('rounded-[var(--sr-radius-md)] border p-4', styles)}>
-      <p className="text-sm">{message}</p>
-      {actionLabel && onAction && (
-        <Button variant="ghost" size="sm" className="mt-2" onClick={onAction}>
-          {actionLabel}
-        </Button>
-      )}
-    </div>
+    <NoticeCard
+      tone={variant}
+      density={density}
+      icon={noticeIcon(variant, density === 'compact' ? 16 : 20)}
+      title={title}
+      message={message}
+      actionLabel={actionLabel}
+      onAction={onAction}
+    />
   )
 }
 
 export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-error)] bg-[var(--sr-error-muted)] p-4">
-      <p className="text-sm text-[var(--sr-error)]">{message}</p>
-      {onRetry && (
-        <Button variant="ghost" size="sm" className="mt-2" onClick={onRetry}>
-          {pl.tryAgain}
-        </Button>
-      )}
-    </div>
+    <NoticeCard
+      tone="error"
+      icon={noticeIcon('error')}
+      message={message}
+      actionLabel={onRetry ? pl.tryAgain : undefined}
+      onAction={onRetry}
+    />
   )
 }
 

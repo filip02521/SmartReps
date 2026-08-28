@@ -30,7 +30,7 @@ export function MetricStrip({
             <p className="text-xl font-bold tabular-nums leading-none text-[var(--sr-text-primary)]">
               {m.value}
             </p>
-            <p className="mt-1.5 sr-text-body-sm leading-tight text-[var(--sr-text-secondary)]">
+            <p className="mt-1.5 sr-text-caption leading-snug text-[var(--sr-text-secondary)]">
               {m.label}
             </p>
             {m.hint && (

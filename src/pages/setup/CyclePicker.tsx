@@ -22,8 +22,9 @@ import { beginProgramSetup } from '@/lib/setup-flow'
 import { db } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
 import { Sheet } from '@/components/ui/Sheet'
+import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
-import { getCelebrationBadge, formatSetTarget } from '@/lib/progress-engine'
+import { getCelebrationBadge } from '@/lib/progress-engine'
 import type { Cycle, Program } from '@/data/plans/types'
 
 export default function CyclePicker() {
@@ -553,12 +554,14 @@ function CycleCard({
         {pl.previewDay1}
       </button>
       {previewId === cycle.id && cycle.days[0] && (
-        <div className="mt-2 border-t border-[var(--sr-border-subtle)] pt-2 text-xs text-[var(--sr-text-secondary)]">
-          <p className="mb-1">{pl.restSecAndSets(cycle.days[0].restBetweenSetsSec)}</p>
-          <p>{cycle.days[0].sets.map((s) => formatSetTarget(s)).join(' · ')}</p>
+        <div className="mt-2 border-t border-[var(--sr-border-subtle)] pt-2">
+          <p className="mb-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
+            {pl.restSecAndSets(cycle.days[0].restBetweenSetsSec)}
+          </p>
+          <SetTargetsRow sets={cycle.days[0].sets} size="sm" />
           <button
             type="button"
-            className="mt-2 text-[var(--sr-brand-primary)] underline"
+            className="mt-2 text-sm text-[var(--sr-brand-primary)] underline"
             onClick={(e) => { e.stopPropagation(); onShowFullCycle() }}
           >
             {pl.previewFullCycle}
@@ -581,15 +584,15 @@ function FullCycleSheet({
       <div className="space-y-4">
         {cycle.days.map((day) => (
           <div key={day.dayNumber} className="border-t border-[var(--sr-border-subtle)] pt-3">
-            <p className="text-sm font-medium">{pl.dayLabel(day.dayNumber)} · {pl.restBetweenSets(day.restBetweenSetsSec)}</p>
-            <ul className="mt-2 space-y-1 text-sm text-[var(--sr-text-secondary)]">
-              {day.sets.map((s, i) => (
-                <li key={i} className="flex justify-between">
-                  <span>{pl.setColumn} {i + 1}</span>
-                  <span>{formatSetTarget(s)}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <p className="text-sm font-medium text-[var(--sr-text-primary)]">
+                {pl.dayLabel(day.dayNumber)}
+              </p>
+              <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+                {pl.restBetweenSets(day.restBetweenSetsSec)}
+              </p>
+            </div>
+            <SetTargetsRow sets={day.sets} size="sm" />
           </div>
         ))}
       </div>

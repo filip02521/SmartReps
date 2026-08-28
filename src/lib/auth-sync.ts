@@ -14,6 +14,7 @@ import { hasIncompleteSetup } from '@/lib/setup-flow'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
 import { completeOnboardingIfSynced } from '@/lib/onboarding-from-sync'
+import { track } from '@/lib/analytics'
 
 const AUTH_RETURN_KEY = 'auth-return-to'
 const AUTH_FROM_ONBOARDING_KEY = 'auth-from-onboarding'
@@ -175,9 +176,9 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
     if (result.ok) {
       useAppStore.getState().setLastSyncedAt(new Date().toISOString())
       await completeOnboardingIfSynced()
-      void import('@/lib/analytics').then((m) => m.track('sync_ok'))
+      track('sync_ok')
     } else {
-      void import('@/lib/analytics').then((m) => m.track('sync_failed', { errors: result.errors }))
+      track('sync_failed', { errors: result.errors })
     }
 
     return result

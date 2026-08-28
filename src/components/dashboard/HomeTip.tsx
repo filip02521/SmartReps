@@ -1,8 +1,30 @@
-import { X } from 'lucide-react'
-import { FeedbackBanner } from '@/components/ux/Feedback'
-import type { HomeTipModel } from '@/lib/home-summary'
+import { NoticeCard, noticeIcon, Lightbulb, AlertTriangle, Info, CheckCircle2 } from '@/components/ux/NoticeCard'
+import type { HomeTipModel, TipKind } from '@/lib/home-summary'
 import { pl } from '@/i18n/pl'
 import type { Program } from '@/data/plans/types'
+import type { NoticeTone } from '@/components/ux/NoticeCard'
+import type { ReactNode } from 'react'
+
+function tipMeta(kind: TipKind): { tone: NoticeTone; title: string; icon: ReactNode } {
+  switch (kind) {
+    case 'stale':
+      return { tone: 'warning', title: pl.homeTipTitleStale, icon: <AlertTriangle size={20} strokeWidth={2.25} /> }
+    case 'test_ready':
+      return { tone: 'info', title: pl.homeTipTitleTestReady, icon: <Info size={20} strokeWidth={2.25} /> }
+    case 'test_rest':
+      return { tone: 'info', title: pl.homeTipTitleTestRest, icon: <Info size={20} strokeWidth={2.25} /> }
+    case 'level':
+      return { tone: 'warning', title: pl.homeTipTitleLevel, icon: <AlertTriangle size={20} strokeWidth={2.25} /> }
+    case 'habit_met':
+      return { tone: 'success', title: pl.homeTipTitleHabitMet, icon: <CheckCircle2 size={20} strokeWidth={2.25} /> }
+    case 'habit_zero':
+      return { tone: 'neutral', title: pl.homeTipTitleHabitZero, icon: <Lightbulb size={20} strokeWidth={2.25} /> }
+    case 'rest_all':
+      return { tone: 'neutral', title: pl.homeTipTitleRestAll, icon: <Lightbulb size={20} strokeWidth={2.25} /> }
+    default:
+      return { tone: 'info', title: pl.homeTipTitleDefault, icon: noticeIcon('info') }
+  }
+}
 
 export function HomeTip({
   tip,
@@ -15,38 +37,29 @@ export function HomeTip({
   onAction?: (program: Program) => void
   onScroll?: (program: Program) => void
 }) {
-  const variant = tip.kind === 'stale' ? 'warning' : 'info'
+  const meta = tipMeta(tip.kind)
+  const actionLabel =
+    tip.actionLabel ??
+    (tip.scrollProgram ? pl.homeTipShowCard : undefined)
+  const handleAction =
+    tip.actionLabel && tip.actionProgram && onAction
+      ? () => onAction(tip.actionProgram!)
+      : tip.scrollProgram && onScroll
+        ? () => onScroll(tip.scrollProgram!)
+        : undefined
 
   return (
-    <div className="relative mb-4">
-      {tip.dismissible && (
-        <button
-          type="button"
-          aria-label={pl.homeTipDismiss}
-          className="absolute right-2 top-2 z-10 flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] hover:bg-[var(--sr-bg-surface)]"
-          onClick={() => onDismiss(tip.id)}
-        >
-          <X size={18} />
-        </button>
-      )}
-      <FeedbackBanner
-        variant={variant}
-        message={tip.message}
-        actionLabel={
-          tip.actionLabel
-            ? tip.actionLabel
-            : tip.scrollProgram
-              ? pl.homeTipShowCard
-              : undefined
-        }
-        onAction={
-          tip.actionLabel && tip.actionProgram && onAction
-            ? () => onAction(tip.actionProgram!)
-            : tip.scrollProgram && onScroll
-              ? () => onScroll(tip.scrollProgram!)
-              : undefined
-        }
-      />
-    </div>
+    <NoticeCard
+      className="mb-4"
+      tone={meta.tone}
+      icon={meta.icon}
+      title={meta.title}
+      message={tip.message}
+      actionLabel={actionLabel}
+      onAction={handleAction}
+      stackActions={Boolean(actionLabel && handleAction)}
+      demotePrimary
+      onDismiss={tip.dismissible ? () => onDismiss(tip.id) : undefined}
+    />
   )
 }

@@ -49,7 +49,6 @@ function card(partial: Partial<ProgramCardModel> & Pick<ProgramCardModel, 'progr
     cycleNameShort: null,
     cycleDayCount: 0,
     currentDaySets: null,
-    setsPreviewLine: null,
     setsTargetTotal: null,
     loadError: null,
     lastFailed: false,

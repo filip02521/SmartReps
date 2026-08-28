@@ -188,6 +188,15 @@ html[data-offline='1'] .safe-top {
   animation: sheet-in 180ms ease-out;
 }
 
+@keyframes toast-in {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-toast-in {
+  animation: toast-in 220ms ease-out;
+}
+
 @keyframes check-in {
   from { transform: scale(0.6); opacity: 0; }
   to { transform: scale(1); opacity: 1; }

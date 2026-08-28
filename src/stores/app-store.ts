@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Program } from '@/data/plans/types'
+import { pushProfileSettingsOnly } from '@/lib/sync'
 
 export type UserSettings = {
   theme: 'system' | 'dark' | 'light'
@@ -226,8 +227,8 @@ useAppStore.persist.onFinishHydration(() => {
 useAppStore.subscribe((state, prev) => {
   if (!storeHydrated) return
   if (!programsEqual(state.settings.enabledPrograms, prev.settings.enabledPrograms)) {
-    void import('@/lib/sync').then((m) => m.pushProfileSettingsOnly())
+    void pushProfileSettingsOnly()
   } else if (!uiSettingsEqual(state.settings, prev.settings)) {
-    void import('@/lib/sync').then((m) => m.pushProfileSettingsOnly())
+    void pushProfileSettingsOnly()
   }
 })

@@ -22,8 +22,6 @@ export const pl = {
   homeStatusSetup: 'Wznów lub skonfiguruj program',
   homeStatusFallback: 'Twój plan na dziś',
   homeTodaySession: 'Dzisiejsza sesja',
-  homeSessionSetsSummary: (sets: number, total: number) =>
-    `${sets} serii · łącznie ~${total} powtórzeń (cel)`,
   homeInProgressSets: (set: number, total: number, day: number) =>
     `W toku: seria ${set}/${total} · Dzień ${day}`,
   homeNowDay: (n: number) => `Teraz: Dzień ${n}`,
@@ -32,8 +30,15 @@ export const pl = {
   homeTipHabitZero: 'Zaplanuj krótki trening — wystarczy jeden dzień, by wrócić.',
   homeTipHabitMet: 'Cel 3/14 dni zaliczony. Trzymaj rytm.',
   homeTipRestAll: 'Regeneracja jest częścią planu. Wróć, gdy odblokuje się dzień.',
-  homeTipDismiss: 'Zamknij',
   homeTipShowCard: 'Pokaż program',
+  homeTipTitleDefault: 'Wskazówka',
+  homeTipTitleStale: 'Niedokończona sesja',
+  homeTipTitleTestReady: 'Czas na test max',
+  homeTipTitleTestRest: 'Test max wkrótce',
+  homeTipTitleLevel: 'Rozważ niższy poziom',
+  homeTipTitleHabitZero: 'Wróć do rytmu',
+  homeTipTitleHabitMet: 'Cel 3/14 zaliczony',
+  homeTipTitleRestAll: 'Dzień regeneracji',
   trainAnywayNew: 'Trenuję mimo to',
   abandonResumeTrainAnywayTitle: 'Porzucić niedokończoną sesję?',
   abandonResumeTrainAnywayBody:
@@ -382,8 +387,8 @@ export const pl = {
   progressFilters: 'Filtry',
   progressChartEmpty: 'Wykres pojawi się po pierwszym teście max.',
   toastExportDone: 'Historia została wyeksportowana do pliku CSV',
-  toastSyncDone: 'Zsynchronizowano z chmurą',
-  toastSyncFailed: 'Synchronizacja nie powiodła się. Sprawdź połączenie i spróbuj ponownie.',
+  toastSyncDone: 'Zsynchronizowano — postęp bezpieczny w chmurze',
+  toastSyncFailed: 'Synchronizacja nieudana — sprawdź połączenie i spróbuj ponownie.',
   continueToLogin: 'Kontynuuj — zapisz postęp',
   testPendingBlocked: 'Cykl ukończony — wykonaj test max, aby wybrać kolejny poziom.',
   totalRepsDelta: (n: number) => `${n > 0 ? '+' : ''}${n} względem poprzedniej sesji`,
@@ -396,6 +401,9 @@ export const pl = {
   plansPeakDay: (day: number, reps: number) => `szczyt D${day} · ~${reps} powt.`,
   plansDayReps: (sets: number, total: number) =>
     sets === 1 ? `1 seria · ~${total}` : `${sets} serie · ~${total}`,
+  cycleDayStatusCompleted: 'ukończony',
+  cycleDayStatusCurrent: 'bieżący',
+  cycleDayStatusFuture: 'nadchodzący',
   resistanceBandsTitle: 'Gumy oporowe (podciąganie)',
   resistanceBandsIntro:
     'Jeśli nie podciągasz się jeszcze samodzielnie, możesz zacząć od wariantu z gumą — tak sugeruje program podciąganie.pl.',
@@ -518,7 +526,11 @@ export const pl = {
   techniquePoseTop: 'Góra',
 
   formatSetMax: (min: number) => `MAX · min ${min}`,
+  formatSetMaxShort: (min: number) => `MAX≥${min}`,
   formatSetExact: (reps: number) => `Równo ${reps}`,
+  formatSetExactShort: (reps: number) => `=${reps}`,
+  summarySetsPassed: 'zaliczone serie',
+  summaryUnchanged: 'bez zmian',
   setLabelFixed: (reps: number, unit: string) => `Zrób ${reps} ${unit}`,
   setLabelMax: (min: number) => `MAX — minimum ${min}`,
   setLabelExact: (reps: number) => `Wykonaj dokładnie ${reps} opuszczeń`,

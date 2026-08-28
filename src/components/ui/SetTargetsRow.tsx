@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { formatSetTarget } from '@/lib/progress-engine'
+import { formatSetTargetCompact } from '@/lib/progress-engine'
 import { pl } from '@/i18n/pl'
 import type { SetTarget } from '@/data/plans/types'
 
@@ -14,15 +14,12 @@ export function SetTargetsRow({
   size?: 'sm' | 'md'
 }) {
   return (
-    <ul
-      className={cn('flex flex-wrap gap-2', className)}
-      aria-label={pl.setColumn}
-    >
+    <ul className={cn('flex flex-wrap gap-2', className)} aria-label={pl.setColumn}>
       {sets.map((target, i) => (
         <li
           key={i}
           className={cn(
-            'flex min-w-[2.75rem] flex-col items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]',
+            'flex min-w-[2.5rem] flex-col items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]',
             size === 'sm' ? 'px-2 py-1.5' : 'px-2.5 py-2',
           )}
         >
@@ -33,7 +30,7 @@ export function SetTargetsRow({
               size === 'sm' ? 'text-sm' : 'text-base',
             )}
           >
-            {formatSetTarget(target)}
+            {formatSetTargetCompact(target)}
           </span>
         </li>
       ))}

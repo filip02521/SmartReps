@@ -34,6 +34,18 @@ export function formatSetTarget(target: SetTarget): string {
   }
 }
 
+/** Compact labels for chip grids (home / Plans). */
+export function formatSetTargetCompact(target: SetTarget): string {
+  switch (target.kind) {
+    case 'fixed':
+      return String(target.reps)
+    case 'max':
+      return pl.formatSetMaxShort(target.minReps)
+    case 'exact':
+      return pl.formatSetExactShort(target.reps)
+  }
+}
+
 export function getSetLabel(target: SetTarget, program: 'pushups' | 'pullups'): string {
   const unit = program === 'pushups' ? pl.pushups : pl.pullups
   switch (target.kind) {

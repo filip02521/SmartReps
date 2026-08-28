@@ -3,7 +3,6 @@ import { getCycleById } from '@/data/plans'
 import type { Program, SetTarget } from '@/data/plans/types'
 import { getCompletedDaysInCycle } from '@/lib/cycle-progress'
 import {
-  formatSetTarget,
   getTargetReps,
   isWorkoutAvailable,
 } from '@/lib/progress-engine'
@@ -82,7 +81,6 @@ export type ProgramCardModel = {
   cycleNameShort: string | null
   cycleDayCount: number
   currentDaySets: SetTarget[] | null
-  setsPreviewLine: string | null
   setsTargetTotal: number | null
   loadError: string | null
   /** Last completed session failed (for level tip). */
@@ -378,7 +376,6 @@ export async function loadHomeDashboard(
             cycleNameShort: null,
             cycleDayCount: 0,
             currentDaySets: null,
-            setsPreviewLine: null,
             setsTargetTotal: null,
             loadError: null,
             lastFailed: false,
@@ -403,7 +400,6 @@ export async function loadHomeDashboard(
         const cycle = getCycleById(progress.cycleId)
         const day = cycle?.days.find((d) => d.dayNumber === progress.currentDay)
         const sets = day?.sets ?? null
-        const setsPreviewLine = sets ? sets.map(formatSetTarget).join(' · ') : null
         const setsTargetTotal = sets
           ? sets.reduce((sum, t) => sum + getTargetReps(t), 0)
           : null
@@ -427,7 +423,6 @@ export async function loadHomeDashboard(
           cycleNameShort: cycle?.nameShort ?? null,
           cycleDayCount: cycle?.days.length ?? 0,
           currentDaySets: sets,
-          setsPreviewLine,
           setsTargetTotal,
           loadError: null,
           lastFailed,
@@ -446,7 +441,6 @@ export async function loadHomeDashboard(
           cycleNameShort: null,
           cycleDayCount: 0,
           currentDaySets: null,
-          setsPreviewLine: null,
           setsTargetTotal: null,
           loadError: pl.errorLoadProgram,
           lastFailed: false,

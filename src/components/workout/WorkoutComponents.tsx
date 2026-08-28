@@ -10,6 +10,7 @@ import { useState, type ReactNode } from 'react'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { ProgressRing } from '@/components/ui/ProgressRing'
 import { PreviousResultBadge } from '@/components/workout/PreviousResultBadge'
+import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { Z_REST_EXPANDED, Z_CELEBRATION } from '@/lib/ui-chrome'
 
 export function ConfirmSheet({
@@ -390,23 +391,10 @@ export function DayPlanSheet({
 }) {
   return (
     <Sheet open onClose={onClose} title={pl.previewDayPlan}>
-      <p className="mb-3 text-sm text-[var(--sr-text-secondary)]">{pl.restBetweenSets(restSec)}</p>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-[var(--sr-text-muted)]">
-            <th className="pb-2">{pl.setColumn}</th>
-            <th className="pb-2">{pl.targetColumn}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sets.map((s, i) => (
-            <tr key={i} className="border-t border-[var(--sr-border-subtle)]">
-              <td className="py-2">{i + 1}</td>
-              <td className="py-2">{formatSetTarget(s)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <p className="mb-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
+        {pl.restBetweenSets(restSec)}
+      </p>
+      <SetTargetsRow sets={sets} size="md" />
     </Sheet>
   )
 }

@@ -31,7 +31,13 @@ export function CycleDayRail({
             key={d.dayNumber}
             role="listitem"
             aria-current={isCurrent ? 'step' : undefined}
-            aria-label={`${pl.dayOfTotal(d.dayNumber, totalDays)} — ${d.status}`}
+            aria-label={`${pl.dayOfTotal(d.dayNumber, totalDays)} — ${
+              d.status === 'completed'
+                ? pl.cycleDayStatusCompleted
+                : d.status === 'current'
+                  ? pl.cycleDayStatusCurrent
+                  : pl.cycleDayStatusFuture
+            }`}
             className={cn(
               'flex-1 rounded-full motion-reduce:transition-none',
               isCurrent ? 'h-3 transition-[height] duration-200' : 'h-2.5',

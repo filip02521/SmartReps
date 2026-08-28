@@ -8,6 +8,17 @@ export type CycleDayPickerItem = {
   status: CycleDayStatus
 }
 
+function dayStatusAria(status: CycleDayStatus): string {
+  switch (status) {
+    case 'completed':
+      return pl.cycleDayStatusCompleted
+    case 'current':
+      return pl.cycleDayStatusCurrent
+    default:
+      return pl.cycleDayStatusFuture
+  }
+}
+
 export function CycleDayPicker({
   days,
   totalDays,
@@ -34,11 +45,12 @@ export function CycleDayPicker({
             role="listitem"
             aria-pressed={selected}
             aria-current={isCurrent ? 'step' : undefined}
-            aria-label={`${pl.dayOfTotal(d.dayNumber, totalDays)} — ${d.status}`}
+            aria-label={`${pl.dayOfTotal(d.dayNumber, totalDays)} — ${dayStatusAria(d.status)}`}
             className={cn(
               'flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] border text-center transition-colors',
               FOCUS_RING,
-              selected && 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] ring-2 ring-[var(--sr-brand-primary)]/30',
+              selected &&
+                'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] ring-2 ring-[var(--sr-brand-primary)]/30',
               !selected && completed && 'border-[var(--sr-success)]/40 bg-[var(--sr-success-muted)]',
               !selected && isCurrent && 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]',
               !selected && !completed && !isCurrent && 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',

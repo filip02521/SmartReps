@@ -122,7 +122,7 @@ export default function Dashboard() {
           <div
             className={
               installVisible === true || showTip
-                ? 'mb-4 min-h-[11rem]'
+                ? 'mb-4 min-h-[13.5rem]'
                 : undefined
             }
           >

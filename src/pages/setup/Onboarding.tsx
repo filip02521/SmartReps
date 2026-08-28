@@ -10,6 +10,7 @@ import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { runAuthenticatedSync, setAuthFromOnboarding } from '@/lib/auth-sync'
+import { track } from '@/lib/analytics'
 import type { Program } from '@/data/plans/types'
 
 const rules = [
@@ -71,7 +72,7 @@ export default function Onboarding() {
     const merged = Array.from(new Set([...prev, ...selected])) as Program[]
     setSettings({ onboardingComplete: true, enabledPrograms: merged.length ? merged : selected })
     setSetupQueue(selected.slice(1))
-    void import('@/lib/analytics').then((m) => m.track('onboarding_complete'))
+    track('onboarding_complete')
     navigate(`/setup/test/${selected[0]}`)
   }
 

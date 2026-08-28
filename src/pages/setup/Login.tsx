@@ -20,6 +20,7 @@ import { isStandalonePwa } from '@/lib/pwa-detect'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
+import { track } from '@/lib/analytics'
 
 type LoginLocationState = { returnTo?: string; fromOnboarding?: boolean }
 
@@ -213,11 +214,11 @@ export default function Login() {
     try {
       const { error } = await verifyEmailOtp(trimmed, code)
       if (error) {
-        void import('@/lib/analytics').then((m) => m.track('otp_verify_fail'))
+        track('otp_verify_fail')
         showToast(pl.loginOtpInvalid, 'error')
         return
       }
-      void import('@/lib/analytics').then((m) => m.track('otp_verify_ok'))
+      track('otp_verify_ok')
       await completeSignInFlow(navigate, {
         returnTo: effectiveReturnTo() ?? consumeAuthReturnTo(),
         showSuccessToast: true,

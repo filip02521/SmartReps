@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils'
-import { useToastStore } from '@/stores/toast-store'
+import { useToastStore, type ToastVariant } from '@/stores/toast-store'
 import { useWorkoutStore } from '@/stores/workout-store'
 import { useLocation } from 'react-router-dom'
-import { X } from 'lucide-react'
+import { CheckCircle2, Info, AlertTriangle, XCircle, Cloud, X } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import {
   FOCUS_RING,
@@ -11,12 +11,39 @@ import {
   TOAST_BOTTOM_WITH_TABS,
   Z_TOAST,
 } from '@/lib/ui-chrome'
+import type { ReactNode } from 'react'
 
-const variantStyles = {
-  success: 'border-[var(--sr-success)] bg-[var(--sr-success-muted)] text-[var(--sr-success)]',
-  info: 'border-[var(--sr-info)] bg-[var(--sr-info-muted)] text-[var(--sr-info)]',
-  warning: 'border-[var(--sr-warning)] bg-[var(--sr-warning-muted)] text-[var(--sr-warning)]',
-  error: 'border-[var(--sr-error)] bg-[var(--sr-error-muted)] text-[var(--sr-error)]',
+const variantChrome: Record<
+  ToastVariant,
+  { accent: string; muted: string; icon: ReactNode }
+> = {
+  success: {
+    accent: 'var(--sr-success)',
+    muted: 'var(--sr-success-muted)',
+    icon: <CheckCircle2 size={18} strokeWidth={2.25} />,
+  },
+  info: {
+    accent: 'var(--sr-info)',
+    muted: 'var(--sr-info-muted)',
+    icon: <Info size={18} strokeWidth={2.25} />,
+  },
+  warning: {
+    accent: 'var(--sr-warning)',
+    muted: 'var(--sr-warning-muted)',
+    icon: <AlertTriangle size={18} strokeWidth={2.25} />,
+  },
+  error: {
+    accent: 'var(--sr-error)',
+    muted: 'var(--sr-error-muted)',
+    icon: <XCircle size={18} strokeWidth={2.25} />,
+  },
+}
+
+function toastIcon(variant: ToastVariant, message: string): ReactNode {
+  if (variant === 'success' && /synchroniz/i.test(message)) {
+    return <Cloud size={18} strokeWidth={2.25} />
+  }
+  return variantChrome[variant].icon
 }
 
 export function ToastHost() {
@@ -44,27 +71,48 @@ export function ToastHost() {
       style={{ zIndex: Z_TOAST }}
       aria-live="polite"
     >
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          className={cn(
-            'pointer-events-auto flex items-center justify-between gap-3 rounded-[var(--sr-radius-md)] border px-4 py-3 text-sm shadow-[var(--sr-shadow-card)]',
-            variantStyles[t.variant],
-          )}
-          role={t.variant === 'error' ? 'alert' : 'status'}
-          aria-live={t.variant === 'error' ? 'assertive' : 'polite'}
-        >
-          <span>{t.message}</span>
-          <button
-            type="button"
-            className={cn('min-h-11 min-w-11 opacity-70', FOCUS_RING)}
-            aria-label={pl.close}
-            onClick={() => dismiss(t.id)}
+      {toasts.map((t) => {
+        const chrome = variantChrome[t.variant]
+        return (
+          <div
+            key={t.id}
+            className={cn(
+              'pointer-events-auto flex items-start gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-3.5 py-3 shadow-[var(--sr-shadow-card)] animate-toast-in',
+            )}
+            style={{
+              backgroundImage: `linear-gradient(
+                135deg,
+                color-mix(in srgb, ${chrome.accent} 12%, var(--sr-bg-elevated)) 0%,
+                var(--sr-bg-elevated) 55%
+              )`,
+            }}
+            role={t.variant === 'error' ? 'alert' : 'status'}
+            aria-live={t.variant === 'error' ? 'assertive' : 'polite'}
           >
-            <X size={16} />
-          </button>
-        </div>
-      ))}
+            <div
+              className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
+              style={{ background: chrome.muted, color: chrome.accent }}
+              aria-hidden
+            >
+              {toastIcon(t.variant, t.message)}
+            </div>
+            <p className="min-w-0 flex-1 pt-1.5 text-sm font-medium leading-snug text-[var(--sr-text-primary)]">
+              {t.message}
+            </p>
+            <button
+              type="button"
+              className={cn(
+                'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)]',
+                FOCUS_RING,
+              )}
+              aria-label={pl.close}
+              onClick={() => dismiss(t.id)}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )
+      })}
     </div>
   )
 }
