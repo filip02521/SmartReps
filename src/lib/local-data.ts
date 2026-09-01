@@ -17,10 +17,20 @@ export async function clearAllLocalData(): Promise<void> {
     db.programProgress.clear(),
     db.workoutSessions.clear(),
     db.activeWorkout.clear(),
+    db.activeCustomWorkout.clear(),
     db.syncQueue.clear(),
     db.maxTests.clear(),
+    db.exercises.clear(),
+    db.customPlans.clear(),
+    db.customProgramProgress.clear(),
   ])
   useWorkoutStore.getState().reset()
+  try {
+    const { useCustomWorkoutStore } = await import('@/stores/custom-workout-store')
+    useCustomWorkoutStore.getState().reset()
+  } catch {
+    // store may be unavailable in rare test harnesses
+  }
   useAppStore.setState({
     settings: { ...defaultSettings },
     pendingTest: null,

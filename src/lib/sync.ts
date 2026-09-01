@@ -62,10 +62,13 @@ function mapProgressRow(userId: string, row: LocalProgramProgress) {
 }
 
 function mapSessionRow(userId: string, row: LocalWorkoutSession) {
+  const programKind = row.programKind ?? (row.program === 'custom' ? 'custom' : 'builtin')
   return {
     id: row.id,
     user_id: userId,
     program: row.program,
+    program_kind: programKind,
+    custom_plan_id: row.customPlanId ?? null,
     cycle_id: row.cycleId,
     day_number: row.dayNumber,
     cycle_attempt: row.cycleAttempt,
@@ -74,6 +77,7 @@ function mapSessionRow(userId: string, row: LocalWorkoutSession) {
     completed_at: row.completedAt ?? null,
     passed: row.passed ?? null,
     total_reps: row.totalReps ?? null,
+    exercise_logs_json: row.exerciseLogs ?? null,
   }
 }
 
@@ -140,6 +144,7 @@ async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
       id: userId,
       enabled_programs: settings.enabledPrograms,
       enabled_programs_updated_at: programsUpdatedAt,
+      enabled_workouts_json: settings.enabledCustomPlanIds,
       theme_preference: settings.theme,
       timer_sound: settings.timerSound,
       timer_vibration: settings.timerVibration,
@@ -170,7 +175,7 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'enabled_programs, enabled_programs_updated_at, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, ui_settings_updated_at',
+        'enabled_programs, enabled_programs_updated_at, enabled_workouts_json, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, ui_settings_updated_at',
       )
       .eq('id', userId)
       .maybeSingle()
@@ -231,26 +236,78 @@ async function upsertSession(userId: string, row: LocalWorkoutSession) {
     const payload = row.setResults.map((r) => ({
       session_id: row.id,
       set_number: r.setNumber,
+      exercise_order: 0,
+      exercise_id: null,
       target_kind: r.target.kind,
       target_reps: r.target.kind !== 'max' ? ('reps' in r.target ? r.target.reps : null) : null,
       min_reps: r.target.kind === 'max' ? r.target.minReps : null,
       actual_reps: r.actual,
       passed: r.passed,
     }))
-    // Upsert by (session_id, set_number) — avoids wipe-then-insert gap if insert fails.
+    // Align with unique (session_id, exercise_order, set_number) from migration 011
     const { error: setsError } = await supabase.from('set_results').upsert(payload, {
-      onConflict: 'session_id,set_number',
+      onConflict: 'session_id,exercise_order,set_number',
     })
     if (setsError) throw setsError
 
-    const keepSets = row.setResults.map((r) => r.setNumber)
+    const keepSets = new Set(row.setResults.map((r) => r.setNumber))
     const { data: remoteSets, error: listError } = await supabase
       .from('set_results')
-      .select('id, set_number')
+      .select('id, set_number, exercise_order')
       .eq('session_id', row.id)
     if (listError) throw listError
     const orphanIds = (remoteSets ?? [])
-      .filter((s) => !keepSets.includes(s.set_number))
+      .filter((s) => (s.exercise_order ?? 0) === 0 && !keepSets.has(s.set_number))
+      .map((s) => s.id)
+    if (orphanIds.length > 0) {
+      const { error: delError } = await supabase.from('set_results').delete().in('id', orphanIds)
+      if (delError) throw delError
+    }
+  }
+
+  // Custom multi-exercise: also flatten exerciseLogs into set_results when present
+  if (row.exerciseLogs?.length) {
+    const isUuid = (id: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+    const payload = row.exerciseLogs.flatMap((log) =>
+      log.sets.map((s) => ({
+        session_id: row.id,
+        set_number: s.setNumber,
+        exercise_order: log.order,
+        exercise_id: isUuid(log.exerciseId) ? log.exerciseId : null,
+        target_kind: s.prescription.reps?.kind ?? s.prescription.durationSec?.kind ?? 'fixed',
+        target_reps:
+          s.prescription.reps && s.prescription.reps.kind !== 'max'
+            ? s.prescription.reps.value
+            : null,
+        min_reps:
+          s.prescription.reps?.kind === 'max' ? s.prescription.reps.minValue : null,
+        actual_reps: s.actual.reps ?? 0,
+        duration_sec: s.actual.durationSec ?? null,
+        weight_kg: s.actual.weightKg ?? null,
+        passed: s.passed,
+        metrics_json: s.actual,
+      })),
+    )
+    if (payload.length > 0) {
+      const { error: setsError } = await supabase.from('set_results').upsert(payload, {
+        onConflict: 'session_id,exercise_order,set_number',
+      })
+      if (setsError) throw setsError
+    }
+
+    const keepKeys = new Set(
+      row.exerciseLogs.flatMap((log) =>
+        log.sets.map((s) => `${log.order}:${s.setNumber}`),
+      ),
+    )
+    const { data: remoteSets, error: listError } = await supabase
+      .from('set_results')
+      .select('id, set_number, exercise_order')
+      .eq('session_id', row.id)
+    if (listError) throw listError
+    const orphanIds = (remoteSets ?? [])
+      .filter((s) => !keepKeys.has(`${s.exercise_order ?? 0}:${s.set_number}`))
       .map((s) => s.id)
     if (orphanIds.length > 0) {
       const { error: delError } = await supabase.from('set_results').delete().in('id', orphanIds)
@@ -300,7 +357,11 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
       }
       break
     case 'workout_sessions':
-      if (action !== 'delete') await upsertSession(userId, payload as LocalWorkoutSession)
+      if (action !== 'delete') {
+        const queued = payload as LocalWorkoutSession
+        const local = await db.workoutSessions.get(queued.id)
+        await upsertSession(userId, local ?? queued)
+      }
       break
     case 'max_tests':
       if (action !== 'delete') await upsertMaxTest(userId, payload as LocalMaxTest)
@@ -312,6 +373,57 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
         await upsertActiveWorkout(userId, payload as ActiveWorkoutState)
       }
       break
+    case 'user_exercises': {
+      const { upsertUserExercise } = await import('@/lib/custom-sync')
+      if (action === 'delete') {
+        const id = (payload as { id: string }).id
+        await supabase.from('user_exercises').delete().eq('id', id).eq('user_id', userId)
+      } else {
+        await upsertUserExercise(userId, payload as import('@/lib/exercise-model').ExerciseDefinition)
+      }
+      break
+    }
+    case 'custom_plans': {
+      const { upsertCustomPlan } = await import('@/lib/custom-sync')
+      if (action === 'delete') {
+        const id = (payload as { id: string }).id
+        await supabase.from('custom_plans').delete().eq('id', id).eq('user_id', userId)
+      } else {
+        await upsertCustomPlan(userId, payload as import('@/lib/exercise-model').CustomPlan)
+      }
+      break
+    }
+    case 'custom_program_progress': {
+      const { upsertCustomProgress, deleteCustomProgramProgressRemote } = await import(
+        '@/lib/custom-sync'
+      )
+      if (action === 'delete') {
+        await deleteCustomProgramProgressRemote(
+          userId,
+          (payload as { customPlanId: string }).customPlanId,
+        )
+      } else {
+        await upsertCustomProgress(
+          userId,
+          payload as import('@/lib/exercise-model').CustomProgramProgress,
+        )
+      }
+      break
+    }
+    case 'active_custom_workout': {
+      const { upsertActiveCustomWorkout, deleteActiveCustomWorkoutRemote } = await import(
+        '@/lib/custom-sync'
+      )
+      if (action === 'delete') {
+        await deleteActiveCustomWorkoutRemote(
+          userId,
+          (payload as { customPlanId: string }).customPlanId,
+        )
+      } else {
+        await upsertActiveCustomWorkout(userId, payload as import('@/lib/db').ActiveCustomWorkoutState)
+      }
+      break
+    }
   }
 }
 
@@ -409,6 +521,9 @@ export async function syncAllLocalData(): Promise<SyncResult> {
       }
     }
 
+    const { pushCustomEntities } = await import('@/lib/custom-sync')
+    errors += await pushCustomEntities(userId)
+
     errors += await flushSyncQueue()
   } catch (err) {
     console.warn('[sync] syncAllLocalData failed', err)
@@ -443,10 +558,16 @@ async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
       ? new Date(local.startedAt).getTime()
       : 0
 
-  const setResults = (remote.set_results ?? []).map(mapRemoteSetRow)
+  const setResults = (remote.set_results ?? [])
+    .filter((r) => (r as { exercise_order?: number }).exercise_order == null || (r as { exercise_order?: number }).exercise_order === 0)
+    .map(mapRemoteSetRow)
+  const programKind =
+    remote.program_kind === 'custom' || remote.program === 'custom' ? 'custom' : 'builtin'
   const mapped: LocalWorkoutSession = {
     id: remote.id,
-    program: remote.program as Program,
+    program: (remote.program === 'custom' ? 'custom' : remote.program) as LocalWorkoutSession['program'],
+    programKind,
+    customPlanId: remote.custom_plan_id ?? undefined,
     cycleId: remote.cycle_id,
     dayNumber: remote.day_number,
     cycleAttempt: remote.cycle_attempt,
@@ -456,6 +577,17 @@ async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
     passed: remote.passed ?? undefined,
     totalReps: remote.total_reps ?? undefined,
     setResults: setResults.length ? setResults : local?.setResults ?? [],
+    exerciseLogs: Array.isArray(remote.exercise_logs_json)
+      ? (remote.exercise_logs_json as LocalWorkoutSession['exerciseLogs'])
+      : local?.exerciseLogs,
+  }
+
+  if (
+    programKind === 'custom' &&
+    (!mapped.exerciseLogs || mapped.exerciseLogs.length === 0) &&
+    local?.exerciseLogs?.length
+  ) {
+    mapped.exerciseLogs = local.exerciseLogs
   }
 
   if (!local || remoteTime >= localTime) {
@@ -598,6 +730,9 @@ export async function pullRemoteData(): Promise<SyncResult> {
     for (const remote of remoteTests ?? []) {
       await mergeMaxTestRemote(remote as RemoteMaxTestRow)
     }
+
+    const { pullCustomEntities } = await import('@/lib/custom-sync')
+    errors += await pullCustomEntities(userId)
   } catch (err) {
     console.warn('[sync] pullRemoteData failed', err)
     errors++
@@ -631,6 +766,35 @@ export async function enqueueActiveWorkoutSync(program: string, state: ActiveWor
     // Drop stale updates so a late flush cannot resurrect after cancel.
     await dropPendingActiveWorkoutUpdates(program)
     await enqueueSync('active_workout', 'delete', { program })
+  }
+}
+
+export async function enqueueActiveCustomWorkoutSync(
+  customPlanId: string,
+  state: import('@/lib/db').ActiveCustomWorkoutState | null,
+) {
+  if (state) {
+    await enqueueSync('active_custom_workout', 'update', state)
+  } else {
+    await dropPendingActiveCustomWorkoutUpdates(customPlanId)
+    await enqueueSync('active_custom_workout', 'delete', { customPlanId })
+  }
+}
+
+async function dropPendingActiveCustomWorkoutUpdates(customPlanId: string) {
+  const items = await db.syncQueue.toArray()
+  for (const item of items) {
+    if (item.table !== 'active_custom_workout') continue
+    if (item.action !== 'update' && item.action !== 'insert') continue
+    if (item.id === undefined) continue
+    try {
+      const payload = JSON.parse(item.payload) as { customPlanId?: string }
+      if (payload.customPlanId === customPlanId) {
+        await db.syncQueue.delete(item.id)
+      }
+    } catch {
+      // ignore malformed queue rows
+    }
   }
 }
 

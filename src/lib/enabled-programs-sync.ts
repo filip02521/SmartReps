@@ -10,6 +10,7 @@ export function parseEnabledPrograms(raw: string[] | null | undefined): Program[
 export type RemoteProfileSettings = {
   enabled_programs: string[] | null
   enabled_programs_updated_at: string | null
+  enabled_workouts_json?: string[] | null
   theme_preference?: string | null
   timer_sound?: boolean | null
   timer_vibration?: boolean | null
@@ -46,7 +47,13 @@ export function mergeEnabledProgramsFromProfile(remote: RemoteProfileSettings | 
   }
 
   useAppStore.setState({
-    settings: { ...settings, enabledPrograms: remotePrograms },
+    settings: {
+      ...settings,
+      enabledPrograms: remotePrograms,
+      enabledCustomPlanIds: Array.isArray(remote.enabled_workouts_json)
+        ? remote.enabled_workouts_json.filter((id): id is string => typeof id === 'string')
+        : settings.enabledCustomPlanIds,
+    },
     enabledProgramsUpdatedAt: remoteUpdatedAt,
   })
   return true

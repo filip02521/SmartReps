@@ -11,6 +11,13 @@ import {
 import { track } from '@/lib/analytics'
 import { useAppStore } from '@/stores/app-store'
 
+function requireBuiltinProgram(program: Program | 'custom'): Program {
+  if (program === 'custom') {
+    throw new Error('Builtin session helper called with custom plan session')
+  }
+  return program
+}
+
 async function schedulePostWorkoutSync(): Promise<void> {
   const { runAuthenticatedSync } = await import('@/lib/auth-sync')
   await runAuthenticatedSync({
@@ -97,13 +104,13 @@ export async function ensureWorkoutSessionPersisted(
     await saveWorkoutSession({ ...existing, setResults: state.setResults })
   }
 
-  await saveActiveWorkout(session.program, {
+  await saveActiveWorkout(requireBuiltinProgram(session.program), {
     sessionId: session.id,
     currentSetIndex: state.currentSetIndex,
     setResults: state.setResults,
     restTimerJson: state.restTimerJson,
   })
-  await markProgramActiveIfReady(session.program)
+  await markProgramActiveIfReady(requireBuiltinProgram(session.program))
 }
 
 export async function saveWorkoutSession(session: LocalWorkoutSession): Promise<void> {
@@ -145,11 +152,12 @@ export async function finalizeSuccessfulDay(
   session: LocalWorkoutSession,
   setResults: SetResultDraft[],
 ): Promise<void> {
-  const key = progressKey(session.program, session.id)
+  const program = requireBuiltinProgram(session.program)
+  const key = progressKey(program, session.id)
   const existing = await db.workoutSessions.get(session.id)
   if (existing?.status === 'completed' && existing.passed === true) {
     if (!finalizedProgressKeys.has(key)) {
-      await completeWorkoutDay(session.program, true, existing.totalReps ?? 0, session.id)
+      await completeWorkoutDay(program, true, existing.totalReps ?? 0, session.id)
       finalizedProgressKeys.add(key)
     }
     markFirstWorkoutAndTrack(true, session.id)
@@ -167,8 +175,8 @@ export async function finalizeSuccessfulDay(
     setResults,
   }
   await saveWorkoutSession(updated)
-  await clearActiveWorkout(session.program)
-  await completeWorkoutDay(session.program, true, totalReps, session.id)
+  await clearActiveWorkout(program)
+  await completeWorkoutDay(program, true, totalReps, session.id)
   finalizedProgressKeys.add(key)
   markFirstWorkoutAndTrack(true, session.id)
   void schedulePostWorkoutSync()

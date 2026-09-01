@@ -37,7 +37,7 @@ import {
 } from '@/lib/program-service'
 import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import { clearAllLocalData } from '@/lib/local-data'
-import { exportSessionsCsv, downloadCsv, mergeSessionCsvExports } from '@/lib/export'
+import { exportSessionsCsv, exportCustomSessionsCsv, downloadCsv, mergeSessionCsvExports } from '@/lib/export'
 import { exportBackupSnapshot, downloadBackupJson } from '@/lib/export-backup'
 import { deleteRemoteAccount } from '@/lib/account-delete'
 import { ImportBackupSheet } from '@/components/profile/ImportBackupSheet'
@@ -187,6 +187,9 @@ export default function ProfilePage() {
   const [showImportSheet, setShowImportSheet] = useState(false)
   const [progressByProgram, setProgressByProgram] = useState<Partial<Record<Program, LocalProgramProgress>>>({})
   const [programsReady, setProgramsReady] = useState(false)
+  const [customActivePlans, setCustomActivePlans] = useState<
+    { id: string; name: string; paused: boolean }[]
+  >([])
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(() =>
     typeof Notification !== 'undefined' ? Notification.permission : null,
   )
@@ -202,6 +205,15 @@ export default function ProfilePage() {
     }
     setProgressByProgram(map)
     setProgramsReady(true)
+    const { listCustomPlans } = await import('@/lib/custom-plan-service')
+    const { db } = await import('@/lib/db')
+    const plans = await listCustomPlans()
+    const active: { id: string; name: string; paused: boolean }[] = []
+    for (const p of plans.filter((plan) => plan.status === 'active')) {
+      const prog = await db.customProgramProgress.where('customPlanId').equals(p.id).first()
+      active.push({ id: p.id, name: p.name, paused: prog?.status === 'paused' })
+    }
+    setCustomActivePlans(active)
   }
 
   useEffect(() => {
@@ -359,6 +371,12 @@ export default function ProfilePage() {
     await reloadMeta()
   }
 
+  const toggleCustomPlanPause = async (planId: string, paused: boolean) => {
+    const { setCustomPlanPaused } = await import('@/lib/custom-plan-service')
+    await setCustomPlanPaused(planId, !paused)
+    await reloadMeta()
+  }
+
   const missingPrograms = (['pushups', 'pullups'] as Program[]).filter(
     (p) => !settings.enabledPrograms.includes(p),
   )
@@ -433,6 +451,7 @@ export default function ProfilePage() {
           <CheckboxField
             id="timer-sound"
             label={pl.timerSound}
+            description={pl.timerSoundHint}
             checked={settings.timerSound}
             onChange={(checked) => setSettings({ timerSound: checked })}
           />
@@ -586,6 +605,50 @@ export default function ProfilePage() {
         )}
       </PageSection>
 
+      {customActivePlans.length > 0 && (
+        <PageSection title={pl.activeWorkoutsTitle} hint={pl.activeWorkoutsHint}>
+          <div className="flex flex-col gap-1">
+            {customActivePlans.map((plan) => (
+              <div
+                key={plan.id}
+                className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2"
+              >
+                <CheckboxField
+                  id={`custom-plan-${plan.id}`}
+                  label={plan.name}
+                  checked={
+                    !settings.customPlansFilterExplicit ||
+                    settings.enabledCustomPlanIds.includes(plan.id)
+                  }
+                  onChange={(checked) => {
+                    const current = settings.customPlansFilterExplicit
+                      ? [...settings.enabledCustomPlanIds]
+                      : customActivePlans.map((p) => p.id)
+                    const next = checked
+                      ? Array.from(new Set([...current, plan.id]))
+                      : current.filter((id) => id !== plan.id)
+                    setSettings({
+                      customPlansFilterExplicit: true,
+                      enabledCustomPlanIds: next,
+                    })
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  fullWidth
+                  className="mt-1 justify-start px-1 text-[var(--sr-text-secondary)]"
+                  onClick={() => void toggleCustomPlanPause(plan.id, plan.paused)}
+                >
+                  {plan.paused ? pl.planResume : pl.planPause}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </PageSection>
+      )}
+
       <PageSection title={pl.dataSection}>
         <div className="flex flex-col gap-2">
           <Button
@@ -618,6 +681,7 @@ export default function ProfilePage() {
                 for (const program of ['pushups', 'pullups'] as const) {
                   chunks.push(await exportSessionsCsv(program))
                 }
+                chunks.push(await exportCustomSessionsCsv())
                 const merged = mergeSessionCsvExports(chunks)
                 downloadCsv(`smartreps-export-${new Date().toISOString().slice(0, 10)}.csv`, merged)
                 showToast(pl.toastExportDone, 'success')

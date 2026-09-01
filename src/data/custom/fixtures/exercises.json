@@ -1,0 +1,29 @@
+[
+  {
+    "id": "fixture-ex-reps",
+    "name": "Przysiady",
+    "primaryMetric": "reps",
+    "restDefaultSec": 90,
+    "archived": false,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "fixture-ex-time",
+    "name": "Deska",
+    "primaryMetric": "duration_sec",
+    "restDefaultSec": 60,
+    "archived": false,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "fixture-ex-weight",
+    "name": "Wyciskanie",
+    "primaryMetric": "reps_weight",
+    "restDefaultSec": 120,
+    "archived": false,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  }
+]

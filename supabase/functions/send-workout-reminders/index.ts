@@ -110,6 +110,58 @@ type ProgramProgressRow = {
   next_workout_after: string | null
 }
 
+type CustomProgressRow = {
+  custom_plan_id: string
+  current_day: number
+  status: string
+  next_workout_after: string | null
+}
+
+type CustomPlanRow = {
+  id: string
+  name: string
+  status: string
+}
+
+type DueWorkout =
+  | {
+      kind: 'builtin'
+      program: string
+      currentDay: number
+      status: string
+      nextWorkoutAfter: string | null
+    }
+  | {
+      kind: 'custom'
+      customPlanId: string
+      planName: string
+      currentDay: number
+      status: string
+      nextWorkoutAfter: string | null
+    }
+
+function isWorkoutDue(status: string, nextWorkoutAfter: string | null, now: Date): boolean {
+  if (status === 'paused' || status === 'cycle_failed' || status === 'test_pending') {
+    return false
+  }
+  if (status === 'cycle_complete') return false
+  if (status !== 'active' && status !== 'rest') return false
+  if (!nextWorkoutAfter) return true
+  return new Date(nextWorkoutAfter).getTime() <= now.getTime()
+}
+
+function pickDueWorkout(candidates: DueWorkout[], now: Date): DueWorkout | null {
+  const due = candidates.filter((c) => isWorkoutDue(c.status, c.nextWorkoutAfter, now))
+  if (!due.length) return null
+  due.sort((a, b) => {
+    if (!a.nextWorkoutAfter && !b.nextWorkoutAfter) return 0
+    if (!a.nextWorkoutAfter) return -1
+    if (!b.nextWorkoutAfter) return 1
+    return new Date(a.nextWorkoutAfter).getTime() - new Date(b.nextWorkoutAfter).getTime()
+  })
+  return due[0] ?? null
+}
+
 async function loadPushConfig(
   supabase: ReturnType<typeof createClient>,
 ): Promise<PushConfig> {
@@ -124,29 +176,6 @@ async function loadPushConfig(
 
 function cfg(envKey: string, db: PushConfig): string | undefined {
   return Deno.env.get(envKey) || db[envKey] || undefined
-}
-
-function isProgressDue(row: ProgramProgressRow, now: Date): boolean {
-  if (row.status === 'paused' || row.status === 'cycle_failed' || row.status === 'test_pending') {
-    return false
-  }
-  if (row.status !== 'active' && row.status !== 'rest') return false
-  if (!row.next_workout_after) return true
-  return new Date(row.next_workout_after).getTime() <= now.getTime()
-}
-
-function pickProgram(rows: ProgramProgressRow[], now: Date): ProgramProgressRow | null {
-  const due = rows.filter((r) => isProgressDue(r, now))
-  if (!due.length) return null
-  due.sort((a, b) => {
-    if (!a.next_workout_after && !b.next_workout_after) return 0
-    if (!a.next_workout_after) return -1
-    if (!b.next_workout_after) return 1
-    return (
-      new Date(a.next_workout_after).getTime() - new Date(b.next_workout_after).getTime()
-    )
-  })
-  return due[0] ?? null
 }
 
 Deno.serve(async (req) => {
@@ -225,10 +254,53 @@ Deno.serve(async (req) => {
       .select('program, current_day, status, next_workout_after')
       .eq('user_id', userId)
 
-    const progress = (progressRows ?? []) as ProgramProgressRow[]
-    const chosen = pickProgram(progress, now)
+    const { data: customProgressRows } = await supabase
+      .from('custom_program_progress')
+      .select('custom_plan_id, current_day, status, next_workout_after')
+      .eq('user_id', userId)
 
-    if (progress.length > 0 && !chosen) {
+    const customProgress = (customProgressRows ?? []) as CustomProgressRow[]
+    const customPlanIds = customProgress.map((r) => r.custom_plan_id)
+    const planNames = new Map<string, string>()
+
+    if (customPlanIds.length > 0) {
+      const { data: planRows } = await supabase
+        .from('custom_plans')
+        .select('id, name, status')
+        .eq('user_id', userId)
+        .in('id', customPlanIds)
+
+      for (const row of (planRows ?? []) as CustomPlanRow[]) {
+        if (row.status === 'active') {
+          planNames.set(row.id, row.name.trim() || 'Własny plan')
+        }
+      }
+    }
+
+    const progress = (progressRows ?? []) as ProgramProgressRow[]
+    const candidates: DueWorkout[] = [
+      ...progress.map((row) => ({
+        kind: 'builtin' as const,
+        program: row.program,
+        currentDay: row.current_day,
+        status: row.status,
+        nextWorkoutAfter: row.next_workout_after,
+      })),
+      ...customProgress
+        .filter((row) => planNames.has(row.custom_plan_id))
+        .map((row) => ({
+          kind: 'custom' as const,
+          customPlanId: row.custom_plan_id,
+          planName: planNames.get(row.custom_plan_id)!,
+          currentDay: row.current_day,
+          status: row.status,
+          nextWorkoutAfter: row.next_workout_after,
+        })),
+    ]
+
+    const chosen = pickDueWorkout(candidates, now)
+
+    if (candidates.length > 0 && !chosen) {
       skipped += 1
       continue
     }
@@ -236,14 +308,23 @@ Deno.serve(async (req) => {
     if (chosen) {
       const dayStart = localDayStartInTz(now, tz)
       const dayEnd = localDayEndInTz(now, tz)
-      const { data: todaySessions } = await supabase
+      let todaySessionsQuery = supabase
         .from('workout_sessions')
         .select('id, passed, status, started_at')
         .eq('user_id', userId)
-        .eq('program', chosen.program)
         .eq('status', 'completed')
         .gte('started_at', dayStart.toISOString())
         .lt('started_at', dayEnd.toISOString())
+
+      if (chosen.kind === 'builtin') {
+        todaySessionsQuery = todaySessionsQuery.eq('program', chosen.program)
+      } else {
+        todaySessionsQuery = todaySessionsQuery
+          .eq('program', 'custom')
+          .eq('custom_plan_id', chosen.customPlanId)
+      }
+
+      const { data: todaySessions } = await todaySessionsQuery
 
       const alreadyTrained = (todaySessions ?? []).some((s) => s.passed === true)
       if (alreadyTrained) {
@@ -252,13 +333,23 @@ Deno.serve(async (req) => {
       }
     }
 
-    const program = chosen?.program ?? null
-    const label = program ? PROGRAM_LABELS[program] ?? program : null
-    const title = label ? `SmartReps — ${label}` : 'SmartReps'
-    const body = chosen
-      ? `Dzień ${chosen.current_day}: sprawdź plan na dziś.`
-      : 'Czas na trening — sprawdź swój plan na dziś.'
-    const url = program ? `/?program=${program}` : '/'
+    let title = 'SmartReps'
+    let body = 'Czas na trening — sprawdź swój plan na dziś.'
+    let url = '/'
+    let program: string | null = null
+
+    if (chosen?.kind === 'builtin') {
+      const label = PROGRAM_LABELS[chosen.program] ?? chosen.program
+      title = `SmartReps — ${label}`
+      body = `Dzień ${chosen.currentDay}: sprawdź plan na dziś.`
+      url = `/?program=${chosen.program}`
+      program = chosen.program
+    } else if (chosen?.kind === 'custom') {
+      title = `SmartReps — ${chosen.planName}`
+      body = `Dzień ${chosen.currentDay}: sprawdź plan na dziś.`
+      url = `/workout/custom/${chosen.customPlanId}`
+      program = 'custom'
+    }
 
     try {
       await webpush.sendNotification(

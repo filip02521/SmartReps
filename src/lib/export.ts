@@ -3,7 +3,7 @@ import type { Program } from '@/data/plans/types'
 import { subWeeks, startOfWeek, addDays, format, isSameDay } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { pl } from '@/i18n/pl'
-import { isProgressHistorySession } from '@/lib/progress-history'
+import { isCustomProgressHistorySession, isProgressHistorySession } from '@/lib/progress-history'
 
 export type HeatmapCell = {
   date: string
@@ -81,6 +81,34 @@ export async function exportSessionsCsv(program: Program): Promise<string> {
       s.passed ?? '',
       s.totalReps ?? '',
       `"${sets}"`,
+    ].join(',')
+  })
+  return [header, ...rows].join('\n')
+}
+
+export async function exportCustomSessionsCsv(): Promise<string> {
+  const sessions = (await db.workoutSessions.toArray())
+    .filter(isCustomProgressHistorySession)
+    .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime())
+
+  const header =
+    'data,session_id,program,custom_plan_id,cycle_id,day,attempt,status,passed,total_reps,exercise_logs'
+  const rows = sessions.map((s) => {
+    const logs = s.exerciseLogs
+      ? JSON.stringify(s.exerciseLogs).replace(/"/g, '""')
+      : ''
+    return [
+      s.startedAt.slice(0, 10),
+      s.id,
+      s.program,
+      s.customPlanId ?? '',
+      s.cycleId,
+      s.dayNumber,
+      s.cycleAttempt,
+      s.status,
+      s.passed ?? '',
+      s.totalReps ?? '',
+      `"${logs}"`,
     ].join(',')
   })
   return [header, ...rows].join('\n')

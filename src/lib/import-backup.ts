@@ -6,7 +6,7 @@ import type {
   LocalWorkoutSession,
 } from '@/lib/db'
 import type { SetTarget } from '@/data/plans/types'
-import type { BackupSnapshotV1 } from '@/lib/export-backup'
+import type { BackupSnapshot, BackupSnapshotV1, BackupSnapshotV2 } from '@/lib/export-backup'
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024
 
@@ -29,8 +29,12 @@ export type JsonImportPreview = {
   newTests: number
   duplicateTests: number
   activeWorkoutCount: number
+  activeCustomWorkoutCount: number
+  customPlanCount: number
+  exerciseCount: number
+  customProgressCount: number
   skipActiveWorkout: boolean
-  snapshot: BackupSnapshotV1
+  snapshot: BackupSnapshotV2
 }
 
 export type ImportPreview = CsvImportPreview | JsonImportPreview
@@ -109,6 +113,34 @@ export function isBackupSnapshotV1(value: unknown): value is BackupSnapshotV1 {
   return v.version === 1 && typeof v.exportedAt === 'string' && Array.isArray(v.workoutSessions)
 }
 
+export function isBackupSnapshotV2(value: unknown): value is BackupSnapshotV2 {
+  if (!value || typeof value !== 'object') return false
+  const v = value as BackupSnapshotV2
+  return (
+    v.version === 2 &&
+    typeof v.exportedAt === 'string' &&
+    Array.isArray(v.workoutSessions) &&
+    Array.isArray(v.exercises) &&
+    Array.isArray(v.customPlans) &&
+    Array.isArray(v.customProgramProgress)
+  )
+}
+
+export function isBackupSnapshot(value: unknown): value is BackupSnapshot {
+  return isBackupSnapshotV1(value) || isBackupSnapshotV2(value)
+}
+
+function normalizeBackup(snapshot: BackupSnapshot): BackupSnapshotV2 {
+  if (snapshot.version === 2) return snapshot
+  return {
+    ...snapshot,
+    version: 2,
+    exercises: [],
+    customPlans: [],
+    customProgramProgress: [],
+  }
+}
+
 export async function previewCsvImport(text: string): Promise<CsvImportPreview> {
   const parsed = parseSessionsCsv(text)
   const existingIds = new Set((await db.workoutSessions.toArray()).map((s) => s.id))
@@ -140,7 +172,8 @@ export async function previewJsonImport(text: string): Promise<JsonImportPreview
   } catch {
     throw new Error('invalid_json')
   }
-  if (!isBackupSnapshotV1(parsed)) throw new Error('invalid_schema')
+  if (!isBackupSnapshot(parsed)) throw new Error('invalid_schema')
+  const snapshot = normalizeBackup(parsed)
 
   const existingSessionIds = new Set((await db.workoutSessions.toArray()).map((s) => s.id))
   const existingProgress = await db.programProgress.toArray()
@@ -148,7 +181,8 @@ export async function previewJsonImport(text: string): Promise<JsonImportPreview
   const existingTests = new Set(
     (await db.maxTests.toArray()).map((t) => `${t.program}|${t.testedAt}`),
   )
-  const localActive = await db.activeWorkout.count()
+  const localActiveBuiltin = await db.activeWorkout.count()
+  const localActiveCustom = await db.activeCustomWorkout.count()
 
   let newSessions = 0
   let duplicateSessions = 0
@@ -157,12 +191,12 @@ export async function previewJsonImport(text: string): Promise<JsonImportPreview
   let newTests = 0
   let duplicateTests = 0
 
-  for (const s of parsed.workoutSessions) {
+  for (const s of snapshot.workoutSessions) {
     if (existingSessionIds.has(s.id)) duplicateSessions++
     else newSessions++
   }
 
-  for (const p of parsed.programProgress) {
+  for (const p of snapshot.programProgress) {
     const local = progressByProgram.get(p.program)
     if (!local) progressUpdates++
     else if (new Date(p.updatedAt).getTime() > new Date(local.updatedAt).getTime()) {
@@ -171,7 +205,7 @@ export async function previewJsonImport(text: string): Promise<JsonImportPreview
     }
   }
 
-  for (const t of parsed.maxTests) {
+  for (const t of snapshot.maxTests) {
     const key = `${t.program}|${t.testedAt}`
     if (existingTests.has(key)) duplicateTests++
     else newTests++
@@ -179,16 +213,21 @@ export async function previewJsonImport(text: string): Promise<JsonImportPreview
 
   return {
     kind: 'json',
-    exportedAt: parsed.exportedAt,
+    exportedAt: snapshot.exportedAt,
     newSessions,
     duplicateSessions,
     progressUpdates,
     progressConflicts,
     newTests,
     duplicateTests,
-    activeWorkoutCount: parsed.activeWorkout?.length ?? 0,
-    skipActiveWorkout: localActive > 0,
-    snapshot: parsed,
+    activeWorkoutCount:
+      (snapshot.activeWorkout?.length ?? 0) + (snapshot.activeCustomWorkout?.length ?? 0),
+    activeCustomWorkoutCount: snapshot.activeCustomWorkout?.length ?? 0,
+    customPlanCount: snapshot.customPlans.length,
+    exerciseCount: snapshot.exercises.length,
+    customProgressCount: snapshot.customProgramProgress.length,
+    skipActiveWorkout: localActiveBuiltin > 0 || localActiveCustom > 0,
+    snapshot,
   }
 }
 
@@ -270,6 +309,53 @@ export async function applyJsonImport(
     for (const a of snapshot.activeWorkout) {
       await db.activeWorkout.put(a)
       await enqueueSync('active_workout', 'update', a)
+    }
+  }
+
+  for (const ex of snapshot.exercises) {
+    const local = await db.exercises.get(ex.id)
+    if (local && new Date(local.updatedAt).getTime() >= new Date(ex.updatedAt).getTime()) {
+      continue
+    }
+    await db.exercises.put(ex)
+    await enqueueSync('user_exercises', local ? 'update' : 'insert', ex)
+  }
+
+  for (const plan of snapshot.customPlans) {
+    const local = await db.customPlans.get(plan.id)
+    if (local && new Date(local.updatedAt).getTime() >= new Date(plan.updatedAt).getTime()) {
+      continue
+    }
+    await db.customPlans.put(plan)
+    await enqueueSync('custom_plans', local ? 'update' : 'insert', plan)
+  }
+
+  if (opts.mergeProgress) {
+    for (const p of snapshot.customProgramProgress) {
+      const local = await db.customProgramProgress
+        .where('customPlanId')
+        .equals(p.customPlanId)
+        .first()
+      if (local && new Date(local.updatedAt).getTime() >= new Date(p.updatedAt).getTime()) {
+        continue
+      }
+      let row: import('@/lib/exercise-model').CustomProgramProgress
+      if (local?.id != null) {
+        row = { ...p, id: local.id }
+        await db.customProgramProgress.put(row)
+      } else {
+        const id = await db.customProgramProgress.add(p)
+        row = { ...p, id }
+      }
+      await enqueueSync('custom_program_progress', 'update', row)
+    }
+  }
+
+  if (opts.importActiveWorkout && snapshot.activeCustomWorkout?.length) {
+    for (const a of snapshot.activeCustomWorkout) {
+      await db.activeCustomWorkout.put(a)
+      const { enqueueActiveCustomWorkoutSync } = await import('@/lib/sync')
+      await enqueueActiveCustomWorkoutSync(a.customPlanId, a)
     }
   }
 

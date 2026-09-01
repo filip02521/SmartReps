@@ -3,6 +3,10 @@ import { persist } from 'zustand/middleware'
 import type { Program } from '@/data/plans/types'
 import { pushProfileSettingsOnly } from '@/lib/sync'
 
+export type EnabledWorkout =
+  | { kind: 'builtin'; program: Program }
+  | { kind: 'custom'; planId: string }
+
 export type UserSettings = {
   theme: 'system' | 'dark' | 'light'
   highContrast: boolean
@@ -19,6 +23,10 @@ export type UserSettings = {
   healthDisclaimerAccepted: boolean
   hasSeenWorkoutHint: boolean
   enabledPrograms: Program[]
+  /** Custom plans shown on dashboard (Faza 4). Builtin still uses enabledPrograms. */
+  enabledCustomPlanIds: string[]
+  /** When true, enabledCustomPlanIds is authoritative (empty = hide all on home). */
+  customPlansFilterExplicit: boolean
   onboardingComplete: boolean
 }
 
@@ -114,6 +122,8 @@ export const defaultSettings: UserSettings = {
   healthDisclaimerAccepted: false,
   hasSeenWorkoutHint: false,
   enabledPrograms: ['pushups'],
+  enabledCustomPlanIds: [],
+  customPlansFilterExplicit: false,
   onboardingComplete: false,
 }
 
@@ -176,11 +186,16 @@ export const useAppStore = create<AppStore>()(
     }),
     {
       name: 'smartreps-app',
-      version: 4,
+      version: 5,
       migrate: (persisted, fromVersion) => {
         const p = (persisted ?? {}) as Partial<AppStore> & { settings?: Partial<UserSettings> }
+        const baseSettings: UserSettings = {
+          ...defaultSettings,
+          ...(p.settings ?? {}),
+          customPlansFilterExplicit: p.settings?.customPlansFilterExplicit ?? false,
+        }
         const base = {
-          settings: { ...defaultSettings, ...(p.settings ?? {}) },
+          settings: baseSettings,
           pendingTest: p.pendingTest ?? null,
           pendingStart: p.pendingStart ?? null,
           setupQueue: p.setupQueue ?? [],

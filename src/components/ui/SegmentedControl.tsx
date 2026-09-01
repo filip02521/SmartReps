@@ -6,20 +6,27 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
   className,
+  disabled = false,
 }: {
   options: { value: T; label: string }[]
   value: T
   onChange: (v: T) => void
   className?: string
+  disabled?: boolean
 }) {
   return (
-    <div className={cn('flex flex-wrap gap-2', className)} role="tablist">
+    <div
+      className={cn('flex flex-wrap gap-2', disabled && 'pointer-events-none opacity-60', className)}
+      role="tablist"
+      aria-disabled={disabled || undefined}
+    >
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
           role="tab"
           aria-selected={value === opt.value}
+          disabled={disabled}
           className={cn(
             'min-h-11 rounded-[var(--sr-radius-full)] px-4 py-2.5 text-sm font-medium transition-colors',
             FOCUS_RING,

@@ -448,7 +448,10 @@ export async function loadHomeDashboard(
   },
 ): Promise<HomeLoadResult> {
   const allSessions = await db.workoutSessions.toArray()
-  const passedAll = allSessions.filter((s) => s.status === 'completed' && s.passed)
+  const builtinSessions = allSessions.filter(
+    (s) => (s.programKind ?? 'builtin') !== 'custom' && s.program !== 'custom',
+  )
+  const passedAll = builtinSessions.filter((s) => s.status === 'completed' && s.passed)
   const activity = buildActivityInsights(passedAll)
   const sessions14d = activity.sessions14d
   const reps14d = activity.reps14d
@@ -501,7 +504,7 @@ export async function loadHomeDashboard(
           ? sets.reduce((sum, t) => sum + getTargetReps(t), 0)
           : null
 
-        const programSessions = allSessions
+        const programSessions = builtinSessions
           .filter((s) => s.program === program && s.status === 'completed')
           .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
         const lastCompleted = programSessions[0]

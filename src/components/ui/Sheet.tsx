@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { pl } from '@/i18n/pl'
 import { FOCUS_RING, Z_SHEET } from '@/lib/ui-chrome'
+import { registerSheetEscape } from '@/lib/sheet-escape'
 
 /** Bottom inset for sheet panel — home indicator + comfortable thumb reach. */
 const SHEET_PANEL_PADDING =
@@ -17,6 +18,7 @@ export function Sheet({
   className,
   labelledBy,
   showClose = true,
+  elevated = false,
 }: {
   open: boolean
   onClose: () => void
@@ -25,16 +27,14 @@ export function Sheet({
   className?: string
   labelledBy?: string
   showClose?: boolean
+  /** Stack above another open Sheet (e.g. ConfirmSheet). */
+  elevated?: boolean
 }) {
   const trapRef = useFocusTrap(open)
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return registerSheetEscape(onClose)
   }, [open, onClose])
 
   if (!open) return null
@@ -42,7 +42,7 @@ export function Sheet({
   return createPortal(
     <div
       className="fixed inset-0 flex items-end justify-center bg-[var(--sr-bg-overlay)]"
-      style={{ zIndex: Z_SHEET }}
+      style={{ zIndex: elevated ? Z_SHEET + 5 : Z_SHEET }}
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose()

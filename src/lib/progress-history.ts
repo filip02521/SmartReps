@@ -1,8 +1,13 @@
 import type { LocalWorkoutSession } from '@/lib/db'
+import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 
 /** Sessions shown in Progress history and CSV export (finished attempts only). */
 export function isProgressHistorySession(session: LocalWorkoutSession): boolean {
   return session.status === 'completed'
+}
+
+export function isCustomProgressHistorySession(session: LocalWorkoutSession): boolean {
+  return isCustomWorkoutSession(session) && isProgressHistorySession(session)
 }
 
 export function sessionTotalReps(session: LocalWorkoutSession): number {

@@ -31,6 +31,8 @@ export function mapRemoteSetRow(row: RemoteSetRow): SetResultDraft {
 export type RemoteSessionRow = {
   id: string
   program: string
+  program_kind?: string | null
+  custom_plan_id?: string | null
   cycle_id: string
   day_number: number
   cycle_attempt: number
@@ -39,6 +41,7 @@ export type RemoteSessionRow = {
   completed_at: string | null
   passed: boolean | null
   total_reps: number | null
+  exercise_logs_json?: unknown
   set_results?: RemoteSetRow[]
 }
 

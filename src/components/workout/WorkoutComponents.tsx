@@ -1,4 +1,4 @@
-import { cn, formatRestTime, vibrate } from '@/lib/utils'
+import { cn, formatRestTime } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
 import { Check, ChevronRight, Minus, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -35,7 +35,7 @@ export function ConfirmSheet({
   extraActions?: ReactNode
 }) {
   return (
-    <Sheet open onClose={onCancel} title={title} showClose={false}>
+    <Sheet open onClose={onCancel} title={title} showClose={false} elevated>
       <p className="text-sm text-[var(--sr-text-secondary)]">{message}</p>
       <div className="mt-6 flex flex-col gap-2">
         <Button
@@ -402,13 +402,11 @@ export function DayPlanSheet({
   )
 }
 
-export function onSetComplete() {
-  vibrate(50)
-}
-
-export function onSetFailed() {
-  vibrate([100, 50, 100])
-}
+export {
+  onSetCompleteFeedback as onSetComplete,
+  onSetFailedFeedback as onSetFailed,
+  initWorkoutAudio,
+} from '@/lib/workout-feedback'
 
 export function CycleCelebration({ message, onDismiss }: { message: string; onDismiss: () => void }) {
   return (

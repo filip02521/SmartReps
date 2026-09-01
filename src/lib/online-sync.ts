@@ -38,11 +38,24 @@ export function setupOnlineSync() {
   document.addEventListener('visibilitychange', onVisible)
 
   void useAppStore.persist.onFinishHydration(() => {
-    triggerSync({
-      showSuccessToast: false,
-      showFailureToast: false,
-      silentOffline: true,
-    })
+    void (async () => {
+      let hasSession = false
+      if (isSupabaseConfigured) {
+        const { data: { session } } = await supabase.auth.getSession().catch(() => ({
+          data: { session: null },
+        }))
+        hasSession = !!session?.user
+      }
+      if (!hasSession) {
+        const { ensureDefaultExercises } = await import('@/lib/custom-plan-service')
+        await ensureDefaultExercises()
+      }
+      triggerSync({
+        showSuccessToast: false,
+        showFailureToast: false,
+        silentOffline: true,
+      })
+    })()
   })
 
   return () => {

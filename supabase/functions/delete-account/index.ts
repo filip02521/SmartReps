@@ -71,6 +71,10 @@ Deno.serve(async (req) => {
   }
 
   const tables = [
+    'active_custom_workout_state',
+    'custom_program_progress',
+    'custom_plans',
+    'user_exercises',
     'active_workout_state',
     'workout_sessions',
     'program_progress',

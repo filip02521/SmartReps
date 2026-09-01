@@ -9,6 +9,8 @@ import { BrandLoader } from '@/components/ui/BrandLoader'
 import Dashboard from '@/pages/Dashboard'
 import WorkoutPage from '@/pages/Workout'
 import SessionSummary from '@/pages/SessionSummary'
+import CustomWorkoutPage from '@/pages/CustomWorkout'
+import CustomSessionSummary from '@/pages/CustomSessionSummary'
 import Onboarding from '@/pages/setup/Onboarding'
 import MaxTest from '@/pages/setup/MaxTest'
 import CyclePicker from '@/pages/setup/CyclePicker'
@@ -94,6 +96,8 @@ export default function App() {
             <Route path="/workout/:program" element={<WorkoutPage />} />
             <Route path="/workout/:program/summary" element={<SessionSummary />} />
           </Route>
+          <Route path="/workout/custom/:planId" element={<CustomWorkoutPage />} />
+          <Route path="/workout/custom/:planId/summary" element={<CustomSessionSummary />} />
         </Route>
         <Route path="/not-found" element={<NotFound />} />
         <Route path="*" element={<NotFound />} />

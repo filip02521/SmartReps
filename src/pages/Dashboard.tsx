@@ -6,6 +6,7 @@ import { PageLoader, SkeletonCard, EmptyState } from '@/components/ux/Feedback'
 import { HomeSummary } from '@/components/dashboard/HomeSummary'
 import { HomeTip } from '@/components/dashboard/HomeTip'
 import { ProgramHomeCard } from '@/components/dashboard/ProgramHomeCard'
+import { CustomPlansHomeSection } from '@/components/dashboard/CustomPlansHomeSection'
 import { InstallCoach } from '@/components/ux/InstallCoach'
 import { pl } from '@/i18n/pl'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
@@ -229,6 +230,8 @@ export default function Dashboard() {
               )}
             </section>
           )}
+
+          <CustomPlansHomeSection />
         </>
       )}
     </div>

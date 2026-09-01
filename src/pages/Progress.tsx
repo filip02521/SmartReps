@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { ChevronRight } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { format, subDays } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
@@ -8,6 +9,7 @@ import { ProgressSection } from '@/components/progress/ProgressSection'
 import { buildActivityHeatmap, exportSessionsCsv, downloadCsv } from '@/lib/export'
 import {
   hasAnyProgramRecords,
+  isCustomProgressHistorySession,
   isProgressHistorySession,
   sessionTotalReps,
 } from '@/lib/progress-history'
@@ -34,9 +36,19 @@ import type { Program } from '@/data/plans/types'
 import type { LocalWorkoutSession } from '@/lib/db'
 import { getCycleDayStatus } from '@/lib/cycle-progress'
 import { showToast } from '@/stores/toast-store'
+import { computeCustomExercisePrs, type ExercisePr } from '@/lib/custom-stats'
+import { ExerciseDetailSheet } from '@/components/plans/ExerciseDetailSheet'
+import { ExerciseSparkline } from '@/components/plans/ExerciseSparkline'
+import type { ExerciseDefinition } from '@/lib/exercise-model'
+import type { ExerciseTrend } from '@/lib/custom-exercise-stats'
+import {
+  computeCustomSessionDetail,
+  formatCustomSessionSummary,
+  sessionTotalSets,
+} from '@/lib/custom-session-stats'
 import { cn } from '@/lib/utils'
 
-type Tab = 'overview' | 'history' | 'cycle' | 'records'
+type Tab = 'overview' | 'history' | 'cycle' | 'records' | 'custom'
 type HistoryDateFilter = 'all' | '30d' | '90d'
 
 const HISTORY_PAGE_SIZE = 20
@@ -53,6 +65,7 @@ const TAB_HINTS: Record<Tab, string> = {
   history: pl.progressTabHistoryHint,
   cycle: pl.progressTabCycleHint,
   records: pl.progressTabRecordsHint,
+  custom: pl.myPlansHint,
 }
 
 function sessionStatusLabel(session: LocalWorkoutSession): string {
@@ -67,12 +80,34 @@ function sessionBadgeVariant(session: LocalWorkoutSession): 'success' | 'error' 
   return 'default'
 }
 
+function trendDotClass(trend: ExerciseTrend): string | null {
+  if (trend === 'up') return 'bg-[var(--sr-success)]'
+  if (trend === 'down') return 'bg-[var(--sr-error)]'
+  if (trend === 'flat') return 'bg-[var(--sr-text-muted)]'
+  return null
+}
+
+function formatExercisePrLine(pr: ExercisePr): string {
+  return (
+    [
+      pr.maxReps != null ? `${pr.maxReps} ${pl.repsUnit}` : null,
+      pr.maxDurationSec != null ? `${pr.maxDurationSec}s` : null,
+      pr.maxWeightKg != null ? `${pr.maxWeightKg} kg` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ') || '—'
+  )
+}
+
 export default function ProgressPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { settings } = useAppStore()
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const [program, setProgram] = useState<Program>(settings.enabledPrograms[0] ?? 'pushups')
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTab] = useState<Tab>(() =>
+    searchParams.get('tab') === 'custom' ? 'custom' : 'overview',
+  )
   const [loading, setLoading] = useState(true)
   const [tests, setTests] = useState<{ date: string; dateLabel: string; reps: number }[]>([])
   const [sessions, setSessions] = useState<LocalWorkoutSession[]>([])
@@ -90,6 +125,15 @@ export default function ProgressPage() {
   const [cyclePreviewDay, setCyclePreviewDay] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [reloadEpoch, setReloadEpoch] = useState(0)
+  const [customPrs, setCustomPrs] = useState<ExercisePr[]>([])
+  const [customSessions, setCustomSessions] = useState<LocalWorkoutSession[]>([])
+  const [customPlanNames, setCustomPlanNames] = useState<Record<string, string>>({})
+  const [detailExercise, setDetailExercise] = useState<ExerciseDefinition | null>(null)
+
+  async function openExerciseDetail(exerciseId: string) {
+    const ex = await db.exercises.get(exerciseId)
+    if (ex && !ex.archived) setDetailExercise(ex)
+  }
 
   useEffect(() => {
     async function load() {
@@ -118,6 +162,15 @@ export default function ProgressPage() {
         }
         setRecords(await getProgramRecords(program))
         setHeatmap(await buildActivityHeatmap(program))
+        setCustomPrs(await computeCustomExercisePrs())
+        const customHistory = (await db.workoutSessions.toArray())
+          .filter(isCustomProgressHistorySession)
+          .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+        setCustomSessions(customHistory.slice(0, HISTORY_PAGE_SIZE))
+        const planRows = await db.customPlans.toArray()
+        const nameMap: Record<string, string> = {}
+        for (const p of planRows) nameMap[p.id] = p.name
+        setCustomPlanNames(nameMap)
       } catch {
         setError(pl.errorLoadProgress)
       } finally {
@@ -126,6 +179,10 @@ export default function ProgressPage() {
     }
     void load()
   }, [program, reloadEpoch, lastSyncedAt])
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'custom') setTab('custom')
+  }, [searchParams])
 
   useEffect(() => {
     setHistoryLimit(HISTORY_PAGE_SIZE)
@@ -199,6 +256,7 @@ export default function ProgressPage() {
     { value: 'history', label: pl.tabHistory },
     { value: 'cycle', label: pl.tabCycle },
     { value: 'records', label: pl.tabRecords },
+    { value: 'custom', label: pl.progressMyExercises },
   ]
 
   const programOptions = settings.enabledPrograms.map((p) => ({
@@ -419,6 +477,115 @@ export default function ProgressPage() {
             />
           )}
         </ProgressSection>
+      )}
+
+      {tab === 'custom' && (
+        <>
+          <ProgressSection first title={pl.progressMyExercises}>
+            {customPrs.length === 0 ? (
+              <EmptyState
+                icon={<LogoMark size={48} />}
+                title={pl.progressCustomPrEmpty}
+                action={{
+                  label: pl.myPlansTitle,
+                  onClick: () => navigate('/plans?tab=mine'),
+                }}
+              />
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {customPrs.map((pr) => (
+                  <li key={pr.exerciseId}>
+                    <button
+                      type="button"
+                      className={cn(
+                        'flex w-full items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)]',
+                        'bg-[var(--sr-bg-surface)] p-3 text-left transition-colors',
+                        'hover:border-[var(--sr-border-strong)]',
+                        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]',
+                      )}
+                      onClick={() => void openExerciseDetail(pr.exerciseId)}
+                    >
+                      <ExerciseSparkline values={pr.sparkline} active={pr.sessionCount > 0} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate font-medium text-[var(--sr-text-primary)]">
+                            {pr.name}
+                          </p>
+                          {trendDotClass(pr.trend) && (
+                            <span
+                              className={cn(
+                                'h-1.5 w-1.5 shrink-0 rounded-full',
+                                trendDotClass(pr.trend),
+                              )}
+                              aria-hidden
+                            />
+                          )}
+                        </div>
+                        <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">
+                          {pl.progressCustomPr}: {formatExercisePrLine(pr)}
+                        </p>
+                        {pr.sessionCount > 0 && (
+                          <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
+                            {pl.progressCustomSessionCount(pr.sessionCount)}
+                          </p>
+                        )}
+                        {pr.lastSessionAt && (
+                          <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
+                            {pl.exerciseDetailLastTrained}:{' '}
+                            {format(new Date(pr.lastSessionAt), 'd MMM yyyy', { locale: plLocale })}
+                          </p>
+                        )}
+                      </div>
+                      <ChevronRight
+                        size={20}
+                        className="shrink-0 text-[var(--sr-text-muted)]"
+                        aria-hidden
+                      />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ProgressSection>
+
+          <ProgressSection title={pl.progressCustomHistory} className="mt-8">
+            {customSessions.length === 0 ? (
+              <EmptyState
+                icon={<LogoMark size={48} />}
+                title={pl.progressCustomHistoryEmpty}
+                action={{
+                  label: pl.myPlansTitle,
+                  onClick: () => navigate('/plans?tab=mine'),
+                }}
+              />
+            ) : (
+              <ul className="divide-y divide-[var(--sr-border-subtle)]">
+                {customSessions.map((s) => {
+                  const planName =
+                    (s.customPlanId && customPlanNames[s.customPlanId]) || pl.planDash
+                  const sets = sessionTotalSets(s)
+                  const detail = computeCustomSessionDetail(s.exerciseLogs)
+                  return (
+                    <li key={s.id} className="py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+                          {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
+                        </p>
+                        <Badge variant={sessionBadgeVariant(s)}>{sessionStatusLabel(s)}</Badge>
+                      </div>
+                      <p className="mt-1 font-medium text-[var(--sr-text-primary)]">
+                        {pl.progressCustomSessionMeta(planName, s.dayNumber)}
+                      </p>
+                      <p className="mt-1 text-sm text-[var(--sr-text-muted)]">
+                        {formatCustomSessionSummary(s.exerciseLogs?.length ?? 0, sets, detail)}
+                      </p>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </ProgressSection>
+        </>
       )}
 
       {tab === 'history' && (
@@ -706,6 +873,12 @@ export default function ProgressPage() {
             )
           })()}
       </Sheet>
+
+      <ExerciseDetailSheet
+        open={detailExercise != null}
+        exercise={detailExercise}
+        onClose={() => setDetailExercise(null)}
+      />
     </div>
   )
 }

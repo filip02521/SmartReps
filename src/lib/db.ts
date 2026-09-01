@@ -1,6 +1,12 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { SetResultDraft, ProgramStatus } from './progress-engine'
 import type { Program } from '@/data/plans/types'
+import type {
+  CustomPlan,
+  CustomProgramProgress,
+  ExerciseDefinition,
+  ExerciseLog,
+} from '@/lib/exercise-model'
 
 export type LocalProgramProgress = {
   id?: number
@@ -16,7 +22,9 @@ export type LocalProgramProgress = {
 
 export type LocalWorkoutSession = {
   id: string
-  program: Program
+  program: Program | 'custom'
+  programKind?: 'builtin' | 'custom'
+  customPlanId?: string
   cycleId: string
   dayNumber: number
   cycleAttempt: number
@@ -26,6 +34,8 @@ export type LocalWorkoutSession = {
   passed?: boolean
   totalReps?: number
   setResults: SetResultDraft[]
+  /** Multi-exercise logs for custom sessions. */
+  exerciseLogs?: ExerciseLog[]
 }
 
 export type ActiveWorkoutState = {
@@ -33,6 +43,16 @@ export type ActiveWorkoutState = {
   sessionId: string
   currentSetIndex: number
   setResults: SetResultDraft[]
+  restTimerJson: string | null
+  updatedAt: string
+}
+
+export type ActiveCustomWorkoutState = {
+  customPlanId: string
+  sessionId: string
+  currentExerciseIndex: number
+  currentSetIndex: number
+  exerciseLogs: ExerciseLog[]
   restTimerJson: string | null
   updatedAt: string
 }
@@ -55,12 +75,20 @@ export type LocalMaxTest = {
   wasManualOverride: boolean
 }
 
+export type LocalExercise = ExerciseDefinition
+export type LocalCustomPlan = CustomPlan
+export type LocalCustomProgramProgress = CustomProgramProgress
+
 class SmartRepsDB extends Dexie {
   programProgress!: EntityTable<LocalProgramProgress, 'id'>
   workoutSessions!: EntityTable<LocalWorkoutSession, 'id'>
   activeWorkout!: EntityTable<ActiveWorkoutState, 'program'>
+  activeCustomWorkout!: EntityTable<ActiveCustomWorkoutState, 'customPlanId'>
   syncQueue!: EntityTable<SyncQueueItem, 'id'>
   maxTests!: EntityTable<LocalMaxTest, 'id'>
+  exercises!: EntityTable<LocalExercise, 'id'>
+  customPlans!: EntityTable<LocalCustomPlan, 'id'>
+  customProgramProgress!: EntityTable<LocalCustomProgramProgress, 'id'>
 
   constructor() {
     super('SmartRepsDB')
@@ -112,6 +140,19 @@ class SmartRepsDB extends Dexie {
           }
         }
       })
+
+    // v4: custom exercises & plans
+    this.version(4).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, startedAt, [program+status], customPlanId',
+      activeWorkout: 'program',
+      activeCustomWorkout: 'customPlanId',
+      syncQueue: '++id, createdAt',
+      maxTests: '++id, program, testedAt, &[program+testedAt]',
+      exercises: 'id, updatedAt, archived',
+      customPlans: 'id, status, updatedAt',
+      customProgramProgress: '++id, &customPlanId, updatedAt',
+    })
   }
 }
 

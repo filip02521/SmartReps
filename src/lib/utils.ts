@@ -22,7 +22,10 @@ export function vibrate(pattern: number | number[]) {
   }
 }
 
+/** @deprecated Use `@/lib/workout-feedback` (`playRestCompleteSound` / `onRestComplete`). */
 export function playChime() {
+  // Lazy import avoided to keep utils sync; re-export behavior via dynamic require not needed —
+  // callers should migrate. Thin wrapper kept for tests/back-compat.
   try {
     const ctx = new AudioContext()
     const osc = ctx.createOscillator()

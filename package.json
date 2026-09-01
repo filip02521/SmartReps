@@ -12,6 +12,7 @@
     "test:e2e": "playwright test",
     "lint": "eslint src --max-warnings 0",
     "validate-plans": "tsx scripts/validate-plans.ts",
+    "validate-custom-plans": "tsx scripts/validate-custom-plans.ts",
     "generate-icons": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {

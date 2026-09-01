@@ -32,7 +32,8 @@ import { getRestNextSetLabel } from '@/lib/workout-rest-label'
 import { getProgramProgress, reconcileActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
 import { db } from '@/lib/db'
 import { isStaleActiveWorkout } from '@/lib/sync'
-import { generateId, playChime, vibrate } from '@/lib/utils'
+import { generateId } from '@/lib/utils'
+import { initWorkoutAudio, onRestComplete } from '@/lib/workout-feedback'
 import type { Program } from '@/data/plans/types'
 import type { SetResultDraft } from '@/lib/progress-engine'
 import type { LocalWorkoutSession } from '@/lib/db'
@@ -286,8 +287,7 @@ export default function WorkoutPage() {
         useWorkoutStore.getState().setRestTimer({ ...current, remainingSec })
       },
       onComplete: () => {
-        if (timerSound) playChime()
-        if (timerVibration) vibrate(100)
+        onRestComplete({ sound: timerSound, vibration: timerVibration })
         useWorkoutStore.getState().setRestTimer(skipRest())
         releaseWakeLock()
         checklistRef.current
@@ -445,6 +445,7 @@ export default function WorkoutPage() {
         return
       }
 
+      void initWorkoutAudio()
       onSetComplete()
       setPulseFlash(true)
       window.setTimeout(() => setPulseFlash(false), 400)

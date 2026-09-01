@@ -104,6 +104,19 @@ export function ImportBackupSheet({
         preview.newTests,
       ),
     ]
+    if (
+      preview.customPlanCount > 0 ||
+      preview.exerciseCount > 0 ||
+      preview.customProgressCount > 0
+    ) {
+      parts.push(
+        pl.importJsonCustomPreview(
+          preview.customPlanCount,
+          preview.exerciseCount,
+          preview.customProgressCount,
+        ),
+      )
+    }
     if (preview.progressConflicts > 0) {
       parts.push(pl.importProgressConflictHint)
     }

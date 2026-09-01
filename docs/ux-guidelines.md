@@ -112,6 +112,39 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 [+15s] [+30s] [Pomiń]
 ```
 
+## Wireframe — Plany (Moje)
+
+```
+[PageHeader Plany]
+[Wbudowane | Moje]
+[Nowy plan] [Biblioteka ćwiczeń]
+[karta: nazwa + Badge + N dni · X ćw. + nazwy dnia 1]
+[Trenuj] [Edytuj] [Więcej → Duplikuj / Eksport / Usuń+confirm]
+```
+
+## Wireframe — Edytor planu custom (Sheet, stack)
+
+```
+Hub: nazwa, lista dni (skrót ćwiczeń), progresja, Zapisz szkic / Zapisz i aktywuj
+  → Dzień: rest 1|2 dni, lista ćwiczeń + chips serii, ↑↓🗑, Dodaj ćwiczenie
+    → Pick: ExerciseLibraryPanel (inline, bez nested Sheet)
+    → Serie: rest chips, ± serii, cele (+ kg)
+```
+
+## Wireframe — Trening custom (multi-exercise)
+
+```
+[←] [Pompki · Dzień N · Seria j/m] [⋮]
+    [Nazwa planu · Ćw. i/n]
+[rail: ćwiczenia dnia — done / active / pending]
+[notatka trenera — opcjonalnie]
+[hint / fail banner]
+[RepCounter: cel + display + −/Zrobione/+]
+[SetChecklist + przerwa między seriami]
+[RestTimerExpanded po serii]
+Menu: Podgląd planu dnia (cele + postęp) · Anuluj
+```
+
 ## Checklist przed merge
 
 - [x] Test 5 sekund — użytkownik wie co robić
@@ -132,6 +165,7 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 - [x] Attention band min-height stabilny (coach → tip)
 - [x] iOS status bar: `black-translucent` + `.safe-header` (sticky tło pod notch) — [`index.html`](../index.html), [`globals.css`](../src/styles/globals.css), [`AppLayout.tsx`](../src/components/layout/AppLayout.tsx)
 - [x] iPhone SE 375px — Playwright `smoke-iphone` (automatyczny smoke)
+- [x] Feedback treningu: dźwięk końca przerwy + „Zrobione” (`workout-feedback.ts`), unlock audio po geście, wibracja gdy tab w tle
 - [ ] iPhone SE 375px — manual smoke (7 ekranów, patrz niżej)
 
 ### iPhone SE — manual smoke (7 ekranów)

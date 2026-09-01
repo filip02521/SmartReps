@@ -1,0 +1,50 @@
+{
+  "id": "fixture-plan-fullbody",
+  "name": "Full body 2×",
+  "description": "Przykładowy plan multi-exercise",
+  "status": "active",
+  "source": "user",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "days": [
+    {
+      "dayNumber": 1,
+      "restAfterDay": 1,
+      "exercises": [
+        {
+          "exerciseId": "fixture-ex-reps",
+          "order": 0,
+          "restBetweenSetsSec": 90,
+          "restAfterExerciseSec": 60,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 10 } },
+            { "reps": { "kind": "fixed", "value": 10 } }
+          ]
+        },
+        {
+          "exerciseId": "fixture-ex-time",
+          "order": 1,
+          "restBetweenSetsSec": 60,
+          "sets": [
+            { "durationSec": { "kind": "min", "value": 30 } },
+            { "durationSec": { "kind": "min", "value": 30 } }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 2,
+      "restAfterDay": 2,
+      "exercises": [
+        {
+          "exerciseId": "fixture-ex-weight",
+          "order": 0,
+          "restBetweenSetsSec": 120,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 20 } }
+          ]
+        }
+      ]
+    }
+  ]
+}
