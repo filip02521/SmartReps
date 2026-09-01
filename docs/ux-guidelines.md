@@ -125,6 +125,7 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 - [x] Filtry historii — status, bieżący cykl, zakres dat (30/90 dni)
 - [x] focus-visible na Button / tabs / SegmentedControl / TextField
 - [x] Toast nie zasłania RestTimerPill
+- [x] Sheet / dolne menu — portal do `document.body` (ponad tab bar) + safe-area na panelu
 - [x] Profile CSV = wszystkie programy; Progress CSV = bieżący
 - [x] Attention band min-height stabilny (coach → tip)
 - [x] iOS status bar: `black-translucent` + `.safe-header` (sticky tło pod notch) — [`index.html`](../index.html), [`globals.css`](../src/styles/globals.css), [`AppLayout.tsx`](../src/components/layout/AppLayout.tsx)

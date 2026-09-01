@@ -1,5 +1,31 @@
 import { useEffect, useRef } from 'react'
 
+let scrollLockCount = 0
+let savedBodyOverflow = ''
+
+function lockBodyScroll() {
+  if (scrollLockCount === 0) {
+    savedBodyOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+  }
+  scrollLockCount += 1
+}
+
+function unlockBodyScroll() {
+  scrollLockCount = Math.max(0, scrollLockCount - 1)
+  if (scrollLockCount === 0) {
+    document.body.style.overflow = savedBodyOverflow
+    savedBodyOverflow = ''
+  }
+}
+
+/** Safety release after immersive overlays (rest timer) — e.g. workout summary. */
+export function releaseBodyScrollLock() {
+  scrollLockCount = 0
+  document.body.style.overflow = ''
+  savedBodyOverflow = ''
+}
+
 export function useFocusTrap(active: boolean) {
   const ref = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
@@ -8,8 +34,7 @@ export function useFocusTrap(active: boolean) {
     if (!active || !ref.current) return
     previousFocusRef.current = document.activeElement as HTMLElement | null
     const root = ref.current
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    lockBodyScroll()
 
     const focusables = () =>
       root.querySelectorAll<HTMLElement>(
@@ -36,7 +61,7 @@ export function useFocusTrap(active: boolean) {
     root.addEventListener('keydown', onKeyDown)
     return () => {
       root.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = prevOverflow
+      unlockBodyScroll()
       previousFocusRef.current?.focus?.()
     }
   }, [active])

@@ -20,6 +20,7 @@ import type { Program } from '@/data/plans/types'
 import { shareSessionCard } from '@/lib/share-card'
 import { trackShareCard } from '@/lib/analytics'
 import { showToast } from '@/stores/toast-store'
+import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
 
 export default function SessionSummary() {
   const { program: programParam } = useParams<{ program: Program }>()
@@ -69,6 +70,8 @@ export default function SessionSummary() {
   useEffect(() => {
     processedRef.current = false
     loginPromptTrackedRef.current = false
+    useWorkoutStore.getState().reset()
+    releaseBodyScrollLock()
   }, [program, sessionId, failed])
 
   useEffect(() => {

@@ -112,4 +112,32 @@ test.describe('iPhone SE smoke', () => {
       timeout: 15_000,
     })
   })
+
+  test('bottom sheets are not clipped by tab bar (program menu)', async ({ page }) => {
+    await seedOnboardedWithProgress(page)
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible({
+      timeout: 20_000,
+    })
+
+    await page.getByRole('button', { name: 'Menu programu' }).first().click()
+    const lastAction = page.getByRole('button', { name: 'Wykonaj test' })
+    await expect(lastAction).toBeVisible({ timeout: 10_000 })
+
+    const box = await lastAction.boundingBox()
+    const viewport = page.viewportSize()
+    expect(box).not.toBeNull()
+    expect(viewport).not.toBeNull()
+    expect(box!.y).toBeGreaterThanOrEqual(0)
+    expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height + 1)
+
+    const hitTarget = await page.evaluate(
+      ({ x, y, w, h }) => {
+        const el = document.elementFromPoint(x + w / 2, y + h / 2)
+        return el?.closest('[role="dialog"]') != null
+      },
+      { x: box!.x, y: box!.y, w: box!.width, h: box!.height },
+    )
+    expect(hitTarget).toBe(true)
+  })
 })

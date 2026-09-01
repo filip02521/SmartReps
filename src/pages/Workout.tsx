@@ -28,6 +28,7 @@ import {
   ensureWorkoutSessionPersisted,
   getPreviousSetActual,
 } from '@/lib/session-service'
+import { getRestNextSetLabel } from '@/lib/workout-rest-label'
 import { getProgramProgress, reconcileActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
 import { db } from '@/lib/db'
 import { isStaleActiveWorkout } from '@/lib/sync'
@@ -565,10 +566,8 @@ export default function WorkoutPage() {
     )
   }
 
-  const nextTarget = day.sets[currentSetIndex + 1]
-  const nextLabel = nextTarget
-    ? pl.nextSet(currentSetIndex + 2, getTargetReps(nextTarget), unit)
-    : ''
+  const isResting = restTimer !== null && restTimer.mode !== 'idle'
+  const nextLabel = getRestNextSetLabel(currentSetIndex, day.sets, unit, isResting)
 
   const hasSessionProgress = setResults.length > 0
 

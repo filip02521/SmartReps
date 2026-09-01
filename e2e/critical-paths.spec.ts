@@ -1,5 +1,20 @@
 import { test, expect, type Page } from '@playwright/test'
 
+async function dismissRestOverlay(page: Page) {
+  const dialog = page.getByRole('dialog', { name: 'Przerwa' })
+  try {
+    await dialog.waitFor({ state: 'visible', timeout: 3_000 })
+  } catch {
+    return
+  }
+  await page.getByRole('button', { name: 'Pomiń' }).first().click()
+  const confirmSkip = page.getByRole('button', { name: 'Pomiń' }).last()
+  if (await confirmSkip.isVisible().catch(() => false)) {
+    await confirmSkip.click()
+  }
+  await expect(dialog).not.toBeVisible({ timeout: 10_000 })
+}
+
 async function seedLocalAppState(page: Page, extras: Record<string, unknown> = {}) {
   await page.addInitScript((payload) => {
     const { settings: settingsOverride, ...rest } = payload as {
@@ -261,25 +276,18 @@ test.describe('SmartReps routing critical paths', () => {
     await expect(page.getByText('Przerwa', { exact: true }).first()).toBeVisible({
       timeout: 10_000,
     })
+    await expect(page.getByText('Następnie: Seria 2 ·')).toBeVisible()
+    await expect(page.getByText('Następnie: Seria 3 ·')).not.toBeVisible()
 
     // Skip rest (confirm sheet)
-    await page.getByRole('button', { name: 'Pomiń' }).click()
-    const confirmSkip = page.getByRole('button', { name: 'Pomiń' }).last()
-    if (await confirmSkip.isVisible().catch(() => false)) {
-      await confirmSkip.click()
-    }
+    await dismissRestOverlay(page)
 
     // Edit previous if offered
     const editPrev = page.getByRole('button', { name: 'Popraw poprzednią serię' })
     if (await editPrev.isVisible().catch(() => false)) {
       await editPrev.click()
       await page.getByRole('button', { name: 'Zrobione' }).click()
-      const skipAgain = page.getByRole('button', { name: 'Pomiń' })
-      if (await skipAgain.isVisible().catch(() => false)) {
-        await skipAgain.click()
-        const confirm = page.getByRole('button', { name: 'Pomiń' }).last()
-        if (await confirm.isVisible().catch(() => false)) await confirm.click()
-      }
+      await dismissRestOverlay(page)
     }
 
     // Finish remaining sets
@@ -288,15 +296,21 @@ test.describe('SmartReps routing critical paths', () => {
       const done = page.getByRole('button', { name: 'Zrobione' })
       if (!(await done.isVisible().catch(() => false))) break
       await done.click()
-      const skip = page.getByRole('button', { name: 'Pomiń' })
-      if (await skip.isVisible().catch(() => false)) {
-        await skip.click()
-        const confirm = page.getByRole('button', { name: 'Pomiń' }).last()
-        if (await confirm.isVisible().catch(() => false)) await confirm.click()
-      }
+      await dismissRestOverlay(page)
     }
 
     await expect(page).toHaveURL(/\/workout\/pushups\/summary/, { timeout: 30_000 })
+
+    await expect
+      .poll(async () => page.evaluate(() => document.body.style.overflow))
+      .not.toBe('hidden')
+
+    await page.getByRole('button', { name: 'Wróć do SmartReps' }).click()
+    await expect(page).toHaveURL('/', { timeout: 15_000 })
+    await expect(page.locator('[data-tabs="1"]')).toBeVisible()
+    await expect
+      .poll(async () => page.evaluate(() => document.body.style.overflow))
+      .not.toBe('hidden')
   })
 
   test('3b) cancel workout clears resume after reload', async ({ page }) => {

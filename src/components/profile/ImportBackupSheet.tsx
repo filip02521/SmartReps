@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { pl } from '@/i18n/pl'
+import { Z_SHEET } from '@/lib/ui-chrome'
 import {
   previewCsvImport,
   previewJsonImport,
@@ -271,13 +273,21 @@ export function ImportBackupSheet({
         />
       )}
 
-      {importing && (
-        <div className="fixed inset-0 z-[var(--sr-z-modal)] flex items-center justify-center bg-black/40">
-          <p className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-4 py-3 text-sm">
-            {pl.importInProgress}
-          </p>
-        </div>
-      )}
+      {importing &&
+        createPortal(
+          <div
+            className="fixed inset-0 flex items-center justify-center bg-black/40"
+            style={{ zIndex: Z_SHEET }}
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <p className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-4 py-3 text-sm">
+              {pl.importInProgress}
+            </p>
+          </div>,
+          document.body,
+        )}
     </>
   )
 }

@@ -19,7 +19,7 @@ export function AppLayout() {
     immersive || location.pathname.startsWith('/workout') || location.pathname.startsWith('/setup')
 
   return (
-    <div className={cn('flex min-h-dvh flex-col bg-[var(--sr-bg-base)]', hideTabs && 'h-dvh')} data-tabs={hideTabs ? '0' : '1'}>
+    <div className="flex min-h-dvh flex-col bg-[var(--sr-bg-base)]" data-tabs={hideTabs ? '0' : '1'}>
       <main
         className={cn(
           'flex min-h-0 flex-1 flex-col transition-[padding] duration-200 motion-reduce:transition-none',
