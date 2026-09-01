@@ -11,6 +11,15 @@ import {
 import { track } from '@/lib/analytics'
 import { useAppStore } from '@/stores/app-store'
 
+async function schedulePostWorkoutSync(): Promise<void> {
+  const { runAuthenticatedSync } = await import('@/lib/auth-sync')
+  await runAuthenticatedSync({
+    showSuccessToast: false,
+    showFailureToast: false,
+    silentOffline: true,
+  })
+}
+
 /** Session ids already advanced in progress — prevents double completeWorkoutDay. */
 const finalizedProgressKeys = new Set<string>()
 
@@ -144,6 +153,7 @@ export async function finalizeSuccessfulDay(
       finalizedProgressKeys.add(key)
     }
     markFirstWorkoutAndTrack(true, session.id)
+    void schedulePostWorkoutSync()
     return
   }
 
@@ -161,6 +171,7 @@ export async function finalizeSuccessfulDay(
   await completeWorkoutDay(session.program, true, totalReps, session.id)
   finalizedProgressKeys.add(key)
   markFirstWorkoutAndTrack(true, session.id)
+  void schedulePostWorkoutSync()
 }
 
 export async function finalizeFailedDay(
@@ -194,6 +205,7 @@ export async function finalizeFailedDay(
   await completeWorkoutDay(program, false, totalReps, sessionId)
   finalizedProgressKeys.add(key)
   markFirstWorkoutAndTrack(false, sessionId)
+  void schedulePostWorkoutSync()
 }
 
 export async function abandonWorkoutSession(program: Program, _sessionId: string): Promise<void> {

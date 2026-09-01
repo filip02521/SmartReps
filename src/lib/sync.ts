@@ -14,6 +14,10 @@ import {
   mergeEnabledProgramsFromProgress,
   mergeUiSettingsFromProfile,
 } from '@/lib/enabled-programs-sync'
+import {
+  mapRemoteProgressToLocal,
+  shouldPreferLocalProgress,
+} from '@/lib/progress-sync-merge'
 import { useAppStore } from '@/stores/app-store'
 
 type SyncAction = 'insert' | 'update' | 'delete'
@@ -187,6 +191,36 @@ async function upsertProgress(userId: string, row: LocalProgramProgress) {
   if (error) throw error
 }
 
+async function fetchRemoteProgressMap(userId: string): Promise<Map<string, RemoteProgressRow>> {
+  const { data, error } = await supabase.from('program_progress').select('*').eq('user_id', userId)
+  if (error) throw error
+  const map = new Map<string, RemoteProgressRow>()
+  for (const row of data ?? []) {
+    map.set(row.program, row as RemoteProgressRow)
+  }
+  return map
+}
+
+async function upsertProgressIfNewer(
+  userId: string,
+  row: LocalProgramProgress,
+  remoteByProgram?: Map<string, RemoteProgressRow>,
+): Promise<boolean> {
+  const remote =
+    remoteByProgram?.get(row.program) ??
+    (
+      await supabase
+        .from('program_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('program', row.program)
+        .maybeSingle()
+    ).data
+  if (!shouldPreferLocalProgress(row, remote as RemoteProgressRow | null)) return false
+  await upsertProgress(userId, row)
+  return true
+}
+
 async function upsertSession(userId: string, row: LocalWorkoutSession) {
   const { error: sessionError } = await supabase.from('workout_sessions').upsert(mapSessionRow(userId, row), {
     onConflict: 'id',
@@ -258,7 +292,12 @@ async function upsertMaxTest(userId: string, row: LocalMaxTest) {
 async function processQueueItem(userId: string, table: string, action: SyncAction, payload: unknown) {
   switch (table) {
     case 'program_progress':
-      if (action !== 'delete') await upsertProgress(userId, payload as LocalProgramProgress)
+      if (action !== 'delete') {
+        const queued = payload as LocalProgramProgress
+        const local = await db.programProgress.where('program').equals(queued.program).first()
+        const row = local ?? queued
+        await upsertProgressIfNewer(userId, row)
+      }
       break
     case 'workout_sessions':
       if (action !== 'delete') await upsertSession(userId, payload as LocalWorkoutSession)
@@ -328,10 +367,12 @@ export async function syncAllLocalData(): Promise<SyncResult> {
   try {
     await upsertProfileEnabledPrograms(userId)
 
+    const remoteProgress = await fetchRemoteProgressMap(userId)
+
     const progressRows = await db.programProgress.toArray()
     for (const row of progressRows) {
       try {
-        await upsertProgress(userId, row)
+        await upsertProgressIfNewer(userId, row, remoteProgress)
       } catch (err) {
         errors++
         console.warn('[sync] progress failed', row.program, err)
@@ -379,27 +420,18 @@ export async function syncAllLocalData(): Promise<SyncResult> {
 
 async function mergeProgressRemote(userId: string, remote: RemoteProgressRow) {
   const local = await db.programProgress.where('program').equals(remote.program as Program).first()
-  const remoteUpdated = new Date(remote.updated_at).getTime()
-  const localUpdated = local?.updatedAt ? new Date(local.updatedAt).getTime() : 0
 
-  const mapped: LocalProgramProgress = {
-    id: local?.id,
-    program: remote.program as Program,
-    cycleId: remote.cycle_id,
-    currentDay: remote.current_day,
-    status: remote.status as LocalProgramProgress['status'],
-    cycleAttempt: remote.cycle_attempt,
-    lastWorkoutAt: remote.last_workout_at,
-    nextWorkoutAfter: remote.next_workout_after,
-    updatedAt: remote.updated_at,
+  if (!local) {
+    await db.programProgress.add(mapRemoteProgressToLocal(remote))
+    return
   }
 
-  if (!local || remoteUpdated > localUpdated) {
-    if (local?.id) await db.programProgress.update(local.id, mapped)
-    else await db.programProgress.add(mapped)
-  } else if (localUpdated > remoteUpdated) {
+  if (shouldPreferLocalProgress(local, remote)) {
     await upsertProgress(userId, local)
+    return
   }
+
+  await db.programProgress.update(local.id!, mapRemoteProgressToLocal(remote, local.id))
 }
 
 async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
@@ -585,10 +617,10 @@ export async function syncWithRemote(): Promise<SyncResult> {
     await pullProfileEnabledPrograms(userId)
   }
 
-  const push = await syncAllLocalData()
+  // Pull before push — stale local Dexie must not clobber newer remote progress.
   const pull = await pullRemoteData()
-  const flush = await syncAllLocalData()
-  const errors = push.errors + pull.errors + flush.errors
+  const push = await syncAllLocalData()
+  const errors = pull.errors + push.errors
   return { ok: errors === 0, errors }
 }
 

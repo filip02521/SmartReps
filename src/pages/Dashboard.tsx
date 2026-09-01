@@ -32,6 +32,7 @@ export default function Dashboard() {
   const hasCompletedFirstWorkout = useAppStore((s) => s.hasCompletedFirstWorkout)
   const dismissedLoginBackupTip = useAppStore((s) => s.dismissedLoginBackupTip)
   const hasSeenLoginCloudPrompt = useAppStore((s) => s.hasSeenLoginCloudPrompt)
+  const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const dismissHomeTip = useAppStore((s) => s.dismissHomeTip)
   const setDismissedLoginBackupTip = useAppStore((s) => s.setDismissedLoginBackupTip)
   const navigate = useNavigate()
@@ -99,6 +100,7 @@ export default function Dashboard() {
     hydrated,
     settings.enabledPrograms,
     reloadEpoch,
+    lastSyncedAt,
     dismissedHomeTipId,
     dismissedHomeTipDay,
     installVisible,

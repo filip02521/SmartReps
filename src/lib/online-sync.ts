@@ -6,25 +6,48 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 export function setupOnlineSync() {
   if (typeof window === 'undefined') return () => {}
 
-  const onOnline = () => {
-    // Refresh session first (covers iOS resume + network return), then sync.
+  let resumeSyncTimer: ReturnType<typeof setTimeout> | null = null
+
+  const triggerSync = (opts: Parameters<typeof runAuthenticatedSync>[0]) => {
     void (async () => {
       if (isSupabaseConfigured) {
         await supabase.auth.getSession().catch(() => undefined)
       }
-      await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
+      await runAuthenticatedSync(opts)
     })()
   }
 
+  const onOnline = () => {
+    triggerSync({ showSuccessToast: true, showFailureToast: true })
+  }
+
+  const onVisible = () => {
+    if (document.visibilityState !== 'visible') return
+    if (resumeSyncTimer) clearTimeout(resumeSyncTimer)
+    resumeSyncTimer = setTimeout(() => {
+      resumeSyncTimer = null
+      triggerSync({
+        showSuccessToast: false,
+        showFailureToast: false,
+        silentOffline: true,
+      })
+    }, 300)
+  }
+
   window.addEventListener('online', onOnline)
+  document.addEventListener('visibilitychange', onVisible)
 
   void useAppStore.persist.onFinishHydration(() => {
-    void runAuthenticatedSync({
+    triggerSync({
       showSuccessToast: false,
       showFailureToast: false,
       silentOffline: true,
     })
   })
 
-  return () => window.removeEventListener('online', onOnline)
+  return () => {
+    window.removeEventListener('online', onOnline)
+    document.removeEventListener('visibilitychange', onVisible)
+    if (resumeSyncTimer) clearTimeout(resumeSyncTimer)
+  }
 }

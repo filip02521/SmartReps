@@ -13,12 +13,14 @@ import { getTargetReps } from '@/lib/progress-engine'
 import { db } from '@/lib/db'
 import { pl } from '@/i18n/pl'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
+import { useAppStore } from '@/stores/app-store'
 import type { Program } from '@/data/plans/types'
 import type { LocalProgramProgress } from '@/lib/db'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { cn } from '@/lib/utils'
 
 export default function PlansPage() {
+  const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const [searchParams] = useSearchParams()
   const highlightId = searchParams.get('highlight')
   const [openId, setOpenId] = useState<string | null>(null)
@@ -38,7 +40,7 @@ export default function PlansPage() {
       }
       setProgressByProgram(map)
     })()
-  }, [])
+  }, [lastSyncedAt])
 
   useEffect(() => {
     if (!highlightId) return

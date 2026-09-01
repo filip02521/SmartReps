@@ -70,6 +70,7 @@ function sessionBadgeVariant(session: LocalWorkoutSession): 'success' | 'error' 
 export default function ProgressPage() {
   const navigate = useNavigate()
   const { settings } = useAppStore()
+  const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const [program, setProgram] = useState<Program>(settings.enabledPrograms[0] ?? 'pushups')
   const [tab, setTab] = useState<Tab>('overview')
   const [loading, setLoading] = useState(true)
@@ -124,7 +125,7 @@ export default function ProgressPage() {
       }
     }
     void load()
-  }, [program, reloadEpoch])
+  }, [program, reloadEpoch, lastSyncedAt])
 
   useEffect(() => {
     setHistoryLimit(HISTORY_PAGE_SIZE)
