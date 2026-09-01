@@ -18,6 +18,10 @@ import { pruneEnabledCustomPlanIds } from '@/lib/enabled-custom-plans'
 import { applyProgressionToPlan, shouldApplyDeload } from '@/lib/custom-progression'
 import { isWorkoutAvailable } from '@/lib/progress-engine'
 import { pl } from '@/i18n/pl'
+import {
+  findActiveExerciseByDedupKey,
+  mergeDuplicateExercises,
+} from '@/lib/custom-exercise-dedup'
 
 const STARTER_LABELS: Record<ExerciseStarterKey, string> = {
   pushups: pl.exerciseStarterPushups,
@@ -56,6 +60,7 @@ export async function ensureDefaultExercises(): Promise<{
 export async function listExercises(includeArchived = false): Promise<ExerciseDefinition[]> {
   if (!includeArchived) {
     await ensureDefaultExercises()
+    await mergeDuplicateExercises()
   }
   const all = await db.exercises.toArray()
   const filtered = includeArchived ? all : all.filter((e) => !e.archived)
@@ -76,7 +81,12 @@ export async function saveExercise(
   },
 ): Promise<ExerciseDefinition> {
   const now = new Date().toISOString()
-  const existing = input.id ? await db.exercises.get(input.id) : undefined
+  let resolvedId = input.id
+  if (!resolvedId) {
+    const duplicate = await findActiveExerciseByDedupKey(input.name, input.primaryMetric)
+    if (duplicate) resolvedId = duplicate.id
+  }
+  const existing = resolvedId ? await db.exercises.get(resolvedId) : undefined
   if (
     existing &&
     existing.primaryMetric !== input.primaryMetric &&
@@ -85,7 +95,7 @@ export async function saveExercise(
     throw new Error(pl.exerciseMetricLocked)
   }
   const ex: ExerciseDefinition = {
-    id: existing?.id ?? input.id ?? generateId(),
+    id: existing?.id ?? resolvedId ?? generateId(),
     name: input.name.trim(),
     primaryMetric: input.primaryMetric,
     restDefaultSec: input.restDefaultSec,

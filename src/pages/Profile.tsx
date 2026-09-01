@@ -458,6 +458,7 @@ export default function ProfilePage() {
           <CheckboxField
             id="timer-vibration"
             label={pl.timerVibration}
+            description={pl.timerVibrationHint}
             checked={settings.timerVibration}
             onChange={(checked) => setSettings({ timerVibration: checked })}
           />

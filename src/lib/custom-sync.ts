@@ -418,6 +418,8 @@ export async function pullCustomEntities(userId: string): Promise<number> {
     await reconcileActiveCustomAfterPull(remoteActiveIds)
 
     const { ensureDefaultExercises } = await import('@/lib/custom-plan-service')
+    const { mergeDuplicateExercises } = await import('@/lib/custom-exercise-dedup')
+    await mergeDuplicateExercises()
     await ensureDefaultExercises()
   } catch (err) {
     console.warn('[sync] pullCustomEntities failed', err)

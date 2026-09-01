@@ -50,10 +50,12 @@ import {
 import { reconcileRestTimerJson } from '@/lib/rest-timer-sync'
 import {
   initWorkoutAudio,
+  onAmrapBlockEndFeedback,
   onRestComplete,
   onSetCompleteFeedback,
   onSetFailedFeedback,
   playDurationGoalTick,
+  wrapRestTimerCallbacks,
 } from '@/lib/workout-feedback'
 import { daysUntilWorkout } from '@/lib/progress-engine'
 import {
@@ -130,6 +132,7 @@ export default function CustomWorkoutPage() {
   const sessionEpochRef = useRef(0)
   const staleConfirmedRef = useRef(false)
   const checklistRef = useRef<HTMLDivElement>(null)
+  const amrapEndFiredRef = useRef(false)
 
   const day = useMemo(() => {
     if (!plan) return null
@@ -518,7 +521,7 @@ export default function CustomWorkoutPage() {
       stopRestTimerWorker()
       return
     }
-    startRestTimerWorker(restTimer, {
+    startRestTimerWorker(restTimer, wrapRestTimerCallbacks({
       getState: () => useCustomWorkoutStore.getState().restTimer,
       onTick: (remainingSec) => {
         const current = useCustomWorkoutStore.getState().restTimer
@@ -533,7 +536,7 @@ export default function CustomWorkoutPage() {
           ?.querySelector('[data-active-set="true"]')
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       },
-    })
+    }, { sound: timerSound, vibration: timerVibration }))
     return () => stopRestTimerWorker()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- restart on rest identity only
   }, [restTimer?.startedAt, restTimer?.totalSec, timerSound, timerVibration, persistState])
@@ -547,7 +550,7 @@ export default function CustomWorkoutPage() {
           prescription?.durationSec &&
           next === metricTargetDisplayValue(prescription.durationSec)
         ) {
-          playDurationGoalTick()
+          playDurationGoalTick({ sound: timerSound, vibration: timerVibration })
         }
         return next
       })
@@ -555,7 +558,30 @@ export default function CustomWorkoutPage() {
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current)
     }
-  }, [timerRunning, prescription])
+  }, [timerRunning, prescription, timerSound, timerVibration])
+
+  useEffect(() => {
+    if (!store.amrapEndAt) {
+      amrapEndFiredRef.current = false
+      return
+    }
+    const endAt = store.amrapEndAt
+    const check = () => {
+      if (Date.now() >= endAt && !amrapEndFiredRef.current) {
+        amrapEndFiredRef.current = true
+        onAmrapBlockEndFeedback({ sound: timerSound, vibration: timerVibration })
+      }
+    }
+    check()
+    const id = window.setInterval(check, 400)
+    return () => window.clearInterval(id)
+  }, [store.amrapEndAt, timerSound, timerVibration])
+
+  useEffect(() => {
+    if (!loading && plan && day && planned && exDef) {
+      void initWorkoutAudio()
+    }
+  }, [loading, plan, day, planned, exDef])
 
   useEffect(() => {
     if (!day || loading) return
@@ -686,7 +712,7 @@ export default function CustomWorkoutPage() {
 
     try {
       if (!passed) {
-        onSetFailedFeedback()
+        onSetFailedFeedback({ sound: timerSound, vibration: timerVibration })
         setFailedIndex(store.currentSetIndex)
         if (!store.failedRetryUsed) {
           store.setFailedRetryUsed(true)
@@ -697,7 +723,7 @@ export default function CustomWorkoutPage() {
         return
       }
 
-      onSetCompleteFeedback()
+      onSetCompleteFeedback({ sound: timerSound, vibration: timerVibration })
       setFailedIndex(undefined)
       setPulseFlash(true)
       window.setTimeout(() => setPulseFlash(false), 450)

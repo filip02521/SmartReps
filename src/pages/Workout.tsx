@@ -32,7 +32,13 @@ import { getProgramProgress, reconcileActiveWorkout, clearActiveWorkout } from '
 import { db } from '@/lib/db'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { generateId } from '@/lib/utils'
-import { initWorkoutAudio, onRestComplete } from '@/lib/workout-feedback'
+import {
+  initWorkoutAudio,
+  onPrepCountdownFeedback,
+  onPrepCountdownGoFeedback,
+  onRestComplete,
+  wrapRestTimerCallbacks,
+} from '@/lib/workout-feedback'
 import type { Program } from '@/data/plans/types'
 import type { SetResultDraft } from '@/lib/progress-engine'
 import { reconcileRestTimerJson } from '@/lib/rest-timer-sync'
@@ -303,6 +309,12 @@ export default function WorkoutPage() {
     }
   }, [program, forceStart, initWorkout])
 
+  useEffect(() => {
+    if (initialized && day && currentTarget) {
+      void initWorkoutAudio()
+    }
+  }, [initialized, day, currentTarget])
+
   const persistState = useCallback(async () => {
     const epoch = sessionEpochRef.current
     const s = useWorkoutStore.getState()
@@ -336,7 +348,7 @@ export default function WorkoutPage() {
       stopRestTimerWorker()
       return
     }
-    startRestTimerWorker(restTimer, {
+    startRestTimerWorker(restTimer, wrapRestTimerCallbacks({
       getState: () => useWorkoutStore.getState().restTimer,
       onTick: (remainingSec) => {
         const current = useWorkoutStore.getState().restTimer
@@ -351,7 +363,7 @@ export default function WorkoutPage() {
           ?.querySelector('[data-active-set="true"]')
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       },
-    })
+    }, { sound: timerSound, vibration: timerVibration }))
     return () => stopRestTimerWorker()
     // Restart worker only when the rest interval identity changes — not on mode (pill/expanded).
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omit mode
@@ -362,6 +374,21 @@ export default function WorkoutPage() {
     timerVibration,
     persistState,
   ])
+
+  const prevNegativeRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (negativeCountdown === null) {
+      prevNegativeRef.current = null
+      return
+    }
+    if (prevNegativeRef.current === negativeCountdown) return
+    prevNegativeRef.current = negativeCountdown
+    if (negativeCountdown === 3 || negativeCountdown === 2 || negativeCountdown === 1) {
+      onPrepCountdownFeedback(negativeCountdown, { sound: timerSound, vibration: timerVibration })
+    } else if (negativeCountdown === 0) {
+      onPrepCountdownGoFeedback({ sound: timerSound, vibration: timerVibration })
+    }
+  }, [negativeCountdown, timerSound, timerVibration])
 
   useEffect(() => {
     if (negativeCountdown === null || negativeCountdown <= 0) return
@@ -440,6 +467,7 @@ export default function WorkoutPage() {
     if (negativeCountdown !== null && negativeCountdown > 0) return
     finishingRef.current = true
     setNegativeCountdown(null)
+    void initWorkoutAudio()
 
     try {
       const passed = validateSet(currentTarget, actual)
@@ -472,7 +500,6 @@ export default function WorkoutPage() {
         return
       }
 
-      void initWorkoutAudio()
       onSetComplete()
       setPulseFlash(true)
       window.setTimeout(() => setPulseFlash(false), 400)

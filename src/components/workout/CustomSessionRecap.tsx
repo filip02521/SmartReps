@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { NestedStat } from '@/components/ui/NestedStat'
+import { TrendIndicator } from '@/components/ui/TrendIndicator'
 import { db } from '@/lib/db'
 import type { LocalWorkoutSession } from '@/lib/db'
 import type {
@@ -18,6 +19,15 @@ import {
   customSessionTotalDurationSec,
   customSessionTotalReps,
 } from '@/lib/custom-session-comparison'
+import {
+  customSetInsightAria,
+  formatCustomSetInsightBadge,
+  type CustomSessionInsights,
+} from '@/lib/session-summary-insights'
+import {
+  SessionSummaryHighlights,
+  SummaryInsightBadge,
+} from '@/components/workout/SessionSummaryHighlights'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 
@@ -25,6 +35,7 @@ type RecapProps = {
   current: LocalWorkoutSession
   previous?: LocalWorkoutSession
   exerciseMap: Map<string, ExerciseDefinition>
+  insights?: CustomSessionInsights
 }
 
 function findPreviousSet(
@@ -36,7 +47,15 @@ function findPreviousSet(
   return log?.sets.find((s) => s.setNumber === setNumber)
 }
 
-export function CustomSessionRecap({ current, previous, exerciseMap }: RecapProps) {
+function primaryMetricValue(
+  metric: PrimaryMetric,
+  set: { actual: { reps?: number; durationSec?: number } },
+): number {
+  if (metric === 'duration_sec') return set.actual.durationSec ?? 0
+  return set.actual.reps ?? 0
+}
+
+export function CustomSessionRecap({ current, previous, exerciseMap, insights }: RecapProps) {
   const logs = current.exerciseLogs ?? []
   const totalReps = customSessionTotalReps(current)
   const totalDurationSec = customSessionTotalDurationSec(current)
@@ -47,6 +66,14 @@ export function CustomSessionRecap({ current, previous, exerciseMap }: RecapProp
 
   return (
     <>
+      {insights && (
+        <SessionSummaryHighlights
+          prCount={insights.prCount}
+          progressCount={insights.progressCount}
+          highlights={insights.highlights}
+        />
+      )}
+
       <div
         className={cn(
           'mb-4 grid gap-2',
@@ -102,6 +129,13 @@ export function CustomSessionRecap({ current, previous, exerciseMap }: RecapProp
               <tbody>
                 {log.sets.map((set, idx) => {
                   const prevSet = findPreviousSet(previous, log.exerciseId, set.setNumber)
+                  const diff =
+                    prevSet != null
+                      ? primaryMetricValue(metric, set) - primaryMetricValue(metric, prevSet)
+                      : null
+                  const setInsight = insights?.setInsights.get(`${log.exerciseId}:${set.setNumber}`)
+                  const badge = formatCustomSetInsightBadge(setInsight)
+                  const ariaLabel = customSetInsightAria(setInsight, metric, set)
                   return (
                     <tr
                       key={set.setNumber}
@@ -124,12 +158,31 @@ export function CustomSessionRecap({ current, previous, exerciseMap }: RecapProp
                             : 'text-[var(--sr-error)]'
                         }`}
                       >
-                        {formatSetActualDisplay(set.actual, metric)}
+                        <span
+                          className="inline-flex flex-wrap items-center gap-1.5"
+                          aria-label={ariaLabel ?? undefined}
+                        >
+                          {formatSetActualDisplay(set.actual, metric)}
+                          {badge && setInsight?.kind === 'pr' && (
+                            <SummaryInsightBadge tone="pr">{badge}</SummaryInsightBadge>
+                          )}
+                          {badge && setInsight?.kind === 'improved' && (
+                            <SummaryInsightBadge tone="progress">{badge}</SummaryInsightBadge>
+                          )}
+                          {badge && setInsight?.kind === 'down' && (
+                            <SummaryInsightBadge tone="down">{badge}</SummaryInsightBadge>
+                          )}
+                        </span>
                       </td>
                       <td className="hidden py-2 tabular-nums text-[var(--sr-text-muted)] sm:table-cell">
-                        {prevSet
-                          ? formatSetActualDisplay(prevSet.actual, metric)
-                          : '—'}
+                        {prevSet ? (
+                          <span className="inline-flex items-center gap-1">
+                            {formatSetActualDisplay(prevSet.actual, metric)}
+                            <TrendIndicator delta={diff} />
+                          </span>
+                        ) : (
+                          '—'
+                        )}
                       </td>
                     </tr>
                   )

@@ -90,6 +90,44 @@ test.describe('custom plans smoke', () => {
     await page.keyboard.press('Escape')
   })
 
+  test('merges duplicate exercises in library by name', async ({ page }) => {
+    await page.goto('/plans?tab=mine')
+    await page.getByRole('button', { name: 'Biblioteka ćwiczeń' }).click()
+    await expect(page.getByText('Pompki').first()).toBeVisible({ timeout: 10_000 })
+    await page.keyboard.press('Escape')
+
+    await page.evaluate(async () => {
+      const now = new Date().toISOString()
+      await new Promise<void>((resolve, reject) => {
+        const req = indexedDB.open('SmartRepsDB')
+        req.onerror = () => reject(req.error ?? new Error('idb open failed'))
+        req.onsuccess = () => {
+          const idb = req.result
+          const tx = idb.transaction('exercises', 'readwrite')
+          tx.objectStore('exercises').put({
+            id: crypto.randomUUID(),
+            name: ' pompki ',
+            primaryMetric: 'reps',
+            restDefaultSec: 90,
+            archived: false,
+            createdAt: now,
+            updatedAt: now,
+          })
+          tx.oncomplete = () => {
+            idb.close()
+            resolve()
+          }
+          tx.onerror = () => reject(tx.error ?? new Error('idb seed failed'))
+        }
+      })
+    })
+
+    await page.getByRole('button', { name: 'Biblioteka ćwiczeń' }).click()
+    await expect(page.getByText('Pompki').first()).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Pompki')).toHaveCount(1)
+    await page.keyboard.press('Escape')
+  })
+
   test('custom workout completes a single-set day', async ({ page }) => {
     test.setTimeout(60_000)
 

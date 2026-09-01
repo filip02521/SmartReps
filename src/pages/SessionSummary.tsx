@@ -9,7 +9,9 @@ import { ErrorBanner, EmptyState, PageLoader } from '@/components/ux/Feedback'
 import { LogoMark } from '@/components/brand/Logo'
 import { NoticeCard, LogIn } from '@/components/ux/NoticeCard'
 import { getProgramProgress } from '@/lib/program-service'
+import { db } from '@/lib/db'
 import { getSessionComparison } from '@/lib/session-service'
+import { computeBuiltinSessionInsights, type BuiltinSessionInsights } from '@/lib/session-summary-insights'
 import { getSummaryActions, shouldShowLoginCloudPrompt } from '@/lib/summary-actions'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { track } from '@/lib/analytics'
@@ -42,11 +44,13 @@ export default function SessionSummary() {
   const [current, setCurrent] = useState<Awaited<ReturnType<typeof getSessionComparison>>['current']>()
   const [previous, setPrevious] = useState<Awaited<ReturnType<typeof getSessionComparison>>['previous']>()
   const [progress, setProgress] = useState<Awaited<ReturnType<typeof getProgramProgress>>>(undefined)
+  const [insights, setInsights] = useState<BuiltinSessionInsights | undefined>()
   const [sharing, setSharing] = useState(false)
 
   const load = async () => {
     setLoading(true)
     setError(null)
+    setInsights(undefined)
     try {
       useWorkoutStore.getState().reset()
 
@@ -58,9 +62,27 @@ export default function SessionSummary() {
       const prog = await getProgramProgress(program)
       setProgress(prog)
 
-      const comparison = await getSessionComparison(program, sessionId)
+      const [comparison, historicalSessions] = await Promise.all([
+        getSessionComparison(program, sessionId),
+        db.workoutSessions
+          .where('program')
+          .equals(program)
+          .filter((s) => s.status === 'completed' && s.passed === true)
+          .toArray(),
+      ])
       setCurrent(comparison.current)
       setPrevious(comparison.previous)
+      if (comparison.current) {
+        setInsights(
+          computeBuiltinSessionInsights({
+            current: comparison.current,
+            previous: comparison.previous,
+            historicalSessions,
+          }),
+        )
+      } else {
+        setInsights(undefined)
+      }
     } catch {
       setError(pl.errorLoadSummary)
     } finally {
@@ -219,6 +241,7 @@ export default function SessionSummary() {
           previousRows={previous?.setResults}
           totalReps={totalReps}
           previousTotalReps={previous?.totalReps ?? null}
+          insights={insights}
         />
       </div>
 

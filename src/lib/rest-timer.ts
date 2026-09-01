@@ -44,15 +44,17 @@ export function skipRest(): RestTimerState {
   return { mode: 'idle', totalSec: 0, remainingSec: 0, startedAt: null }
 }
 
-let wakeLock: WakeLockSentinel | null = null
-let worker: Worker | null = null
-let workerIntervalFallback: number | null = null
-
-type WorkerCallbacks = {
+export type RestTimerWorkerCallbacks = {
   onTick: (remainingSec: number) => void
   onComplete: () => void
   getState: () => RestTimerState | null
 }
+
+let wakeLock: WakeLockSentinel | null = null
+let worker: Worker | null = null
+let workerIntervalFallback: number | null = null
+
+type WorkerCallbacks = RestTimerWorkerCallbacks
 
 let callbacks: WorkerCallbacks | null = null
 

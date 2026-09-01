@@ -15,6 +15,8 @@ import { db } from '@/lib/db'
 import type { LocalWorkoutSession } from '@/lib/db'
 import type { CustomProgramProgress, ExerciseDefinition } from '@/lib/exercise-model'
 import { getCustomSessionComparison } from '@/lib/custom-session-comparison'
+import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
+import { computeCustomSessionInsights, type CustomSessionInsights } from '@/lib/session-summary-insights'
 import { sessionTotalSets } from '@/lib/custom-session-stats'
 import { daysUntilWorkout } from '@/lib/progress-engine'
 import { shouldShowLoginCloudPrompt } from '@/lib/summary-actions'
@@ -42,6 +44,7 @@ export default function CustomSessionSummary() {
   const [planName, setPlanName] = useState<string | null>(null)
   const [progress, setProgress] = useState<CustomProgramProgress | null>(null)
   const [exerciseMap, setExerciseMap] = useState<Map<string, ExerciseDefinition>>(new Map())
+  const [insights, setInsights] = useState<CustomSessionInsights | undefined>()
   const [email, setEmail] = useState<string | null | undefined>(undefined)
   const [sharing, setSharing] = useState(false)
 
@@ -67,20 +70,31 @@ export default function CustomSessionSummary() {
     }
     void (async () => {
       setLoading(true)
+      setInsights(undefined)
+      setPrevious(undefined)
       try {
         const s = await db.workoutSessions.get(sessionId)
         if (!s) {
           setSession(null)
+          setInsights(undefined)
           return
         }
         setSession(s)
         const resolvedPlanId = s.customPlanId ?? planId
         if (resolvedPlanId) {
-          const [plan, prog, exercises, comparison] = await Promise.all([
+          const [plan, prog, exercises, comparison, historicalSessions] = await Promise.all([
             db.customPlans.get(resolvedPlanId),
             db.customProgramProgress.where('customPlanId').equals(resolvedPlanId).first(),
             db.exercises.toArray(),
             getCustomSessionComparison(resolvedPlanId, sessionId),
+            db.workoutSessions
+              .filter(
+                (row) =>
+                  isCustomWorkoutSession(row) &&
+                  row.status === 'completed' &&
+                  row.passed === true,
+              )
+              .toArray(),
           ])
           setPlanName(plan?.name ?? null)
           setProgress(prog ?? null)
@@ -88,6 +102,16 @@ export default function CustomSessionSummary() {
           const map = new Map<string, ExerciseDefinition>()
           for (const ex of exercises) map.set(ex.id, ex)
           setExerciseMap(map)
+          setInsights(
+            computeCustomSessionInsights({
+              current: s,
+              previous: comparison.previous,
+              exerciseMap: map,
+              historicalSessions,
+            }),
+          )
+        } else {
+          setInsights(undefined)
         }
       } finally {
         setLoading(false)
@@ -202,6 +226,7 @@ export default function CustomSessionSummary() {
           current={session}
           previous={previous}
           exerciseMap={exerciseMap}
+          insights={insights}
         />
       </div>
 
