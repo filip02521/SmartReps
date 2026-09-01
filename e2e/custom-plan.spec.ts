@@ -180,6 +180,8 @@ test.describe('custom plans smoke', () => {
     await expect(page.getByText('Dzień zaliczony').or(page.getByText('Dzień niezaliczony'))).toBeVisible({
       timeout: 20_000,
     })
+    await expect(page.getByText('Świetna robota').or(page.getByText('Ten sam dzień czeka'))).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Zobacz postępy' })).toBeVisible()
   })
 
   test('resume label appears when active custom workout has progress', async ({ page }) => {
@@ -454,6 +456,20 @@ test.describe('custom plans smoke', () => {
     await expect(page.getByText('Dzień zaliczony').or(page.getByText('Dzień niezaliczony'))).toBeVisible({
       timeout: 20_000,
     })
+    await expect(page.getByText('Świetna robota').or(page.getByText('Ten sam dzień czeka'))).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Zobacz postępy' })).toBeVisible()
+  })
+
+  test('editor shows exercise note field', async ({ page }) => {
+    await page.goto('/plans?tab=mine')
+    await expect(page.getByRole('tab', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
+    await page.getByRole('button', { name: 'Nowy plan' }).first().click()
+    await page.getByLabel('Nazwa planu').fill(`E2E note ${Date.now()}`)
+    await page.getByRole('button', { name: 'Dodaj dzień' }).click()
+    await page.getByRole('button', { name: /Dzień 1/ }).click()
+    await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).click()
+    await page.getByRole('button', { name: 'Pompki' }).first().click()
+    await expect(page.getByLabel('Notatka (opcjonalnie)')).toBeVisible({ timeout: 10_000 })
   })
 
   test('paused plan shows resume instead of train on plans list', async ({ page }) => {
@@ -512,5 +528,116 @@ test.describe('custom plans smoke', () => {
     await expect(page.getByText('E2E paused')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByRole('button', { name: 'Wznów plan' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Trenuj' })).toHaveCount(0)
+  })
+
+  test('progress custom history opens session summary', async ({ page }) => {
+    test.setTimeout(60_000)
+    const planId = `e2e-hist-${Date.now()}`
+    const sessionId = `e2e-hist-session-${Date.now()}`
+
+    await page.goto('/profile')
+    await expect(
+      page.getByText('O aplikacji').or(page.getByRole('heading', { name: /Profil|Konto|Wygląd/i })).first(),
+    ).toBeVisible({ timeout: 20_000 })
+
+    await page.evaluate(
+      async ({ planId: pid, sessionId: sid }) => {
+        const now = new Date().toISOString()
+        const exerciseId = crypto.randomUUID()
+        await new Promise<void>((resolve, reject) => {
+          const req = indexedDB.open('SmartRepsDB')
+          req.onerror = () => reject(req.error ?? new Error('idb open failed'))
+          req.onsuccess = () => {
+            const idb = req.result
+            const tx = idb.transaction(
+              ['exercises', 'customPlans', 'customProgramProgress', 'workoutSessions'],
+              'readwrite',
+            )
+            tx.objectStore('exercises').put({
+              id: exerciseId,
+              name: 'E2E hist',
+              primaryMetric: 'reps',
+              restDefaultSec: 60,
+              archived: false,
+              createdAt: now,
+              updatedAt: now,
+            })
+            tx.objectStore('customPlans').put({
+              id: pid,
+              name: 'E2E history plan',
+              description: '',
+              status: 'active',
+              source: 'user',
+              createdAt: now,
+              updatedAt: now,
+              days: [
+                {
+                  dayNumber: 1,
+                  restAfterDay: 1,
+                  exercises: [
+                    {
+                      exerciseId,
+                      order: 0,
+                      restBetweenSetsSec: 60,
+                      sets: [{ reps: { kind: 'fixed', value: 5 } }],
+                    },
+                  ],
+                },
+              ],
+            })
+            tx.objectStore('customProgramProgress').put({
+              customPlanId: pid,
+              currentDay: 1,
+              status: 'rest',
+              cycleAttempt: 1,
+              lastWorkoutAt: now,
+              nextWorkoutAfter: now,
+              updatedAt: now,
+            })
+            tx.objectStore('workoutSessions').put({
+              id: sid,
+              program: 'custom',
+              programKind: 'custom',
+              customPlanId: pid,
+              cycleId: `custom:${pid}`,
+              cycleAttempt: 1,
+              dayNumber: 1,
+              status: 'completed',
+              passed: false,
+              startedAt: now,
+              completedAt: now,
+              setResults: [],
+              exerciseLogs: [
+                {
+                  exerciseId,
+                  order: 0,
+                  sets: [
+                    {
+                      setNumber: 1,
+                      passed: false,
+                      actual: { reps: 3 },
+                      prescription: { reps: { kind: 'fixed', value: 5 } },
+                    },
+                  ],
+                },
+              ],
+            })
+            tx.oncomplete = () => {
+              idb.close()
+              resolve()
+            }
+            tx.onerror = () => reject(tx.error ?? new Error('idb seed failed'))
+          }
+        })
+      },
+      { planId, sessionId },
+    )
+
+    await page.goto('/progress?tab=custom')
+    await expect(page.getByText('E2E history plan')).toBeVisible({ timeout: 15_000 })
+    await page.getByText('E2E history plan').click()
+    await expect(page.getByText('Dzień niezaliczony')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('button', { name: 'Powtórz dzień' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Udostępnij wynik' })).toHaveCount(0)
   })
 })

@@ -106,11 +106,11 @@ export function stopRestTimerWorker(): void {
 
 export async function requestWakeLock() {
   try {
-    if ('wakeLock' in navigator) {
-      wakeLock = await navigator.wakeLock.request('screen')
-    }
+    if (!('wakeLock' in navigator)) return
+    if (wakeLock && !wakeLock.released) return
+    wakeLock = await navigator.wakeLock.request('screen')
   } catch {
-    // not supported
+    // not supported or denied
   }
 }
 

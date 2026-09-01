@@ -13,6 +13,7 @@ vi.mock('@/stores/app-store', () => ({
 import {
   mergeEnabledProgramsFromProfile,
   mergeEnabledProgramsFromProgress,
+  mergeEnabledCustomWorkoutsFromProfile,
   mergeUiSettingsFromProfile,
   parseEnabledPrograms,
 } from '@/lib/enabled-programs-sync'
@@ -22,6 +23,38 @@ describe('parseEnabledPrograms', () => {
     expect(parseEnabledPrograms(['pushups', 'pullups', 'invalid'])).toEqual(['pushups', 'pullups'])
     expect(parseEnabledPrograms([])).toEqual(['pushups'])
     expect(parseEnabledPrograms(null)).toEqual(['pushups'])
+  })
+})
+
+describe('mergeEnabledCustomWorkoutsFromProfile', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetState.mockReturnValue({
+      settings: {
+        enabledCustomPlanIds: ['a'],
+        customPlansFilterExplicit: false,
+      },
+      enabledCustomWorkoutsUpdatedAt: '2026-01-01T00:00:00.000Z',
+    })
+  })
+
+  it('applies newer remote custom plan ids', () => {
+    const changed = mergeEnabledCustomWorkoutsFromProfile({
+      enabled_programs: null,
+      enabled_programs_updated_at: null,
+      enabled_workouts_json: ['a', 'b'],
+      enabled_workouts_updated_at: '2026-06-01T00:00:00.000Z',
+      custom_plans_filter_explicit: true,
+    })
+    expect(changed).toBe(true)
+    expect(mockSetState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        settings: expect.objectContaining({
+          enabledCustomPlanIds: ['a', 'b'],
+          customPlansFilterExplicit: true,
+        }),
+      }),
+    )
   })
 })
 

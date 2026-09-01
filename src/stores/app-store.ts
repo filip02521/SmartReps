@@ -51,6 +51,12 @@ export type PendingStart = {
   committedMaxTestId?: number
 }
 
+export type PendingCustomStart = {
+  customPlanId: string
+  planName: string
+  navigateToWorkout?: boolean
+}
+
 export type TestDraft = {
   program: Program
   reps: number
@@ -61,12 +67,15 @@ type AppStore = {
   settings: UserSettings
   pendingTest: PendingTest | null
   pendingStart: PendingStart | null
+  pendingCustomStart: PendingCustomStart | null
   testDraft: TestDraft | null
   setupQueue: Program[]
   /** Last Supabase user id on this device — detects account switch on shared devices. */
   lastAuthUserId: string | null
   /** Bumped when enabledPrograms changes — LWW sync with profiles.enabled_programs. */
   enabledProgramsUpdatedAt: string | null
+  /** Bumped when enabledCustomPlanIds / filter explicit change — LWW with profiles.enabled_workouts. */
+  enabledCustomWorkoutsUpdatedAt: string | null
   /** Bumped when theme/timer/keepScreenOn/reminderHour change — LWW with profiles. */
   uiSettingsUpdatedAt: string | null
   /** ISO timestamp of last successful authenticated sync on this device. */
@@ -88,6 +97,8 @@ type AppStore = {
   clearPendingTest: () => void
   setPendingStart: (start: PendingStart | null) => void
   clearPendingStart: () => void
+  setPendingCustomStart: (start: PendingCustomStart | null) => void
+  clearPendingCustomStart: () => void
   setTestDraft: (draft: TestDraft | null) => void
   clearTestDraft: () => void
   setSetupQueue: (queue: Program[]) => void
@@ -133,10 +144,12 @@ export const useAppStore = create<AppStore>()(
       settings: { ...defaultSettings },
       pendingTest: null,
       pendingStart: null,
+      pendingCustomStart: null,
       testDraft: null,
       setupQueue: [],
       lastAuthUserId: null,
       enabledProgramsUpdatedAt: null,
+      enabledCustomWorkoutsUpdatedAt: null,
       uiSettingsUpdatedAt: null,
       lastSyncedAt: null,
       hasCompletedFirstWorkout: false,
@@ -154,6 +167,12 @@ export const useAppStore = create<AppStore>()(
           if (partial.enabledPrograms) {
             patch.enabledProgramsUpdatedAt = new Date().toISOString()
           }
+          if (
+            partial.enabledCustomPlanIds !== undefined ||
+            partial.customPlansFilterExplicit !== undefined
+          ) {
+            patch.enabledCustomWorkoutsUpdatedAt = new Date().toISOString()
+          }
           if (UI_SYNC_KEYS.some((k) => k in partial)) {
             patch.uiSettingsUpdatedAt = new Date().toISOString()
           }
@@ -163,6 +182,8 @@ export const useAppStore = create<AppStore>()(
       clearPendingTest: () => set({ pendingTest: null }),
       setPendingStart: (pendingStart) => set({ pendingStart }),
       clearPendingStart: () => set({ pendingStart: null }),
+      setPendingCustomStart: (pendingCustomStart) => set({ pendingCustomStart }),
+      clearPendingCustomStart: () => set({ pendingCustomStart: null }),
       setTestDraft: (testDraft) => set({ testDraft }),
       clearTestDraft: () => set({ testDraft: null }),
       setSetupQueue: (setupQueue) => set({ setupQueue }),
@@ -186,7 +207,7 @@ export const useAppStore = create<AppStore>()(
     }),
     {
       name: 'smartreps-app',
-      version: 5,
+      version: 6,
       migrate: (persisted, fromVersion) => {
         const p = (persisted ?? {}) as Partial<AppStore> & { settings?: Partial<UserSettings> }
         const baseSettings: UserSettings = {
@@ -198,9 +219,11 @@ export const useAppStore = create<AppStore>()(
           settings: baseSettings,
           pendingTest: p.pendingTest ?? null,
           pendingStart: p.pendingStart ?? null,
+          pendingCustomStart: p.pendingCustomStart ?? null,
           setupQueue: p.setupQueue ?? [],
           lastAuthUserId: p.lastAuthUserId ?? null,
           enabledProgramsUpdatedAt: p.enabledProgramsUpdatedAt ?? null,
+          enabledCustomWorkoutsUpdatedAt: p.enabledCustomWorkoutsUpdatedAt ?? null,
           uiSettingsUpdatedAt: p.uiSettingsUpdatedAt ?? null,
           lastSyncedAt: p.lastSyncedAt ?? null,
           hasCompletedFirstWorkout: p.hasCompletedFirstWorkout ?? false,
@@ -236,9 +259,11 @@ export const useAppStore = create<AppStore>()(
         settings: s.settings,
         pendingTest: s.pendingTest,
         pendingStart: s.pendingStart,
+        pendingCustomStart: s.pendingCustomStart,
         setupQueue: s.setupQueue,
         lastAuthUserId: s.lastAuthUserId,
         enabledProgramsUpdatedAt: s.enabledProgramsUpdatedAt,
+        enabledCustomWorkoutsUpdatedAt: s.enabledCustomWorkoutsUpdatedAt,
         uiSettingsUpdatedAt: s.uiSettingsUpdatedAt,
         lastSyncedAt: s.lastSyncedAt,
         hasCompletedFirstWorkout: s.hasCompletedFirstWorkout,
@@ -270,9 +295,18 @@ useAppStore.persist.onFinishHydration(() => {
   storeHydrated = true
 })
 
+function stringArraysEqual(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i])
+}
+
 useAppStore.subscribe((state, prev) => {
   if (!storeHydrated) return
   if (!programsEqual(state.settings.enabledPrograms, prev.settings.enabledPrograms)) {
+    void pushProfileSettingsOnly()
+  } else if (
+    !stringArraysEqual(state.settings.enabledCustomPlanIds, prev.settings.enabledCustomPlanIds) ||
+    state.settings.customPlansFilterExplicit !== prev.settings.customPlansFilterExplicit
+  ) {
     void pushProfileSettingsOnly()
   } else if (!uiSettingsEqual(state.settings, prev.settings)) {
     void pushProfileSettingsOnly()

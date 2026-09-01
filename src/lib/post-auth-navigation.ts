@@ -10,7 +10,7 @@ export function isSafeReturnPath(path: string): boolean {
   if (!path.startsWith('/') || path.includes('//')) return false
   if (path.startsWith('/setup/')) return false
   if (path === '/') return true
-  const allowedRoots = ['/profile', '/progress', '/plans']
+  const allowedRoots = ['/profile', '/progress', '/plans', '/workout/custom']
   return allowedRoots.some((root) => path === root || path.startsWith(`${root}/`))
 }
 
@@ -35,17 +35,36 @@ async function executeAuthNavigation(
   returnTo?: string | null,
 ): Promise<void> {
   await waitForHydration()
-  const { pendingStart, clearPendingStart, settings } = useAppStore.getState()
+  const { pendingStart, pendingCustomStart, clearPendingStart, clearPendingCustomStart, settings } =
+    useAppStore.getState()
   const incomplete = await hasIncompleteSetup()
 
   if (
     returnTo &&
     isSafeReturnPath(returnTo) &&
     !pendingStart &&
+    !pendingCustomStart &&
     !incomplete &&
     settings.onboardingComplete
   ) {
     navigate(returnTo, { replace: true })
+    return
+  }
+
+  if (pendingCustomStart) {
+    const { customPlanId, navigateToWorkout } = pendingCustomStart
+    clearPendingCustomStart()
+
+    if (await hasIncompleteSetup()) {
+      const drained = await drainIncompleteSetup(navigate)
+      if (drained) return
+    }
+
+    if (navigateToWorkout) {
+      navigate(`/workout/custom/${customPlanId}`, { replace: true })
+      return
+    }
+    navigate('/plans?tab=mine', { replace: true })
     return
   }
 

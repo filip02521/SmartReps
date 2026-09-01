@@ -88,6 +88,7 @@ export async function ensureWorkoutSessionPersisted(
     currentSetIndex: number
     setResults: SetResultDraft[]
     restTimerJson: string | null
+    failedRetryUsed?: boolean
   },
 ): Promise<void> {
   if (!sessionHasProgress(state.setResults)) return
@@ -109,6 +110,7 @@ export async function ensureWorkoutSessionPersisted(
     currentSetIndex: state.currentSetIndex,
     setResults: state.setResults,
     restTimerJson: state.restTimerJson,
+    failedRetryUsed: state.failedRetryUsed,
   })
   await markProgramActiveIfReady(requireBuiltinProgram(session.program))
 }

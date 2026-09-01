@@ -1,0 +1,242 @@
+import { useEffect, useState } from 'react'
+import { Card } from '@/components/ui/Card'
+import { NestedStat } from '@/components/ui/NestedStat'
+import { db } from '@/lib/db'
+import type { LocalWorkoutSession } from '@/lib/db'
+import type {
+  CustomPlan,
+  ExerciseDefinition,
+  PrimaryMetric,
+  SetPrescription,
+} from '@/lib/exercise-model'
+import {
+  formatPrescriptionTarget,
+  formatSetActualDisplay,
+} from '@/lib/custom-prescription-format'
+import {
+  customSessionPassedSets,
+  customSessionTotalDurationSec,
+  customSessionTotalReps,
+} from '@/lib/custom-session-comparison'
+import { pl } from '@/i18n/pl'
+import { cn } from '@/lib/utils'
+
+type RecapProps = {
+  current: LocalWorkoutSession
+  previous?: LocalWorkoutSession
+  exerciseMap: Map<string, ExerciseDefinition>
+}
+
+function findPreviousSet(
+  previous: LocalWorkoutSession | undefined,
+  exerciseId: string,
+  setNumber: number,
+) {
+  const log = previous?.exerciseLogs?.find((l) => l.exerciseId === exerciseId)
+  return log?.sets.find((s) => s.setNumber === setNumber)
+}
+
+export function CustomSessionRecap({ current, previous, exerciseMap }: RecapProps) {
+  const logs = current.exerciseLogs ?? []
+  const totalReps = customSessionTotalReps(current)
+  const totalDurationSec = customSessionTotalDurationSec(current)
+  const prevTotalReps = previous ? customSessionTotalReps(previous) : null
+  const totalDelta =
+    prevTotalReps != null && prevTotalReps > 0 ? totalReps - prevTotalReps : null
+  const { passed, total } = customSessionPassedSets(current)
+
+  return (
+    <>
+      <div
+        className={cn(
+          'mb-4 grid gap-2',
+          totalDurationSec > 0 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2',
+        )}
+      >
+        {totalDurationSec > 0 ? (
+          <NestedStat
+            size="lg"
+            highlight={totalReps === 0}
+            overline={pl.customWorkoutDurationSec}
+            value={totalDurationSec}
+            hint={pl.customSessionDurationTotalHint}
+          />
+        ) : null}
+        <NestedStat
+          size="lg"
+          highlight={totalDurationSec === 0}
+          overline={pl.totalReps}
+          value={totalReps}
+          hint={
+            totalDelta !== null && totalDelta !== 0
+              ? pl.totalRepsDelta(totalDelta)
+              : prevTotalReps != null
+                ? pl.summaryUnchanged
+                : undefined
+          }
+        />
+        <NestedStat
+          size="lg"
+          overline={pl.setColumn}
+          value={`${passed}/${total}`}
+          hint={pl.summarySetsPassed}
+        />
+      </div>
+
+      {logs.map((log) => {
+        const def = exerciseMap.get(log.exerciseId)
+        const metric: PrimaryMetric = def?.primaryMetric ?? 'reps'
+        const name = def?.name ?? pl.planDash
+        return (
+          <Card key={`${log.exerciseId}-${log.order}`} className="mb-3 overflow-x-auto p-4">
+            <p className="mb-3 font-semibold text-[var(--sr-text-primary)]">{name}</p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left sr-text-overline text-[var(--sr-text-muted)]">
+                  <th className="pb-2 font-semibold">{pl.setColumn}</th>
+                  <th className="pb-2 font-semibold">{pl.targetColumn}</th>
+                  <th className="pb-2 font-semibold">{pl.youColumn}</th>
+                  <th className="hidden pb-2 font-semibold sm:table-cell">{pl.prevColumn}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {log.sets.map((set, idx) => {
+                  const prevSet = findPreviousSet(previous, log.exerciseId, set.setNumber)
+                  return (
+                    <tr
+                      key={set.setNumber}
+                      className={
+                        idx % 2 === 0
+                          ? 'border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]/40'
+                          : 'border-t border-[var(--sr-border-subtle)]'
+                      }
+                    >
+                      <td className="py-2 font-medium text-[var(--sr-text-secondary)]">
+                        {set.setNumber}
+                      </td>
+                      <td className="py-2 tabular-nums text-[var(--sr-text-secondary)]">
+                        {formatPrescriptionTarget(set.prescription, metric)}
+                      </td>
+                      <td
+                        className={`py-2 text-base font-semibold tabular-nums ${
+                          set.passed
+                            ? 'text-[var(--sr-text-primary)]'
+                            : 'text-[var(--sr-error)]'
+                        }`}
+                      >
+                        {formatSetActualDisplay(set.actual, metric)}
+                      </td>
+                      <td className="hidden py-2 tabular-nums text-[var(--sr-text-muted)] sm:table-cell">
+                        {prevSet
+                          ? formatSetActualDisplay(prevSet.actual, metric)
+                          : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </Card>
+        )
+      })}
+    </>
+  )
+}
+
+type DiffEntry = {
+  dayNumber: number
+  exerciseOrder: number
+  before: SetPrescription[]
+  after: SetPrescription[]
+}
+
+function formatSetsLine(sets: SetPrescription[], metric: PrimaryMetric): string {
+  if (sets.length === 0) return '—'
+  return sets.map((s) => formatPrescriptionTarget(s, metric)).join(' · ')
+}
+
+function findExerciseMeta(
+  plan: CustomPlan | null,
+  exerciseMap: Map<string, ExerciseDefinition>,
+  dayNumber: number,
+  exerciseOrder: number,
+): { name: string; metric: PrimaryMetric } {
+  const day = plan?.days.find((d) => d.dayNumber === dayNumber)
+  const planned = day?.exercises.find((e) => e.order === exerciseOrder)
+  const def = planned ? exerciseMap.get(planned.exerciseId) : undefined
+  return {
+    name: def?.name ?? pl.planEllipsis,
+    metric: def?.primaryMetric ?? 'reps',
+  }
+}
+
+export function CustomProgressionDiffList({
+  diffJson,
+  planId,
+}: {
+  diffJson: string
+  planId?: string
+}) {
+  const [plan, setPlan] = useState<CustomPlan | null>(null)
+  const [exerciseMap, setExerciseMap] = useState<Map<string, ExerciseDefinition>>(new Map())
+
+  useEffect(() => {
+    if (!planId) return
+    void (async () => {
+      const [loadedPlan, exercises] = await Promise.all([
+        db.customPlans.get(planId),
+        db.exercises.toArray(),
+      ])
+      setPlan(loadedPlan ?? null)
+      const map = new Map<string, ExerciseDefinition>()
+      for (const ex of exercises) map.set(ex.id, ex)
+      setExerciseMap(map)
+    })()
+  }, [planId])
+
+  let entries: DiffEntry[]
+  try {
+    entries = JSON.parse(diffJson) as DiffEntry[]
+  } catch {
+    return null
+  }
+  if (entries.length === 0) return null
+
+  const ready = planId == null || plan != null
+
+  return (
+    <Card className="mt-4 border border-[var(--sr-brand-primary)] p-4">
+      <p className="font-semibold text-[var(--sr-text-primary)]">{pl.customProgressionAppliedTitle}</p>
+      <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.customProgressionAppliedHint}</p>
+      {!ready ? (
+        <p className="mt-3 text-sm text-[var(--sr-text-muted)]">{pl.loading}</p>
+      ) : (
+      <ul className="mt-3 space-y-2 text-sm text-[var(--sr-text-secondary)]">
+        {entries.slice(0, 8).map((entry) => {
+          const { name, metric } = findExerciseMeta(
+            plan,
+            exerciseMap,
+            entry.dayNumber,
+            entry.exerciseOrder,
+          )
+          return (
+            <li key={`${entry.dayNumber}-${entry.exerciseOrder}`}>
+              {pl.customProgressionDiffLine(
+                entry.dayNumber,
+                name,
+                formatSetsLine(entry.before, metric),
+                formatSetsLine(entry.after, metric),
+              )}
+            </li>
+          )
+        })}
+        {entries.length > 8 && (
+          <li className="text-[var(--sr-text-muted)]">
+            {pl.customProgressionDiffMore(entries.length - 8)}
+          </li>
+        )}
+      </ul>
+      )}
+    </Card>
+  )
+}

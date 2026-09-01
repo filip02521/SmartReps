@@ -36,6 +36,8 @@ export type LocalWorkoutSession = {
   setResults: SetResultDraft[]
   /** Multi-exercise logs for custom sessions. */
   exerciseLogs?: ExerciseLog[]
+  /** JSON snapshot of progression diff after cycle complete (see custom-progression). */
+  progressionDiffJson?: string
 }
 
 export type ActiveWorkoutState = {
@@ -44,6 +46,7 @@ export type ActiveWorkoutState = {
   currentSetIndex: number
   setResults: SetResultDraft[]
   restTimerJson: string | null
+  failedRetryUsed?: boolean
   updatedAt: string
 }
 
@@ -54,6 +57,9 @@ export type ActiveCustomWorkoutState = {
   currentSetIndex: number
   exerciseLogs: ExerciseLog[]
   restTimerJson: string | null
+  /** AMRAP block end timestamp (ms since epoch), persisted for resume. */
+  amrapEndAt?: number | null
+  amrapGroupId?: string | null
   updatedAt: string
 }
 

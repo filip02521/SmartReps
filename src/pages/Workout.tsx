@@ -7,11 +7,10 @@ import {
   createRestTimer,
   addRestTime,
   skipRest,
-  requestWakeLock,
-  releaseWakeLock,
   startRestTimerWorker,
   stopRestTimerWorker,
 } from '@/lib/rest-timer'
+import { useKeepScreenAwake } from '@/hooks/useKeepScreenAwake'
 import { useWorkoutStore } from '@/stores/workout-store'
 import { useAppStore } from '@/stores/app-store'
 import { onSetComplete, onSetFailed, ConfirmSheet } from '@/components/workout/WorkoutComponents'
@@ -36,6 +35,7 @@ import { generateId } from '@/lib/utils'
 import { initWorkoutAudio, onRestComplete } from '@/lib/workout-feedback'
 import type { Program } from '@/data/plans/types'
 import type { SetResultDraft } from '@/lib/progress-engine'
+import { reconcileRestTimerJson } from '@/lib/rest-timer-sync'
 import type { LocalWorkoutSession } from '@/lib/db'
 
 export default function WorkoutPage() {
@@ -87,6 +87,21 @@ export default function WorkoutPage() {
       : program === 'pushups'
         ? pl.pushups
         : pl.pullups
+
+  const dayCompletePending =
+    day != null &&
+    currentSetIndex >= (day?.sets.length ?? 0) &&
+    setResults.length >= (day?.sets.length ?? 0)
+
+  useKeepScreenAwake(
+    keepScreenOn &&
+      initialized &&
+      !initError &&
+      !restBlocked &&
+      !testPendingBlocked &&
+      !showStaleConfirm &&
+      Boolean(day && progress && (currentTarget || dayCompletePending)),
+  )
 
   const loadPreviousActual = useCallback(
     async (setIndex: number, cycleAttempt: number, dayNumber: number) => {
@@ -186,14 +201,29 @@ export default function WorkoutPage() {
       if (generation !== initGenerationRef.current) return
 
       if (active) {
+        const reconciledRest = reconcileRestTimerJson(active.restTimerJson)
         let restTimer = null
-        if (active.restTimerJson) {
+        if (reconciledRest) {
           try {
-            restTimer = JSON.parse(active.restTimerJson)
+            restTimer = JSON.parse(reconciledRest)
           } catch {
             restTimer = null
           }
         }
+
+        const setsDone =
+          active.currentSetIndex >= d.sets.length &&
+          active.setResults.length >= d.sets.length
+        if (setsDone) {
+          const existing = await db.workoutSessions.get(active.sessionId)
+          if (existing?.status === 'in_progress') {
+            await finalizeSuccessfulDay(existing, active.setResults)
+          }
+          await clearActiveWorkout(program)
+          navigate(`/workout/${program}/summary?session=${active.sessionId}`, { replace: true })
+          return
+        }
+
         workout.resumeSession({
           sessionId: active.sessionId,
           program,
@@ -202,6 +232,7 @@ export default function WorkoutPage() {
           cycleAttempt: prog.cycleAttempt,
           currentSetIndex: active.currentSetIndex,
           setResults: active.setResults,
+          failedRetryUsed: active.failedRetryUsed ?? false,
           // Always show the big clock when resuming mid-rest — pill alone was easy to miss.
           restTimer:
             restTimer && restTimer.mode !== 'idle'
@@ -268,15 +299,41 @@ export default function WorkoutPage() {
     return () => {
       initGenerationRef.current += 1
       useWorkoutStore.getState().setImmersive(false)
-      releaseWakeLock()
       stopRestTimerWorker()
     }
   }, [program, forceStart, initWorkout])
 
+  const persistState = useCallback(async () => {
+    const epoch = sessionEpochRef.current
+    const s = useWorkoutStore.getState()
+    if (!s.sessionId || !sessionMeta || s.setResults.length === 0) return
+    const snapshot = {
+      sessionId: s.sessionId,
+      currentSetIndex: s.currentSetIndex,
+      setResults: s.setResults,
+      restTimerJson: s.restTimer ? JSON.stringify(s.restTimer) : null,
+      failedRetryUsed: s.failedRetryUsed,
+    }
+    await ensureWorkoutSessionPersisted(sessionMeta, {
+      currentSetIndex: snapshot.currentSetIndex,
+      setResults: snapshot.setResults,
+      restTimerJson: snapshot.restTimerJson,
+      failedRetryUsed: snapshot.failedRetryUsed,
+    })
+    if (
+      epoch !== sessionEpochRef.current ||
+      useWorkoutStore.getState().sessionId !== snapshot.sessionId
+    ) {
+      const still = await db.activeWorkout.get(program)
+      if (still?.sessionId === snapshot.sessionId) {
+        await clearActiveWorkout(program)
+      }
+    }
+  }, [program, sessionMeta])
+
   useEffect(() => {
     if (!restTimer || restTimer.mode === 'idle') {
       stopRestTimerWorker()
-      void releaseWakeLock()
       return
     }
     startRestTimerWorker(restTimer, {
@@ -289,7 +346,7 @@ export default function WorkoutPage() {
       onComplete: () => {
         onRestComplete({ sound: timerSound, vibration: timerVibration })
         useWorkoutStore.getState().setRestTimer(skipRest())
-        releaseWakeLock()
+        void persistState()
         checklistRef.current
           ?.querySelector('[data-active-set="true"]')
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -303,17 +360,8 @@ export default function WorkoutPage() {
     restTimer?.totalSec,
     timerSound,
     timerVibration,
+    persistState,
   ])
-
-  useEffect(() => {
-    if (!restTimer || restTimer.mode === 'idle') {
-      void releaseWakeLock()
-      return
-    }
-    if (keepScreenOn) void requestWakeLock()
-    else void releaseWakeLock()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- wake lock only; worker has its own effect
-  }, [restTimer?.startedAt, restTimer?.mode, keepScreenOn])
 
   useEffect(() => {
     if (negativeCountdown === null || negativeCountdown <= 0) return
@@ -341,37 +389,15 @@ export default function WorkoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- react to set index + rest mode only
   }, [initialized, day, cycle, currentSetIndex, restTimer?.mode])
 
-  const persistState = async () => {
-    const epoch = sessionEpochRef.current
-    const s = useWorkoutStore.getState()
-    if (!s.sessionId || !sessionMeta || s.setResults.length === 0) return
-    const snapshot = {
-      sessionId: s.sessionId,
-      currentSetIndex: s.currentSetIndex,
-      setResults: s.setResults,
-      restTimerJson: s.restTimer ? JSON.stringify(s.restTimer) : null,
-    }
-    await ensureWorkoutSessionPersisted(sessionMeta, {
-      currentSetIndex: snapshot.currentSetIndex,
-      setResults: snapshot.setResults,
-      restTimerJson: snapshot.restTimerJson,
-    })
-    // Cancel/reset raced while we were writing — drop any ghost for this session.
-    if (
-      epoch !== sessionEpochRef.current ||
-      useWorkoutStore.getState().sessionId !== snapshot.sessionId
-    ) {
-      const still = await db.activeWorkout.get(program)
-      if (still?.sessionId === snapshot.sessionId) {
-        await clearActiveWorkout(program)
-      }
-    }
-  }
-
   const discardEphemeralSession = () => {
     sessionEpochRef.current += 1
     useWorkoutStore.getState().reset()
     setSessionMeta(null)
+  }
+
+  const mutateRestTimer = (next: ReturnType<typeof skipRest>) => {
+    useWorkoutStore.getState().setRestTimer(next)
+    void persistState()
   }
 
   const handleEditPreviousSet = async () => {
@@ -382,7 +408,6 @@ export default function WorkoutPage() {
     // Stop rest worker before mutating state (undo also clears timer mode).
     if (workout.restTimer && workout.restTimer.mode !== 'idle') {
       workout.setRestTimer(skipRest())
-      releaseWakeLock()
     }
 
     const removed = useWorkoutStore.getState().undoLastSet()
@@ -430,6 +455,7 @@ export default function WorkoutPage() {
         setFailedIndex(workout.currentSetIndex)
         if (!workout.failedRetryUsed) {
           workout.setFailedRetryUsed(true)
+          void persistState()
           finishingRef.current = false
           return
         }
@@ -438,6 +464,7 @@ export default function WorkoutPage() {
           currentSetIndex: workout.currentSetIndex,
           setResults: failedResults,
           restTimerJson: null,
+          failedRetryUsed: workout.failedRetryUsed,
         })
         await finalizeFailedDay(sessionMeta.id, program, failedResults)
         workout.reset()
@@ -459,6 +486,7 @@ export default function WorkoutPage() {
         currentSetIndex: afterSet.currentSetIndex,
         setResults: afterSet.setResults,
         restTimerJson: afterSet.restTimer ? JSON.stringify(afterSet.restTimer) : null,
+        failedRetryUsed: afterSet.failedRetryUsed,
       })
 
       if (nextSetIndex >= day.sets.length) {
@@ -559,6 +587,14 @@ export default function WorkoutPage() {
     )
   }
 
+  if (dayCompletePending) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+        <PageLoader message={pl.loading} />
+      </div>
+    )
+  }
+
   if (!day || !currentTarget || !progress) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
@@ -634,6 +670,7 @@ export default function WorkoutPage() {
             currentSetIndex: workout.currentSetIndex,
             setResults: failedResults,
             restTimerJson: null,
+            failedRetryUsed: workout.failedRetryUsed,
           })
           await finalizeFailedDay(sessionMeta.id, program, failedResults)
           workout.reset()
@@ -649,15 +686,14 @@ export default function WorkoutPage() {
       }}
       onAddRest15={() => {
         const t = useWorkoutStore.getState().restTimer
-        if (t) useWorkoutStore.getState().setRestTimer(addRestTime(t, 15))
+        if (t) mutateRestTimer(addRestTime(t, 15))
       }}
       onAddRest30={() => {
         const t = useWorkoutStore.getState().restTimer
-        if (t) useWorkoutStore.getState().setRestTimer(addRestTime(t, 30))
+        if (t) mutateRestTimer(addRestTime(t, 30))
       }}
       onSkipRest={() => {
-        useWorkoutStore.getState().setRestTimer(skipRest())
-        releaseWakeLock()
+        mutateRestTimer(skipRest())
       }}
       onCollapseTimer={() => {
         const t = useWorkoutStore.getState().restTimer

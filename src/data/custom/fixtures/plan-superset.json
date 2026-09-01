@@ -1,0 +1,44 @@
+{
+  "id": "fixture-plan-superset",
+  "name": "Superset demo",
+  "description": "Fixture with superset grouping",
+  "status": "active",
+  "source": "user",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "days": [
+    {
+      "dayNumber": 1,
+      "restAfterDay": 1,
+      "groups": [
+        {
+          "id": "fixture-group-1",
+          "kind": "superset",
+          "restAfterRoundSec": 45
+        }
+      ],
+      "exercises": [
+        {
+          "exerciseId": "fixture-ex-reps",
+          "order": 0,
+          "groupId": "fixture-group-1",
+          "restBetweenSetsSec": 60,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 10 } },
+            { "reps": { "kind": "fixed", "value": 10 } }
+          ]
+        },
+        {
+          "exerciseId": "fixture-ex-time",
+          "order": 1,
+          "groupId": "fixture-group-1",
+          "restBetweenSetsSec": 30,
+          "sets": [
+            { "durationSec": { "kind": "min", "value": 30 } },
+            { "durationSec": { "kind": "min", "value": 30 } }
+          ]
+        }
+      ]
+    }
+  ]
+}

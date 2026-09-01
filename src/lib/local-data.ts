@@ -35,6 +35,7 @@ export async function clearAllLocalData(): Promise<void> {
     settings: { ...defaultSettings },
     pendingTest: null,
     pendingStart: null,
+    pendingCustomStart: null,
     testDraft: null,
     setupQueue: [],
     lastAuthUserId: null,

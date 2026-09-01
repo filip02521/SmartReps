@@ -31,6 +31,7 @@ type WorkoutStore = {
     currentSetIndex: number
     setResults: SetResultDraft[]
     restTimer: RestTimerState | null
+    failedRetryUsed?: boolean
   }) => void
   completeSet: (result: SetResultDraft) => void
   /** Undo last completed set so the user can correct reps. Returns removed result or null. */
@@ -68,7 +69,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     }),
 
   resumeSession: (params) =>
-    set({ ...params, failedRetryUsed: false, immersive: true }),
+    set({ ...params, failedRetryUsed: params.failedRetryUsed ?? false, immersive: true }),
 
   completeSet: (result) =>
     set((s) => ({

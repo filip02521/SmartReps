@@ -11,6 +11,7 @@ import { isStaleActiveWorkout } from '@/lib/sync'
 import { reconcileActiveWorkout } from '@/lib/program-service'
 import { pl } from '@/i18n/pl'
 import { buildActivityInsights, daysSinceLastPassedSession, type ActivityInsights } from '@/lib/weekly-recap'
+import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 
 export type ProgramBucket =
   | 'resume_stale'
@@ -109,6 +110,7 @@ export type HomeLoadResult = {
     dateLabel: string
     programs: HomeProgramBar[]
     activity: ActivityInsights
+    customLastWorkout: { planName: string; whenLabel: string } | null
   }
   cards: ProgramCardModel[]
   tip: HomeTipModel | null
@@ -439,6 +441,28 @@ export function tipSuppressionFrom(tip: HomeTipModel | null): TipSuppression {
   }
 }
 
+async function loadCustomLastWorkoutInsight(): Promise<{
+  planName: string
+  whenLabel: string
+} | null> {
+  const all = await db.workoutSessions.toArray()
+  const custom = all
+    .filter((s) => isCustomWorkoutSession(s) && s.status === 'completed')
+    .sort(
+      (a, b) =>
+        new Date(b.completedAt ?? b.startedAt).getTime() -
+        new Date(a.completedAt ?? a.startedAt).getTime(),
+    )
+  const last = custom[0]
+  if (!last?.customPlanId) return null
+  const plan = await db.customPlans.get(last.customPlanId)
+  const when = new Date(last.completedAt ?? last.startedAt)
+  return {
+    planName: plan?.name?.trim() || pl.planDash,
+    whenLabel: when.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+  }
+}
+
 export async function loadHomeDashboard(
   enabledPrograms: Program[],
   opts?: {
@@ -591,6 +615,7 @@ export async function loadHomeDashboard(
   )
 
   const status = buildStatusDisplay(cards)
+  const customLastWorkout = await loadCustomLastWorkoutInsight()
 
   return {
     summary: {
@@ -603,6 +628,7 @@ export async function loadHomeDashboard(
       dateLabel: formatHomeDate(),
       programs,
       activity,
+      customLastWorkout,
     },
     cards,
     tip,

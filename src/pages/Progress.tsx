@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { format, subDays } from 'date-fns'
@@ -47,6 +47,9 @@ import {
   sessionTotalSets,
 } from '@/lib/custom-session-stats'
 import { cn } from '@/lib/utils'
+import { filterCustomHistorySessions } from '@/lib/custom-history-filters'
+import { CustomPlanCycleRail } from '@/components/progress/CustomPlanCycleRail'
+import type { CustomPlan, CustomProgramProgress } from '@/lib/exercise-model'
 
 type Tab = 'overview' | 'history' | 'cycle' | 'records' | 'custom'
 type HistoryDateFilter = 'all' | '30d' | '90d'
@@ -126,9 +129,38 @@ export default function ProgressPage() {
   const [error, setError] = useState<string | null>(null)
   const [reloadEpoch, setReloadEpoch] = useState(0)
   const [customPrs, setCustomPrs] = useState<ExercisePr[]>([])
-  const [customSessions, setCustomSessions] = useState<LocalWorkoutSession[]>([])
+  const [customSessionsAll, setCustomSessionsAll] = useState<LocalWorkoutSession[]>([])
   const [customPlanNames, setCustomPlanNames] = useState<Record<string, string>>({})
+  const [customPlans, setCustomPlans] = useState<CustomPlan[]>([])
+  const [customProgressByPlan, setCustomProgressByPlan] = useState<
+    Record<string, CustomProgramProgress | null>
+  >({})
+  const [customCyclePlanId, setCustomCyclePlanId] = useState<string | 'all'>('all')
+  const [customHistoryPlanFilter, setCustomHistoryPlanFilter] = useState<string | 'all'>('all')
+  const [customHistoryResultFilter, setCustomHistoryResultFilter] = useState<
+    'all' | 'passed' | 'failed'
+  >('all')
+  const [customHistoryDayFilter, setCustomHistoryDayFilter] = useState<number | 'all'>('all')
+  const [customHistoryLimit, setCustomHistoryLimit] = useState(HISTORY_PAGE_SIZE)
+  const [customFiltersOpen, setCustomFiltersOpen] = useState(false)
   const [detailExercise, setDetailExercise] = useState<ExerciseDefinition | null>(null)
+  const customHistoryRef = useRef<HTMLDivElement>(null)
+
+  const customFiltersActive =
+    customHistoryPlanFilter !== 'all' ||
+    customHistoryResultFilter !== 'all' ||
+    customHistoryDayFilter !== 'all'
+
+  const customActiveFilterCount =
+    (customHistoryPlanFilter !== 'all' ? 1 : 0) +
+    (customHistoryResultFilter !== 'all' ? 1 : 0) +
+    (customHistoryDayFilter !== 'all' ? 1 : 0)
+
+  function clearCustomFilters() {
+    setCustomHistoryPlanFilter('all')
+    setCustomHistoryResultFilter('all')
+    setCustomHistoryDayFilter('all')
+  }
 
   async function openExerciseDetail(exerciseId: string) {
     const ex = await db.exercises.get(exerciseId)
@@ -166,11 +198,27 @@ export default function ProgressPage() {
         const customHistory = (await db.workoutSessions.toArray())
           .filter(isCustomProgressHistorySession)
           .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-        setCustomSessions(customHistory.slice(0, HISTORY_PAGE_SIZE))
+        setCustomSessionsAll(customHistory)
         const planRows = await db.customPlans.toArray()
+        setCustomPlans(planRows.filter((p) => p.status === 'active'))
         const nameMap: Record<string, string> = {}
-        for (const p of planRows) nameMap[p.id] = p.name
+        const progMap: Record<string, CustomProgramProgress | null> = {}
+        for (const p of planRows) {
+          nameMap[p.id] = p.name
+          progMap[p.id] =
+            (await db.customProgramProgress.where('customPlanId').equals(p.id).first()) ?? null
+        }
         setCustomPlanNames(nameMap)
+        setCustomProgressByPlan(progMap)
+        const activePlans = planRows.filter((p) => p.status === 'active')
+        setCustomCyclePlanId((current) => {
+          if (activePlans.length === 0) return 'all'
+          if (activePlans.length === 1) return activePlans[0]!.id
+          if (current === 'all' || !activePlans.some((p) => p.id === current)) {
+            return activePlans[0]!.id
+          }
+          return current
+        })
       } catch {
         setError(pl.errorLoadProgress)
       } finally {
@@ -187,6 +235,39 @@ export default function ProgressPage() {
   useEffect(() => {
     setHistoryLimit(HISTORY_PAGE_SIZE)
   }, [program, historyFilter, historyCycleFilter, historyDateFilter])
+
+  useEffect(() => {
+    setCustomHistoryLimit(HISTORY_PAGE_SIZE)
+  }, [customHistoryPlanFilter, customHistoryResultFilter, customHistoryDayFilter])
+
+  const customHistoryFiltered = useMemo(
+    () =>
+      filterCustomHistorySessions(customSessionsAll, {
+        planId: customHistoryPlanFilter,
+        result: customHistoryResultFilter,
+        dayNumber: customHistoryDayFilter,
+      }),
+    [customSessionsAll, customHistoryPlanFilter, customHistoryResultFilter, customHistoryDayFilter],
+  )
+
+  const customHistoryVisible = useMemo(
+    () => customHistoryFiltered.slice(0, customHistoryLimit),
+    [customHistoryFiltered, customHistoryLimit],
+  )
+
+  const customCyclePlan = useMemo(() => {
+    if (customCyclePlanId === 'all') return customPlans[0] ?? null
+    return customPlans.find((p) => p.id === customCyclePlanId) ?? null
+  }, [customPlans, customCyclePlanId])
+
+  const customCycleProgress = customCyclePlan
+    ? (customProgressByPlan[customCyclePlan.id] ?? null)
+    : null
+
+  const customCycleSessions = useMemo(() => {
+    if (!customCyclePlan) return []
+    return customSessionsAll.filter((s) => s.customPlanId === customCyclePlan.id)
+  }, [customSessionsAll, customCyclePlan])
 
   const cycle = progress ? getCycleById(progress.cycleId) : undefined
 
@@ -548,43 +629,229 @@ export default function ProgressPage() {
             )}
           </ProgressSection>
 
-          <ProgressSection title={pl.progressCustomHistory} className="mt-8">
-            {customSessions.length === 0 ? (
-              <EmptyState
-                icon={<LogoMark size={48} />}
-                title={pl.progressCustomHistoryEmpty}
-                action={{
-                  label: pl.myPlansTitle,
-                  onClick: () => navigate('/plans?tab=mine'),
+          {customCyclePlan && (
+            <ProgressSection title={pl.customCycleRailTitle} className="mt-8">
+              {customPlans.length > 1 && (
+                <div className="mb-3">
+                  <SegmentedControl
+                    value={customCyclePlanId}
+                    onChange={(v) => setCustomCyclePlanId(v)}
+                    options={customPlans.map((p) => ({ value: p.id, label: p.name }))}
+                  />
+                </div>
+              )}
+              <CustomPlanCycleRail
+                plan={customCyclePlan}
+                progress={customCycleProgress}
+                sessions={customCycleSessions}
+                onDayClick={(day) => {
+                  setCustomHistoryPlanFilter(customCyclePlan.id)
+                  setCustomHistoryDayFilter(day)
+                  setCustomHistoryResultFilter('all')
+                  setTab('custom')
+                  window.setTimeout(() => {
+                    customHistoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }, 100)
                 }}
               />
+            </ProgressSection>
+          )}
+
+          <div ref={customHistoryRef}>
+          <ProgressSection title={pl.progressCustomHistory} className="mt-8">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant={customFiltersActive ? 'primary' : 'secondary'}
+                onClick={() => setCustomFiltersOpen(true)}
+              >
+                {pl.progressFilters}
+                {customFiltersActive ? ` (${customActiveFilterCount})` : ''}
+              </Button>
+            </div>
+
+            {customFiltersActive && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                {customHistoryPlanFilter !== 'all' && (
+                  <Badge variant="default">
+                    {customPlanNames[customHistoryPlanFilter] ?? pl.planDash}
+                  </Badge>
+                )}
+                {customHistoryDayFilter !== 'all' && (
+                  <Badge variant="default">{pl.planDayLabel(customHistoryDayFilter)}</Badge>
+                )}
+                {customHistoryResultFilter !== 'all' && (
+                  <Badge variant="default">
+                    {customHistoryResultFilter === 'passed' ? pl.passedShort : pl.failedShort}
+                  </Badge>
+                )}
+                <button
+                  type="button"
+                  className="sr-text-body-sm text-[var(--sr-brand-primary)] underline-offset-2 hover:underline"
+                  onClick={clearCustomFilters}
+                >
+                  {pl.clearFilters}
+                </button>
+              </div>
+            )}
+
+            {customHistoryVisible.length === 0 ? (
+              <EmptyState
+                icon={<LogoMark size={48} />}
+                title={
+                  customFiltersActive
+                    ? pl.customHistoryEmptyFiltered
+                    : pl.progressCustomHistoryEmpty
+                }
+                action={
+                  customFiltersActive
+                    ? { label: pl.clearFilters, onClick: clearCustomFilters }
+                    : {
+                        label: pl.myPlansTitle,
+                        onClick: () => navigate('/plans?tab=mine'),
+                      }
+                }
+              />
             ) : (
-              <ul className="divide-y divide-[var(--sr-border-subtle)]">
-                {customSessions.map((s) => {
-                  const planName =
-                    (s.customPlanId && customPlanNames[s.customPlanId]) || pl.planDash
-                  const sets = sessionTotalSets(s)
-                  const detail = computeCustomSessionDetail(s.exerciseLogs)
-                  return (
-                    <li key={s.id} className="py-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-                          {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
-                        </p>
-                        <Badge variant={sessionBadgeVariant(s)}>{sessionStatusLabel(s)}</Badge>
-                      </div>
-                      <p className="mt-1 font-medium text-[var(--sr-text-primary)]">
-                        {pl.progressCustomSessionMeta(planName, s.dayNumber)}
-                      </p>
-                      <p className="mt-1 text-sm text-[var(--sr-text-muted)]">
-                        {formatCustomSessionSummary(s.exerciseLogs?.length ?? 0, sets, detail)}
-                      </p>
-                    </li>
-                  )
-                })}
-              </ul>
+              <>
+                <ul className="divide-y divide-[var(--sr-border-subtle)]">
+                  {customHistoryVisible.map((s) => {
+                    const planName =
+                      (s.customPlanId && customPlanNames[s.customPlanId]) || pl.planDash
+                    const sets = sessionTotalSets(s)
+                    const detail = computeCustomSessionDetail(s.exerciseLogs)
+                    const planId = s.customPlanId
+                    return (
+                      <li key={s.id}>
+                        <button
+                          type="button"
+                          className={cn(
+                            'w-full py-3 text-left transition-colors',
+                            'hover:bg-[var(--sr-bg-surface)]/60',
+                            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]',
+                          )}
+                          onClick={() => {
+                            if (planId) {
+                              navigate(
+                                `/workout/custom/${planId}/summary?session=${s.id}`,
+                              )
+                            }
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+                              {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
+                            </p>
+                            <Badge variant={sessionBadgeVariant(s)}>
+                              {sessionStatusLabel(s)}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 font-medium text-[var(--sr-text-primary)]">
+                            {pl.progressCustomSessionMeta(planName, s.dayNumber)}
+                          </p>
+                          <p className="mt-1 text-sm text-[var(--sr-text-muted)]">
+                            {formatCustomSessionSummary(
+                              s.exerciseLogs?.length ?? 0,
+                              sets,
+                              detail,
+                            )}
+                          </p>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+                {customHistoryFiltered.length > customHistoryLimit && (
+                  <Button
+                    className="mt-4"
+                    variant="secondary"
+                    fullWidth
+                    onClick={() =>
+                      setCustomHistoryLimit((n) => n + HISTORY_PAGE_SIZE)
+                    }
+                  >
+                    {pl.progressLoadMore(
+                      Math.min(
+                        HISTORY_PAGE_SIZE,
+                        customHistoryFiltered.length - customHistoryLimit,
+                      ),
+                    )}
+                  </Button>
+                )}
+              </>
             )}
           </ProgressSection>
+          </div>
+
+          <Sheet
+            open={customFiltersOpen}
+            onClose={() => setCustomFiltersOpen(false)}
+            title={pl.progressFilters}
+          >
+            <div className="flex flex-col gap-4">
+              <p className="sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.customHistoryFilterPlan}
+              </p>
+              <SegmentedControl
+                value={customHistoryPlanFilter}
+                onChange={(v) => {
+                  setCustomHistoryPlanFilter(v)
+                  setCustomHistoryDayFilter('all')
+                }}
+                options={[
+                  { value: 'all', label: pl.filterAll },
+                  ...customPlans.map((p) => ({ value: p.id, label: p.name })),
+                ]}
+              />
+              <p className="sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.customHistoryFilterResult}
+              </p>
+              <SegmentedControl
+                value={customHistoryResultFilter}
+                onChange={(v) =>
+                  setCustomHistoryResultFilter(v as 'all' | 'passed' | 'failed')
+                }
+                options={[
+                  { value: 'all', label: pl.filterAll },
+                  { value: 'passed', label: pl.passedShort },
+                  { value: 'failed', label: pl.failedShort },
+                ]}
+              />
+              <p className="sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.customHistoryFilterDay}
+              </p>
+              <SegmentedControl
+                value={customHistoryDayFilter === 'all' ? 'all' : String(customHistoryDayFilter)}
+                onChange={(v) =>
+                  setCustomHistoryDayFilter(v === 'all' ? 'all' : Number(v))
+                }
+                options={[
+                  { value: 'all', label: pl.filterAll },
+                  ...(customHistoryPlanFilter !== 'all'
+                    ? (customPlans.find((p) => p.id === customHistoryPlanFilter)?.days ?? [])
+                        .map((d) => d.dayNumber)
+                        .sort((a, b) => a - b)
+                        .map((n) => ({ value: String(n), label: pl.planDayLabel(n) }))
+                    : Array.from(
+                        new Set(
+                          customSessionsAll
+                            .filter(
+                              (s) =>
+                                customHistoryPlanFilter === 'all' ||
+                                s.customPlanId === customHistoryPlanFilter,
+                            )
+                            .map((s) => s.dayNumber),
+                        ),
+                      )
+                        .sort((a, b) => a - b)
+                        .map((n) => ({ value: String(n), label: pl.planDayLabel(n) }))),
+                ]}
+              />
+              <Button fullWidth onClick={() => setCustomFiltersOpen(false)}>
+                {pl.progressFiltersApply}
+              </Button>
+            </div>
+          </Sheet>
         </>
       )}
 

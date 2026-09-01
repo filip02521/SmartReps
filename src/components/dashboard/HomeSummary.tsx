@@ -86,6 +86,14 @@ export function HomeSummary({
             }}
           />
           <ActivityInsightsPanel insights={summary.activity} />
+          {summary.customLastWorkout && (
+            <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">
+              {pl.customLastWorkoutInsight(
+                summary.customLastWorkout.planName,
+                summary.customLastWorkout.whenLabel,
+              )}
+            </p>
+          )}
         </HomeSection>
 
         {summary.programs.length > 0 && (

@@ -25,6 +25,15 @@ vi.mock('@/lib/db', () => ({
     programProgress: {
       count: vi.fn(),
     },
+    customPlans: {
+      count: vi.fn(),
+    },
+    customProgramProgress: {
+      count: vi.fn(),
+    },
+    workoutSessions: {
+      count: vi.fn(),
+    },
   },
 }))
 
@@ -84,6 +93,9 @@ describe('ensureAccountForSession', () => {
     clearAccountSwitchPending()
     mockGetState.mockReturnValue({ lastAuthUserId: null })
     vi.mocked(db.programProgress.count).mockResolvedValue(0)
+    vi.mocked(db.customPlans.count).mockResolvedValue(0)
+    vi.mocked(db.customProgramProgress.count).mockResolvedValue(0)
+    vi.mocked(db.workoutSessions.count).mockResolvedValue(0)
   })
 
   it('sets lastAuthUserId on first login', async () => {

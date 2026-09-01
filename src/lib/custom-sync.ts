@@ -5,7 +5,19 @@ import type {
   ExerciseDefinition,
   ExerciseLog,
 } from '@/lib/exercise-model'
+import {
+  mapRemoteCustomProgressToLocal,
+  shouldPreferLocalCustomProgress,
+  type RemoteCustomProgressRow,
+} from '@/lib/custom-progress-sync-merge'
 import { legacyRestTimerFromStartedAt, reconcileRestTimerJson } from '@/lib/rest-timer-sync'
+import {
+  hasPendingActiveCustomDelete,
+  hasPendingActiveCustomUpdate,
+  hasPendingCustomPlanDelete,
+  hasPendingCustomPlanUpsert,
+  hasPendingCustomProgressUpsert,
+} from '@/lib/sync-queue-utils'
 import { supabase } from '@/lib/supabase/client'
 
 function remoteCustomSessionHasProgress(logs: ExerciseLog[]): boolean {
@@ -92,16 +104,6 @@ type RemotePlan = {
   updated_at: string
 }
 
-type RemoteCustomProgress = {
-  custom_plan_id: string
-  current_day: number
-  status: CustomProgramProgress['status']
-  cycle_attempt: number
-  last_workout_at: string | null
-  next_workout_after: string | null
-  updated_at: string
-}
-
 type RemoteActiveCustomWorkout = {
   custom_plan_id: string
   session_id: string
@@ -173,19 +175,6 @@ export async function deleteActiveCustomWorkoutRemote(userId: string, customPlan
   if (error) throw error
 }
 
-async function hasPendingActiveCustomDelete(customPlanId: string): Promise<boolean> {
-  const items = await db.syncQueue.toArray()
-  return items.some((item) => {
-    if (item.table !== 'active_custom_workout' || item.action !== 'delete') return false
-    try {
-      const payload = JSON.parse(item.payload) as { customPlanId?: string }
-      return payload.customPlanId === customPlanId
-    } catch {
-      return false
-    }
-  })
-}
-
 async function mergeActiveCustomRemote(userId: string, remote: RemoteActiveCustomWorkout) {
   const customPlanId = remote.custom_plan_id
   if (await hasPendingActiveCustomDelete(customPlanId)) return
@@ -221,6 +210,73 @@ async function mergeActiveCustomRemote(userId: string, remote: RemoteActiveCusto
   } else if (localUpdated > remoteUpdated) {
     await upsertActiveCustomWorkout(userId, local)
   }
+}
+
+async function reconcileActiveCustomAfterPull(remotePlanIds: Set<string>): Promise<void> {
+  for (const local of await db.activeCustomWorkout.toArray()) {
+    if (remotePlanIds.has(local.customPlanId)) continue
+    if (await hasPendingActiveCustomUpdate(local.customPlanId)) continue
+    if (await hasPendingActiveCustomDelete(local.customPlanId)) {
+      await db.activeCustomWorkout.delete(local.customPlanId)
+      continue
+    }
+    await db.activeCustomWorkout.delete(local.customPlanId)
+  }
+}
+
+async function reconcileCustomProgressAfterPull(remotePlanIds: Set<string>): Promise<void> {
+  for (const local of await db.customProgramProgress.toArray()) {
+    if (remotePlanIds.has(local.customPlanId)) continue
+    if (await hasPendingCustomProgressUpsert(local.customPlanId)) continue
+    if (await hasPendingCustomPlanDelete(local.customPlanId)) {
+      if (local.id != null) await db.customProgramProgress.delete(local.id)
+      continue
+    }
+    if (local.id != null) await db.customProgramProgress.delete(local.id)
+  }
+}
+
+async function reconcileCustomPlansAfterPull(remotePlanIds: Set<string>): Promise<void> {
+  for (const local of await db.customPlans.toArray()) {
+    if (remotePlanIds.has(local.id)) continue
+    if (await hasPendingCustomPlanUpsert(local.id)) continue
+    if (await hasPendingCustomPlanDelete(local.id)) {
+      await db.customPlans.delete(local.id)
+      const prog = await db.customProgramProgress.where('customPlanId').equals(local.id).first()
+      if (prog?.id != null) await db.customProgramProgress.delete(prog.id)
+      await db.activeCustomWorkout.delete(local.id)
+      continue
+    }
+    await db.customPlans.delete(local.id)
+    const prog = await db.customProgramProgress.where('customPlanId').equals(local.id).first()
+    if (prog?.id != null) await db.customProgramProgress.delete(prog.id)
+    await db.activeCustomWorkout.delete(local.id)
+  }
+}
+
+async function mergeCustomProgressRemote(
+  userId: string,
+  remote: RemoteCustomProgressRow,
+): Promise<void> {
+  const local = await db.customProgramProgress
+    .where('customPlanId')
+    .equals(remote.custom_plan_id)
+    .first()
+
+  if (!local) {
+    await db.customProgramProgress.add(mapRemoteCustomProgressToLocal(remote))
+    return
+  }
+
+  if (shouldPreferLocalCustomProgress(local, remote)) {
+    await upsertCustomProgress(userId, local)
+    return
+  }
+
+  await db.customProgramProgress.update(
+    local.id!,
+    mapRemoteCustomProgressToLocal(remote, local.id),
+  )
 }
 
 function mapExercise(row: RemoteExercise): ExerciseDefinition {
@@ -260,6 +316,7 @@ export async function pushCustomEntities(userId: string): Promise<number> {
     }
   }
   for (const plan of await db.customPlans.toArray()) {
+    if (await hasPendingCustomPlanDelete(plan.id)) continue
     try {
       await upsertCustomPlan(userId, plan)
     } catch (err) {
@@ -267,15 +324,30 @@ export async function pushCustomEntities(userId: string): Promise<number> {
       console.warn('[sync] custom_plan failed', plan.id, err)
     }
   }
+
+  const { data: remoteProgress } = await supabase
+    .from('custom_program_progress')
+    .select('*')
+    .eq('user_id', userId)
+  const remoteByPlan = new Map<string, RemoteCustomProgressRow>()
+  for (const row of (remoteProgress ?? []) as RemoteCustomProgressRow[]) {
+    remoteByPlan.set(row.custom_plan_id, row)
+  }
+
   for (const prog of await db.customProgramProgress.toArray()) {
     try {
+      if (await hasPendingCustomPlanDelete(prog.customPlanId)) continue
+      const remote = remoteByPlan.get(prog.customPlanId)
+      if (!shouldPreferLocalCustomProgress(prog, remote)) continue
       await upsertCustomProgress(userId, prog)
     } catch (err) {
       errors++
       console.warn('[sync] custom_progress failed', prog.customPlanId, err)
     }
   }
+
   for (const active of await db.activeCustomWorkout.toArray()) {
+    if (await hasPendingActiveCustomDelete(active.customPlanId)) continue
     try {
       await upsertActiveCustomWorkout(userId, active)
     } catch (err) {
@@ -309,7 +381,9 @@ export async function pullCustomEntities(userId: string): Promise<number> {
       .select('*')
       .eq('user_id', userId)
     if (planErr) throw planErr
+    const remotePlanIds = new Set<string>()
     for (const row of (plans ?? []) as RemotePlan[]) {
+      remotePlanIds.add(row.id)
       const mapped = mapPlan(row)
       const local = await db.customPlans.get(mapped.id)
       if (!local || new Date(mapped.updatedAt) >= new Date(local.updatedAt)) {
@@ -318,45 +392,30 @@ export async function pullCustomEntities(userId: string): Promise<number> {
         await upsertCustomPlan(userId, local)
       }
     }
+    await reconcileCustomPlansAfterPull(remotePlanIds)
 
     const { data: progress, error: progErr } = await supabase
       .from('custom_program_progress')
       .select('*')
       .eq('user_id', userId)
     if (progErr) throw progErr
-    for (const row of (progress ?? []) as RemoteCustomProgress[]) {
-      const mapped: CustomProgramProgress = {
-        customPlanId: row.custom_plan_id,
-        currentDay: row.current_day,
-        status: row.status,
-        cycleAttempt: row.cycle_attempt,
-        lastWorkoutAt: row.last_workout_at,
-        nextWorkoutAfter: row.next_workout_after,
-        updatedAt: row.updated_at,
-      }
-      const local = await db.customProgramProgress
-        .where('customPlanId')
-        .equals(mapped.customPlanId)
-        .first()
-      if (!local || new Date(mapped.updatedAt) >= new Date(local.updatedAt)) {
-        if (local?.id != null) {
-          await db.customProgramProgress.put({ ...mapped, id: local.id })
-        } else {
-          await db.customProgramProgress.add(mapped)
-        }
-      } else {
-        await upsertCustomProgress(userId, local)
-      }
+    for (const row of (progress ?? []) as RemoteCustomProgressRow[]) {
+      if (!remotePlanIds.has(row.custom_plan_id)) continue
+      await mergeCustomProgressRemote(userId, row)
     }
+    await reconcileCustomProgressAfterPull(remotePlanIds)
 
     const { data: activeCustom, error: activeCustomErr } = await supabase
       .from('active_custom_workout_state')
       .select('*')
       .eq('user_id', userId)
     if (activeCustomErr) throw activeCustomErr
+    const remoteActiveIds = new Set<string>()
     for (const row of (activeCustom ?? []) as RemoteActiveCustomWorkout[]) {
+      remoteActiveIds.add(row.custom_plan_id)
       await mergeActiveCustomRemote(userId, row)
     }
+    await reconcileActiveCustomAfterPull(remoteActiveIds)
 
     const { ensureDefaultExercises } = await import('@/lib/custom-plan-service')
     await ensureDefaultExercises()
@@ -365,4 +424,12 @@ export async function pullCustomEntities(userId: string): Promise<number> {
     errors++
   }
   return errors
+}
+
+// Exported for tests
+export {
+  reconcileCustomPlansAfterPull,
+  reconcileActiveCustomAfterPull,
+  reconcileCustomProgressAfterPull,
+  mergeCustomProgressRemote,
 }

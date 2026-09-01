@@ -12,12 +12,17 @@ import { legacyRestTimerFromStartedAt, reconcileRestTimerJson } from '@/lib/rest
 import {
   mergeEnabledProgramsFromProfile,
   mergeEnabledProgramsFromProgress,
+  mergeEnabledCustomWorkoutsFromProfile,
   mergeUiSettingsFromProfile,
 } from '@/lib/enabled-programs-sync'
 import {
   mapRemoteProgressToLocal,
   shouldPreferLocalProgress,
 } from '@/lib/progress-sync-merge'
+import {
+  hasPendingActiveWorkoutDelete,
+  hasPendingActiveWorkoutUpdate,
+} from '@/lib/sync-queue-utils'
 import { useAppStore } from '@/stores/app-store'
 
 type SyncAction = 'insert' | 'update' | 'delete'
@@ -129,10 +134,15 @@ async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
   // Stamp clocks only when missing AFTER pull-first in syncWithRemote — never invent a
   // winning "now" that overwrites remote prefs on upgrade / second device.
   let programsUpdatedAt = state.enabledProgramsUpdatedAt
+  let customWorkoutsUpdatedAt = state.enabledCustomWorkoutsUpdatedAt
   let uiUpdatedAt = state.uiSettingsUpdatedAt
   if (!programsUpdatedAt) {
     programsUpdatedAt = new Date().toISOString()
     useAppStore.setState({ enabledProgramsUpdatedAt: programsUpdatedAt })
+  }
+  if (!customWorkoutsUpdatedAt) {
+    customWorkoutsUpdatedAt = new Date().toISOString()
+    useAppStore.setState({ enabledCustomWorkoutsUpdatedAt: customWorkoutsUpdatedAt })
   }
   if (!uiUpdatedAt) {
     uiUpdatedAt = new Date().toISOString()
@@ -145,6 +155,8 @@ async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
       enabled_programs: settings.enabledPrograms,
       enabled_programs_updated_at: programsUpdatedAt,
       enabled_workouts_json: settings.enabledCustomPlanIds,
+      enabled_workouts_updated_at: customWorkoutsUpdatedAt,
+      custom_plans_filter_explicit: settings.customPlansFilterExplicit,
       theme_preference: settings.theme,
       timer_sound: settings.timerSound,
       timer_vibration: settings.timerVibration,
@@ -175,12 +187,13 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'enabled_programs, enabled_programs_updated_at, enabled_workouts_json, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, ui_settings_updated_at',
+        'enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, ui_settings_updated_at',
       )
       .eq('id', userId)
       .maybeSingle()
     if (error) throw error
     mergeEnabledProgramsFromProfile(data)
+    mergeEnabledCustomWorkoutsFromProfile(data)
     mergeUiSettingsFromProfile(data)
     return { ok: true, errors: 0 }
   } catch (err) {
@@ -513,6 +526,7 @@ export async function syncAllLocalData(): Promise<SyncResult> {
 
     const activeRows = await db.activeWorkout.toArray()
     for (const row of activeRows) {
+      if (await hasPendingActiveWorkoutDelete(row.program)) continue
       try {
         await upsertActiveWorkout(userId, row)
       } catch (err) {
@@ -597,23 +611,21 @@ async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
   }
 }
 
-async function hasPendingActiveDelete(program: Program): Promise<boolean> {
-  const items = await db.syncQueue.toArray()
-  return items.some((item) => {
-    if (item.table !== 'active_workout' || item.action !== 'delete') return false
-    try {
-      const payload = JSON.parse(item.payload) as { program?: string }
-      return payload.program === program
-    } catch {
-      return false
+async function reconcileActiveWorkoutsAfterPull(remotePrograms: Set<string>): Promise<void> {
+  for (const local of await db.activeWorkout.toArray()) {
+    if (remotePrograms.has(local.program)) continue
+    if (await hasPendingActiveWorkoutUpdate(local.program)) continue
+    if (await hasPendingActiveWorkoutDelete(local.program)) {
+      await db.activeWorkout.delete(local.program)
+      continue
     }
-  })
+    await db.activeWorkout.delete(local.program)
+  }
 }
 
 async function mergeActiveRemote(userId: string, remote: RemoteActiveRow) {
   const program = remote.program as Program
-  // Prefer local tombstone (queued delete) over resurrecting remote active
-  if (await hasPendingActiveDelete(program)) return
+  if (await hasPendingActiveWorkoutDelete(program)) return
 
   // Do not resurrect active for a session that is already finished/cancelled locally.
   const session = await db.workoutSessions.get(remote.session_id)
@@ -719,6 +731,9 @@ export async function pullRemoteData(): Promise<SyncResult> {
     for (const remote of remoteActive ?? []) {
       await mergeActiveRemote(userId, remote as RemoteActiveRow)
     }
+    await reconcileActiveWorkoutsAfterPull(
+      new Set((remoteActive ?? []).map((r) => (r as RemoteActiveRow).program)),
+    )
 
     const { data: remoteTests, error: testsError } = await supabase
       .from('max_tests')
@@ -747,8 +762,9 @@ export async function syncWithRemote(): Promise<SyncResult> {
 
   // Pull profile clocks first when local LWW stamps are missing (upgrade / new device),
   // so we don't overwrite remote theme/timer prefs with fresh defaults.
-  const { enabledProgramsUpdatedAt, uiSettingsUpdatedAt } = useAppStore.getState()
-  if (!enabledProgramsUpdatedAt || !uiSettingsUpdatedAt) {
+  const { enabledProgramsUpdatedAt, uiSettingsUpdatedAt, enabledCustomWorkoutsUpdatedAt } =
+    useAppStore.getState()
+  if (!enabledProgramsUpdatedAt || !uiSettingsUpdatedAt || !enabledCustomWorkoutsUpdatedAt) {
     await pullProfileEnabledPrograms(userId)
   }
 

@@ -33,6 +33,7 @@ import {
   listExercises,
   setCustomPlanPaused,
 } from '@/lib/custom-plan-service'
+import { getActiveCustomWorkoutDay } from '@/lib/custom-plan-edit-lock'
 import { downloadCustomPlanJson } from '@/lib/export-backup'
 import { getCustomPlanResumeInfo, type CustomPlanResumeInfo } from '@/lib/custom-plan-resume'
 import { cn } from '@/lib/utils'
@@ -56,6 +57,8 @@ export default function PlansPage() {
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const [searchParams, setSearchParams] = useSearchParams()
   const highlightId = searchParams.get('highlight')
+  const editParam = searchParams.get('edit')
+  const dayParam = searchParams.get('day')
   const tabParam = searchParams.get('tab')
   const [tab, setTab] = useState<PlansTab>(tabParam === 'mine' ? 'mine' : 'builtin')
   const [openId, setOpenId] = useState<string | null>(null)
@@ -71,6 +74,8 @@ export default function PlansPage() {
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null)
+  const [editorInitialDay, setEditorInitialDay] = useState<number | null>(null)
+  const [editorActiveDay, setEditorActiveDay] = useState<number | null>(null)
   const [morePlan, setMorePlan] = useState<CustomPlan | null>(null)
   const [deletePlan, setDeletePlan] = useState<CustomPlan | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -93,11 +98,18 @@ export default function PlansPage() {
     setCustomProgress(progressMap)
   }
 
-  async function openEditor(planId: string | null) {
-    if (planId && (await hasActiveCustomWorkout(planId))) {
-      showToast(pl.planEditBlockedActive, 'error')
-      return
+  async function openEditor(planId: string | null, opts?: { dayNumber?: number }) {
+    if (planId) {
+      const activeDay = await getActiveCustomWorkoutDay(planId)
+      setEditorActiveDay(activeDay)
+      if (activeDay != null && opts?.dayNumber != null && activeDay === opts.dayNumber) {
+        showToast(pl.customEditBlockedActiveDay, 'error')
+        return
+      }
+    } else {
+      setEditorActiveDay(null)
     }
+    setEditorInitialDay(opts?.dayNumber ?? null)
     setEditingPlanId(planId)
     setEditorOpen(true)
   }
@@ -139,6 +151,17 @@ export default function PlansPage() {
   useEffect(() => {
     setTab(tabParam === 'mine' ? 'mine' : 'builtin')
   }, [tabParam])
+
+  useEffect(() => {
+    if (!editParam) return
+    const dayNum = dayParam ? Number(dayParam) : undefined
+    void openEditor(editParam, dayNum && Number.isFinite(dayNum) ? { dayNumber: dayNum } : undefined)
+    const next = new URLSearchParams(searchParams)
+    next.delete('edit')
+    next.delete('day')
+    setSearchParams(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once per edit param
+  }, [editParam])
 
   useEffect(() => {
     if (!highlightId) return
@@ -347,9 +370,13 @@ export default function PlansPage() {
       <CustomPlanEditor
         open={editorOpen}
         planId={editingPlanId}
+        initialDayNumber={editorInitialDay}
+        activeWorkoutDayNumber={editorActiveDay}
         onClose={() => {
           setEditorOpen(false)
           setEditingPlanId(null)
+          setEditorInitialDay(null)
+          setEditorActiveDay(null)
         }}
         onSaved={() => void reloadCustom()}
       />

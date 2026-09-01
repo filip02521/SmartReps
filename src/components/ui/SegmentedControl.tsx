@@ -7,16 +7,22 @@ export function SegmentedControl<T extends string>({
   onChange,
   className,
   disabled = false,
+  size = 'default',
 }: {
   options: { value: T; label: string }[]
   value: T
   onChange: (v: T) => void
   className?: string
   disabled?: boolean
+  size?: 'default' | 'compact'
 }) {
   return (
     <div
-      className={cn('flex flex-wrap gap-2', disabled && 'pointer-events-none opacity-60', className)}
+      className={cn(
+        'flex flex-wrap gap-1.5',
+        disabled && 'pointer-events-none opacity-60',
+        className,
+      )}
       role="tablist"
       aria-disabled={disabled || undefined}
     >
@@ -28,11 +34,14 @@ export function SegmentedControl<T extends string>({
           aria-selected={value === opt.value}
           disabled={disabled}
           className={cn(
-            'min-h-11 rounded-[var(--sr-radius-full)] px-4 py-2.5 text-sm font-medium transition-colors',
+            'rounded-[var(--sr-radius-full)] font-medium transition-colors',
             FOCUS_RING,
+            size === 'compact'
+              ? 'min-h-9 px-2.5 py-1.5 text-xs'
+              : 'min-h-11 px-4 py-2.5 text-sm',
             value === opt.value
               ? 'bg-[var(--sr-brand-primary-muted)] font-semibold text-[var(--sr-brand-primary)]'
-              : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
+              : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)]',
           )}
           onClick={() => onChange(opt.value)}
         >

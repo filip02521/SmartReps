@@ -6,6 +6,8 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { ErrorBanner } from '@/components/ux/Feedback'
 import { ActiveCustomWorkoutScreen } from '@/components/workout/ActiveCustomWorkoutScreen'
 import { ExerciseDetailSheet } from '@/components/plans/ExerciseDetailSheet'
+import { ExerciseLibraryPanel } from '@/components/plans/ExerciseLibraryPanel'
+import { Sheet } from '@/components/ui/Sheet'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { pl } from '@/i18n/pl'
 import { db } from '@/lib/db'
@@ -13,7 +15,6 @@ import type { CustomPlan, ExerciseDefinition, SetActual, SetLog } from '@/lib/ex
 import { validateSetLog } from '@/lib/exercise-model'
 import {
   formatPrescriptionSetLabel,
-  formatPrescriptionTarget,
 } from '@/lib/custom-prescription-format'
 import { metricTargetDisplayValue } from '@/lib/plan-resolver'
 import {
@@ -22,11 +23,32 @@ import {
   createCustomSession,
   customSessionHasProgress,
   finalizeCustomDay,
-  getPreviousCustomSetActual,
+  getPreviousCustomSetResult,
   persistCustomActive,
   reconcileActiveCustomWorkout,
+  type PreviousCustomSetResult,
 } from '@/lib/custom-session-service'
-import { getOrCreateCustomProgress } from '@/lib/custom-plan-service'
+import { getOrCreateCustomProgress, saveCustomPlan } from '@/lib/custom-plan-service'
+import {
+  filterValidDayExercises,
+  findFirstMissingExercise,
+  replaceExerciseInDay,
+  type CustomLoadErrorKind,
+} from '@/lib/custom-plan-edit-lock'
+import {
+  getNextWorkoutPosition,
+  getPrescriptionForPosition,
+  getPrescriptionSetIndex,
+  getGroupForExercise,
+  shouldStartAmrap,
+} from '@/lib/custom-workout-nav'
+import {
+  getChecklistSlots,
+  reconcileCustomWorkoutResume,
+  staleResumeTotalSets,
+  canUndoCustomSet,
+} from '@/lib/custom-workout-progress'
+import { reconcileRestTimerJson } from '@/lib/rest-timer-sync'
 import {
   initWorkoutAudio,
   onRestComplete,
@@ -40,18 +62,18 @@ import {
   skipRest,
   startRestTimerWorker,
   stopRestTimerWorker,
-  requestWakeLock,
-  releaseWakeLock,
   type RestTimerState,
 } from '@/lib/rest-timer'
+import { useKeepScreenAwake } from '@/hooks/useKeepScreenAwake'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { useAppStore } from '@/stores/app-store'
 import { useCustomWorkoutStore } from '@/stores/custom-workout-store'
 
 function parseRestTimerJson(json: string | null): RestTimerState | null {
-  if (!json) return null
+  const reconciled = reconcileRestTimerJson(json)
+  if (!reconciled) return null
   try {
-    const parsed = JSON.parse(json) as RestTimerState
+    const parsed = JSON.parse(reconciled) as RestTimerState
     if (parsed.mode !== 'idle') return { ...parsed, mode: 'expanded' }
     return parsed
   } catch {
@@ -75,6 +97,10 @@ export default function CustomWorkoutPage() {
   const [exercises, setExercises] = useState<Map<string, ExerciseDefinition>>(new Map())
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [loadErrorKind, setLoadErrorKind] = useState<CustomLoadErrorKind | null>(null)
+  const [loadErrorDayNumber, setLoadErrorDayNumber] = useState<number | null>(null)
+  const [missingExerciseId, setMissingExerciseId] = useState<string | null>(null)
+  const [replaceOpen, setReplaceOpen] = useState(false)
   const [restBlocked, setRestBlocked] = useState(false)
   const [restDaysLeft, setRestDaysLeft] = useState(0)
   const [showStaleConfirm, setShowStaleConfirm] = useState(false)
@@ -94,7 +120,7 @@ export default function CustomWorkoutPage() {
   const [showMenu, setShowMenu] = useState(false)
   const [showPlanSheet, setShowPlanSheet] = useState(false)
   const [detailExercise, setDetailExercise] = useState<ExerciseDefinition | null>(null)
-  const [lastActual, setLastActual] = useState<number | undefined>()
+  const [previousResult, setPreviousResult] = useState<PreviousCustomSetResult | undefined>()
   const [pulseFlash, setPulseFlash] = useState(false)
   const [failedIndex, setFailedIndex] = useState<number | undefined>()
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -113,30 +139,50 @@ export default function CustomWorkoutPage() {
 
   const planned = day?.exercises[store.currentExerciseIndex]
   const exDef = planned ? exercises.get(planned.exerciseId) : undefined
-  const displaySetIndex = planned
-    ? Math.min(store.currentSetIndex, Math.max(0, planned.sets.length - 1))
-    : 0
-  const prescription = planned?.sets[displaySetIndex]
+  const displaySetIndex =
+    day && planned
+      ? getPrescriptionSetIndex(day, store.currentExerciseIndex, store.currentSetIndex)
+      : 0
+  const prescription =
+    day && planned
+      ? getPrescriptionForPosition(day, store.currentExerciseIndex, store.currentSetIndex)
+      : undefined
   const restTimer = store.restTimer
   const currentLog = store.exerciseLogs[store.currentExerciseIndex]
   const setResults = currentLog?.sets ?? []
 
+  useKeepScreenAwake(
+    keepScreenOn &&
+      !loading &&
+      !loadError &&
+      !restBlocked &&
+      !showStaleConfirm &&
+      Boolean(plan && day && planned && exDef && prescription),
+  )
+
+  const checklistSets = useMemo(() => {
+    if (!day) return []
+    return getChecklistSlots(day, store.currentExerciseIndex, setResults.length)
+  }, [day, store.currentExerciseIndex, setResults.length])
+
   const loadPreviousActual = useCallback(
     async (
       customPlanId: string,
-      dayNumber: number,
-      cycleAttempt: number,
+      currentDayNumber: number,
+      currentCycleAttempt: number,
       exerciseId: string,
       setNumber: number,
+      excludeSessionId?: string,
     ) => {
-      const prev = await getPreviousCustomSetActual({
+      const prev = await getPreviousCustomSetResult({
         customPlanId,
-        dayNumber,
-        cycleAttempt,
         exerciseId,
         setNumber,
+        currentDayNumber,
+        currentCycleAttempt,
+        excludeSessionId,
       })
-      setLastActual(prev)
+      setPreviousResult(prev)
     },
     [],
   )
@@ -150,14 +196,66 @@ export default function CustomWorkoutPage() {
       currentSetIndex: latest.currentSetIndex,
       exerciseLogs: latest.exerciseLogs,
       restTimerJson: latest.restTimer ? JSON.stringify(latest.restTimer) : null,
+      amrapEndAt: latest.amrapEndAt,
+      amrapGroupId: latest.amrapGroupId,
     })
     if (epoch !== sessionEpochRef.current) return
   }, [])
+
+  const startNewSession = useCallback(
+    async (
+      p: CustomPlan,
+      dayPlan: CustomPlan['days'][0],
+      dayNumber: number,
+      cycleAttempt: number,
+      generation: number,
+    ) => {
+      if (dayPlan.exercises.length === 0) {
+        setLoadError(pl.customWorkoutMissingDay)
+        setLoadErrorKind('empty_day')
+        setLoadErrorDayNumber(dayNumber)
+        setLoading(false)
+        return
+      }
+      const session = await createCustomSession({
+        plan: p,
+        dayNumber,
+        cycleAttempt,
+      })
+      if (generation !== initGenerationRef.current) return
+
+      sessionRef.current = session
+      const initialLogs = dayPlan.exercises.map((e) => ({
+        exerciseId: e.exerciseId,
+        order: e.order,
+        sets: [] as SetLog[],
+      }))
+      useCustomWorkoutStore.getState().startSession({
+        sessionId: session.id,
+        customPlanId: planId!,
+        dayNumber,
+        cycleAttempt,
+        exerciseCount: dayPlan.exercises.length,
+      })
+      useCustomWorkoutStore.setState({ exerciseLogs: initialLogs })
+      setPlan(p)
+      setLoadError(null)
+      setLoadErrorKind(null)
+      if (!hasSeenWorkoutHint) {
+        setShowHint(true)
+        setSettings({ hasSeenWorkoutHint: true })
+      }
+      setLoading(false)
+    },
+    [planId, hasSeenWorkoutHint, setSettings],
+  )
 
   const initWorkout = useCallback(
     async (generation: number) => {
       if (!planId) return
       setLoadError(null)
+      setLoadErrorKind(null)
+      setLoadErrorDayNumber(null)
       setRestBlocked(false)
 
       const p = await db.customPlans.get(planId)
@@ -216,10 +314,10 @@ export default function CustomWorkoutPage() {
               day: session.dayNumber,
               exerciseIndex: active.currentExerciseIndex,
               set: active.currentSetIndex + 1,
-              totalSets:
-                p.days.find((d) => d.dayNumber === session.dayNumber)?.exercises[
-                  active.currentExerciseIndex
-                ]?.sets.length ?? 1,
+              totalSets: staleResumeTotalSets(
+                p.days.find((d) => d.dayNumber === session.dayNumber) ?? p.days[0]!,
+                active.currentExerciseIndex,
+              ),
             })
             setPlan(p)
             setShowStaleConfirm(true)
@@ -227,16 +325,41 @@ export default function CustomWorkoutPage() {
             return
           }
 
+          const resumeDay =
+            p.days.find((d) => d.dayNumber === session.dayNumber) ?? p.days[0]
+          if (!resumeDay) {
+            navigate('/plans?tab=mine', { replace: true })
+            return
+          }
+          const missingOnResume = findFirstMissingExercise(resumeDay.exercises, exMap)
+          if (missingOnResume) {
+            setLoadError(pl.customWorkoutMissingExercise)
+            setLoadErrorKind('missing_exercise')
+            setLoadErrorDayNumber(session.dayNumber)
+            setMissingExerciseId(missingOnResume.exerciseId)
+            setPlan(p)
+            setLoading(false)
+            return
+          }
+          const reconciled = reconcileCustomWorkoutResume(
+            resumeDay,
+            active.exerciseLogs,
+            active.currentExerciseIndex,
+            active.currentSetIndex,
+          )
+
           sessionRef.current = session
           useCustomWorkoutStore.getState().resumeSession({
             sessionId: session.id,
             customPlanId: planId,
             dayNumber: session.dayNumber,
             cycleAttempt: session.cycleAttempt,
-            currentExerciseIndex: active.currentExerciseIndex,
-            currentSetIndex: active.currentSetIndex,
-            exerciseLogs: active.exerciseLogs,
+            currentExerciseIndex: reconciled.currentExerciseIndex,
+            currentSetIndex: reconciled.currentSetIndex,
+            exerciseLogs: reconciled.exerciseLogs,
             restTimer: parseRestTimerJson(active.restTimerJson),
+            amrapEndAt: active.amrapEndAt ?? null,
+            amrapGroupId: active.amrapGroupId ?? null,
           })
           setPlan(p)
           if (!hasSeenWorkoutHint) {
@@ -256,50 +379,91 @@ export default function CustomWorkoutPage() {
       const dayPlan = p.days.find((d) => d.dayNumber === dayNumber) ?? p.days[0]
       if (!dayPlan || dayPlan.exercises.length === 0) {
         setLoadError(pl.customWorkoutMissingDay)
+        setLoadErrorKind('empty_day')
+        setLoadErrorDayNumber(dayNumber)
+        setPlan(p)
         setLoading(false)
         return
       }
-      const missing = dayPlan.exercises.find((e) => {
-        const def = exMap.get(e.exerciseId)
-        return !def || def.archived
-      })
+      const missing = findFirstMissingExercise(dayPlan.exercises, exMap)
       if (missing) {
         setLoadError(pl.customWorkoutMissingExercise)
+        setLoadErrorKind('missing_exercise')
+        setLoadErrorDayNumber(dayNumber)
+        setMissingExerciseId(missing.exerciseId)
+        setPlan(p)
         setLoading(false)
         return
       }
 
       const cycleAttempt =
         progress.status === 'cycle_complete' ? progress.cycleAttempt + 1 : progress.cycleAttempt
-      const session = await createCustomSession({
-        plan: p,
-        dayNumber,
-        cycleAttempt,
-      })
-      if (generation !== initGenerationRef.current) return
-
-      sessionRef.current = session
-      const initialLogs = dayPlan.exercises.map((e) => ({
-        exerciseId: e.exerciseId,
-        order: e.order,
-        sets: [] as SetLog[],
-      }))
-      useCustomWorkoutStore.getState().startSession({
-        sessionId: session.id,
-        customPlanId: planId,
-        dayNumber,
-        cycleAttempt,
-        exerciseCount: dayPlan.exercises.length,
-      })
-      useCustomWorkoutStore.setState({ exerciseLogs: initialLogs })
-      setPlan(p)
-      if (!hasSeenWorkoutHint) {
-        setShowHint(true)
-        setSettings({ hasSeenWorkoutHint: true })
-      }
-      setLoading(false)
+      await startNewSession(p, dayPlan, dayNumber, cycleAttempt, generation)
     },
-    [planId, forceStart, navigate, hasSeenWorkoutHint, setSettings],
+    [planId, forceStart, navigate, hasSeenWorkoutHint, setSettings, startNewSession],
+  )
+
+  const handleSkipMissingExercise = useCallback(async () => {
+    if (!planId || !plan || loadErrorDayNumber == null) return
+    const exs = await db.exercises.toArray()
+    const exMap = new Map(exs.map((e) => [e.id, e]))
+    const dayPlan = plan.days.find((d) => d.dayNumber === loadErrorDayNumber)
+    if (!dayPlan) return
+    const valid = filterValidDayExercises(dayPlan.exercises, exMap)
+    if (valid.length < 1) return
+    const patchedPlan: CustomPlan = {
+      ...plan,
+      days: plan.days.map((d) =>
+        d.dayNumber === loadErrorDayNumber ? { ...d, exercises: valid } : d,
+      ),
+    }
+    const progress = await getOrCreateCustomProgress(planId)
+    const cycleAttempt =
+      progress.status === 'cycle_complete' ? progress.cycleAttempt + 1 : progress.cycleAttempt
+    setExercises(exMap)
+    setLoadError(null)
+    setLoadErrorKind(null)
+    setMissingExerciseId(null)
+    setLoading(true)
+    const generation = ++initGenerationRef.current
+    await startNewSession(
+      patchedPlan,
+      { ...dayPlan, exercises: valid },
+      loadErrorDayNumber,
+      cycleAttempt,
+      generation,
+    )
+  }, [planId, plan, loadErrorDayNumber, startNewSession])
+
+  const handleReplaceMissingExercise = useCallback(
+    async (replacement: ExerciseDefinition) => {
+      if (!planId || !plan || loadErrorDayNumber == null || !missingExerciseId) return
+      try {
+        const patched = replaceExerciseInDay(
+          plan,
+          loadErrorDayNumber,
+          missingExerciseId,
+          replacement.id,
+        )
+        const saved = await saveCustomPlan(patched, { skipValidation: true })
+        setPlan(saved)
+        setExercises((prev) => {
+          const next = new Map(prev)
+          next.set(replacement.id, replacement)
+          return next
+        })
+        setReplaceOpen(false)
+        setLoadError(null)
+        setLoadErrorKind(null)
+        setMissingExerciseId(null)
+        setLoading(true)
+        const generation = ++initGenerationRef.current
+        await initWorkout(generation)
+      } catch {
+        setLoadError(pl.errorCrash)
+      }
+    },
+    [planId, plan, loadErrorDayNumber, missingExerciseId, initWorkout],
   )
 
   useEffect(() => {
@@ -313,7 +477,6 @@ export default function CustomWorkoutPage() {
       initGenerationRef.current += 1
       useCustomWorkoutStore.getState().setImmersive(false)
       stopRestTimerWorker()
-      releaseWakeLock()
       if (timerRef.current) window.clearInterval(timerRef.current)
     }
   }, [planId, forceStart, initWorkout])
@@ -337,14 +500,15 @@ export default function CustomWorkoutPage() {
       store.dayNumber,
       store.cycleAttempt,
       planned.exerciseId,
-      displaySetIndex + 1,
+      store.currentSetIndex + 1,
+      sessionRef.current?.id,
     )
   }, [
     prescription,
     exDef,
     plan,
     planned,
-    displaySetIndex,
+    store.currentSetIndex,
     store.dayNumber,
     store.cycleAttempt,
     loadPreviousActual,
@@ -353,7 +517,6 @@ export default function CustomWorkoutPage() {
   useEffect(() => {
     if (!restTimer || restTimer.mode === 'idle') {
       stopRestTimerWorker()
-      void releaseWakeLock()
       return
     }
     startRestTimerWorker(restTimer, {
@@ -366,7 +529,7 @@ export default function CustomWorkoutPage() {
       onComplete: () => {
         onRestComplete({ sound: timerSound, vibration: timerVibration })
         useCustomWorkoutStore.getState().setRestTimer(skipRest())
-        releaseWakeLock()
+        void persistState()
         checklistRef.current
           ?.querySelector('[data-active-set="true"]')
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -374,17 +537,7 @@ export default function CustomWorkoutPage() {
     })
     return () => stopRestTimerWorker()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- restart on rest identity only
-  }, [restTimer?.startedAt, restTimer?.totalSec, timerSound, timerVibration])
-
-  useEffect(() => {
-    if (!restTimer || restTimer.mode === 'idle') {
-      void releaseWakeLock()
-      return
-    }
-    if (keepScreenOn) void requestWakeLock()
-    else void releaseWakeLock()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- wake lock only
-  }, [restTimer?.startedAt, restTimer?.mode, keepScreenOn])
+  }, [restTimer?.startedAt, restTimer?.totalSec, timerSound, timerVibration, persistState])
 
   useEffect(() => {
     if (!timerRunning) return
@@ -405,6 +558,16 @@ export default function CustomWorkoutPage() {
     }
   }, [timerRunning, prescription])
 
+  useEffect(() => {
+    if (!day || loading) return
+    const w = useCustomWorkoutStore.getState()
+    const start = shouldStartAmrap(day, w.currentExerciseIndex, w.currentSetIndex, w.amrapEndAt)
+    if (start) {
+      useCustomWorkoutStore.getState().setAmrap(start.groupId, start.endAt)
+      void persistState()
+    }
+  }, [day, loading, store.currentExerciseIndex, store.currentSetIndex, store.amrapEndAt, persistState])
+
   function scrollChecklistToActive() {
     window.requestAnimationFrame(() => {
       const el = checklistRef.current?.querySelector('[data-active-set="true"]')
@@ -417,11 +580,10 @@ export default function CustomWorkoutPage() {
     const nextPlanned = day.exercises[nextExerciseIndex]
     if (!nextPlanned) return ''
     const nextDef = exercises.get(nextPlanned.exerciseId)
-    const nextPrescription = nextPlanned.sets[nextSetIndex]
+    const nextPrescription = getPrescriptionForPosition(day, nextExerciseIndex, nextSetIndex)
     if (!nextDef || !nextPrescription) return ''
-    const label = formatPrescriptionTarget(nextPrescription, nextDef.primaryMetric)
     if (nextExerciseIndex !== store.currentExerciseIndex) {
-      return pl.customNextSet(nextSetIndex + 1, `${nextDef.name} · ${label}`)
+      return pl.customWorkoutNextExercise(nextDef.name)
     }
     return pl.customNextSet(
       nextSetIndex + 1,
@@ -431,45 +593,58 @@ export default function CustomWorkoutPage() {
 
   const isResting = restTimer !== null && restTimer.mode !== 'idle'
   const nextLabel = useMemo(() => {
-    if (!isResting || !day || !planned) return ''
-    const setsInExercise = planned.sets.length
-    if (store.currentSetIndex + 1 < setsInExercise) {
-      return buildNextLabel(store.currentExerciseIndex, store.currentSetIndex + 1)
-    }
-    if (store.currentExerciseIndex + 1 < day.exercises.length) {
-      return buildNextLabel(store.currentExerciseIndex + 1, 0)
-    }
-    return ''
+    if (!isResting || !day) return ''
+    const nextPos = getNextWorkoutPosition(
+      day,
+      store.currentExerciseIndex,
+      store.currentSetIndex,
+      store.amrapEndAt,
+    ).next
+    if (!nextPos) return ''
+    return buildNextLabel(nextPos.exerciseIndex, nextPos.setIndex)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day, planned, store.currentExerciseIndex, store.currentSetIndex, exercises, isResting])
+  }, [
+    day,
+    store.currentExerciseIndex,
+    store.currentSetIndex,
+    store.amrapEndAt,
+    exercises,
+    isResting,
+  ])
 
   async function finalizeFailedDay(result: SetLog) {
-    if (!plan || !sessionRef.current || !planned) return
-    const latest = useCustomWorkoutStore.getState()
-    const logs = appendFailedSetLog(
-      latest.exerciseLogs,
-      latest.currentExerciseIndex,
-      planned.exerciseId,
-      planned.order,
-      result,
-    )
-    useCustomWorkoutStore.setState({ exerciseLogs: logs })
-    await persistCustomActive(sessionRef.current, {
-      currentExerciseIndex: latest.currentExerciseIndex,
-      currentSetIndex: latest.currentSetIndex,
-      exerciseLogs: logs,
-      restTimerJson: null,
-    })
-    await finalizeCustomDay({
-      session: sessionRef.current,
-      plan,
-      exerciseLogs: logs,
-      passed: false,
-    })
-    store.reset()
-    navigate(`/workout/custom/${plan.id}/summary?failed=1&session=${sessionRef.current.id}`, {
-      replace: true,
-    })
+    if (!plan || !sessionRef.current || !planned || finishingRef.current) return
+    finishingRef.current = true
+    try {
+      const latest = useCustomWorkoutStore.getState()
+      const logs = appendFailedSetLog(
+        latest.exerciseLogs,
+        latest.currentExerciseIndex,
+        planned.exerciseId,
+        planned.order,
+        result,
+      )
+      useCustomWorkoutStore.setState({ exerciseLogs: logs })
+      await persistCustomActive(sessionRef.current, {
+        currentExerciseIndex: latest.currentExerciseIndex,
+        currentSetIndex: latest.currentSetIndex,
+        exerciseLogs: logs,
+        restTimerJson: null,
+      })
+      await finalizeCustomDay({
+        session: sessionRef.current,
+        plan,
+        exerciseLogs: logs,
+        passed: false,
+      })
+      store.reset()
+      navigate(`/workout/custom/${plan.id}/summary?failed=1&session=${sessionRef.current.id}`, {
+        replace: true,
+      })
+    } catch {
+      setSaveError(pl.errorFinishDay)
+      finishingRef.current = false
+    }
   }
 
   async function handleDone() {
@@ -528,35 +703,44 @@ export default function CustomWorkoutPage() {
       setPulseFlash(true)
       window.setTimeout(() => setPulseFlash(false), 450)
 
-      store.completeSet(planned.exerciseId, planned.order, result)
-      const after = useCustomWorkoutStore.getState()
+      const nav = getNextWorkoutPosition(
+        day,
+        store.currentExerciseIndex,
+        store.currentSetIndex,
+        store.amrapEndAt,
+      )
+      const beforeComplete = useCustomWorkoutStore.getState()
+      store.completeSet(planned.exerciseId, planned.order, result, nav.next ?? undefined)
 
-      const nextSet = after.currentSetIndex
-      const setsInExercise = planned.sets.length
-      let nextEx = after.currentExerciseIndex
-
-      if (nextSet >= setsInExercise) {
-        nextEx += 1
-        if (nextEx < day.exercises.length) {
-          store.setPointers(nextEx, 0)
-          const restSec = planned.restAfterExerciseSec ?? planned.restBetweenSetsSec
-          if (restSec > 0) {
-            store.setRestTimer(createRestTimer(restSec, 'expanded'))
-          }
-        }
-      } else if (planned.restBetweenSetsSec > 0) {
-        store.setRestTimer(createRestTimer(planned.restBetweenSetsSec, 'expanded'))
+      if (nav.restSec > 0) {
+        store.setRestTimer(createRestTimer(nav.restSec, 'expanded'))
       }
 
       const latest = useCustomWorkoutStore.getState()
-      await persistCustomActive(sessionRef.current, {
-        currentExerciseIndex: latest.currentExerciseIndex,
-        currentSetIndex: latest.currentSetIndex,
-        exerciseLogs: latest.exerciseLogs,
-        restTimerJson: latest.restTimer ? JSON.stringify(latest.restTimer) : null,
-      })
+      try {
+        await persistCustomActive(sessionRef.current, {
+          currentExerciseIndex: latest.currentExerciseIndex,
+          currentSetIndex: latest.currentSetIndex,
+          exerciseLogs: latest.exerciseLogs,
+          restTimerJson: latest.restTimer ? JSON.stringify(latest.restTimer) : null,
+          amrapEndAt: latest.amrapEndAt,
+          amrapGroupId: latest.amrapGroupId,
+        })
+      } catch {
+        useCustomWorkoutStore.setState({
+          exerciseLogs: beforeComplete.exerciseLogs,
+          currentExerciseIndex: beforeComplete.currentExerciseIndex,
+          currentSetIndex: beforeComplete.currentSetIndex,
+          restTimer: beforeComplete.restTimer,
+          amrapEndAt: beforeComplete.amrapEndAt,
+          amrapGroupId: beforeComplete.amrapGroupId,
+          failedRetryUsed: beforeComplete.failedRetryUsed,
+        })
+        setSaveError(pl.errorSaveSet)
+        return
+      }
 
-      if (nextEx >= day.exercises.length && nextSet >= setsInExercise) {
+      if (nav.dayComplete) {
         await finalizeCustomDay({
           session: sessionRef.current,
           plan,
@@ -617,8 +801,9 @@ export default function CustomWorkoutPage() {
     setCancelOpen(false)
     setShowMenu(false)
     sessionEpochRef.current += 1
+    const latest = useCustomWorkoutStore.getState()
     if (sessionRef.current && planId) {
-      if (customSessionHasProgress(store.exerciseLogs)) {
+      if (customSessionHasProgress(latest.exerciseLogs)) {
         await abandonCustomWorkout(planId, sessionRef.current.id)
       }
     }
@@ -655,13 +840,79 @@ export default function CustomWorkoutPage() {
   }
 
   if (loadError) {
+    const canSkip =
+      loadErrorKind === 'missing_exercise' &&
+      plan &&
+      loadErrorDayNumber != null &&
+      filterValidDayExercises(
+        plan.days.find((d) => d.dayNumber === loadErrorDayNumber)?.exercises ?? [],
+        exercises,
+      ).length >= 1
+    const canReplace = loadErrorKind === 'missing_exercise' && missingExerciseId != null
     return (
-      <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center gap-4 px-4 text-center">
-        <p className="text-[var(--sr-text-secondary)]">{loadError}</p>
-        <Button type="button" onClick={() => navigate('/plans?tab=mine')}>
-          {pl.myPlansTitle}
-        </Button>
-      </div>
+      <>
+        <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center gap-4 px-4 text-center safe-top safe-bottom">
+          <p className="text-[var(--sr-text-secondary)]">{loadError}</p>
+          <div className="flex w-full flex-col gap-2">
+            {planId && loadErrorDayNumber != null && (
+              <Button
+                type="button"
+                size="touch"
+                fullWidth
+                onClick={() =>
+                  navigate(
+                    `/plans?tab=mine&edit=${planId}&day=${loadErrorDayNumber}`,
+                  )
+                }
+              >
+                {pl.customWorkoutEditPlan}
+              </Button>
+            )}
+            {canReplace && (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => setReplaceOpen(true)}
+                >
+                  {pl.customWorkoutReplaceExercise}
+                </Button>
+                <p className="text-xs text-[var(--sr-text-muted)]">
+                  {pl.customWorkoutReplaceExerciseHint}
+                </p>
+              </>
+            )}
+            {canSkip && (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  fullWidth
+                  onClick={() => void handleSkipMissingExercise()}
+                >
+                  {pl.customWorkoutSkipExercise}
+                </Button>
+                <p className="text-xs text-[var(--sr-text-muted)]">{pl.customWorkoutSkipExerciseHint}</p>
+              </>
+            )}
+            <Button type="button" variant="ghost" fullWidth onClick={() => navigate('/plans?tab=mine')}>
+              {pl.myPlansTitle}
+            </Button>
+          </div>
+        </div>
+        <Sheet
+          open={replaceOpen}
+          onClose={() => setReplaceOpen(false)}
+          title={pl.customWorkoutReplaceExercise}
+          className="max-h-[85vh] overflow-y-auto"
+        >
+          <ExerciseLibraryPanel
+            mode="pick"
+            onPick={(ex) => void handleReplaceMissingExercise(ex)}
+          />
+        </Sheet>
+      </>
     )
   }
 
@@ -734,11 +985,18 @@ export default function CustomWorkoutPage() {
   const actual = isDuration ? actualSec : actualReps
   const sessionHasProgress = customSessionHasProgress(store.exerciseLogs)
   const canEditPreviousSet =
-    setResults.length > 0 &&
-    store.currentSetIndex === setResults.length &&
-    failedIndex !== store.currentSetIndex &&
-    !(restTimer && restTimer.mode !== 'idle')
+    day != null &&
+    canUndoCustomSet(
+      day,
+      store.exerciseLogs,
+      store.currentExerciseIndex,
+      store.currentSetIndex,
+      restTimer,
+      failedIndex,
+      store.amrapEndAt,
+    )
   const failedRetryVisible = failedIndex === store.currentSetIndex
+  const activeGroup = day && planned ? getGroupForExercise(day, store.currentExerciseIndex) : null
 
   return (
     <>
@@ -754,7 +1012,13 @@ export default function CustomWorkoutPage() {
         exerciseIndex={store.currentExerciseIndex}
         exerciseTotal={day.exercises.length}
         setIndex={displaySetIndex}
+        positionSetIndex={store.currentSetIndex}
+        groupKind={activeGroup?.kind}
+        groupRounds={activeGroup?.rounds}
+        amrapEndAt={store.amrapEndAt}
         planned={planned}
+        planDay={day}
+        checklistSets={checklistSets}
         dayExercises={day.exercises}
         exerciseDef={exDef}
         exerciseDefs={exercises}
@@ -762,7 +1026,7 @@ export default function CustomWorkoutPage() {
         setResults={setResults}
         restTimer={restTimer}
         actual={actual}
-        lastActual={lastActual}
+        previousResult={previousResult}
         failedIndex={failedIndex}
         showHint={showHint}
         showMenu={showMenu}
@@ -813,6 +1077,7 @@ export default function CustomWorkoutPage() {
         onEditPreviousSet={handleEditPreviousSet}
         onRetry={() => setFailedIndex(undefined)}
         onFinishDayEarly={() => {
+          if (finishingRef.current) return
           const failResult = buildCurrentFailResult()
           if (failResult) void finalizeFailedDay(failResult)
         }}

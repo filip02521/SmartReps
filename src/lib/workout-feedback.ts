@@ -1,18 +1,39 @@
 import { vibrate } from '@/lib/utils'
 import { useAppStore } from '@/stores/app-store'
 
-const REST_SOUND_URL = '/sounds/rest-end.wav'
-const SET_SOUND_URL = '/sounds/set-done.wav'
-
 type FeedbackOptions = {
   sound?: boolean
   vibration?: boolean
 }
 
+type ToneSpec = {
+  frequency: number
+  startOffset: number
+  duration: number
+  gain: number
+  type?: OscillatorType
+}
+
+/** Soft triangle waves — audible but not harsh in a quiet gym/home. */
+const CHIMES = {
+  /** Quick double ping when a set is logged (Strong-style confirmation). */
+  set: [
+    { frequency: 740, startOffset: 0, duration: 0.09, gain: 0.22 },
+    { frequency: 988, startOffset: 0.07, duration: 0.12, gain: 0.18 },
+  ] satisfies ToneSpec[],
+  /** Ascending triad when rest ends — clearly different from set ping. */
+  rest: [
+    { frequency: 523.25, startOffset: 0, duration: 0.22, gain: 0.2 },
+    { frequency: 659.25, startOffset: 0.13, duration: 0.28, gain: 0.24 },
+    { frequency: 783.99, startOffset: 0.24, duration: 0.4, gain: 0.2 },
+  ] satisfies ToneSpec[],
+  /** Barely-there tick when duration goal is reached. */
+  tick: [{ frequency: 620, startOffset: 0, duration: 0.045, gain: 0.14, type: 'sine' }] satisfies ToneSpec[],
+} as const
+
 let audioCtx: AudioContext | null = null
-let restAudio: HTMLAudioElement | null = null
-let setAudio: HTMLAudioElement | null = null
-let unlocked = false
+let masterGain: GainNode | null = null
+let unlockPromise: Promise<void> | null = null
 
 function getFeedbackPrefs(overrides?: FeedbackOptions): { sound: boolean; vibration: boolean } {
   const settings = useAppStore.getState().settings
@@ -22,106 +43,102 @@ function getFeedbackPrefs(overrides?: FeedbackOptions): { sound: boolean; vibrat
   }
 }
 
-function ensureAudioElements() {
-  if (typeof Audio === 'undefined') return
-  if (!restAudio) {
-    restAudio = new Audio(REST_SOUND_URL)
-    restAudio.preload = 'auto'
-  }
-  if (!setAudio) {
-    setAudio = new Audio(SET_SOUND_URL)
-    setAudio.preload = 'auto'
-  }
-}
-
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null
-  const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  const Ctx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (!Ctx) return null
   if (!audioCtx) audioCtx = new Ctx()
   return audioCtx
 }
 
-/** Call from a user gesture (first tap in workout) so iOS PWA allows playback. */
-export async function initWorkoutAudio(): Promise<void> {
-  ensureAudioElements()
+function getMasterGain(ctx: AudioContext): GainNode {
+  if (!masterGain || masterGain.context !== ctx) {
+    masterGain = ctx.createGain()
+    masterGain.gain.value = 0.9
+    masterGain.connect(ctx.destination)
+  }
+  return masterGain
+}
+
+function scheduleTone(ctx: AudioContext, startAt: number, spec: ToneSpec) {
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  const begin = startAt + spec.startOffset
+  const end = begin + spec.duration
+
+  osc.type = spec.type ?? 'triangle'
+  osc.frequency.setValueAtTime(spec.frequency, begin)
+
+  gain.gain.setValueAtTime(0.0001, begin)
+  gain.gain.exponentialRampToValueAtTime(Math.max(spec.gain, 0.0002), begin + 0.01)
+  gain.gain.exponentialRampToValueAtTime(0.0001, end)
+
+  osc.connect(gain)
+  gain.connect(getMasterGain(ctx))
+  osc.start(begin)
+  osc.stop(end + 0.04)
+}
+
+async function ensureAudioReady(): Promise<AudioContext | null> {
   const ctx = getAudioContext()
-  if (ctx && ctx.state === 'suspended') {
+  if (!ctx) return null
+
+  if (!unlockPromise) {
+    unlockPromise = (async () => {
+      try {
+        if (ctx.state === 'suspended') await ctx.resume()
+        const buffer = ctx.createBuffer(1, 1, ctx.sampleRate)
+        const source = ctx.createBufferSource()
+        source.buffer = buffer
+        source.connect(getMasterGain(ctx))
+        source.start()
+        source.stop(ctx.currentTime + 0.01)
+      } catch {
+        // ignore — playback may still work on desktop
+      }
+    })()
+  }
+
+  await unlockPromise
+  if (ctx.state === 'suspended') {
     try {
       await ctx.resume()
     } catch {
-      // ignore
+      return null
     }
   }
-  // Silent play unlock for HTMLAudioElement (iOS)
-  for (const el of [restAudio, setAudio]) {
-    if (!el) continue
-    try {
-      el.muted = true
-      el.currentTime = 0
-      await el.play()
-      el.pause()
-      el.muted = false
-      el.currentTime = 0
-    } catch {
-      // ignore unlock failures
-    }
-  }
-  unlocked = true
+  return ctx
 }
 
-function playToneFallback(frequency: number, durationSec: number, gainValue: number) {
-  try {
-    const ctx = getAudioContext()
+function playChimeNotes(notes: readonly ToneSpec[]) {
+  void (async () => {
+    const ctx = await ensureAudioReady()
     if (!ctx) return
-    void ctx.resume()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.frequency.value = frequency
-    gain.gain.setValueAtTime(gainValue, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + durationSec)
-    osc.start(ctx.currentTime)
-    osc.stop(ctx.currentTime + durationSec)
-  } catch {
-    // audio not available
-  }
+    const startAt = ctx.currentTime
+    for (const note of notes) {
+      scheduleTone(ctx, startAt, note)
+    }
+  })()
 }
 
-async function playAudioElement(el: HTMLAudioElement | null, fallback: () => void) {
-  if (!el) {
-    fallback()
-    return
-  }
-  try {
-    if (!unlocked) await initWorkoutAudio()
-    el.currentTime = 0
-    await el.play()
-  } catch {
-    fallback()
-  }
+/** Call from a user gesture (first tap in workout) so iOS PWA allows playback. */
+export async function initWorkoutAudio(): Promise<void> {
+  await ensureAudioReady()
 }
 
 export function playRestCompleteSound() {
-  ensureAudioElements()
-  void playAudioElement(restAudio, () => playToneFallback(880, 0.45, 0.3))
+  playChimeNotes(CHIMES.rest)
 }
 
 export function playSetCompleteSound() {
-  ensureAudioElements()
-  void playAudioElement(setAudio, () => playToneFallback(660, 0.18, 0.28))
-}
-
-/** @deprecated Prefer playRestCompleteSound / onRestComplete — kept for callers */
-export function playChime() {
-  playRestCompleteSound()
+  playChimeNotes(CHIMES.set)
 }
 
 export function onRestComplete(overrides?: FeedbackOptions) {
   const { sound, vibration } = getFeedbackPrefs(overrides)
-  const hidden =
-    typeof document !== 'undefined' && document.visibilityState === 'hidden'
+  const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
 
   if (sound) playRestCompleteSound()
   if (vibration) {
@@ -145,5 +162,10 @@ export function onSetFailedFeedback(overrides?: FeedbackOptions) {
 export function playDurationGoalTick(overrides?: FeedbackOptions) {
   const { sound } = getFeedbackPrefs(overrides)
   if (!sound) return
-  playToneFallback(520, 0.08, 0.2)
+  playChimeNotes(CHIMES.tick)
+}
+
+/** @deprecated Use playRestCompleteSound — alias for older imports */
+export function playChime() {
+  playRestCompleteSound()
 }

@@ -9,7 +9,7 @@
 ## Verify before “100% ready”
 
 ```bash
-npm run validate-plans && npm run lint && npm test -- --run && npm run build
+npm run validate-plans && npm run validate-custom-plans && npm run lint && npm test -- --run && npm run build
 ```
 
 Add `npm run test:e2e` for workout, auth, sync, or routing changes.

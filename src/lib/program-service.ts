@@ -175,6 +175,7 @@ export async function saveActiveWorkout(program: Program, state: {
   currentSetIndex: number
   setResults: unknown[]
   restTimerJson: string | null
+  failedRetryUsed?: boolean
 }) {
   // Never resurrect an active row after cancel/finish — late persist races must no-op.
   const session = await db.workoutSessions.get(state.sessionId)
@@ -188,6 +189,7 @@ export async function saveActiveWorkout(program: Program, state: {
     currentSetIndex: state.currentSetIndex,
     setResults: state.setResults as import('@/lib/progress-engine').SetResultDraft[],
     restTimerJson: state.restTimerJson,
+    failedRetryUsed: state.failedRetryUsed,
     updatedAt: new Date().toISOString(),
   }
   await db.activeWorkout.put(row)

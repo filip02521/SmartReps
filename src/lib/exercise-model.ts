@@ -36,6 +36,19 @@ export type ExerciseLog = {
   sets: SetLog[]
 }
 
+export type ExerciseGroupKind = 'superset' | 'circuit' | 'amrap'
+
+export type ExerciseGroup = {
+  id: string
+  kind: ExerciseGroupKind
+  /** Circuit: full rounds through all exercises in the group. */
+  rounds?: number
+  /** AMRAP: block duration in seconds. */
+  amrapDurationSec?: number
+  /** Rest after each superset round or circuit round. */
+  restAfterRoundSec?: number
+}
+
 export type PlannedExercise = {
   exerciseId: string
   order: number
@@ -43,12 +56,17 @@ export type PlannedExercise = {
   restBetweenSetsSec: number
   restAfterExerciseSec?: number
   note?: string
+  /** Links exercise into a day group (superset / circuit / AMRAP). */
+  groupId?: string
+  /** Overrides plan-level progression for this exercise only. */
+  progression?: ProgressionRule | null
 }
 
 export type PlanDay = {
   dayNumber: number
   exercises: PlannedExercise[]
   restAfterDay: 1 | 2
+  groups?: ExerciseGroup[]
 }
 
 export type CustomPlanStatus = 'draft' | 'active'
@@ -66,6 +84,17 @@ export type CustomPlan = {
   source: CustomPlanSource
   /** Optional auto-progression (Faza 5). */
   progression?: ProgressionRule | null
+  /** Optional deload every N cycles (negative deltas). */
+  deload?: DeloadRule | null
+}
+
+export type DeloadRule = {
+  enabled: boolean
+  /** Apply deload on every Nth upcoming cycle (e.g. 4 → cycles 4, 8, …). */
+  everyNCycles: number
+  repsDelta?: number
+  weightKgDelta?: number
+  durationSecDelta?: number
 }
 
 export type ExerciseDefinition = {
@@ -180,6 +209,8 @@ export function validateCustomPlan(
     if (![1, 2].includes(day.restAfterDay)) {
       issues.push({ path: `${dPath}.restAfterDay`, message: pl.validationRestAfterDay })
     }
+    const groupIds = new Set((day.groups ?? []).map((g) => g.id))
+    const groupMemberCount = new Map<string, number>()
     for (const pe of day.exercises) {
       const ePath = `${dPath}.exercises[${pe.order}]`
       const def = exercisesById.get(pe.exerciseId)
@@ -196,6 +227,39 @@ export function validateCustomPlan(
       pe.sets.forEach((s, i) => {
         issues.push(...validateSetPrescription(s, def.primaryMetric, `${ePath}.sets[${i}]`))
       })
+      if (pe.groupId) {
+        if (!groupIds.has(pe.groupId)) {
+          issues.push({ path: `${ePath}.groupId`, message: pl.validationGroupMissing })
+        }
+        groupMemberCount.set(pe.groupId, (groupMemberCount.get(pe.groupId) ?? 0) + 1)
+      }
+    }
+    for (const group of day.groups ?? []) {
+      const gPath = `${dPath}.groups[${group.id}]`
+      const count = groupMemberCount.get(group.id) ?? 0
+      if (count === 0) {
+        issues.push({ path: gPath, message: pl.validationGroupEmpty })
+      } else if (group.kind !== 'amrap' && count < 2) {
+        issues.push({ path: gPath, message: pl.validationGroupMinTwo })
+      }
+      if (group.kind === 'circuit') {
+        const rounds = group.rounds ?? 0
+        if (!Number.isFinite(rounds) || rounds < 1 || rounds > 30) {
+          issues.push({ path: `${gPath}.rounds`, message: pl.validationCircuitRounds })
+        }
+      }
+      if (group.kind === 'amrap') {
+        const sec = group.amrapDurationSec ?? 0
+        if (!Number.isFinite(sec) || sec < 30 || sec > 3600) {
+          issues.push({ path: `${gPath}.amrapDurationSec`, message: pl.validationAmrapDuration })
+        }
+      }
+    }
+  }
+  if (plan.deload?.enabled) {
+    const n = plan.deload.everyNCycles
+    if (!Number.isFinite(n) || n < 2 || n > 52) {
+      issues.push({ path: 'deload.everyNCycles', message: pl.validationDeloadCycles })
     }
   }
   return issues

@@ -14,6 +14,27 @@ import { PreviousResultBadge } from '@/components/workout/PreviousResultBadge'
 import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { Z_REST_EXPANDED, Z_CELEBRATION } from '@/lib/ui-chrome'
 
+export function WorkoutFailRetryRow({
+  onRetry,
+  onFinishEarly,
+  finishLabel,
+}: {
+  onRetry: () => void
+  onFinishEarly: () => void
+  finishLabel: string
+}) {
+  return (
+    <div className="mt-2 flex gap-2">
+      <Button variant="secondary" fullWidth onClick={onRetry}>
+        {pl.retry}
+      </Button>
+      <Button variant="danger" fullWidth onClick={onFinishEarly}>
+        {finishLabel}
+      </Button>
+    </div>
+  )
+}
+
 export function ConfirmSheet({
   title,
   message,

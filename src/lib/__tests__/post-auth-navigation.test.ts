@@ -32,7 +32,9 @@ function mockState(partial: Record<string, unknown>) {
     setSetupQueue: vi.fn(),
     shiftSetupQueue: vi.fn(),
     pendingStart: null,
+    pendingCustomStart: null,
     clearPendingStart: vi.fn(),
+    clearPendingCustomStart: vi.fn(),
     ...partial,
   } as never)
 }
@@ -42,6 +44,23 @@ describe('navigateAfterAuth', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('navigates to custom workout after pendingCustomStart', async () => {
+    mockState({
+      pendingCustomStart: {
+        customPlanId: 'plan-abc',
+        planName: 'Mój plan',
+        navigateToWorkout: true,
+      },
+      clearPendingCustomStart: vi.fn(),
+    })
+    vi.spyOn(setupFlow, 'hasIncompleteSetup').mockResolvedValue(false)
+
+    await navigateAfterAuth(navigate)
+
+    expect(useAppStore.getState().clearPendingCustomStart).toHaveBeenCalled()
+    expect(navigate).toHaveBeenCalledWith('/workout/custom/plan-abc', { replace: true })
   })
 
   it('clears pendingStart and goes home when rest blocks workout', async () => {

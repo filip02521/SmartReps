@@ -18,9 +18,12 @@ vi.mock('@/stores/app-store', () => ({
   useAppStore: {
     getState: () => ({
       enabledProgramsUpdatedAt: '2026-01-01T00:00:00.000Z',
+      enabledCustomWorkoutsUpdatedAt: '2026-01-01T00:00:00.000Z',
       uiSettingsUpdatedAt: '2026-01-01T00:00:00.000Z',
       settings: {
         enabledPrograms: ['pushups'],
+        enabledCustomPlanIds: [],
+        customPlansFilterExplicit: false,
         theme: 'system',
         timerSound: false,
         timerVibration: false,
@@ -34,6 +37,7 @@ vi.mock('@/stores/app-store', () => ({
 
 vi.mock('@/lib/enabled-programs-sync', () => ({
   mergeEnabledProgramsFromProfile: vi.fn(),
+  mergeEnabledCustomWorkoutsFromProfile: vi.fn(),
   mergeEnabledProgramsFromProgress: vi.fn(),
   mergeUiSettingsFromProfile: vi.fn(),
 }))

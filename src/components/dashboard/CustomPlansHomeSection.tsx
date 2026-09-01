@@ -9,7 +9,7 @@ import {
   buildCustomPlanHomeCardModel,
   type CustomPlanHomeCardModel,
 } from '@/lib/custom-plan-home-summary'
-import { resolveHomeCustomPlans } from '@/lib/enabled-custom-plans'
+import { resolveHomeCustomPlans, countHiddenHomeCustomPlans } from '@/lib/enabled-custom-plans'
 import { useAppStore } from '@/stores/app-store'
 import { db } from '@/lib/db'
 
@@ -19,6 +19,7 @@ export function CustomPlansHomeSection() {
   const filterExplicit = useAppStore((s) => s.settings.customPlansFilterExplicit)
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const [cards, setCards] = useState<CustomPlanHomeCardModel[]>([])
+  const [extraPlanCount, setExtraPlanCount] = useState(0)
   const [reloadTick, setReloadTick] = useState(0)
 
   useEffect(() => {
@@ -28,6 +29,12 @@ export function CustomPlansHomeSection() {
         enabledCustomPlanIds: enabledIds,
         customPlansFilterExplicit: filterExplicit,
       })
+      setExtraPlanCount(
+        countHiddenHomeCustomPlans(all, {
+          enabledCustomPlanIds: enabledIds,
+          customPlansFilterExplicit: filterExplicit,
+        }),
+      )
       const exercises = await listExercises()
 
       const models: CustomPlanHomeCardModel[] = []
@@ -35,12 +42,22 @@ export function CustomPlansHomeSection() {
         const progress =
           (await db.customProgramProgress.where('customPlanId').equals(plan.id).first()) ?? null
         const resume = await getCustomPlanResumeInfo(plan.id)
+        const planSessions = await db.workoutSessions.where('customPlanId').equals(plan.id).toArray()
+        const lastCompleted = planSessions
+          .filter((s) => s.status === 'completed')
+          .sort(
+            (a, b) =>
+              new Date(b.completedAt ?? b.startedAt).getTime() -
+              new Date(a.completedAt ?? a.startedAt).getTime(),
+          )[0]
+        const lastFailed = !!lastCompleted && lastCompleted.passed === false
         models.push(
           buildCustomPlanHomeCardModel({
             plan,
             progress,
             resume,
             exercises,
+            lastFailed,
           }),
         )
       }
@@ -48,7 +65,16 @@ export function CustomPlansHomeSection() {
     })()
   }, [enabledIds, filterExplicit, lastSyncedAt, reloadTick])
 
-  if (cards.length === 0) return null
+  if (cards.length === 0) {
+    if (filterExplicit && enabledIds.length === 0) {
+      return (
+        <section className="mt-8" aria-label={pl.homeCustomPlans}>
+          <p className="text-sm text-[var(--sr-text-secondary)]">{pl.customHomeEmptyHint}</p>
+        </section>
+      )
+    }
+    return null
+  }
 
   return (
     <section className="mt-8" aria-label={pl.homeCustomPlans}>
@@ -68,6 +94,17 @@ export function CustomPlansHomeSection() {
           </li>
         ))}
       </ul>
+      {extraPlanCount > 0 && (
+        <Button
+          type="button"
+          variant="ghost"
+          className="mt-2"
+          fullWidth
+          onClick={() => navigate('/plans?tab=mine')}
+        >
+          {pl.customHomeMorePlans(extraPlanCount)}
+        </Button>
+      )}
     </section>
   )
 }

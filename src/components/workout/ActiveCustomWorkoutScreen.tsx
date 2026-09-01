@@ -1,5 +1,5 @@
 import { ArrowLeft, BarChart2, Minus, MoreVertical, Plus } from 'lucide-react'
-import type { RefObject, ReactNode } from 'react'
+import { useEffect, useState, type RefObject, ReactNode } from 'react'
 import { Check, ChevronRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
@@ -7,17 +7,26 @@ import {
   ConfirmSheet,
   RestTimerExpanded,
   RestTimerPill,
+  WorkoutFailRetryRow,
 } from '@/components/workout/WorkoutComponents'
-import { PreviousResultBadge } from '@/components/workout/PreviousResultBadge'
+import { CustomPreviousResultHint } from '@/components/workout/CustomPreviousResultHint'
 import { pl } from '@/i18n/pl'
 import type {
   ExerciseDefinition,
+  ExerciseGroupKind,
   ExerciseLog,
+  PlanDay,
   PlannedExercise,
   PrimaryMetric,
   SetLog,
   SetPrescription,
 } from '@/lib/exercise-model'
+import {
+  countPassedSets,
+  getChecklistSlots,
+  getExerciseTargetSetCount,
+  isExerciseDoneForDisplay,
+} from '@/lib/custom-workout-progress'
 import {
   formatPrescriptionSetLabel,
   formatPrescriptionTarget,
@@ -26,6 +35,7 @@ import {
   isExactPrescription,
   isMaxPrescription,
 } from '@/lib/custom-prescription-format'
+import type { PreviousCustomSetResult } from '@/lib/custom-session-service'
 import { metricTargetDisplayValue } from '@/lib/plan-resolver'
 import type { RestTimerState } from '@/lib/rest-timer'
 import { Z_REST_PILL, FOCUS_RING } from '@/lib/ui-chrome'
@@ -270,12 +280,14 @@ function CustomSetChecklist({
 }
 
 function CustomDayExerciseRail({
+  planDay,
   exercises,
   exerciseDefs,
   exerciseLogs,
   currentExerciseIndex,
   onExerciseStats,
 }: {
+  planDay: PlanDay
   exercises: PlannedExercise[]
   exerciseDefs: Map<string, ExerciseDefinition>
   exerciseLogs: ExerciseLog[]
@@ -294,9 +306,9 @@ function CustomDayExerciseRail({
           const def = exerciseDefs.get(pe.exerciseId)
           const name = def?.name ?? pl.planEllipsis
           const log = exerciseLogs[i]
-          const passedSets = log?.sets.filter((s) => s.passed).length ?? 0
-          const totalSets = pe.sets.length
-          const done = i < currentExerciseIndex
+          const passedSets = countPassedSets(log)
+          const totalSets = getExerciseTargetSetCount(planDay, i)
+          const done = isExerciseDoneForDisplay(planDay, i, exerciseLogs, currentExerciseIndex)
           const active = i === currentExerciseIndex
           const canOpenStats = done && onExerciseStats && def
           const Tag = canOpenStats ? 'button' : 'div'
@@ -356,12 +368,14 @@ function CustomDayExerciseRail({
 }
 
 function CustomDayPlanSheet({
+  planDay,
   exercises,
   exerciseDefs,
   exerciseLogs,
   currentExerciseIndex,
   onClose,
 }: {
+  planDay: PlanDay
   exercises: PlannedExercise[]
   exerciseDefs: Map<string, ExerciseDefinition>
   exerciseLogs: ExerciseLog[]
@@ -377,8 +391,10 @@ function CustomDayPlanSheet({
           const metric = def?.primaryMetric ?? 'reps'
           const active = i === currentExerciseIndex
           const log = exerciseLogs[i]
-          const doneSets = log?.sets.filter((s) => s.passed).length ?? 0
-          const done = i < currentExerciseIndex
+          const doneSets = countPassedSets(log)
+          const totalSets = getExerciseTargetSetCount(planDay, i)
+          const done = isExerciseDoneForDisplay(planDay, i, exerciseLogs, currentExerciseIndex)
+          const slots = getChecklistSlots(planDay, i, log?.sets.length ?? 0)
           return (
             <li
               key={`${pe.exerciseId}-${i}`}
@@ -397,10 +413,10 @@ function CustomDayPlanSheet({
                 </p>
                 <p className="shrink-0 text-xs text-[var(--sr-text-muted)]">
                   {done
-                    ? pl.planSetsShort(pe.sets.length)
+                    ? pl.planSetsShort(totalSets)
                     : active
-                      ? pl.customWorkoutExerciseDone(doneSets, pe.sets.length)
-                      : pl.planSetsShort(pe.sets.length)}
+                      ? pl.customWorkoutExerciseDone(doneSets, totalSets)
+                      : pl.planSetsShort(totalSets)}
                 </p>
               </div>
               <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
@@ -413,7 +429,7 @@ function CustomDayPlanSheet({
                 <p className="mt-2 text-xs text-[var(--sr-text-secondary)]">{pe.note.trim()}</p>
               )}
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {pe.sets.map((s, si) => {
+                {slots.map((s, si) => {
                   const setLog = log?.sets.find((r) => r.setNumber === si + 1)
                   const doneSet = setLog?.passed === true
                   return (
@@ -443,6 +459,14 @@ function CustomDayPlanSheet({
   )
 }
 
+function isMinPrescription(
+  prescription: import('@/lib/exercise-model').SetPrescription,
+  metric: import('@/lib/exercise-model').PrimaryMetric,
+): boolean {
+  const target = getPrimaryMetricTarget(prescription, metric)
+  return target?.kind === 'min'
+}
+
 function CustomMetricCounter({
   prescription,
   metric,
@@ -450,7 +474,8 @@ function CustomMetricCounter({
   actual,
   onActualChange,
   onDone,
-  lastActual,
+  dayNumber,
+  cycleAttempt,
   pulseFlash,
   disabled,
   disabledHint,
@@ -459,6 +484,7 @@ function CustomMetricCounter({
   onWeightChange,
   timerRunning,
   onToggleTimer,
+  previousResult,
 }: {
   prescription: SetPrescription
   metric: PrimaryMetric
@@ -466,7 +492,9 @@ function CustomMetricCounter({
   actual: number
   onActualChange: (n: number) => void
   onDone: () => void
-  lastActual?: number
+  dayNumber: number
+  cycleAttempt: number
+  previousResult?: PreviousCustomSetResult
   pulseFlash?: boolean
   disabled?: boolean
   disabledHint?: string
@@ -480,6 +508,7 @@ function CustomMetricCounter({
   const primaryTarget = getPrimaryMetricTarget(prescription, metric)
   const isExact = isExactPrescription(prescription, metric)
   const isMax = isMaxPrescription(prescription, metric)
+  const isMin = isMinPrescription(prescription, metric)
   const targetReps = primaryTarget ? metricTargetDisplayValue(primaryTarget) : 0
   const targetWeight =
     metric === 'reps_weight' && prescription.weightKg
@@ -508,6 +537,25 @@ function CustomMetricCounter({
           {pl.customMaxLiveHint(targetReps)}
         </p>
       )}
+      {isMin && isDuration && (
+        <p className="text-center text-sm text-[var(--sr-text-secondary)]">
+          {pl.customMinDurationHint(targetReps)}
+        </p>
+      )}
+      {isMin && !isDuration && (
+        <p className="text-center text-sm text-[var(--sr-text-secondary)]">
+          {pl.customMinRepsHint(targetReps)}
+        </p>
+      )}
+
+      {previousResult && (
+        <CustomPreviousResultHint
+          result={previousResult}
+          metric={metric}
+          currentDayNumber={dayNumber}
+          currentCycleAttempt={cycleAttempt}
+        />
+      )}
 
       {!isRepsWeight && (
         <div className="flex items-baseline gap-2">
@@ -529,9 +577,6 @@ function CustomMetricCounter({
         </div>
       )}
 
-      {lastActual !== undefined && !isRepsWeight && (
-        <PreviousResultBadge actual={lastActual} target={targetReps} />
-      )}
       {disabled && disabledHint && (
         <p className="text-center text-sm text-[var(--sr-text-secondary)]">{disabledHint}</p>
       )}
@@ -645,7 +690,14 @@ export type ActiveCustomWorkoutScreenProps = {
   exerciseIndex: number
   exerciseTotal: number
   setIndex: number
+  /** Raw position index (round for circuit/amrap). */
+  positionSetIndex?: number
+  groupKind?: ExerciseGroupKind
+  groupRounds?: number
+  amrapEndAt?: number | null
   planned: PlannedExercise
+  planDay: PlanDay
+  checklistSets?: SetPrescription[]
   dayExercises: PlannedExercise[]
   exerciseDef: ExerciseDefinition
   exerciseDefs: Map<string, ExerciseDefinition>
@@ -653,7 +705,7 @@ export type ActiveCustomWorkoutScreenProps = {
   setResults: SetLog[]
   restTimer: RestTimerState | null
   actual: number
-  lastActual?: number
+  previousResult?: PreviousCustomSetResult
   failedIndex?: number
   showHint: boolean
   showMenu: boolean
@@ -703,7 +755,13 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     exerciseIndex,
     exerciseTotal,
     setIndex,
+    positionSetIndex,
+    groupKind,
+    groupRounds,
+    amrapEndAt,
     planned,
+    planDay,
+    checklistSets,
     dayExercises,
     exerciseDef,
     exerciseDefs,
@@ -711,7 +769,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     setResults,
     restTimer,
     actual,
-    lastActual,
+    previousResult,
     failedIndex,
     showHint,
     showMenu,
@@ -756,13 +814,40 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
   const prescription = planned.sets[setIndex]
   const isResting = restTimer !== null && restTimer.mode !== 'idle'
   const counterLocked = isResting
-  const primaryTarget = prescription
-    ? getPrimaryMetricTarget(prescription, exerciseDef.primaryMetric)
-    : undefined
-  const targetDisplay = primaryTarget ? metricTargetDisplayValue(primaryTarget) : 0
-  const isExactTarget = prescription
-    ? isExactPrescription(prescription, exerciseDef.primaryMetric)
-    : false
+  const positionRound = (positionSetIndex ?? setIndex) + 1
+  const [amrapRemaining, setAmrapRemaining] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (groupKind !== 'amrap' || !amrapEndAt) {
+      setAmrapRemaining(null)
+      return
+    }
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((amrapEndAt - Date.now()) / 1000))
+      setAmrapRemaining(left)
+    }
+    tick()
+    const id = window.setInterval(tick, 1000)
+    return () => window.clearInterval(id)
+  }, [groupKind, amrapEndAt])
+
+  const setLine =
+    groupKind === 'circuit'
+      ? pl.customWorkoutRoundLine(positionRound, groupRounds)
+      : groupKind === 'amrap'
+        ? amrapRemaining != null
+          ? pl.customWorkoutAmrapRemaining(amrapRemaining)
+          : pl.customWorkoutRoundLine(positionRound)
+        : pl.customWorkoutHeaderSetLine(dayNumber, setIndex + 1, planned.sets.length)
+
+  const groupBadge =
+    groupKind === 'superset'
+      ? pl.customWorkoutGroupSuperset
+      : groupKind === 'circuit'
+        ? pl.customWorkoutGroupCircuit
+        : groupKind === 'amrap'
+          ? pl.customWorkoutGroupAmrap
+          : null
 
   const headerSub =
     cycleAttempt > 1
@@ -798,9 +883,10 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
               {exerciseDef.name}
             </p>
           )}
-          <p className="truncate text-xs text-[var(--sr-text-muted)]">
-            {pl.customWorkoutHeaderSetLine(dayNumber, setIndex + 1, planned.sets.length)}
-          </p>
+          <p className="truncate text-xs text-[var(--sr-text-muted)]">{setLine}</p>
+          {groupBadge ? (
+            <p className="truncate text-xs font-medium text-[var(--sr-brand-primary)]">{groupBadge}</p>
+          ) : null}
           <p className="truncate text-xs text-[var(--sr-text-muted)]">{headerSub}</p>
         </div>
         <button
@@ -847,6 +933,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
       )}
 
       <CustomDayExerciseRail
+        planDay={planDay}
         exercises={dayExercises}
         exerciseDefs={exerciseDefs}
         exerciseLogs={exerciseLogs}
@@ -874,9 +961,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
 
       {failedRetryVisible && (
         <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-error-muted)] px-3 py-2 text-sm text-[var(--sr-error)]">
-          {isExactTarget
-            ? pl.workoutFailExactBanner(actual, targetDisplay)
-            : pl.workoutFailBanner(actual, targetDisplay)}
+          {pl.customFailBannerHint}
         </div>
       )}
 
@@ -899,7 +984,9 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             actual={actual}
             onActualChange={onActualChange}
             onDone={onDone}
-            lastActual={lastActual}
+            dayNumber={dayNumber}
+            cycleAttempt={cycleAttempt}
+            previousResult={previousResult}
             pulseFlash={pulseFlash}
             disabled={counterLocked}
             disabledHint={isResting ? pl.restInProgress : undefined}
@@ -916,14 +1003,11 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           </Button>
         )}
         {failedRetryVisible && (
-          <div className="mt-2 flex gap-2">
-            <Button variant="secondary" fullWidth onClick={onRetry}>
-              {pl.retry}
-            </Button>
-            <Button variant="danger" fullWidth onClick={onFinishDayEarly}>
-              {pl.customFailEnd}
-            </Button>
-          </div>
+          <WorkoutFailRetryRow
+            onRetry={onRetry}
+            onFinishEarly={onFinishDayEarly}
+            finishLabel={pl.customFailEndLabel}
+          />
         )}
       </div>
 
@@ -937,9 +1021,9 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           </p>
         </div>
         <CustomSetChecklist
-          sets={planned.sets}
+          sets={checklistSets ?? planned.sets}
           metric={exerciseDef.primaryMetric}
-          currentIndex={setIndex}
+          currentIndex={positionSetIndex ?? setIndex}
           results={setResults}
           failedIndex={failedIndex}
           onEditLastSet={canEditPreviousSet ? onEditPreviousSet : undefined}
@@ -999,6 +1083,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
 
       {showPlanSheet && (
         <CustomDayPlanSheet
+          planDay={planDay}
           exercises={dayExercises}
           exerciseDefs={exerciseDefs}
           exerciseLogs={exerciseLogs}

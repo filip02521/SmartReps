@@ -53,8 +53,9 @@ export function buildCustomPlanHomeCardModel(params: {
   progress: CustomProgramProgress | null
   resume: CustomPlanResumeInfo | null
   exercises: ExerciseDefinition[]
+  lastFailed?: boolean
 }): CustomPlanHomeCardModel {
-  const { plan, progress, resume, exercises } = params
+  const { plan, progress, resume, exercises, lastFailed = false } = params
   const totalDays = plan.days.length
   const displayDay = getCustomPlanDisplayDay(plan, progress)
   const preview = getCustomPlanDayPreview(plan, displayDay, exercises)
@@ -78,6 +79,9 @@ export function buildCustomPlanHomeCardModel(params: {
     if (resume.stale) {
       detailLine = `${detailLine} · ${pl.staleSessionShort}`
     }
+  } else if (lastFailed && progress?.status === 'rest') {
+    badge = { label: pl.customDayFailed, variant: 'error' }
+    detailLine = pl.customSummaryRecFail
   } else if (progress?.status === 'paused') {
     badge = { label: pl.statusPaused, variant: 'default' }
   } else if (progress?.status === 'cycle_complete') {

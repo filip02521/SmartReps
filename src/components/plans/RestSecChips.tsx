@@ -16,11 +16,13 @@ export function RestSecChips({
   label,
   value,
   onChange,
+  disabled = false,
 }: {
   id: string
   label: string
   value: number
   onChange: (sec: number) => void
+  disabled?: boolean
 }) {
   const [customOpen, setCustomOpen] = useState(!isPresetValue(value) && value > 0)
 
@@ -29,7 +31,7 @@ export function RestSecChips({
   }, [value])
 
   return (
-    <div>
+    <div className={cn(disabled && 'pointer-events-none opacity-60')}>
       <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">{label}</p>
       <div className="flex flex-wrap gap-2">
         {PRESETS.map((sec) => (
@@ -84,14 +86,16 @@ export function SetsCountStepper({
   onChange,
   min = 1,
   max = 30,
+  disabled = false,
 }: {
   value: number
   onChange: (n: number) => void
   min?: number
   max?: number
+  disabled?: boolean
 }) {
   return (
-    <div>
+    <div className={cn(disabled && 'pointer-events-none opacity-60')}>
       <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">{pl.planSetsCount}</p>
       <div className="flex items-center gap-3">
         <Button

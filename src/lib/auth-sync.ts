@@ -74,13 +74,22 @@ export async function waitForStoreHydration(timeoutMs = 3000): Promise<void> {
 export type AccountEnsureResult = 'cleared' | 'same' | 'first' | 'needs_confirm'
 
 /** Prevent pushing one user's local Dexie data into another user's cloud account. */
+async function hasLocalTrainingData(): Promise<boolean> {
+  const [progressCount, customPlans, customProgress, sessions] = await Promise.all([
+    db.programProgress.count(),
+    db.customPlans.count(),
+    db.customProgramProgress.count(),
+    db.workoutSessions.count(),
+  ])
+  return progressCount + customPlans + customProgress + sessions > 0
+}
+
 export async function ensureAccountForSession(userId: string): Promise<AccountEnsureResult> {
   await waitForStoreHydration()
   const { lastAuthUserId } = useAppStore.getState()
 
   if (lastAuthUserId && lastAuthUserId !== userId) {
-    const progressCount = await db.programProgress.count()
-    if (progressCount > 0) {
+    if (await hasLocalTrainingData()) {
       const { setAccountSwitchPending } = await import('@/lib/account-switch-gate')
       setAccountSwitchPending({ userId })
       track('account_switch_prompt_shown')
@@ -113,17 +122,17 @@ async function syncForAccount(accountResult: AccountEnsureResult): Promise<SyncR
   }
 
   if (accountResult === 'first') {
-    const hadLocalProgress = (await db.programProgress.count()) > 0
-    if (hadLocalProgress && isSupabaseConfigured) {
+    const hadLocalData = await hasLocalTrainingData()
+    if (hadLocalData && isSupabaseConfigured) {
       const { data: { session } } = await supabase.auth.getSession()
       const userId = session?.user.id
       if (userId) {
-        const { data, error } = await supabase
-          .from('program_progress')
-          .select('program')
-          .eq('user_id', userId)
-          .limit(1)
-        if (!error && data && data.length > 0) {
+        const [{ data: prog, error: progErr }, { data: custom, error: customErr }] =
+          await Promise.all([
+            supabase.from('program_progress').select('program').eq('user_id', userId).limit(1),
+            supabase.from('custom_plans').select('id').eq('user_id', userId).limit(1),
+          ])
+        if (!progErr && !customErr && ((prog?.length ?? 0) > 0 || (custom?.length ?? 0) > 0)) {
           const pull = await pullRemoteData()
           const flush = await syncAllLocalData()
           return { ok: pull.ok && flush.ok, errors: pull.errors + flush.errors }

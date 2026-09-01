@@ -15,7 +15,7 @@ import { generateId } from '@/lib/utils'
 import { enqueueSync, enqueueActiveCustomWorkoutSync } from '@/lib/sync'
 import { useAppStore } from '@/stores/app-store'
 import { pruneEnabledCustomPlanIds } from '@/lib/enabled-custom-plans'
-import { applyProgressionToPlan } from '@/lib/custom-progression'
+import { applyProgressionToPlan, shouldApplyDeload } from '@/lib/custom-progression'
 import { isWorkoutAvailable } from '@/lib/progress-engine'
 import { pl } from '@/i18n/pl'
 
@@ -339,7 +339,20 @@ export async function getOrCreateCustomProgress(planId: string) {
 
 export async function applyCycleProgression(planId: string): Promise<CustomPlan | null> {
   const plan = await db.customPlans.get(planId)
-  if (!plan?.progression?.enabled || !plan.progression.afterCycleComplete) return null
-  const next = applyProgressionToPlan(plan, plan.progression)
+  if (!plan) return null
+  if (!plan.progression?.enabled || !plan.progression.afterCycleComplete) {
+    if (!plan.deload?.enabled) return null
+  }
+  const progress = await db.customProgramProgress.where('customPlanId').equals(planId).first()
+  const nextCycleAttempt = (progress?.cycleAttempt ?? 1) + 1
+  const rule = plan.progression ?? {
+    enabled: true,
+    afterCycleComplete: true,
+    repsDelta: 0,
+    weightKgDelta: 0,
+    durationSecDelta: 0,
+  }
+  if (!rule.enabled && !shouldApplyDeload(plan, nextCycleAttempt)) return null
+  const next = applyProgressionToPlan(plan, rule, { nextCycleAttempt })
   return saveCustomPlan(next, { activate: true })
 }

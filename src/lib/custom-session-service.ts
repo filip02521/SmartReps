@@ -1,7 +1,12 @@
 import { db, type LocalWorkoutSession } from '@/lib/db'
 import type { CustomPlan, CustomProgramProgress, ExerciseLog, SetLog } from '@/lib/exercise-model'
 import { getOrCreateCustomProgress, applyCycleProgression } from '@/lib/custom-plan-service'
-import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
+import { previewProgressionDiff } from '@/lib/custom-progression'
+import {
+  pickPreviousCustomSet,
+  toPreviousCustomSetResult,
+  type PreviousCustomSetResult,
+} from '@/lib/custom-previous-result'
 import { getNextWorkoutDate } from '@/lib/progress-engine'
 import { enqueueSync, enqueueActiveCustomWorkoutSync } from '@/lib/sync'
 import { generateId } from '@/lib/utils'
@@ -123,6 +128,8 @@ export async function persistCustomActive(
     currentSetIndex: number
     exerciseLogs: ExerciseLog[]
     restTimerJson: string | null
+    amrapEndAt?: number | null
+    amrapGroupId?: string | null
   },
 ) {
   if (!session.customPlanId) return
@@ -142,6 +149,8 @@ export async function persistCustomActive(
     currentSetIndex: state.currentSetIndex,
     exerciseLogs: state.exerciseLogs,
     restTimerJson: state.restTimerJson,
+    amrapEndAt: state.amrapEndAt ?? null,
+    amrapGroupId: state.amrapGroupId ?? null,
     updatedAt: new Date().toISOString(),
   })
   const activeRow = await db.activeCustomWorkout.get(session.customPlanId)
@@ -183,6 +192,20 @@ export async function finalizeCustomDay(params: {
     0,
   )
 
+  const day = plan.days.find((d) => d.dayNumber === session.dayNumber)
+  const restDays = day?.restAfterDay ?? 1
+  const isLastDay =
+    plan.days.length > 0 &&
+    session.dayNumber === Math.max(...plan.days.map((d) => d.dayNumber))
+
+  let progressionDiffJson: string | undefined
+  if (passed && isLastDay && plan.progression?.enabled && plan.progression.afterCycleComplete) {
+    const diff = previewProgressionDiff(plan, plan.progression).filter(
+      (d) => JSON.stringify(d.before) !== JSON.stringify(d.after),
+    )
+    if (diff.length > 0) progressionDiffJson = JSON.stringify(diff)
+  }
+
   const completed: LocalWorkoutSession = {
     ...session,
     status: 'completed',
@@ -192,17 +215,13 @@ export async function finalizeCustomDay(params: {
     exerciseLogs,
     programKind: 'custom',
     customPlanId: plan.id,
+    progressionDiffJson,
   }
   await db.workoutSessions.put(completed)
   await enqueueSync('workout_sessions', 'update', completed)
   if (session.customPlanId) await clearActiveCustomWorkout(session.customPlanId)
 
   const progress = await getOrCreateCustomProgress(plan.id)
-  const day = plan.days.find((d) => d.dayNumber === session.dayNumber)
-  const restDays = day?.restAfterDay ?? 1
-  const isLastDay =
-    plan.days.length > 0 &&
-    session.dayNumber === Math.max(...plan.days.map((d) => d.dayNumber))
 
   if (passed) {
     if (isLastDay) {
@@ -249,35 +268,43 @@ export async function finalizeCustomDay(params: {
   return { passed: passed && allExerciseSetsPassed(exerciseLogs) }
 }
 
-/** Last passed session's actual for the same plan/day/exercise/set (for badge). */
-export async function getPreviousCustomSetActual(params: {
+/** Last logged result for the same exercise + set (any day, most recent session). */
+export type { PreviousCustomSetResult } from '@/lib/custom-previous-result'
+
+export async function getPreviousCustomSetResult(params: {
   customPlanId: string
-  dayNumber: number
-  cycleAttempt: number
   exerciseId: string
   setNumber: number
-}): Promise<number | undefined> {
+  currentDayNumber: number
+  currentCycleAttempt: number
+  excludeSessionId?: string
+}): Promise<PreviousCustomSetResult | undefined> {
   const sessions = await db.workoutSessions
     .where('customPlanId')
     .equals(params.customPlanId)
     .toArray()
-  const candidates = sessions
-    .filter(
-      (s) =>
-        isCustomWorkoutSession(s) &&
-        s.status === 'completed' &&
-        s.passed === true &&
-        s.dayNumber === params.dayNumber &&
-        s.cycleAttempt < params.cycleAttempt,
-    )
-    .sort((a, b) => b.cycleAttempt - a.cycleAttempt)
-  const session = candidates[0]
-  if (!session?.exerciseLogs) return undefined
-  const log = session.exerciseLogs.find((l) => l.exerciseId === params.exerciseId)
-  const set = log?.sets.find((s) => s.setNumber === params.setNumber)
-  if (!set) return undefined
-  if (set.actual.durationSec != null) return set.actual.durationSec
-  return set.actual.reps
+  const picked = pickPreviousCustomSet(sessions, {
+    customPlanId: params.customPlanId,
+    exerciseId: params.exerciseId,
+    setNumber: params.setNumber,
+    excludeSessionId: params.excludeSessionId,
+  })
+  if (!picked) return undefined
+  return toPreviousCustomSetResult(picked.session, picked.set)
+}
+
+export async function getPreviousCustomSetActual(params: {
+  customPlanId: string
+  exerciseId: string
+  setNumber: number
+  currentDayNumber: number
+  currentCycleAttempt: number
+  excludeSessionId?: string
+}): Promise<number | undefined> {
+  const result = await getPreviousCustomSetResult(params)
+  if (!result) return undefined
+  if (result.durationSec != null) return result.durationSec
+  return result.reps
 }
 
 export async function abandonCustomWorkout(planId: string, sessionId: string) {

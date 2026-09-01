@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { ExerciseLog, SetLog } from '@/lib/exercise-model'
+import { findLastLoggedSet } from '@/lib/custom-workout-progress'
 import type { RestTimerState } from '@/lib/rest-timer'
+import type { WorkoutPosition } from '@/lib/custom-workout-nav'
 
 type CustomWorkoutStore = {
   sessionId: string | null
@@ -13,6 +15,8 @@ type CustomWorkoutStore = {
   restTimer: RestTimerState | null
   failedRetryUsed: boolean
   immersive: boolean
+  amrapEndAt: number | null
+  amrapGroupId: string | null
 
   startSession: (params: {
     sessionId: string
@@ -30,13 +34,21 @@ type CustomWorkoutStore = {
     currentSetIndex: number
     exerciseLogs: ExerciseLog[]
     restTimer: RestTimerState | null
+    amrapEndAt?: number | null
+    amrapGroupId?: string | null
   }) => void
-  completeSet: (exerciseId: string, order: number, result: SetLog) => void
+  completeSet: (
+    exerciseId: string,
+    order: number,
+    result: SetLog,
+    next?: WorkoutPosition,
+  ) => void
   undoLastSet: () => SetLog | null
   setRestTimer: (timer: RestTimerState | null) => void
   setPointers: (exerciseIndex: number, setIndex: number) => void
   setFailedRetryUsed: (v: boolean) => void
   setImmersive: (v: boolean) => void
+  setAmrap: (groupId: string | null, endAt: number | null) => void
   reset: () => void
 }
 
@@ -51,6 +63,8 @@ const initialState = {
   restTimer: null as RestTimerState | null,
   failedRetryUsed: false,
   immersive: false,
+  amrapEndAt: null as number | null,
+  amrapGroupId: null as string | null,
 }
 
 export const useCustomWorkoutStore = create<CustomWorkoutStore>((set, get) => ({
@@ -78,7 +92,7 @@ export const useCustomWorkoutStore = create<CustomWorkoutStore>((set, get) => ({
       immersive: true,
     }),
 
-  completeSet: (exerciseId, order, result) => {
+  completeSet: (exerciseId, order, result, next) => {
     const { exerciseLogs, currentExerciseIndex, currentSetIndex } = get()
     const logs = [...exerciseLogs]
     const existing = logs[currentExerciseIndex]
@@ -93,22 +107,28 @@ export const useCustomWorkoutStore = create<CustomWorkoutStore>((set, get) => ({
     logs[currentExerciseIndex] = log
     set({
       exerciseLogs: logs,
-      currentSetIndex: currentSetIndex + 1,
+      currentExerciseIndex: next?.exerciseIndex ?? currentExerciseIndex,
+      currentSetIndex: next?.setIndex ?? currentSetIndex + 1,
       failedRetryUsed: false,
       restTimer: null,
     })
   },
 
   undoLastSet: () => {
-    const { exerciseLogs, currentExerciseIndex, currentSetIndex } = get()
-    const log = exerciseLogs[currentExerciseIndex]
-    if (!log?.sets.length) return null
-    const removed = log.sets[log.sets.length - 1]!
+    const { exerciseLogs } = get()
+    const last = findLastLoggedSet(exerciseLogs)
+    if (!last) return null
+    const log = exerciseLogs[last.exerciseIndex]!
+    const removed = log.sets[last.setLogIndex]!
     const nextLogs = [...exerciseLogs]
-    nextLogs[currentExerciseIndex] = { ...log, sets: log.sets.slice(0, -1) }
+    nextLogs[last.exerciseIndex] = {
+      ...log,
+      sets: log.sets.slice(0, last.setLogIndex),
+    }
     set({
       exerciseLogs: nextLogs,
-      currentSetIndex: Math.max(0, currentSetIndex - 1),
+      currentExerciseIndex: last.exerciseIndex,
+      currentSetIndex: Math.max(0, removed.setNumber - 1),
       restTimer: null,
       failedRetryUsed: false,
     })
@@ -120,5 +140,6 @@ export const useCustomWorkoutStore = create<CustomWorkoutStore>((set, get) => ({
     set({ currentExerciseIndex: exerciseIndex, currentSetIndex: setIndex, failedRetryUsed: false }),
   setFailedRetryUsed: (v) => set({ failedRetryUsed: v }),
   setImmersive: (v) => set({ immersive: v }),
+  setAmrap: (amrapGroupId, amrapEndAt) => set({ amrapGroupId, amrapEndAt }),
   reset: () => set(initialState),
 }))

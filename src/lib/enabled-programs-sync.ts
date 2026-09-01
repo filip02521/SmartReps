@@ -7,10 +7,17 @@ export function parseEnabledPrograms(raw: string[] | null | undefined): Program[
   return valid.length ? valid : ['pushups']
 }
 
+export function parseEnabledCustomPlanIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter((id): id is string => typeof id === 'string' && id.length > 0)
+}
+
 export type RemoteProfileSettings = {
   enabled_programs: string[] | null
   enabled_programs_updated_at: string | null
   enabled_workouts_json?: string[] | null
+  enabled_workouts_updated_at?: string | null
+  custom_plans_filter_explicit?: boolean | null
   theme_preference?: string | null
   timer_sound?: boolean | null
   timer_vibration?: boolean | null
@@ -21,7 +28,7 @@ export type RemoteProfileSettings = {
 
 /**
  * Merge remote profile enabled_programs with local using last-write-wins.
- * Falls back to local when remote columns are absent (pre-migration clients).
+ * Does not touch enabledCustomPlanIds — see mergeEnabledCustomWorkoutsFromProfile.
  */
 export function mergeEnabledProgramsFromProfile(remote: RemoteProfileSettings | null): boolean {
   if (!remote?.enabled_programs?.length || !remote.enabled_programs_updated_at) {
@@ -50,11 +57,44 @@ export function mergeEnabledProgramsFromProfile(remote: RemoteProfileSettings | 
     settings: {
       ...settings,
       enabledPrograms: remotePrograms,
-      enabledCustomPlanIds: Array.isArray(remote.enabled_workouts_json)
-        ? remote.enabled_workouts_json.filter((id): id is string => typeof id === 'string')
-        : settings.enabledCustomPlanIds,
     },
     enabledProgramsUpdatedAt: remoteUpdatedAt,
+  })
+  return true
+}
+
+/** LWW merge for dashboard custom plan card selection. */
+export function mergeEnabledCustomWorkoutsFromProfile(remote: RemoteProfileSettings | null): boolean {
+  if (!remote?.enabled_workouts_updated_at) return false
+
+  const remoteUpdatedAt = remote.enabled_workouts_updated_at
+  const remoteIds = parseEnabledCustomPlanIds(remote.enabled_workouts_json)
+  const remoteExplicit = remote.custom_plans_filter_explicit === true
+
+  const { settings, enabledCustomWorkoutsUpdatedAt } = useAppStore.getState()
+  const localTime = enabledCustomWorkoutsUpdatedAt
+    ? new Date(enabledCustomWorkoutsUpdatedAt).getTime()
+    : 0
+  const remoteTime = new Date(remoteUpdatedAt).getTime()
+  if (remoteTime <= localTime) return false
+
+  const sameIds =
+    remoteIds.length === settings.enabledCustomPlanIds.length &&
+    remoteIds.every((id) => settings.enabledCustomPlanIds.includes(id))
+  const sameExplicit = remoteExplicit === settings.customPlansFilterExplicit
+
+  if (sameIds && sameExplicit) {
+    useAppStore.setState({ enabledCustomWorkoutsUpdatedAt: remoteUpdatedAt })
+    return false
+  }
+
+  useAppStore.setState({
+    settings: {
+      ...settings,
+      enabledCustomPlanIds: remoteIds,
+      customPlansFilterExplicit: remoteExplicit,
+    },
+    enabledCustomWorkoutsUpdatedAt: remoteUpdatedAt,
   })
   return true
 }
@@ -114,10 +154,14 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
   }
   applyThemeColor(theme)
 
-  // Keep local reminder sinks in sync with pulled hour/mode
   void import('@/lib/notifications').then(({ scheduleDailyReminder, cancelReminder }) => {
     const { settings: s } = useAppStore.getState()
-    if (s.workoutReminders && !s.pushNotifications && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (
+      s.workoutReminders &&
+      !s.pushNotifications &&
+      typeof Notification !== 'undefined' &&
+      Notification.permission === 'granted'
+    ) {
       scheduleDailyReminder(s.reminderHour, 0)
     } else {
       cancelReminder()

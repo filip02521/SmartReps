@@ -3,6 +3,7 @@ import {
   isCustomPlanEnabledInProfile,
   pruneEnabledCustomPlanIds,
   resolveHomeCustomPlans,
+  countHiddenHomeCustomPlans,
 } from '@/lib/enabled-custom-plans'
 import type { CustomPlan } from '@/lib/exercise-model'
 
@@ -59,5 +60,15 @@ describe('enabled-custom-plans', () => {
 
   it('prunes removed plan from enabled ids', () => {
     expect(pruneEnabledCustomPlanIds(['a', 'b', 'c'], 'b')).toEqual(['a', 'c'])
+  })
+
+  it('counts hidden plans with explicit filter', () => {
+    const all = [plan('a'), plan('b'), plan('c'), plan('d')]
+    expect(
+      countHiddenHomeCustomPlans(all, {
+        enabledCustomPlanIds: ['a', 'b', 'c', 'd'],
+        customPlansFilterExplicit: true,
+      }),
+    ).toBe(1)
   })
 })

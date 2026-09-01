@@ -15,6 +15,7 @@ import {
   NegativeCountdown,
   ConfirmSheet,
   DayPlanSheet,
+  WorkoutFailRetryRow,
 } from '@/components/workout/WorkoutComponents'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
@@ -220,10 +221,11 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           </Button>
         )}
         {failedRetryVisible && (
-          <div className="mt-2 flex gap-2">
-            <Button variant="secondary" fullWidth onClick={onRetry}>{pl.retry}</Button>
-            <Button variant="danger" fullWidth onClick={onFinishDayEarly}>{pl.finishDay}</Button>
-          </div>
+          <WorkoutFailRetryRow
+            onRetry={onRetry}
+            onFinishEarly={onFinishDayEarly}
+            finishLabel={pl.finishDay}
+          />
         )}
       </div>
 
