@@ -59,6 +59,32 @@ async function mockSupabaseAuth(page: Page, email = 'test@example.com') {
   await page.route('**/auth/v1/logout**', async (route) => {
     await route.fulfill({ status: 204, body: '' })
   })
+  // Boot / visibility sync — avoid real network during logged-in profile tests.
+  await page.route('**/rest/v1/**', async (route) => {
+    const url = route.request().url()
+    if (url.includes('/profiles')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          enabled_programs: ['pushups'],
+          enabled_programs_updated_at: '2026-01-01T00:00:00.000Z',
+          theme_preference: 'system',
+          timer_sound: false,
+          timer_vibration: false,
+          keep_screen_on: true,
+          reminder_hour: 18,
+          ui_settings_updated_at: '2026-01-01T00:00:00.000Z',
+        }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '[]',
+    })
+  })
 }
 
 async function seedLoggedInProfile(page: Page) {

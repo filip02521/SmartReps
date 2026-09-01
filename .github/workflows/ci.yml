@@ -9,6 +9,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # Public client keys — required at build time for auth/sync E2E (Profile logout, sync panel).
+      VITE_SUPABASE_URL: https://pwfymoxjrgnovzcmmfyn.supabase.co
+      VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3Znltb3hqcmdub3Z6Y21tZnluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTY2NzMsImV4cCI6MjEwMzM3MjY3M30.IGRXCu0FSwD0_GwJRGr2Y6tx7ELXCzpGS4eaEY-Y288
     steps:
       - uses: actions/checkout@v4
 
