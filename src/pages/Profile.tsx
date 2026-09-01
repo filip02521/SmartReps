@@ -17,6 +17,7 @@ import { SyncStatusPanel } from '@/components/profile/SyncStatusPanel'
 import { runAuthenticatedSync } from '@/lib/auth-sync'
 import { signOutUser } from '@/lib/auth-lifecycle'
 import { pl } from '@/i18n/pl'
+import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
 import { requestWorkoutReminderPermission, scheduleDailyReminder, cancelReminder } from '@/lib/notifications'
 import {
   getVapidPublicKey,
@@ -374,7 +375,7 @@ export default function ProfilePage() {
       : pl.pushNotificationsHint
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6">
+    <div className={TAB_PAGE_SHELL}>
       <PageHeader
         title={pl.navProfile}
         subtitle={email ? pl.accountLoggedIn(email) : pl.accountLocalOnly}

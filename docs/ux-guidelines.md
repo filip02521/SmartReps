@@ -38,7 +38,7 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 
 ## Konwencje shell
 
-- Taby: `max-w-lg px-4 py-6 safe-top` (bez page `safe-bottom`)
+- Taby: `TAB_PAGE_SHELL` (`src/lib/ui-chrome.ts`) — `w-full min-w-0 max-w-lg px-4 py-6`
 - Flow: `py-8 safe-top safe-bottom`
 - CTA trening: `size="touch"`; ustawienia: `sm` / `ghost`
 - Empty katalog → `EmptyState`; błąd → `ErrorBanner` + retry in-app
@@ -126,6 +126,8 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 - [x] focus-visible na Button / tabs / SegmentedControl / TextField
 - [x] Toast nie zasłania RestTimerPill
 - [x] Sheet / dolne menu — portal do `document.body` (ponad tab bar) + safe-area na panelu
+- [x] Pełnoekranowe overlaye (`RestTimerExpanded`, `CycleCelebration`) — `OverlayPortal`
+- [x] Toast / PWA prompt nad tab barem — `CHROME_BOTTOM_ABOVE_TABS` (safe-area)
 - [x] Profile CSV = wszystkie programy; Progress CSV = bieżący
 - [x] Attention band min-height stabilny (coach → tip)
 - [x] iOS status bar: `black-translucent` + `.safe-header` (sticky tło pod notch) — [`index.html`](../index.html), [`globals.css`](../src/styles/globals.css), [`AppLayout.tsx`](../src/components/layout/AppLayout.tsx)

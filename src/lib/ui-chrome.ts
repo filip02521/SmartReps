@@ -7,10 +7,20 @@ export const Z_CELEBRATION = 70
 export const Z_OFFLINE = 80
 export const Z_TOAST = 90
 
+/** Tab screens — full width within max-w-lg (flex children need min-w-0). */
+export const TAB_PAGE_SHELL = 'mx-auto w-full min-w-0 max-w-lg px-4 py-6'
+
+/** Matches AppLayout tab bar + main padding (h-20 + home indicator). */
+export const TAB_BAR_BOTTOM_INSET = 'calc(5rem + env(safe-area-inset-bottom, 0px))'
+
+/** Fixed chrome sitting above tab bar with a small gap. */
+export const CHROME_BOTTOM_ABOVE_TABS =
+  'bottom-[calc(5rem+env(safe-area-inset-bottom,0px)+0.5rem)]'
+
 /** Toast bottom offset when RestTimerPill is visible (tabs hidden). */
 export const TOAST_BOTTOM_OVER_PILL = 'bottom-24'
 export const TOAST_BOTTOM_NO_TABS = 'bottom-4'
-export const TOAST_BOTTOM_WITH_TABS = 'bottom-20'
+export const TOAST_BOTTOM_WITH_TABS = CHROME_BOTTOM_ABOVE_TABS
 
 export const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sr-brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sr-bg-base)]'

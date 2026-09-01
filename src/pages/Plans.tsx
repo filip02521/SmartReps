@@ -12,6 +12,7 @@ import { LogoMark } from '@/components/brand/Logo'
 import { getTargetReps } from '@/lib/progress-engine'
 import { db } from '@/lib/db'
 import { pl } from '@/i18n/pl'
+import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
 import type { Program } from '@/data/plans/types'
 import type { LocalProgramProgress } from '@/lib/db'
 import { FOCUS_RING } from '@/lib/ui-chrome'
@@ -55,7 +56,7 @@ export default function PlansPage() {
   )
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6">
+    <div className={TAB_PAGE_SHELL}>
       <PageHeader title={pl.navPlans} subtitle={pl.plansCatalogHint} />
 
       {allCycles.length === 0 ? (

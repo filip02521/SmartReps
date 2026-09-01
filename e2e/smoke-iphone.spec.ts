@@ -140,4 +140,26 @@ test.describe('iPhone SE smoke', () => {
     )
     expect(hitTarget).toBe(true)
   })
+
+  test('profile import sheet is not clipped by tab bar', async ({ page }) => {
+    await seedOnboardedWithProgress(page)
+    await page.getByRole('button', { name: 'Import backupu' }).click()
+    const csvAction = page.getByRole('button', { name: 'Importuj sesje (CSV)' })
+    await expect(csvAction).toBeVisible({ timeout: 10_000 })
+
+    const box = await csvAction.boundingBox()
+    const viewport = page.viewportSize()
+    expect(box).not.toBeNull()
+    expect(viewport).not.toBeNull()
+    expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height + 1)
+
+    const hitTarget = await page.evaluate(
+      ({ x, y, w, h }) => {
+        const el = document.elementFromPoint(x + w / 2, y + h / 2)
+        return el?.closest('[role="dialog"]') != null
+      },
+      { x: box!.x, y: box!.y, w: box!.width, h: box!.height },
+    )
+    expect(hitTarget).toBe(true)
+  })
 })

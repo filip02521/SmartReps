@@ -8,6 +8,7 @@ import { HomeTip } from '@/components/dashboard/HomeTip'
 import { ProgramHomeCard } from '@/components/dashboard/ProgramHomeCard'
 import { InstallCoach } from '@/components/ux/InstallCoach'
 import { pl } from '@/i18n/pl'
+import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { drainIncompleteSetup, beginLevelChange } from '@/lib/setup-flow'
@@ -117,7 +118,7 @@ export default function Dashboard() {
 
   if (!hydrated) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-6">
+      <div className={TAB_PAGE_SHELL}>
         <PageLoader />
       </div>
     )
@@ -127,7 +128,7 @@ export default function Dashboard() {
   const showTip = installVisible === false && !!home?.tip
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6">
+    <div className={TAB_PAGE_SHELL}>
       <header className="mb-5">
         <LogoFull height={36} />
         <h1 className="sr-only">{pl.navWorkout}</h1>

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { registerSW } from 'virtual:pwa-register'
 import { NoticeCard, noticeIcon } from '@/components/ux/NoticeCard'
+import { cn } from '@/lib/utils'
 import { trackPwaUpdateReload } from '@/lib/analytics'
 import { pl } from '@/i18n/pl'
+import { CHROME_BOTTOM_ABOVE_TABS, Z_TOAST } from '@/lib/ui-chrome'
 
 /** Shows a NoticeCard when a new service worker is waiting (registerType: prompt). */
 export function PwaUpdatePrompt() {
@@ -43,7 +45,13 @@ export function PwaUpdatePrompt() {
   if (!needsRefresh) return null
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[var(--sr-z-toast)] mx-auto max-w-lg px-4">
+    <div
+      className={cn(
+        'pointer-events-none fixed inset-x-0 mx-auto max-w-lg px-4',
+        CHROME_BOTTOM_ABOVE_TABS,
+      )}
+      style={{ zIndex: Z_TOAST }}
+    >
       <NoticeCard
         className="pointer-events-auto"
         tone="brand"

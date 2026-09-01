@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Sheet } from '@/components/ui/Sheet'
+import { OverlayPortal } from '@/components/ui/OverlayPortal'
 import { Button } from '@/components/ui/Button'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { pl } from '@/i18n/pl'
@@ -273,8 +273,8 @@ export function ImportBackupSheet({
         />
       )}
 
-      {importing &&
-        createPortal(
+      {importing && (
+        <OverlayPortal>
           <div
             className="fixed inset-0 flex items-center justify-center bg-black/40"
             style={{ zIndex: Z_SHEET }}
@@ -285,9 +285,9 @@ export function ImportBackupSheet({
             <p className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-4 py-3 text-sm">
               {pl.importInProgress}
             </p>
-          </div>,
-          document.body,
-        )}
+          </div>
+        </OverlayPortal>
+      )}
     </>
   )
 }

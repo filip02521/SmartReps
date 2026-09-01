@@ -2,6 +2,7 @@ import { cn, formatRestTime, vibrate } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
 import { Check, ChevronRight, Minus, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { OverlayPortal } from '@/components/ui/OverlayPortal'
 import { Sheet } from '@/components/ui/Sheet'
 import { getSetLabel, getTargetReps, formatSetTarget } from '@/lib/progress-engine'
 import type { SetTarget } from '@/data/plans/types'
@@ -332,15 +333,16 @@ export function RestTimerExpanded({
   const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   return (
-    <div
-      ref={trapRef}
-      className="fixed inset-0 flex flex-col items-center justify-center bg-[var(--sr-bg-overlay)] text-[var(--sr-text-primary)] safe-top safe-bottom"
-      style={{ zIndex: Z_REST_EXPANDED }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={pl.restLabel}
-      onKeyDown={(e) => { if (e.key === 'Escape') onCollapse() }}
-    >
+    <OverlayPortal>
+      <div
+        ref={trapRef}
+        className="fixed inset-0 flex flex-col items-center justify-center bg-[var(--sr-bg-overlay)] text-[var(--sr-text-primary)] safe-top safe-bottom"
+        style={{ zIndex: Z_REST_EXPANDED }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={pl.restLabel}
+        onKeyDown={(e) => { if (e.key === 'Escape') onCollapse() }}
+      >
       <button
         type="button"
         className="absolute right-4 top-4 min-h-11 min-w-11 rounded-[var(--sr-radius-md)] px-3 text-sm text-[var(--sr-text-secondary)]"
@@ -376,7 +378,8 @@ export function RestTimerExpanded({
           onCancel={() => setShowSkipConfirm(false)}
         />
       )}
-    </div>
+      </div>
+    </OverlayPortal>
   )
 }
 
@@ -409,10 +412,11 @@ export function onSetFailed() {
 
 export function CycleCelebration({ message, onDismiss }: { message: string; onDismiss: () => void }) {
   return (
-    <div
-      className="fixed inset-0 flex flex-col items-center justify-center bg-[var(--sr-bg-overlay)] p-6 text-center safe-top safe-bottom overflow-hidden"
-      style={{ zIndex: Z_CELEBRATION }}
-    >      <div className="pointer-events-none absolute inset-0">
+    <OverlayPortal>
+      <div
+        className="fixed inset-0 flex flex-col items-center justify-center bg-[var(--sr-bg-overlay)] p-6 text-center safe-top safe-bottom overflow-hidden"
+        style={{ zIndex: Z_CELEBRATION }}
+      >      <div className="pointer-events-none absolute inset-0">
         {Array.from({ length: 24 }, (_, i) => (
           <span
             key={i}
@@ -432,6 +436,7 @@ export function CycleCelebration({ message, onDismiss }: { message: string; onDi
         <p className="mt-3 text-[var(--sr-text-secondary)]">{message}</p>
         <Button className="mt-6" fullWidth onClick={onDismiss}>{pl.continueSetup}</Button>
       </div>
-    </div>
+      </div>
+    </OverlayPortal>
   )
 }

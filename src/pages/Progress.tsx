@@ -29,6 +29,7 @@ import { getCycleById } from '@/data/plans'
 import { getProgramStats, getMaxSetPerDay, getProgramRecords } from '@/lib/stats-engine'
 import { useAppStore } from '@/stores/app-store'
 import { pl } from '@/i18n/pl'
+import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
 import type { Program } from '@/data/plans/types'
 import type { LocalWorkoutSession } from '@/lib/db'
 import { getCycleDayStatus } from '@/lib/cycle-progress'
@@ -221,7 +222,7 @@ export default function ProgressPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto w-full min-w-0 max-w-lg px-4 py-6">
+      <div className={TAB_PAGE_SHELL}>
         <PageHeader title={pl.navProgress} subtitle={pl.progressOverviewHint} />
         <SkeletonCard className="mt-4 min-h-[8rem]" />
         <SkeletonCard className="mt-4 min-h-[12rem]" />
@@ -231,7 +232,7 @@ export default function ProgressPage() {
 
   if (error) {
     return (
-      <div className="mx-auto w-full min-w-0 max-w-lg px-4 py-6">
+      <div className={TAB_PAGE_SHELL}>
         <PageHeader title={pl.navProgress} />
         <ErrorBanner message={error} onRetry={() => setReloadEpoch((n) => n + 1)} />
       </div>
@@ -239,7 +240,7 @@ export default function ProgressPage() {
   }
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-lg px-4 py-6">
+    <div className={TAB_PAGE_SHELL}>
       <PageHeader title={pl.navProgress} subtitle={statusSubtitle} />
 
       {programOptions.length > 1 && (
