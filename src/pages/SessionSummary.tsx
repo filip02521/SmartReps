@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SessionCompare } from '@/components/workout/SessionCompare'
-import { ErrorBanner, PageLoader } from '@/components/ux/Feedback'
+import { ErrorBanner, EmptyState, PageLoader } from '@/components/ux/Feedback'
+import { LogoMark } from '@/components/brand/Logo'
 import { NoticeCard, LogIn } from '@/components/ux/NoticeCard'
 import { getProgramProgress } from '@/lib/program-service'
 import { getSessionComparison } from '@/lib/session-service'
@@ -110,29 +111,44 @@ export default function SessionSummary() {
   if (loading) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-        <PageLoader />
+        <PageLoader message={pl.loading} />
       </div>
     )
   }
 
   if (error) {
+    const missing = error === pl.missingSession
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-        <ErrorBanner
-          message={error}
-          onRetry={() => {
-            processedRef.current = false
-            void load()
-          }}
-        />
-        <Button
-          className="mt-4"
-          size="touch"
-          fullWidth
-          onClick={() => navigate('/', { replace: true })}
-        >
-          {pl.backHome}
-        </Button>
+        {missing ? (
+          <EmptyState
+            icon={<LogoMark size={48} />}
+            title={pl.sessionSummaryMissingTitle}
+            description={pl.missingSessionHint}
+            action={{
+              label: pl.backHome,
+              onClick: () => navigate('/', { replace: true }),
+            }}
+          />
+        ) : (
+          <>
+            <ErrorBanner
+              message={error}
+              onRetry={() => {
+                processedRef.current = false
+                void load()
+              }}
+            />
+            <Button
+              className="mt-4"
+              size="touch"
+              fullWidth
+              onClick={() => navigate('/', { replace: true })}
+            >
+              {pl.backHome}
+            </Button>
+          </>
+        )}
       </div>
     )
   }
@@ -181,7 +197,7 @@ export default function SessionSummary() {
         </Card>
       )}
 
-      {!failed && progress && progress.status !== 'test_pending' && (
+      {!failed && progress && progress.status !== 'test_pending' && !progress.nextWorkoutAfter && (
         <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecSuccess}</p>
       )}
 

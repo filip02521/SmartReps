@@ -399,7 +399,7 @@ export default function ProfilePage() {
         subtitle={email ? pl.accountLoggedIn(email) : pl.accountLocalOnly}
       />
 
-      <PageSection title={pl.account} className="mt-2">
+      <PageSection title={pl.account}>
         <div className="flex flex-col gap-3">
           <SyncStatusPanel
             syncing={syncing}

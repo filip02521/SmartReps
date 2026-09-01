@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { ChevronRight } from 'lucide-react'
 import type { HomeLoadResult } from '@/lib/home-summary'
 import { MetricStrip } from '@/components/ui/MetricStrip'
 import { Badge } from '@/components/ui/Card'
@@ -96,7 +97,7 @@ export function HomeSummary({
           )}
         </HomeSection>
 
-        {summary.programs.length > 0 && (
+        {summary.programs.length > 1 && (
           <HomeSection title={pl.homeProgramsQuickTitle} hint={pl.homeProgramsQuickHint}>
             <ul className="divide-y divide-[var(--sr-border-subtle)]">
               {summary.programs.map((p) => (
@@ -104,44 +105,19 @@ export function HomeSummary({
                   <button
                     type="button"
                     className={cn(
-                      'flex w-full min-h-11 flex-col gap-2 py-3 text-left',
+                      'flex w-full min-h-11 items-center justify-between gap-2 py-3 text-left',
                       'rounded-[var(--sr-radius-md)] transition-colors',
                       'hover:bg-[var(--sr-bg-surface)] active:bg-[var(--sr-bg-surface)]',
                     )}
                     onClick={() => onScrollToProgram(p.program)}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-[var(--sr-text-primary)]">
-                        {p.label}
+                    <span className="font-semibold text-[var(--sr-text-primary)]">{p.label}</span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      {p.paused && <Badge variant="warning">{pl.statusPaused}</Badge>}
+                      <span className="sr-text-body-sm tabular-nums text-[var(--sr-text-secondary)]">
+                        {p.dayLabel}
                       </span>
-                      <span className="flex shrink-0 items-center gap-2">
-                        {p.paused && <Badge variant="warning">{pl.statusPaused}</Badge>}
-                        <span className="sr-text-body-sm tabular-nums text-[var(--sr-text-secondary)]">
-                          {p.dayLabel}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]">
-                      <div
-                        className="h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
-                        style={{
-                          width: `${Math.round(p.fraction * 100)}%`,
-                          background: p.testPending
-                            ? 'var(--sr-brand-primary)'
-                            : 'var(--sr-success)',
-                        }}
-                      />
-                    </div>
-                    <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-                      {p.testPending
-                        ? pl.cycleDoneTestLabel
-                        : pl.homeProgramLevelDay(p.cycleNameShort, p.currentDay, p.totalDays)}
-                      {p.attempt >= 2 && (
-                        <>
-                          {' · '}
-                          {pl.homeCycleRestart(p.attempt)}
-                        </>
-                      )}
+                      <ChevronRight size={16} className="text-[var(--sr-text-muted)]" aria-hidden />
                     </span>
                   </button>
                 </li>

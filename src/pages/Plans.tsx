@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet } from '@/components/ui/Sheet'
-import { EmptyState } from '@/components/ux/Feedback'
+import { EmptyState, SkeletonCard } from '@/components/ux/Feedback'
 import { LogoMark } from '@/components/brand/Logo'
 import { ExerciseLibrarySheet } from '@/components/plans/ExerciseLibrarySheet'
 import { CustomPlanEditor } from '@/components/plans/CustomPlanEditor'
@@ -66,6 +66,7 @@ export default function PlansPage() {
     Partial<Record<Program, LocalProgramProgress>>
   >({})
   const [customPlans, setCustomPlans] = useState<CustomPlan[]>([])
+  const [customLoading, setCustomLoading] = useState(true)
   const [customResume, setCustomResume] = useState<Record<string, CustomPlanResumeInfo | null>>({})
   const [customProgress, setCustomProgress] = useState<
     Record<string, CustomProgramProgress | null>
@@ -84,18 +85,23 @@ export default function PlansPage() {
   const pullups = allCycles.filter((c) => c.program === 'pullups')
 
   async function reloadCustom() {
-    const plans = await listCustomPlans()
-    setCustomPlans(plans)
-    setExercises(await listExercises())
-    const resumeMap: Record<string, CustomPlanResumeInfo | null> = {}
-    const progressMap: Record<string, CustomProgramProgress | null> = {}
-    for (const plan of plans.filter((p) => p.status === 'active')) {
-      resumeMap[plan.id] = await getCustomPlanResumeInfo(plan.id)
-      progressMap[plan.id] =
-        (await db.customProgramProgress.where('customPlanId').equals(plan.id).first()) ?? null
+    setCustomLoading(true)
+    try {
+      const plans = await listCustomPlans()
+      setCustomPlans(plans)
+      setExercises(await listExercises())
+      const resumeMap: Record<string, CustomPlanResumeInfo | null> = {}
+      const progressMap: Record<string, CustomProgramProgress | null> = {}
+      for (const plan of plans.filter((p) => p.status === 'active')) {
+        resumeMap[plan.id] = await getCustomPlanResumeInfo(plan.id)
+        progressMap[plan.id] =
+          (await db.customProgramProgress.where('customPlanId').equals(plan.id).first()) ?? null
+      }
+      setCustomResume(resumeMap)
+      setCustomProgress(progressMap)
+    } finally {
+      setCustomLoading(false)
     }
-    setCustomResume(resumeMap)
-    setCustomProgress(progressMap)
   }
 
   async function openEditor(planId: string | null, opts?: { dayNumber?: number }) {
@@ -197,23 +203,23 @@ export default function PlansPage() {
 
       {tab === 'mine' && (
         <PageSection title={pl.myPlansTitle} hint={pl.myPlansHint} className="mt-4">
-          <div className="mb-4 flex flex-wrap gap-2">
-            <Button
-              type="button"
-              onClick={() => void openEditor(null)}
-            >
+          <div className="mb-4 flex flex-col gap-2">
+            <Button type="button" size="touch" fullWidth onClick={() => void openEditor(null)}>
               {pl.newCustomPlan}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setLibraryOpen(true)}>
-              {pl.exerciseLibrary}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => importInputRef.current?.click()}
-            >
-              {pl.planImportJson}
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant="secondary" size="sm" onClick={() => setLibraryOpen(true)}>
+                {pl.exerciseLibrary}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => importInputRef.current?.click()}
+              >
+                {pl.planImportJson}
+              </Button>
+            </div>
             <input
               ref={importInputRef}
               type="file"
@@ -226,10 +232,16 @@ export default function PlansPage() {
               }}
             />
           </div>
-          {customPlans.length === 0 ? (
+          {customLoading ? (
+            <div className="flex flex-col gap-3">
+              <SkeletonCard className="min-h-[6.5rem]" />
+              <SkeletonCard className="min-h-[6.5rem]" />
+            </div>
+          ) : customPlans.length === 0 ? (
             <EmptyState
               icon={<LogoMark size={48} />}
               title={pl.myPlansEmpty}
+              description={pl.myPlansHint}
               action={{
                 label: pl.myPlansEmptyCta,
                 onClick: () => void openEditor(null),

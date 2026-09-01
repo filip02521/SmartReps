@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
-import { BrandLoader } from '@/components/ui/BrandLoader'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { ErrorBanner } from '@/components/ux/Feedback'
+import { ErrorBanner, PageLoader } from '@/components/ux/Feedback'
 import { ActiveCustomWorkoutScreen } from '@/components/workout/ActiveCustomWorkoutScreen'
 import { ExerciseDetailSheet } from '@/components/plans/ExerciseDetailSheet'
 import { ExerciseLibraryPanel } from '@/components/plans/ExerciseLibraryPanel'
@@ -849,11 +848,17 @@ export default function CustomWorkoutPage() {
         exercises,
       ).length >= 1
     const canReplace = loadErrorKind === 'missing_exercise' && missingExerciseId != null
+    const errorTitle =
+      loadErrorKind === 'missing_exercise'
+        ? pl.customWorkoutMissingExercise
+        : loadErrorKind === 'empty_day'
+          ? pl.customWorkoutMissingDay
+          : pl.customWorkoutProblemTitle
     return (
       <>
-        <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center gap-4 px-4 text-center safe-top safe-bottom">
-          <p className="text-[var(--sr-text-secondary)]">{loadError}</p>
-          <div className="flex w-full flex-col gap-2">
+        <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
+          <PageHeader title={errorTitle} subtitle={loadError} />
+          <div className="mt-6 flex w-full flex-col gap-2">
             {planId && loadErrorDayNumber != null && (
               <Button
                 type="button"
@@ -975,8 +980,8 @@ export default function CustomWorkoutPage() {
 
   if (loading || !plan || !day || !planned || !exDef || !prescription) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <BrandLoader size={44} />
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+        <PageLoader message={pl.loading} />
       </div>
     )
   }

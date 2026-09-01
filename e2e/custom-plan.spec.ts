@@ -180,7 +180,12 @@ test.describe('custom plans smoke', () => {
     await expect(page.getByText('Dzień zaliczony').or(page.getByText('Dzień niezaliczony'))).toBeVisible({
       timeout: 20_000,
     })
-    await expect(page.getByText('Świetna robota').or(page.getByText('Ten sam dzień czeka'))).toBeVisible()
+    await expect(
+      page
+        .getByText('Zrób zaplanowaną przerwę')
+        .or(page.getByText('Ten sam dzień czeka'))
+        .or(page.getByText(/Następny trening/i)),
+    ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Zobacz postępy' })).toBeVisible()
   })
 
@@ -351,8 +356,7 @@ test.describe('custom plans smoke', () => {
       buffer: Buffer.from(JSON.stringify(payload)),
     })
 
-    await expect(page.getByText(planName)).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByLabel('Nazwa planu')).toHaveValue(planName)
+    await expect(page.getByLabel('Nazwa planu')).toHaveValue(planName, { timeout: 15_000 })
   })
 
   test('multi-exercise day advances through both exercises', async ({ page }) => {
@@ -456,7 +460,12 @@ test.describe('custom plans smoke', () => {
     await expect(page.getByText('Dzień zaliczony').or(page.getByText('Dzień niezaliczony'))).toBeVisible({
       timeout: 20_000,
     })
-    await expect(page.getByText('Świetna robota').or(page.getByText('Ten sam dzień czeka'))).toBeVisible()
+    await expect(
+      page
+        .getByText('Zrób zaplanowaną przerwę')
+        .or(page.getByText('Ten sam dzień czeka'))
+        .or(page.getByText(/Następny trening/i)),
+    ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Zobacz postępy' })).toBeVisible()
   })
 

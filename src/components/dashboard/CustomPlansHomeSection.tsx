@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { CustomPlanHomeCard } from '@/components/dashboard/CustomPlanHomeCard'
+import { EmptyState } from '@/components/ux/Feedback'
+import { LogoMark } from '@/components/brand/Logo'
 import { pl } from '@/i18n/pl'
 import { listCustomPlans, listExercises } from '@/lib/custom-plan-service'
 import { getCustomPlanResumeInfo } from '@/lib/custom-plan-resume'
@@ -69,7 +71,15 @@ export function CustomPlansHomeSection() {
     if (filterExplicit && enabledIds.length === 0) {
       return (
         <section className="mt-8" aria-label={pl.homeCustomPlans}>
-          <p className="text-sm text-[var(--sr-text-secondary)]">{pl.customHomeEmptyHint}</p>
+          <EmptyState
+            icon={<LogoMark size={40} />}
+            title={pl.customHomeEmptyTitle}
+            description={pl.customHomeEmptyHint}
+            action={{
+              label: pl.customHomeEmptyCta,
+              onClick: () => navigate('/profile'),
+            }}
+          />
         </section>
       )
     }

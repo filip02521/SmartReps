@@ -112,9 +112,16 @@ export function SyncStatusPanel({ syncing, online, onSyncNow, onLogin }: SyncSta
         <Badge variant={badge.variant}>{badge.label}</Badge>
       </div>
 
-      <NestedStat
-        value={detailLines.join(' · ') || pl.notLoggedIn}
-      />
+      <div className="flex flex-col gap-1.5">
+        {detailLines.map((line) => (
+          <p key={line} className="text-sm leading-relaxed text-[var(--sr-text-secondary)]">
+            {line}
+          </p>
+        ))}
+        {detailLines.length === 0 && (
+          <p className="text-sm text-[var(--sr-text-secondary)]">{pl.notLoggedIn}</p>
+        )}
+      </div>
 
       {snapshot.deadLetterCount > 0 && (
         <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/40 bg-[var(--sr-warning)]/10 p-3">

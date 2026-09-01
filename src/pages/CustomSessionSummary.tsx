@@ -3,7 +3,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { BrandLoader } from '@/components/ui/BrandLoader'
+import { EmptyState, PageLoader } from '@/components/ux/Feedback'
+import { LogoMark } from '@/components/brand/Logo'
 import {
   CustomProgressionDiffList,
   CustomSessionRecap,
@@ -113,8 +114,8 @@ export default function CustomSessionSummary() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <BrandLoader size={44} />
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+        <PageLoader message={pl.loading} />
       </div>
     )
   }
@@ -126,9 +127,17 @@ export default function CustomSessionSummary() {
   ) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-        <PageHeader title={pl.missingSession} />
-        <Button className="mt-6" fullWidth onClick={() => navigate('/plans?tab=mine')}>
-          {pl.myPlansTitle}
+        <EmptyState
+          icon={<LogoMark size={48} />}
+          title={pl.sessionSummaryMissingTitle}
+          description={pl.missingSessionHint}
+          action={{
+            label: pl.myPlansTitle,
+            onClick: () => navigate('/plans?tab=mine'),
+          }}
+        />
+        <Button variant="ghost" className="mt-3" fullWidth onClick={() => navigate('/')}>
+          {pl.backHome}
         </Button>
       </div>
     )
@@ -152,9 +161,11 @@ export default function CustomSessionSummary() {
       <PageHeader
         title={failed ? pl.customDayFailed : pl.customDayPassed}
         subtitle={
-          planName
-            ? pl.progressCustomSessionMeta(planName, session.dayNumber)
-            : pl.dayLabel(session.dayNumber)
+          failed && progress?.nextWorkoutAfter
+            ? pl.restPrimaryLabel(pl.restIn(daysLeft))
+            : planName
+              ? pl.progressCustomSessionMeta(planName, session.dayNumber)
+              : pl.dayLabel(session.dayNumber)
         }
       />
 
@@ -164,7 +175,7 @@ export default function CustomSessionSummary() {
         </p>
       )}
 
-      {!failed && (
+      {!failed && !(progress?.nextWorkoutAfter && progress.status === 'rest') && (
         <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.customSummaryRecSuccess}</p>
       )}
 
@@ -172,11 +183,6 @@ export default function CustomSessionSummary() {
         <Card className="mt-4 border border-[var(--sr-error)] p-4">
           <p className="text-sm text-[var(--sr-error)]">{pl.customSummaryRecFail}</p>
           <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.customSummaryFailPolicy}</p>
-          {progress?.nextWorkoutAfter && (
-            <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">
-              {pl.restPrimaryLabel(pl.restIn(daysLeft))}
-            </p>
-          )}
         </Card>
       )}
 

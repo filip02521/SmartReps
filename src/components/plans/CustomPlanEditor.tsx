@@ -397,11 +397,14 @@ export function CustomPlanEditor({
             />
 
             {validationErrors.length > 0 && (
-              <FeedbackBanner
-                variant="warning"
-                title={pl.planValidationFix}
-                message={validationErrors.join(' · ')}
-              />
+              <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/40 bg-[var(--sr-warning)]/10 p-3">
+                <p className="text-sm font-medium text-[var(--sr-warning)]">{pl.planValidationFix}</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[var(--sr-text-secondary)]">
+                  {validationErrors.map((err) => (
+                    <li key={err}>{err}</li>
+                  ))}
+                </ul>
+              </div>
             )}
 
             <ul className="flex flex-col gap-2">

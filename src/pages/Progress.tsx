@@ -63,12 +63,8 @@ const chartTooltipStyle = {
   color: 'var(--sr-text-primary)',
 }
 
-const TAB_HINTS: Record<Tab, string> = {
-  overview: pl.progressTabOverviewHint,
-  history: pl.progressTabHistoryHint,
-  cycle: pl.progressTabCycleHint,
-  records: pl.progressTabRecordsHint,
-  custom: pl.myPlansHint,
+const TAB_HINTS: Partial<Record<Tab, string>> = {
+  custom: pl.progressTabCustomHint,
 }
 
 function sessionStatusLabel(session: LocalWorkoutSession): string {
@@ -94,11 +90,11 @@ function formatExercisePrLine(pr: ExercisePr): string {
   return (
     [
       pr.maxReps != null ? `${pr.maxReps} ${pl.repsUnit}` : null,
-      pr.maxDurationSec != null ? `${pr.maxDurationSec}s` : null,
-      pr.maxWeightKg != null ? `${pr.maxWeightKg} kg` : null,
+      pr.maxDurationSec != null ? `${pr.maxDurationSec}${pl.durationUnitShort}` : null,
+      pr.maxWeightKg != null ? `${pr.maxWeightKg} ${pl.weightUnit}` : null,
     ]
       .filter(Boolean)
-      .join(' · ') || '—'
+      .join(' · ') || pl.noValue
   )
 }
 
@@ -394,11 +390,14 @@ export default function ProgressPage() {
 
       <SegmentedControl
         className="flex-nowrap overflow-x-auto pb-0.5"
+        size="compact"
         options={tabOptions}
         value={tab}
         onChange={setTab}
       />
-      <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">{TAB_HINTS[tab]}</p>
+      {TAB_HINTS[tab] && (
+        <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">{TAB_HINTS[tab]}</p>
+      )}
 
       <div role="tabpanel" aria-label={activeTabLabel}>
       {tab === 'overview' && (
@@ -408,14 +407,14 @@ export default function ProgressPage() {
               <MetricStrip
                 metrics={[
                   {
-                    value: stats.maxTestRecord ?? '—',
+                    value: stats.maxTestRecord ?? pl.noValue,
                     label: pl.recordTest,
                     hint: pl.progressRecordTestHint,
                   },
                   {
                     value: progress
                       ? `${stats.completedDaysInCycle}/${stats.cycleDaysTotal}`
-                      : '—',
+                      : pl.noValue,
                     label: pl.cycleDays,
                     hint: pl.progressCycleDaysHint,
                   },
@@ -438,6 +437,7 @@ export default function ProgressPage() {
               <EmptyState
                 icon={<LogoMark size={48} />}
                 title={pl.firstWorkout}
+                description={pl.progressTabOverviewHint}
                 action={{
                   label: pl.startFirstWorkout,
                   onClick: () => void navigateToTrain(navigate, program),
@@ -491,7 +491,7 @@ export default function ProgressPage() {
                       <BarChart data={maxPerDay}>
                         <XAxis
                           dataKey="day"
-                          tickFormatter={(d) => `D${d}`}
+                          tickFormatter={(d) => pl.chartDayShort(Number(d))}
                           tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
                           stroke="var(--sr-border-subtle)"
                         />
@@ -532,18 +532,18 @@ export default function ProgressPage() {
               <NestedStat
                 size="lg"
                 overline={pl.recordBestTest}
-                value={records.bestTest ?? '—'}
+                value={records.bestTest ?? pl.noValue}
                 highlight={records.bestTest !== null}
                 hint={records.bestTest !== null ? pl.progressRecordHeroHint : undefined}
               />
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <NestedStat size="md" overline={pl.recordBestMaxSet} value={records.bestMaxSet ?? '—'} />
-                <NestedStat size="md" overline={pl.recordBestSession} value={records.bestSessionTotal ?? '—'} />
+                <NestedStat size="md" overline={pl.recordBestMaxSet} value={records.bestMaxSet ?? pl.noValue} />
+                <NestedStat size="md" overline={pl.recordBestSession} value={records.bestSessionTotal ?? pl.noValue} />
                 <NestedStat
                   className="col-span-2"
                   size="md"
                   overline={pl.recordHighestCycle}
-                  value={records.highestCycleName ?? '—'}
+                  value={records.highestCycleName ?? pl.noValue}
                 />
               </div>
             </>
@@ -551,6 +551,7 @@ export default function ProgressPage() {
             <EmptyState
               icon={<LogoMark size={48} />}
               title={pl.progressRecordsEmpty}
+              description={pl.progressTabRecordsHint}
               action={{
                 label: pl.startFirstWorkout,
                 onClick: () => void navigateToTrain(navigate, program),
@@ -567,6 +568,7 @@ export default function ProgressPage() {
               <EmptyState
                 icon={<LogoMark size={48} />}
                 title={pl.progressCustomPrEmpty}
+                description={pl.progressTabCustomHint}
                 action={{
                   label: pl.myPlansTitle,
                   onClick: () => navigate('/plans?tab=mine'),
@@ -703,6 +705,11 @@ export default function ProgressPage() {
                     ? pl.customHistoryEmptyFiltered
                     : pl.progressCustomHistoryEmpty
                 }
+                description={
+                  customFiltersActive
+                    ? pl.filterEmptyHistoryHint
+                    : pl.progressCustomHistoryEmptyHint
+                }
                 action={
                   customFiltersActive
                     ? { label: pl.clearFilters, onClick: clearCustomFilters }
@@ -726,8 +733,8 @@ export default function ProgressPage() {
                         <button
                           type="button"
                           className={cn(
-                            'w-full py-3 text-left transition-colors',
-                            'hover:bg-[var(--sr-bg-surface)]/60',
+                            'flex w-full items-center gap-3 py-3 text-left transition-colors',
+                            'rounded-[var(--sr-radius-md)] hover:bg-[var(--sr-bg-surface)]/60',
                             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]',
                           )}
                           onClick={() => {
@@ -738,24 +745,31 @@ export default function ProgressPage() {
                             }
                           }}
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-                              {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+                                {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
+                              </p>
+                              <Badge variant={sessionBadgeVariant(s)}>
+                                {sessionStatusLabel(s)}
+                              </Badge>
+                            </div>
+                            <p className="mt-1 font-medium text-[var(--sr-text-primary)]">
+                              {pl.progressCustomSessionMeta(planName, s.dayNumber)}
                             </p>
-                            <Badge variant={sessionBadgeVariant(s)}>
-                              {sessionStatusLabel(s)}
-                            </Badge>
+                            <p className="mt-1 text-sm text-[var(--sr-text-muted)]">
+                              {formatCustomSessionSummary(
+                                s.exerciseLogs?.length ?? 0,
+                                sets,
+                                detail,
+                              )}
+                            </p>
                           </div>
-                          <p className="mt-1 font-medium text-[var(--sr-text-primary)]">
-                            {pl.progressCustomSessionMeta(planName, s.dayNumber)}
-                          </p>
-                          <p className="mt-1 text-sm text-[var(--sr-text-muted)]">
-                            {formatCustomSessionSummary(
-                              s.exerciseLogs?.length ?? 0,
-                              sets,
-                              detail,
-                            )}
-                          </p>
+                          <ChevronRight
+                            size={20}
+                            className="shrink-0 text-[var(--sr-text-muted)]"
+                            aria-hidden
+                          />
                         </button>
                       </li>
                     )
@@ -916,6 +930,7 @@ export default function ProgressPage() {
                 <EmptyState
                   icon={<LogoMark size={48} />}
                   title={pl.firstWorkout}
+                  description={pl.progressTabHistoryHint}
                   action={{
                     label: pl.startFirstWorkout,
                     onClick: () => void navigateToTrain(navigate, program),
@@ -927,6 +942,7 @@ export default function ProgressPage() {
                 <EmptyState
                   icon={<LogoMark size={48} />}
                   title={pl.filterEmptyHistory}
+                  description={pl.filterEmptyHistoryHint}
                   action={filtersActive ? { label: pl.clearFilters, onClick: clearFilters } : undefined}
                 />
               </div>
@@ -939,30 +955,37 @@ export default function ProgressPage() {
                     <button
                       type="button"
                       className={cn(
-                        'flex w-full min-h-11 flex-col gap-1 py-3 text-left',
+                        'flex w-full min-h-11 items-center gap-3 py-3 text-left',
                         'rounded-[var(--sr-radius-md)] transition-colors',
                         'hover:bg-[var(--sr-bg-surface)] active:bg-[var(--sr-bg-surface)]',
                       )}
                       onClick={() => setSelectedSession(s)}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-                          {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+                            {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
+                          </p>
+                          <Badge variant={sessionBadgeVariant(s)}>{sessionStatusLabel(s)}</Badge>
+                        </div>
+                        <p className="sr-text-h3 leading-snug text-[var(--sr-text-primary)]">
+                          {pl.dayLabel(s.dayNumber)}
+                          <span className="ml-2 tabular-nums sr-text-body-sm font-normal text-[var(--sr-text-secondary)]">
+                            {sessionTotalReps(s)} {pl.repsUnit}
+                            {s.setResults.length > 0 && (
+                              <> · {pl.progressSetCount(s.setResults.length)}</>
+                            )}
+                          </span>
                         </p>
-                        <Badge variant={sessionBadgeVariant(s)}>{sessionStatusLabel(s)}</Badge>
+                        <p className="sr-text-body-sm text-[var(--sr-text-muted)]">
+                          {getCycleById(s.cycleId)?.nameShort ?? s.cycleId}
+                        </p>
                       </div>
-                      <p className="sr-text-h3 leading-snug text-[var(--sr-text-primary)]">
-                        {pl.dayLabel(s.dayNumber)}
-                        <span className="ml-2 tabular-nums sr-text-body-sm font-normal text-[var(--sr-text-secondary)]">
-                          {sessionTotalReps(s)} {pl.repsUnit}
-                          {s.setResults.length > 0 && (
-                            <> · {pl.progressSetCount(s.setResults.length)}</>
-                          )}
-                        </span>
-                      </p>
-                      <p className="sr-text-body-sm text-[var(--sr-text-muted)]">
-                        {getCycleById(s.cycleId)?.nameShort ?? s.cycleId}
-                      </p>
+                      <ChevronRight
+                        size={20}
+                        className="shrink-0 text-[var(--sr-text-muted)]"
+                        aria-hidden
+                      />
                     </button>
                   </li>
                 ))}
