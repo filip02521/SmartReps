@@ -1,5 +1,5 @@
 import { ArrowLeft, BarChart2, Minus, MoreVertical, Plus } from 'lucide-react'
-import type { RefObject } from 'react'
+import type { RefObject, ReactNode } from 'react'
 import { Check, ChevronRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
@@ -28,8 +28,123 @@ import {
 } from '@/lib/custom-prescription-format'
 import { metricTargetDisplayValue } from '@/lib/plan-resolver'
 import type { RestTimerState } from '@/lib/rest-timer'
-import { Z_REST_PILL } from '@/lib/ui-chrome'
+import { Z_REST_PILL, FOCUS_RING } from '@/lib/ui-chrome'
 import { cn } from '@/lib/utils'
+
+const WORKOUT_STEPPER_BTN =
+  'flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-primary)] disabled:opacity-40'
+
+function WorkoutStepperButton({
+  ariaLabel,
+  disabled,
+  onClick,
+  children,
+  elevated = false,
+}: {
+  ariaLabel: string
+  disabled?: boolean
+  onClick: () => void
+  children: ReactNode
+  elevated?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      disabled={disabled}
+      className={cn(
+        WORKOUT_STEPPER_BTN,
+        elevated ? 'bg-[var(--sr-bg-elevated)]' : 'bg-[var(--sr-bg-surface)]',
+        FOCUS_RING,
+      )}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  )
+}
+
+function WorkoutControlSurface({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        'w-full max-w-sm rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
+function WorkoutMetricColumn({
+  label,
+  value,
+  unit,
+  valueClassName,
+  onDecrease,
+  onIncrease,
+  decreaseLabel,
+  increaseLabel,
+  decreaseDisabled,
+  increaseDisabled,
+}: {
+  label: string
+  value: number
+  unit?: string
+  valueClassName?: string
+  onDecrease: () => void
+  onIncrease: () => void
+  decreaseLabel: string
+  increaseLabel: string
+  decreaseDisabled?: boolean
+  increaseDisabled?: boolean
+}) {
+  return (
+    <div className="flex min-w-0 flex-col items-center gap-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
+        {label}
+      </p>
+      <p
+        className={cn(
+          'sr-text-h2 tabular-nums font-semibold leading-none text-[var(--sr-text-primary)]',
+          valueClassName,
+        )}
+      >
+        {value}
+        {unit && (
+          <span className="ml-0.5 sr-text-body-sm font-medium text-[var(--sr-text-muted)]">
+            {unit}
+          </span>
+        )}
+      </p>
+      <div className="flex items-center gap-2">
+        <WorkoutStepperButton
+          ariaLabel={decreaseLabel}
+          disabled={decreaseDisabled}
+          elevated
+          onClick={onDecrease}
+        >
+          <Minus size={20} />
+        </WorkoutStepperButton>
+        <WorkoutStepperButton
+          ariaLabel={increaseLabel}
+          disabled={increaseDisabled}
+          elevated
+          onClick={onIncrease}
+        >
+          <Plus size={20} />
+        </WorkoutStepperButton>
+      </div>
+    </div>
+  )
+}
 
 function SetStatusIcon({ state }: { state: 'pending' | 'active' | 'done' | 'failed' }) {
   if (state === 'done') return <Check size={16} className="animate-check-in text-[var(--sr-success)]" />
@@ -170,70 +285,72 @@ function CustomDayExerciseRail({
   if (exercises.length <= 1) return null
 
   return (
-    <div
-      className="mx-4 mb-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      aria-label={pl.customWorkoutExerciseOf(currentExerciseIndex + 1, exercises.length)}
-    >
-      {exercises.map((pe, i) => {
-        const def = exerciseDefs.get(pe.exerciseId)
-        const name = def?.name ?? pl.planEllipsis
-        const log = exerciseLogs[i]
-        const passedSets = log?.sets.filter((s) => s.passed).length ?? 0
-        const totalSets = pe.sets.length
-        const done = i < currentExerciseIndex
-        const active = i === currentExerciseIndex
-        const canOpenStats = done && onExerciseStats && def
-        const Tag = canOpenStats ? 'button' : 'div'
-        return (
-          <Tag
-            key={`${pe.exerciseId}-${i}`}
-            type={canOpenStats ? 'button' : undefined}
-            aria-label={canOpenStats ? pl.exerciseDetailOpenFor(name) : undefined}
-            onClick={canOpenStats ? () => onExerciseStats(pe.exerciseId) : undefined}
-            className={cn(
-              'flex min-w-[7.5rem] shrink-0 flex-col rounded-[var(--sr-radius-md)] px-3 py-2 text-left',
-              done && 'bg-[var(--sr-success-muted)]',
-              active &&
-                'border-2 border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]',
-              !done && !active && 'bg-[var(--sr-bg-surface)]',
-              canOpenStats &&
-                'cursor-pointer transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]',
-            )}
-          >
-            <div className="flex items-center gap-1.5">
-              {done ? (
-                <Check size={14} className="shrink-0 text-[var(--sr-success)]" />
-              ) : (
+    <div className="mx-4 mb-3">
+      <div
+        className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        aria-label={pl.customWorkoutExerciseOf(currentExerciseIndex + 1, exercises.length)}
+      >
+        {exercises.map((pe, i) => {
+          const def = exerciseDefs.get(pe.exerciseId)
+          const name = def?.name ?? pl.planEllipsis
+          const log = exerciseLogs[i]
+          const passedSets = log?.sets.filter((s) => s.passed).length ?? 0
+          const totalSets = pe.sets.length
+          const done = i < currentExerciseIndex
+          const active = i === currentExerciseIndex
+          const canOpenStats = done && onExerciseStats && def
+          const Tag = canOpenStats ? 'button' : 'div'
+          const setsLabel = done
+            ? pl.planSetsShort(totalSets)
+            : pl.customWorkoutExerciseDone(active ? passedSets : 0, totalSets)
+
+          return (
+            <Tag
+              key={`${pe.exerciseId}-${i}`}
+              type={canOpenStats ? 'button' : undefined}
+              aria-label={canOpenStats ? pl.exerciseDetailOpenFor(name) : undefined}
+              aria-current={active ? 'step' : undefined}
+              onClick={canOpenStats ? () => onExerciseStats(pe.exerciseId) : undefined}
+              className={cn(
+                'flex min-w-[5.75rem] max-w-[9rem] shrink-0 flex-col gap-1 rounded-[var(--sr-radius-md)] px-2.5 py-2 text-left transition-colors',
+                done && 'bg-[var(--sr-success-muted)]',
+                active &&
+                  'border-2 border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]',
+                !done && !active && 'border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',
+                canOpenStats &&
+                  'cursor-pointer hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sr-brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sr-bg-base)]',
+              )}
+            >
+              <div className="grid grid-cols-[1rem_minmax(0,1fr)] items-center gap-x-1.5 gap-y-0.5">
+                {done ? (
+                  <Check size={14} className="text-[var(--sr-success)]" aria-hidden />
+                ) : active ? (
+                  <ChevronRight size={14} className="text-[var(--sr-brand-primary)]" aria-hidden />
+                ) : (
+                  <span
+                    className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--sr-bg-elevated)] text-[10px] font-semibold tabular-nums text-[var(--sr-text-muted)]"
+                    aria-hidden
+                  >
+                    {i + 1}
+                  </span>
+                )}
                 <span
                   className={cn(
-                    'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
-                    active
-                      ? 'bg-[var(--sr-brand-primary)] text-[var(--sr-text-on-brand)]'
-                      : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)]',
+                    'truncate text-sm font-medium leading-tight',
+                    done && 'text-[var(--sr-success)]',
+                    active && 'text-[var(--sr-text-primary)]',
+                    !done && !active && 'text-[var(--sr-text-secondary)]',
                   )}
                 >
-                  {i + 1}
+                  {name}
                 </span>
-              )}
-              <span
-                className={cn(
-                  'truncate text-sm font-medium',
-                  done && 'text-[var(--sr-success)]',
-                  active && 'text-[var(--sr-text-primary)]',
-                  !done && !active && 'text-[var(--sr-text-secondary)]',
-                )}
-              >
-                {name}
-              </span>
-            </div>
-            <p className="mt-1 pl-5 text-xs tabular-nums text-[var(--sr-text-muted)]">
-              {done
-                ? pl.planSetsShort(totalSets)
-                : pl.customWorkoutExerciseDone(active ? passedSets : 0, totalSets)}
-            </p>
-          </Tag>
-        )
-      })}
+                <span aria-hidden />
+                <p className="truncate text-xs tabular-nums text-[var(--sr-text-muted)]">{setsLabel}</p>
+              </div>
+            </Tag>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -370,6 +487,11 @@ function CustomMetricCounter({
       : null
   const maxValue = isExact ? targetReps : 9999
   const step = 1
+  const weightValue = weightKg === '' ? 0 : Number(weightKg)
+  const weightStep = 2.5
+  const showWeightTargetHint =
+    targetWeight != null && weightValue > 0 && weightValue !== targetWeight
+  const isRepsWeight = metric === 'reps_weight'
 
   return (
     <div className={cn('flex flex-col items-center gap-4 py-4', disabled && 'opacity-60')}>
@@ -386,59 +508,71 @@ function CustomMetricCounter({
           {pl.customMaxLiveHint(targetReps)}
         </p>
       )}
-      <div className="flex items-baseline gap-2">
-        <p
-          className={cn(
-            'sr-text-display tabular-nums leading-none text-[var(--sr-text-primary)]',
-            pulseFlash && 'animate-pulse-success',
-            isExact && actual !== targetReps && actual > 0 && 'text-[var(--sr-warning)]',
-            isDuration && timerRunning && 'text-[var(--sr-brand-primary)]',
+
+      {!isRepsWeight && (
+        <div className="flex items-baseline gap-2">
+          <p
+            className={cn(
+              'sr-text-display tabular-nums leading-none text-[var(--sr-text-primary)]',
+              pulseFlash && 'animate-pulse-success',
+              isExact && actual !== targetReps && actual > 0 && 'text-[var(--sr-warning)]',
+              isDuration && timerRunning && 'text-[var(--sr-brand-primary)]',
+            )}
+          >
+            {actual}
+          </p>
+          {isDuration && (
+            <span className="sr-text-body-sm font-medium text-[var(--sr-text-muted)]">
+              {pl.customDurationUnit}
+            </span>
           )}
-        >
-          {actual}
-        </p>
-        {isDuration && (
-          <span className="sr-text-body-sm font-medium text-[var(--sr-text-muted)]">
-            {pl.customDurationUnit}
-          </span>
-        )}
-      </div>
-      {lastActual !== undefined && (
+        </div>
+      )}
+
+      {lastActual !== undefined && !isRepsWeight && (
         <PreviousResultBadge actual={lastActual} target={targetReps} />
       )}
       {disabled && disabledHint && (
         <p className="text-center text-sm text-[var(--sr-text-secondary)]">{disabledHint}</p>
       )}
 
-      {metric === 'reps_weight' && (
-        <div className="flex w-full max-w-xs flex-col gap-2">
-          {targetWeight != null && (
-            <p className="text-center text-sm text-[var(--sr-text-secondary)]">
-              {pl.customWorkoutTargetWeight(targetWeight)}
+      {isRepsWeight && (
+        <WorkoutControlSurface>
+          <div className="grid grid-cols-2 divide-x divide-[var(--sr-border-subtle)]">
+            <WorkoutMetricColumn
+              label={pl.exerciseMetricReps}
+              value={actual}
+              valueClassName={cn(
+                pulseFlash && 'animate-pulse-success',
+                isExact && actual !== targetReps && actual > 0 && 'text-[var(--sr-warning)]',
+              )}
+              decreaseLabel={pl.lessReps}
+              increaseLabel={pl.moreReps}
+              decreaseDisabled={disabled}
+              increaseDisabled={disabled || actual >= maxValue}
+              onDecrease={() => onActualChange(Math.max(0, actual - step))}
+              onIncrease={() => onActualChange(Math.min(maxValue, actual + step))}
+            />
+            <div className="pl-3">
+              <WorkoutMetricColumn
+                label={pl.customWorkoutWeightKg}
+                value={weightValue}
+                unit={pl.customWorkoutWeightShort}
+                decreaseLabel={pl.customWorkoutLessWeight}
+                increaseLabel={pl.customWorkoutMoreWeight}
+                decreaseDisabled={disabled || weightValue <= 0}
+                increaseDisabled={disabled}
+                onDecrease={() => onWeightChange(Math.max(0, weightValue - weightStep))}
+                onIncrease={() => onWeightChange(weightValue + weightStep)}
+              />
+            </div>
+          </div>
+          {showWeightTargetHint && (
+            <p className="mt-3 border-t border-[var(--sr-border-subtle)] pt-3 text-center text-xs text-[var(--sr-text-muted)]">
+              {pl.customWorkoutTargetWeight(targetWeight!)}
             </p>
           )}
-          <div className="flex items-center gap-2">
-            <label
-              htmlFor="custom-weight"
-              className="shrink-0 text-sm font-medium text-[var(--sr-text-secondary)]"
-            >
-              {pl.customWorkoutWeightKg}
-            </label>
-            <input
-              id="custom-weight"
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={0.5}
-              disabled={disabled}
-              value={weightKg}
-              onChange={(e) =>
-                onWeightChange(e.target.value === '' ? '' : Number(e.target.value))
-              }
-              className="min-h-12 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 text-center text-lg font-semibold tabular-nums text-[var(--sr-text-primary)]"
-            />
-          </div>
-        </div>
+        </WorkoutControlSurface>
       )}
 
       {isDuration && (
@@ -453,19 +587,10 @@ function CustomMetricCounter({
         </Button>
       )}
 
-      <div className="flex w-full max-w-xs items-center gap-3">
-        <button
-          type="button"
-          aria-label={isDuration ? pl.customWorkoutLessSec : pl.lessReps}
-          disabled={disabled}
-          className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] disabled:opacity-50"
-          onClick={() => onActualChange(Math.max(0, actual - step))}
-        >
-          <Minus size={24} />
-        </button>
+      {isRepsWeight ? (
         <Button
           size="touch"
-          fullWidth
+          className="w-full max-w-sm"
           disabled={disabled && !onDisabledTap}
           onClick={() => {
             if (disabled) {
@@ -477,16 +602,38 @@ function CustomMetricCounter({
         >
           {pl.done}
         </Button>
-        <button
-          type="button"
-          aria-label={isDuration ? pl.customWorkoutMoreSec : pl.moreReps}
-          disabled={disabled || actual >= maxValue}
-          className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] disabled:opacity-50"
-          onClick={() => onActualChange(Math.min(maxValue, actual + step))}
-        >
-          <Plus size={24} />
-        </button>
-      </div>
+      ) : (
+        <div className="flex w-full max-w-xs items-center gap-3">
+          <WorkoutStepperButton
+            ariaLabel={isDuration ? pl.customWorkoutLessSec : pl.lessReps}
+            disabled={disabled}
+            onClick={() => onActualChange(Math.max(0, actual - step))}
+          >
+            <Minus size={24} />
+          </WorkoutStepperButton>
+          <Button
+            size="touch"
+            fullWidth
+            disabled={disabled && !onDisabledTap}
+            onClick={() => {
+              if (disabled) {
+                onDisabledTap?.()
+                return
+              }
+              onDone()
+            }}
+          >
+            {pl.done}
+          </Button>
+          <WorkoutStepperButton
+            ariaLabel={isDuration ? pl.customWorkoutMoreSec : pl.moreReps}
+            disabled={disabled || actual >= maxValue}
+            onClick={() => onActualChange(Math.min(maxValue, actual + step))}
+          >
+            <Plus size={24} />
+          </WorkoutStepperButton>
+        </div>
+      )}
     </div>
   )
 }
