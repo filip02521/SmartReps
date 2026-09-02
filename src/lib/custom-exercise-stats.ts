@@ -4,6 +4,13 @@ import { db } from '@/lib/db'
 import type { LocalWorkoutSession } from '@/lib/db'
 import type { ExerciseDefinition, ExerciseLog, PrimaryMetric, SetLog } from '@/lib/exercise-model'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
+import {
+  builtinProgramLabel,
+  builtinSessionToExerciseLog,
+  isCompletedBuiltinProgramSession,
+  resolveBuiltinProgramForExercise,
+  type BuiltinLibraryProgram,
+} from '@/lib/builtin-exercise-bridge'
 import { pl } from '@/i18n/pl'
 
 export type ExerciseChartPoint = {
@@ -99,55 +106,110 @@ export type ExerciseListSummary = {
   trend: ExerciseTrend
 }
 
+type PrAccum = Pick<
+  ExerciseDetailStats,
+  'prReps' | 'prDurationSec' | 'prWeightKg' | 'prVolumeKg'
+>
+
+function emptyPr(): PrAccum {
+  return { prReps: null, prDurationSec: null, prWeightKg: null, prVolumeKg: null }
+}
+
+function accumulatePrFromLog(pr: PrAccum, log: ExerciseLog, metric: PrimaryMetric): void {
+  for (const set of log.sets) {
+    if (set.actual.reps != null) pr.prReps = Math.max(pr.prReps ?? 0, set.actual.reps)
+    if (set.actual.durationSec != null) {
+      pr.prDurationSec = Math.max(pr.prDurationSec ?? 0, set.actual.durationSec)
+    }
+    if (set.actual.weightKg != null) {
+      pr.prWeightKg = Math.max(pr.prWeightKg ?? 0, set.actual.weightKg)
+    }
+  }
+  if (metric === 'reps_weight') {
+    const vol = sessionVolumeKg(log)
+    if (vol > 0) pr.prVolumeKg = Math.max(pr.prVolumeKg ?? 0, vol)
+  }
+}
+
+async function loadBuiltinMaxReps(program: BuiltinLibraryProgram): Promise<number | null> {
+  const tests = await db.maxTests.where('program').equals(program).toArray()
+  if (tests.length === 0) return null
+  return tests.reduce((max, t) => Math.max(max, t.reps), 0)
+}
+
+/** Custom logs for `exerciseId` plus Strong program sessions when the exercise maps. */
+export function collectExerciseSessionLogs(
+  sessions: LocalWorkoutSession[],
+  exercise: Pick<ExerciseDefinition, 'id' | 'name' | 'primaryMetric'>,
+): Array<{
+  session: LocalWorkoutSession
+  log: ExerciseLog
+  planName: string
+}> {
+  const program = resolveBuiltinProgramForExercise(exercise)
+  const out: Array<{ session: LocalWorkoutSession; log: ExerciseLog; planName: string }> = []
+
+  for (const session of sessions) {
+    if (session.status !== 'completed') continue
+
+    if (isCustomWorkoutSession(session)) {
+      const log = session.exerciseLogs?.find((l) => l.exerciseId === exercise.id)
+      if (!log || log.sets.length === 0) continue
+      out.push({ session, log, planName: '' }) // filled by caller with plan map
+      continue
+    }
+
+    if (
+      program &&
+      isCompletedBuiltinProgramSession(session) &&
+      session.program === program
+    ) {
+      const log = builtinSessionToExerciseLog(session, exercise.id)
+      if (!log) continue
+      out.push({
+        session,
+        log,
+        planName: builtinProgramLabel(program),
+      })
+    }
+  }
+
+  return out
+}
+
 /** Batch summaries for library list (single session scan). */
 export async function computeExerciseListSummaries(
   exercises: ExerciseDefinition[],
 ): Promise<Map<string, ExerciseListSummary>> {
-  const exById = new Map(exercises.map((e) => [e.id, e]))
   const valuesById = new Map<string, number[]>()
   const sessionCountById = new Map<string, number>()
-  const prById = new Map<
-    string,
-    Pick<ExerciseDetailStats, 'prReps' | 'prDurationSec' | 'prWeightKg' | 'prVolumeKg'>
-  >()
+  const prById = new Map<string, PrAccum>()
 
-  const sessions = (await db.workoutSessions.toArray()).filter(
-    (s) => isCustomWorkoutSession(s) && s.status === 'completed',
-  )
+  const sessions = await db.workoutSessions.toArray()
 
-  for (const session of sessions) {
-    for (const log of session.exerciseLogs ?? []) {
-      const ex = exById.get(log.exerciseId)
-      if (!ex || log.sets.length === 0) continue
+  for (const ex of exercises) {
+    const rows = collectExerciseSessionLogs(sessions, ex)
+    for (const row of rows) {
+      sessionCountById.set(ex.id, (sessionCountById.get(ex.id) ?? 0) + 1)
+      const pr = prById.get(ex.id) ?? emptyPr()
+      accumulatePrFromLog(pr, row.log, ex.primaryMetric)
+      prById.set(ex.id, pr)
 
-      sessionCountById.set(log.exerciseId, (sessionCountById.get(log.exerciseId) ?? 0) + 1)
-
-      const pr = prById.get(log.exerciseId) ?? {
-        prReps: null,
-        prDurationSec: null,
-        prWeightKg: null,
-        prVolumeKg: null,
-      }
-      for (const set of log.sets) {
-        if (set.actual.reps != null) pr.prReps = Math.max(pr.prReps ?? 0, set.actual.reps)
-        if (set.actual.durationSec != null) {
-          pr.prDurationSec = Math.max(pr.prDurationSec ?? 0, set.actual.durationSec)
-        }
-        if (set.actual.weightKg != null) {
-          pr.prWeightKg = Math.max(pr.prWeightKg ?? 0, set.actual.weightKg)
-        }
-      }
-      if (ex.primaryMetric === 'reps_weight') {
-        const vol = sessionVolumeKg(log)
-        if (vol > 0) pr.prVolumeKg = Math.max(pr.prVolumeKg ?? 0, vol)
-      }
-      prById.set(log.exerciseId, pr)
-
-      const best = bestSetInLog(log, ex.primaryMetric)
+      const best = bestSetInLog(row.log, ex.primaryMetric)
       if (best) {
-        const arr = valuesById.get(log.exerciseId) ?? []
+        const arr = valuesById.get(ex.id) ?? []
         arr.push(primarySetValue(best, ex.primaryMetric))
-        valuesById.set(log.exerciseId, arr)
+        valuesById.set(ex.id, arr)
+      }
+    }
+
+    const program = resolveBuiltinProgramForExercise(ex)
+    if (program) {
+      const maxReps = await loadBuiltinMaxReps(program)
+      if (maxReps != null && maxReps > 0) {
+        const pr = prById.get(ex.id) ?? emptyPr()
+        pr.prReps = Math.max(pr.prReps ?? 0, maxReps)
+        prById.set(ex.id, pr)
       }
     }
   }
@@ -163,7 +225,7 @@ export async function computeExerciseListSummaries(
       sparkline: values.slice(-8),
       trend,
       prLabel:
-        pr && sessionCount > 0
+        pr && (sessionCount > 0 || pr.prReps != null)
           ? exercisePrDisplay({
               exercise: ex,
               ...pr,
@@ -177,9 +239,7 @@ export async function computeExerciseListSummaries(
 export async function computeExerciseDetailStats(
   exercise: ExerciseDefinition,
 ): Promise<ExerciseDetailStats> {
-  const sessions = (await db.workoutSessions.toArray()).filter(
-    (s) => isCustomWorkoutSession(s) && s.status === 'completed',
-  )
+  const sessions = await db.workoutSessions.toArray()
   const planNames = new Map(
     (await db.customPlans.toArray()).map((p) => [p.id, p.name.trim() || pl.planDash]),
   )
@@ -189,20 +249,15 @@ export async function computeExerciseDetailStats(
   let passedSetCount = 0
   let firstSessionAt: string | null = null
   let lastSessionAt: string | null = null
-  let prReps: number | null = null
-  let prDurationSec: number | null = null
-  let prWeightKg: number | null = null
-  let prVolumeKg: number | null = null
+  const pr = emptyPr()
 
   const chartPoints: ExerciseChartPoint[] = []
   const recentSessions: ExerciseRecentSession[] = []
-
   const metric = exercise.primaryMetric
 
-  for (const session of sessions) {
-    const log = session.exerciseLogs?.find((l) => l.exerciseId === exercise.id)
-    if (!log || log.sets.length === 0) continue
-
+  const rows = collectExerciseSessionLogs(sessions, exercise)
+  for (const row of rows) {
+    const { session, log } = row
     sessionCount += 1
     const at = session.completedAt ?? session.startedAt
     if (!firstSessionAt || at < firstSessionAt) firstSessionAt = at
@@ -215,19 +270,8 @@ export async function computeExerciseDetailStats(
         passedSetCount += 1
         sessionPassed += 1
       }
-      if (set.actual.reps != null) prReps = Math.max(prReps ?? 0, set.actual.reps)
-      if (set.actual.durationSec != null) {
-        prDurationSec = Math.max(prDurationSec ?? 0, set.actual.durationSec)
-      }
-      if (set.actual.weightKg != null) {
-        prWeightKg = Math.max(prWeightKg ?? 0, set.actual.weightKg)
-      }
     }
-
-    if (metric === 'reps_weight') {
-      const vol = sessionVolumeKg(log)
-      if (vol > 0) prVolumeKg = Math.max(prVolumeKg ?? 0, vol)
-    }
+    accumulatePrFromLog(pr, log, metric)
 
     const best = bestSetInLog(log, metric)
     if (best) {
@@ -247,12 +291,22 @@ export async function computeExerciseDetailStats(
       sessionId: session.id,
       date: at,
       planName:
-        (session.customPlanId && planNames.get(session.customPlanId)) || pl.planDash,
+        row.planName ||
+        (session.customPlanId && planNames.get(session.customPlanId)) ||
+        pl.planDash,
       dayNumber: session.dayNumber,
       summary: best ? formatExerciseSetSummary(metric, best) : '—',
       setsPassed: sessionPassed,
       setsTotal: log.sets.length,
     })
+  }
+
+  const program = resolveBuiltinProgramForExercise(exercise)
+  if (program) {
+    const maxReps = await loadBuiltinMaxReps(program)
+    if (maxReps != null && maxReps > 0) {
+      pr.prReps = Math.max(pr.prReps ?? 0, maxReps)
+    }
   }
 
   chartPoints.sort((a, b) => a.date.localeCompare(b.date))
@@ -271,10 +325,7 @@ export async function computeExerciseDetailStats(
     passRatePct,
     firstSessionAt,
     lastSessionAt,
-    prReps,
-    prDurationSec,
-    prWeightKg,
-    prVolumeKg,
+    ...pr,
     chartPoints,
     trend,
     trendDeltaPct: deltaPct,

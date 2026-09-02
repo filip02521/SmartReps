@@ -15,6 +15,13 @@ vi.mock('@/lib/db', () => ({
     workoutSessions: {
       toArray: async () => sessions,
     },
+    maxTests: {
+      where: () => ({
+        equals: () => ({
+          toArray: async () => [],
+        }),
+      }),
+    },
   },
 }))
 

@@ -1,7 +1,13 @@
 import { db } from '@/lib/db'
 import type { ExerciseDefinition, ExerciseLog, PrimaryMetric, SetLog } from '@/lib/exercise-model'
-import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
-import type { ExerciseTrend } from '@/lib/custom-exercise-stats'
+import {
+  collectExerciseSessionLogs,
+  type ExerciseTrend,
+} from '@/lib/custom-exercise-stats'
+import {
+  resolveBuiltinProgramForExercise,
+  type BuiltinLibraryProgram,
+} from '@/lib/builtin-exercise-bridge'
 
 export type ExercisePr = {
   exerciseId: string
@@ -42,11 +48,15 @@ function computeTrend(values: number[]): ExerciseTrend {
   return deltaPct > 0 ? 'up' : 'down'
 }
 
+async function loadBuiltinMaxReps(program: BuiltinLibraryProgram): Promise<number | null> {
+  const tests = await db.maxTests.where('program').equals(program).toArray()
+  if (tests.length === 0) return null
+  return tests.reduce((max, t) => Math.max(max, t.reps), 0)
+}
+
 export async function computeCustomExercisePrs(): Promise<ExercisePr[]> {
   const exercises = await db.exercises.filter((e) => !e.archived).toArray()
-  const sessions = (await db.workoutSessions.toArray()).filter(
-    (s) => isCustomWorkoutSession(s) && s.status === 'completed',
-  )
+  const sessions = await db.workoutSessions.toArray()
 
   const results: ExercisePr[] = []
 
@@ -58,9 +68,8 @@ export async function computeCustomExercisePrs(): Promise<ExercisePr[]> {
     let sessionCount = 0
     const chartValues: number[] = []
 
-    for (const session of sessions) {
-      const log = session.exerciseLogs?.find((l) => l.exerciseId === ex.id)
-      if (!log || log.sets.length === 0) continue
+    for (const row of collectExerciseSessionLogs(sessions, ex)) {
+      const { session, log } = row
       sessionCount += 1
       const at = session.completedAt ?? session.startedAt
       if (!lastSessionAt || at > lastSessionAt) lastSessionAt = at
@@ -77,6 +86,14 @@ export async function computeCustomExercisePrs(): Promise<ExercisePr[]> {
       }
       const best = bestSetInLog(log, ex.primaryMetric)
       if (best) chartValues.push(primarySetValue(best, ex.primaryMetric))
+    }
+
+    const program = resolveBuiltinProgramForExercise(ex)
+    if (program) {
+      const testMax = await loadBuiltinMaxReps(program)
+      if (testMax != null && testMax > 0) {
+        maxReps = Math.max(maxReps ?? 0, testMax)
+      }
     }
 
     const hasRecord =
