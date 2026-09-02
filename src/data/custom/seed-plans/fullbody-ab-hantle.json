@@ -1,0 +1,158 @@
+{
+  "name": "Full body A/B — hantle",
+  "description": "Dwa treningi całego ciała na hantlach (dom lub siłownia). A: przysiad + wyciskanie + wiosłowanie. B: RDL + OH press + podciąganie/australijskie. Progresja +2,5 kg / +1 powtórzenie po cyklu; deload co 4. (−2,5 kg / −2 powt.).",
+  "progression": {
+    "enabled": true,
+    "afterCycleComplete": true,
+    "repsDelta": 1,
+    "weightKgDelta": 2.5,
+    "durationSecDelta": 0
+  },
+  "deload": {
+    "enabled": true,
+    "everyNCycles": 4,
+    "repsDelta": -2,
+    "weightKgDelta": -2.5,
+    "durationSecDelta": 0
+  },
+  "exercises": [
+    { "id": "fb-goblet", "name": "Przysiad goblet", "primaryMetric": "reps_weight", "restDefaultSec": 120 },
+    { "id": "fb-bench", "name": "Wyciskanie hantli (leżąc)", "primaryMetric": "reps_weight", "restDefaultSec": 120 },
+    { "id": "fb-row", "name": "Wiosłowanie hantlem", "primaryMetric": "reps_weight", "restDefaultSec": 90 },
+    { "id": "fb-rdl", "name": "RDL hantle", "primaryMetric": "reps_weight", "restDefaultSec": 120 },
+    { "id": "fb-ohp", "name": "Wyciskanie nad głowę", "primaryMetric": "reps_weight", "restDefaultSec": 120 },
+    { "id": "fb-pull", "name": "Podciąganie / australijskie", "primaryMetric": "reps", "restDefaultSec": 120 },
+    { "id": "fb-curl", "name": "Uginanie ramion", "primaryMetric": "reps_weight", "restDefaultSec": 60 },
+    { "id": "fb-triceps", "name": "Prostowanie tricepsa", "primaryMetric": "reps_weight", "restDefaultSec": 60 },
+    { "id": "fb-deska", "name": "Deska", "primaryMetric": "duration_sec", "restDefaultSec": 45 }
+  ],
+  "days": [
+    {
+      "dayNumber": 1,
+      "restAfterDay": 1,
+      "groups": [
+        {
+          "id": "fb-a-arms",
+          "kind": "superset",
+          "restAfterRoundSec": 60
+        }
+      ],
+      "exercises": [
+        {
+          "exerciseId": "fb-goblet",
+          "order": 0,
+          "restBetweenSetsSec": 120,
+          "restAfterExerciseSec": 120,
+          "note": "Hantel przy klatce, kolana w linii stóp.",
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 12 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 12 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 12 } }
+          ]
+        },
+        {
+          "exerciseId": "fb-bench",
+          "order": 1,
+          "restBetweenSetsSec": 120,
+          "restAfterExerciseSec": 120,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 10 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 10 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 10 } }
+          ]
+        },
+        {
+          "exerciseId": "fb-row",
+          "order": 2,
+          "restBetweenSetsSec": 90,
+          "restAfterExerciseSec": 90,
+          "note": "Na rękę — tułów stabilny.",
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 12 } },
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 12 } },
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 12 } }
+          ]
+        },
+        {
+          "exerciseId": "fb-curl",
+          "order": 3,
+          "groupId": "fb-a-arms",
+          "restBetweenSetsSec": 0,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 8 } },
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 8 } }
+          ]
+        },
+        {
+          "exerciseId": "fb-triceps",
+          "order": 4,
+          "groupId": "fb-a-arms",
+          "restBetweenSetsSec": 0,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 8 } },
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 8 } }
+          ]
+        },
+        {
+          "exerciseId": "fb-deska",
+          "order": 5,
+          "restBetweenSetsSec": 45,
+          "sets": [
+            { "durationSec": { "kind": "min", "value": 35 } },
+            { "durationSec": { "kind": "min", "value": 35 } }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 2,
+      "restAfterDay": 2,
+      "exercises": [
+        {
+          "exerciseId": "fb-rdl",
+          "order": 0,
+          "restBetweenSetsSec": 120,
+          "restAfterExerciseSec": 120,
+          "note": "Lekkie ugięcie kolan, biodra do tyłu.",
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 12 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 12 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 12 } }
+          ]
+        },
+        {
+          "exerciseId": "fb-ohp",
+          "order": 1,
+          "restBetweenSetsSec": 120,
+          "restAfterExerciseSec": 120,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 8 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 8 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 8 } }
+          ]
+        },
+        {
+          "exerciseId": "fb-pull",
+          "order": 2,
+          "restBetweenSetsSec": 120,
+          "restAfterExerciseSec": 90,
+          "note": "Pełne podciągnięcia albo australijskie pod stołem.",
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 5 } },
+            { "reps": { "kind": "fixed", "value": 5 } },
+            { "reps": { "kind": "fixed", "value": 5 } }
+          ]
+        },
+        {
+          "exerciseId": "fb-deska",
+          "order": 3,
+          "restBetweenSetsSec": 45,
+          "sets": [
+            { "durationSec": { "kind": "min", "value": 40 } },
+            { "durationSec": { "kind": "min", "value": 40 } }
+          ]
+        }
+      ]
+    }
+  ]
+}

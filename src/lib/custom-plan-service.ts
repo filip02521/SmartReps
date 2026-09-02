@@ -330,22 +330,79 @@ export async function importCustomPlanFromJson(text: string): Promise<CustomPlan
     throw new Error(pl.importInvalid)
   }
   if (!parsed || typeof parsed !== 'object') throw new Error(pl.importInvalid)
-  const raw = parsed as Partial<CustomPlan>
+  const raw = parsed as Partial<CustomPlan> & {
+    exercises?: Array<Partial<ExerciseDefinition>>
+  }
   if (!raw.name || !Array.isArray(raw.days)) throw new Error(pl.importInvalid)
 
   const now = new Date().toISOString()
+  const idMap = new Map<string, string>()
+  const createdExercises: ExerciseDefinition[] = []
+
+  if (Array.isArray(raw.exercises) && raw.exercises.length > 0) {
+    for (const ex of raw.exercises) {
+      if (!ex || typeof ex !== 'object' || !ex.id || !ex.name) continue
+      const metric = ex.primaryMetric
+      if (metric !== 'reps' && metric !== 'duration_sec' && metric !== 'reps_weight') continue
+      const newId = generateId()
+      idMap.set(String(ex.id), newId)
+      createdExercises.push({
+        id: newId,
+        name: String(ex.name).trim().slice(0, 80),
+        primaryMetric: metric,
+        restDefaultSec:
+          typeof ex.restDefaultSec === 'number' && Number.isFinite(ex.restDefaultSec)
+            ? Math.max(0, ex.restDefaultSec)
+            : 90,
+        archived: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+    }
+  }
+
+  const days: PlanDay[] =
+    idMap.size > 0
+      ? (raw.days as PlanDay[]).map((day) => ({
+          ...day,
+          exercises: day.exercises.map((pe) => ({
+            ...pe,
+            exerciseId: idMap.get(pe.exerciseId) ?? pe.exerciseId,
+          })),
+        }))
+      : (raw.days as PlanDay[])
+
   const plan: CustomPlan = {
     id: generateId(),
     name: String(raw.name).trim(),
     description: typeof raw.description === 'string' ? raw.description : '',
     status: 'draft',
-    days: raw.days,
+    days,
     createdAt: now,
     updatedAt: now,
     source: 'import',
     progression: raw.progression ?? null,
+    deload: raw.deload ?? null,
   }
-  await db.customPlans.put(plan)
+
+  if (createdExercises.length > 0) {
+    const byId = new Map(createdExercises.map((e) => [e.id, e]))
+    const issues = validateCustomPlan(plan, byId)
+    if (issues.length > 0) throw new Error(pl.importInvalid)
+
+    await db.transaction('rw', db.exercises, db.customPlans, async () => {
+      for (const ex of createdExercises) {
+        await db.exercises.put(ex)
+      }
+      await db.customPlans.put(plan)
+    })
+    for (const ex of createdExercises) {
+      await enqueueSync('user_exercises', 'insert', ex)
+    }
+  } else {
+    await db.customPlans.put(plan)
+  }
+
   await enqueueSync('custom_plans', 'insert', plan)
   return plan
 }

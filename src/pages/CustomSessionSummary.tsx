@@ -251,11 +251,12 @@ export default function CustomSessionSummary() {
   }
 
   const resolvedPlanId = session.customPlanId ?? planId
+  const failed = session.passed === false
   const belowTarget = customSessionHasBelowTarget(session)
   const totalSets = sessionTotalSets(session)
   const exerciseCount = session.exerciseLogs?.length ?? 0
   const cycleComplete =
-    session.passed !== false &&
+    !failed &&
     (progress?.status === 'cycle_complete' || !!session.progressionDiffJson)
   const daysLeft = daysUntilWorkout(
     progress?.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
@@ -276,7 +277,7 @@ export default function CustomSessionSummary() {
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
       <PageHeader
-        title={pl.customDayPassed}
+        title={failed ? pl.customDayFailed : pl.customDayPassed}
         subtitle={
           planName
             ? pl.progressCustomSessionMeta(planName, session.dayNumber)
@@ -284,13 +285,13 @@ export default function CustomSessionSummary() {
         }
       />
 
-      {progress?.nextWorkoutAfter && progress.status === 'rest' && (
+      {!failed && progress?.nextWorkoutAfter && progress.status === 'rest' && (
         <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">
           {pl.nextWorkoutIn(daysLeft)}
         </p>
       )}
 
-      {!(progress?.nextWorkoutAfter && progress.status === 'rest') && (
+      {!failed && !(progress?.nextWorkoutAfter && progress.status === 'rest') && (
         <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.customSummaryRecSuccess}</p>
       )}
 
@@ -380,7 +381,15 @@ export default function CustomSessionSummary() {
       </p>
 
       <div className="mt-6 flex flex-col gap-2">
-        {resolvedPlanId ? (
+        {failed && resolvedPlanId ? (
+          <Button
+            size="touch"
+            fullWidth
+            onClick={() => navigate(`/workout/custom/${resolvedPlanId}`)}
+          >
+            {pl.customFailRetryDay}
+          </Button>
+        ) : resolvedPlanId ? (
           <Button size="touch" fullWidth onClick={() => navigate(`/plans?tab=mine`)}>
             {pl.customSummaryBackToPlan}
           </Button>
@@ -389,7 +398,7 @@ export default function CustomSessionSummary() {
             {pl.backHome}
           </Button>
         )}
-        {planName && (
+        {!failed && planName && (
           <Button
             variant="secondary"
             size="touch"
@@ -404,7 +413,7 @@ export default function CustomSessionSummary() {
                     dayNumber: session.dayNumber,
                     exerciseCount,
                     totalSets,
-                    passed: true,
+                    passed: session.passed !== false,
                   })
                   trackShareCard('custom', true)
                   showToast(pl.summaryShareDone, 'success')

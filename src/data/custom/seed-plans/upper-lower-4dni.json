@@ -1,0 +1,262 @@
+{
+  "name": "Upper / Lower — 4 dni",
+  "description": "Klasyczny podział 4-dniowy: Góra A, Dół A, Góra B, Dół B. Supersety na akcesoria. Dla osób trenujących 4× w tygodniu (siłownia lub solidny sprzęt w domu). Progresja +1 powt. / +2,5 kg; deload co 4. cykl.",
+  "progression": {
+    "enabled": true,
+    "afterCycleComplete": true,
+    "repsDelta": 1,
+    "weightKgDelta": 2.5,
+    "durationSecDelta": 5
+  },
+  "deload": {
+    "enabled": true,
+    "everyNCycles": 4,
+    "repsDelta": -2,
+    "weightKgDelta": -2.5,
+    "durationSecDelta": -5
+  },
+  "exercises": [
+    { "id": "ul-bench", "name": "Wyciskanie sztangi / hantli", "primaryMetric": "reps_weight", "restDefaultSec": 150 },
+    { "id": "ul-row", "name": "Wiosłowanie w opadzie", "primaryMetric": "reps_weight", "restDefaultSec": 120 },
+    { "id": "ul-ohp", "name": "Wyciskanie żołnierskie", "primaryMetric": "reps_weight", "restDefaultSec": 120 },
+    { "id": "ul-pull", "name": "Podciąganie", "primaryMetric": "reps", "restDefaultSec": 150 },
+    { "id": "ul-lat", "name": "Ściąganie wyciągu / inverted row", "primaryMetric": "reps_weight", "restDefaultSec": 90 },
+    { "id": "ul-lateral", "name": "Unoszenie bokiem", "primaryMetric": "reps_weight", "restDefaultSec": 60 },
+    { "id": "ul-squat", "name": "Przysiad", "primaryMetric": "reps_weight", "restDefaultSec": 150 },
+    { "id": "ul-rdl", "name": "RDL", "primaryMetric": "reps_weight", "restDefaultSec": 120 },
+    { "id": "ul-legpress", "name": "Wykroki / leg press", "primaryMetric": "reps_weight", "restDefaultSec": 90 },
+    { "id": "ul-legcurl", "name": "Uginanie nóg / mostek", "primaryMetric": "reps", "restDefaultSec": 75 },
+    { "id": "ul-calf", "name": "Wspięcia na palce", "primaryMetric": "reps_weight", "restDefaultSec": 60 },
+    { "id": "ul-deska", "name": "Deska", "primaryMetric": "duration_sec", "restDefaultSec": 45 },
+    { "id": "ul-face", "name": "Face pull / band pull-apart", "primaryMetric": "reps", "restDefaultSec": 45 }
+  ],
+  "days": [
+    {
+      "dayNumber": 1,
+      "restAfterDay": 1,
+      "groups": [
+        {
+          "id": "ul-a-acc",
+          "kind": "superset",
+          "restAfterRoundSec": 75
+        }
+      ],
+      "exercises": [
+        {
+          "exerciseId": "ul-bench",
+          "order": 0,
+          "restBetweenSetsSec": 150,
+          "restAfterExerciseSec": 150,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 6 }, "weightKg": { "kind": "min", "value": 40 } },
+            { "reps": { "kind": "fixed", "value": 6 }, "weightKg": { "kind": "min", "value": 40 } },
+            { "reps": { "kind": "fixed", "value": 6 }, "weightKg": { "kind": "min", "value": 40 } },
+            { "reps": { "kind": "fixed", "value": 6 }, "weightKg": { "kind": "min", "value": 40 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-row",
+          "order": 1,
+          "restBetweenSetsSec": 120,
+          "restAfterExerciseSec": 120,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 40 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 40 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 40 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-ohp",
+          "order": 2,
+          "restBetweenSetsSec": 120,
+          "restAfterExerciseSec": 90,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 25 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 25 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 25 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-lateral",
+          "order": 3,
+          "groupId": "ul-a-acc",
+          "restBetweenSetsSec": 0,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 12 }, "weightKg": { "kind": "min", "value": 6 } },
+            { "reps": { "kind": "fixed", "value": 12 }, "weightKg": { "kind": "min", "value": 6 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-face",
+          "order": 4,
+          "groupId": "ul-a-acc",
+          "restBetweenSetsSec": 0,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 15 } },
+            { "reps": { "kind": "fixed", "value": 15 } }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 2,
+      "restAfterDay": 1,
+      "exercises": [
+        {
+          "exerciseId": "ul-squat",
+          "order": 0,
+          "restBetweenSetsSec": 150,
+          "restAfterExerciseSec": 150,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 6 }, "weightKg": { "kind": "min", "value": 50 } },
+            { "reps": { "kind": "fixed", "value": 6 }, "weightKg": { "kind": "min", "value": 50 } },
+            { "reps": { "kind": "fixed", "value": 6 }, "weightKg": { "kind": "min", "value": 50 } },
+            { "reps": { "kind": "fixed", "value": 6 }, "weightKg": { "kind": "min", "value": 50 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-rdl",
+          "order": 1,
+          "restBetweenSetsSec": 120,
+          "restAfterExerciseSec": 120,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 50 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 50 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 50 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-legpress",
+          "order": 2,
+          "restBetweenSetsSec": 90,
+          "restAfterExerciseSec": 75,
+          "note": "Wykroki: licznik na nogę. Albo leg press 3×10.",
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 20 } },
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 20 } },
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 20 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-calf",
+          "order": 3,
+          "restBetweenSetsSec": 60,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 12 }, "weightKg": { "kind": "min", "value": 40 } },
+            { "reps": { "kind": "fixed", "value": 12 }, "weightKg": { "kind": "min", "value": 40 } },
+            { "reps": { "kind": "fixed", "value": 12 }, "weightKg": { "kind": "min", "value": 40 } }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 3,
+      "restAfterDay": 1,
+      "exercises": [
+        {
+          "exerciseId": "ul-pull",
+          "order": 0,
+          "restBetweenSetsSec": 150,
+          "restAfterExerciseSec": 150,
+          "note": "Jeśli mało powtórzeń — australijskie lub negatywy.",
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 5 } },
+            { "reps": { "kind": "fixed", "value": 5 } },
+            { "reps": { "kind": "fixed", "value": 5 } },
+            { "reps": { "kind": "fixed", "value": 5 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-bench",
+          "order": 1,
+          "restBetweenSetsSec": 120,
+          "restAfterExerciseSec": 120,
+          "note": "Lżejsze wyciskanie / hantle — więcej powtórzeń.",
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 30 } },
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 30 } },
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 30 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-lat",
+          "order": 2,
+          "restBetweenSetsSec": 90,
+          "restAfterExerciseSec": 90,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 35 } },
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 35 } },
+            { "reps": { "kind": "fixed", "value": 10 }, "weightKg": { "kind": "min", "value": 35 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-deska",
+          "order": 3,
+          "restBetweenSetsSec": 45,
+          "sets": [
+            { "durationSec": { "kind": "min", "value": 40 } },
+            { "durationSec": { "kind": "min", "value": 40 } }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 4,
+      "restAfterDay": 2,
+      "exercises": [
+        {
+          "exerciseId": "ul-squat",
+          "order": 0,
+          "restBetweenSetsSec": 150,
+          "restAfterExerciseSec": 150,
+          "note": "Lżejszy przysiad — zakres 8–10.",
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 40 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 40 } },
+            { "reps": { "kind": "fixed", "value": 8 }, "weightKg": { "kind": "min", "value": 40 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-legcurl",
+          "order": 1,
+          "restBetweenSetsSec": 75,
+          "restAfterExerciseSec": 90,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 12 } },
+            { "reps": { "kind": "fixed", "value": 12 } },
+            { "reps": { "kind": "fixed", "value": 12 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-legpress",
+          "order": 2,
+          "restBetweenSetsSec": 90,
+          "restAfterExerciseSec": 75,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 12 }, "weightKg": { "kind": "min", "value": 20 } },
+            { "reps": { "kind": "fixed", "value": 12 }, "weightKg": { "kind": "min", "value": 20 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-calf",
+          "order": 3,
+          "restBetweenSetsSec": 60,
+          "restAfterExerciseSec": 60,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 15 }, "weightKg": { "kind": "min", "value": 40 } },
+            { "reps": { "kind": "fixed", "value": 15 }, "weightKg": { "kind": "min", "value": 40 } }
+          ]
+        },
+        {
+          "exerciseId": "ul-deska",
+          "order": 4,
+          "restBetweenSetsSec": 45,
+          "sets": [
+            { "durationSec": { "kind": "min", "value": 45 } },
+            { "durationSec": { "kind": "min", "value": 45 } }
+          ]
+        }
+      ]
+    }
+  ]
+}

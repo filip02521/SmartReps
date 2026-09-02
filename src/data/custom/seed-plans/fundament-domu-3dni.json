@@ -1,0 +1,153 @@
+{
+  "name": "Fundament domu — 3 dni",
+  "description": "Plan dla początkujących i wracających po przerwie. Trzy krótkie sesje w domu bez sprzętu: pchanie, nogi+core, ściąganie. Cel: solidna technika i regularność. Progresja +1 powtórzenie / +5 s po każdym cyklu; deload co 4. cykl.",
+  "progression": {
+    "enabled": true,
+    "afterCycleComplete": true,
+    "repsDelta": 1,
+    "durationSecDelta": 5,
+    "weightKgDelta": 0
+  },
+  "deload": {
+    "enabled": true,
+    "everyNCycles": 4,
+    "repsDelta": -2,
+    "durationSecDelta": -5,
+    "weightKgDelta": 0
+  },
+  "exercises": [
+    { "id": "fd-pompki", "name": "Pompki", "primaryMetric": "reps", "restDefaultSec": 90 },
+    { "id": "fd-pompki-kolana", "name": "Pompki na kolanach", "primaryMetric": "reps", "restDefaultSec": 75 },
+    { "id": "fd-przysiady", "name": "Przysiady", "primaryMetric": "reps", "restDefaultSec": 90 },
+    { "id": "fd-wykroki", "name": "Wykroki (na nogę)", "primaryMetric": "reps", "restDefaultSec": 75 },
+    { "id": "fd-mostek", "name": "Mostek biodrowy", "primaryMetric": "reps", "restDefaultSec": 60 },
+    { "id": "fd-deska", "name": "Deska", "primaryMetric": "duration_sec", "restDefaultSec": 45 },
+    { "id": "fd-superman", "name": "Superman", "primaryMetric": "reps", "restDefaultSec": 45 },
+    { "id": "fd-australijskie", "name": "Podciąganie australijskie", "primaryMetric": "reps", "restDefaultSec": 90 },
+    { "id": "fd-bird-dog", "name": "Bird dog (na stronę)", "primaryMetric": "reps", "restDefaultSec": 45 }
+  ],
+  "days": [
+    {
+      "dayNumber": 1,
+      "restAfterDay": 1,
+      "exercises": [
+        {
+          "exerciseId": "fd-pompki",
+          "order": 0,
+          "restBetweenSetsSec": 90,
+          "restAfterExerciseSec": 90,
+          "note": "Jeśli pełne pompki za trudne — zamień na pompki na kolanach.",
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 6 } },
+            { "reps": { "kind": "fixed", "value": 6 } },
+            { "reps": { "kind": "fixed", "value": 6 } }
+          ]
+        },
+        {
+          "exerciseId": "fd-pompki-kolana",
+          "order": 1,
+          "restBetweenSetsSec": 75,
+          "restAfterExerciseSec": 75,
+          "note": "Dojazd objętości — czysta technika, klatka do podłogi.",
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 8 } },
+            { "reps": { "kind": "fixed", "value": 8 } }
+          ]
+        },
+        {
+          "exerciseId": "fd-deska",
+          "order": 2,
+          "restBetweenSetsSec": 45,
+          "sets": [
+            { "durationSec": { "kind": "min", "value": 25 } },
+            { "durationSec": { "kind": "min", "value": 25 } }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 2,
+      "restAfterDay": 1,
+      "exercises": [
+        {
+          "exerciseId": "fd-przysiady",
+          "order": 0,
+          "restBetweenSetsSec": 90,
+          "restAfterExerciseSec": 90,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 12 } },
+            { "reps": { "kind": "fixed", "value": 12 } },
+            { "reps": { "kind": "fixed", "value": 12 } }
+          ]
+        },
+        {
+          "exerciseId": "fd-wykroki",
+          "order": 1,
+          "restBetweenSetsSec": 75,
+          "restAfterExerciseSec": 75,
+          "note": "Licznik na jedną nogę.",
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 8 } },
+            { "reps": { "kind": "fixed", "value": 8 } }
+          ]
+        },
+        {
+          "exerciseId": "fd-mostek",
+          "order": 2,
+          "restBetweenSetsSec": 60,
+          "restAfterExerciseSec": 60,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 12 } },
+            { "reps": { "kind": "fixed", "value": 12 } }
+          ]
+        },
+        {
+          "exerciseId": "fd-bird-dog",
+          "order": 3,
+          "restBetweenSetsSec": 45,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 8 } },
+            { "reps": { "kind": "fixed", "value": 8 } }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 3,
+      "restAfterDay": 2,
+      "exercises": [
+        {
+          "exerciseId": "fd-australijskie",
+          "order": 0,
+          "restBetweenSetsSec": 90,
+          "restAfterExerciseSec": 90,
+          "note": "Stół / poręcz — ciało w linii, łopatki ściągnięte.",
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 6 } },
+            { "reps": { "kind": "fixed", "value": 6 } },
+            { "reps": { "kind": "fixed", "value": 6 } }
+          ]
+        },
+        {
+          "exerciseId": "fd-superman",
+          "order": 1,
+          "restBetweenSetsSec": 45,
+          "restAfterExerciseSec": 60,
+          "sets": [
+            { "reps": { "kind": "fixed", "value": 10 } },
+            { "reps": { "kind": "fixed", "value": 10 } }
+          ]
+        },
+        {
+          "exerciseId": "fd-deska",
+          "order": 2,
+          "restBetweenSetsSec": 45,
+          "sets": [
+            { "durationSec": { "kind": "min", "value": 30 } },
+            { "durationSec": { "kind": "min", "value": 30 } }
+          ]
+        }
+      ]
+    }
+  ]
+}
