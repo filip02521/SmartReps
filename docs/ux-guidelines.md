@@ -141,13 +141,13 @@ Hub: nazwa, lista dni (skrót ćwiczeń), progresja, Zapisz szkic / Zapisz i akt
 ```
 [←] [Pompki · Dzień N · Seria j/m] [⋮]
     [Nazwa planu · Ćw. i/n]
-[rail: ćwiczenia dnia — done / active / pending]
+[rail: ćwiczenia dnia — tap niedokończone = skok; done = statystyki]
 [notatka trenera — opcjonalnie]
 [hint / fail banner]
 [RepCounter: cel + display + −/Zrobione/+]
 [SetChecklist + przerwa między seriami]
 [RestTimerExpanded po serii]
-Menu: Podgląd planu dnia (cele + postęp) · Anuluj
+Menu: Zmień ćwiczenie / Ćwiczenia dnia (tap = skok) · Anuluj
 ```
 
 ## Checklist przed merge

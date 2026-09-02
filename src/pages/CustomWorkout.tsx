@@ -42,8 +42,12 @@ import {
   shouldStartAmrap,
 } from '@/lib/custom-workout-nav'
 import {
+  canJumpToExercise,
+  findNextIncompletePosition,
   getChecklistSlots,
+  isExerciseIncomplete,
   reconcileCustomWorkoutResume,
+  resumeSetIndexForExercise,
   staleResumeTotalSets,
   canUndoCustomSet,
 } from '@/lib/custom-workout-progress'
@@ -741,7 +745,100 @@ export default function CustomWorkoutPage() {
         store.setRestTimer(createRestTimer(nav.restSec, 'expanded'))
       }
 
-      const latest = useCustomWorkoutStore.getState()
+      let latest = useCustomWorkoutStore.getState()
+      const inAmrap = Boolean(latest.amrapGroupId)
+      const landedIncomplete = isExerciseIncomplete(day, latest.exerciseLogs, latest.currentExerciseIndex, {
+        amrapActiveGroupId: latest.amrapGroupId,
+      })
+
+      // After out-of-order jumps, linear dayComplete / next can land on a finished
+      // exercise or end the day while earlier work remains — redirect first.
+      if (!inAmrap && (nav.dayComplete || !nav.next || !landedIncomplete)) {
+        const incomplete = findNextIncompletePosition(day, latest.exerciseLogs)
+        if (incomplete) {
+          if (
+            incomplete.exerciseIndex !== latest.currentExerciseIndex ||
+            incomplete.setIndex !== latest.currentSetIndex
+          ) {
+            store.setPointers(incomplete.exerciseIndex, incomplete.setIndex)
+            latest = useCustomWorkoutStore.getState()
+          }
+        } else if (nav.dayComplete || !nav.next) {
+          try {
+            await persistCustomActive(sessionRef.current, {
+              currentExerciseIndex: latest.currentExerciseIndex,
+              currentSetIndex: latest.currentSetIndex,
+              exerciseLogs: latest.exerciseLogs,
+              restTimerJson: latest.restTimer ? JSON.stringify(latest.restTimer) : null,
+              amrapEndAt: latest.amrapEndAt,
+              amrapGroupId: latest.amrapGroupId,
+            })
+          } catch {
+            useCustomWorkoutStore.setState({
+              exerciseLogs: beforeComplete.exerciseLogs,
+              currentExerciseIndex: beforeComplete.currentExerciseIndex,
+              currentSetIndex: beforeComplete.currentSetIndex,
+              restTimer: beforeComplete.restTimer,
+              amrapEndAt: beforeComplete.amrapEndAt,
+              amrapGroupId: beforeComplete.amrapGroupId,
+              failedRetryUsed: beforeComplete.failedRetryUsed,
+            })
+            setSaveError(pl.errorSaveSet)
+            return
+          }
+          await finalizeCustomDay({
+            session: sessionRef.current,
+            plan,
+            exerciseLogs: latest.exerciseLogs,
+            passed: true,
+          })
+          store.reset()
+          navigate(`/workout/custom/${plan.id}/summary?session=${sessionRef.current.id}`, {
+            replace: true,
+          })
+          return
+        }
+      } else if (inAmrap && (nav.dayComplete || !nav.next)) {
+        const incomplete = findNextIncompletePosition(day, latest.exerciseLogs)
+        if (!incomplete) {
+          try {
+            await persistCustomActive(sessionRef.current, {
+              currentExerciseIndex: latest.currentExerciseIndex,
+              currentSetIndex: latest.currentSetIndex,
+              exerciseLogs: latest.exerciseLogs,
+              restTimerJson: latest.restTimer ? JSON.stringify(latest.restTimer) : null,
+              amrapEndAt: latest.amrapEndAt,
+              amrapGroupId: latest.amrapGroupId,
+            })
+          } catch {
+            useCustomWorkoutStore.setState({
+              exerciseLogs: beforeComplete.exerciseLogs,
+              currentExerciseIndex: beforeComplete.currentExerciseIndex,
+              currentSetIndex: beforeComplete.currentSetIndex,
+              restTimer: beforeComplete.restTimer,
+              amrapEndAt: beforeComplete.amrapEndAt,
+              amrapGroupId: beforeComplete.amrapGroupId,
+              failedRetryUsed: beforeComplete.failedRetryUsed,
+            })
+            setSaveError(pl.errorSaveSet)
+            return
+          }
+          await finalizeCustomDay({
+            session: sessionRef.current,
+            plan,
+            exerciseLogs: latest.exerciseLogs,
+            passed: true,
+          })
+          store.reset()
+          navigate(`/workout/custom/${plan.id}/summary?session=${sessionRef.current.id}`, {
+            replace: true,
+          })
+          return
+        }
+        store.setPointers(incomplete.exerciseIndex, incomplete.setIndex)
+        latest = useCustomWorkoutStore.getState()
+      }
+
       try {
         await persistCustomActive(sessionRef.current, {
           currentExerciseIndex: latest.currentExerciseIndex,
@@ -762,20 +859,6 @@ export default function CustomWorkoutPage() {
           failedRetryUsed: beforeComplete.failedRetryUsed,
         })
         setSaveError(pl.errorSaveSet)
-        return
-      }
-
-      if (nav.dayComplete) {
-        await finalizeCustomDay({
-          session: sessionRef.current,
-          plan,
-          exerciseLogs: latest.exerciseLogs,
-          passed: true,
-        })
-        store.reset()
-        navigate(`/workout/custom/${plan.id}/summary?session=${sessionRef.current.id}`, {
-          replace: true,
-        })
         return
       }
 
@@ -846,6 +929,35 @@ export default function CustomWorkoutPage() {
       setActualReps(removed.actual.reps ?? 0)
       if (removed.actual.weightKg != null) setWeightKg(removed.actual.weightKg)
     }
+    void persistState()
+  }
+
+  function handleJumpToExercise(targetIndex: number) {
+    if (!day) return
+    const latest = useCustomWorkoutStore.getState()
+    if (
+      !canJumpToExercise(day, latest.exerciseLogs, latest.currentExerciseIndex, targetIndex, {
+        amrapGroupId: latest.amrapGroupId,
+      })
+    ) {
+      return
+    }
+    const resumeSet = resumeSetIndexForExercise(day, latest.exerciseLogs, targetIndex)
+    const fromGroup = getGroupForExercise(day, latest.currentExerciseIndex)
+    const toGroup = getGroupForExercise(day, targetIndex)
+    stopRestTimerWorker()
+    store.setRestTimer(null)
+    if (
+      latest.amrapEndAt &&
+      fromGroup?.kind === 'amrap' &&
+      fromGroup.id !== toGroup?.id
+    ) {
+      store.setAmrap(null, null)
+    }
+    store.setPointers(targetIndex, resumeSet)
+    setShowMenu(false)
+    setShowPlanSheet(false)
+    setFailedIndex(undefined)
     void persistState()
   }
 
@@ -1132,6 +1244,7 @@ export default function CustomWorkoutPage() {
           const def = exercises.get(exerciseId)
           if (def) setDetailExercise(def)
         }}
+        onJumpToExercise={handleJumpToExercise}
       />
       <ExerciseDetailSheet
         open={detailExercise != null}

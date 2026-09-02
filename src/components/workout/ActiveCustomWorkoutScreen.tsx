@@ -22,11 +22,13 @@ import type {
   SetPrescription,
 } from '@/lib/exercise-model'
 import {
+  canJumpToExercise,
   countPassedSets,
   getChecklistSlots,
   getExerciseTargetSetCount,
   isExerciseDoneForDisplay,
 } from '@/lib/custom-workout-progress'
+import { getGroupForExercise } from '@/lib/custom-workout-nav'
 import {
   formatPrescriptionSetLabel,
   formatPrescriptionTarget,
@@ -297,6 +299,8 @@ function CustomDayExerciseRail({
   exerciseLogs,
   currentExerciseIndex,
   onExerciseStats,
+  onJumpToExercise,
+  amrapGroupId,
 }: {
   planDay: PlanDay
   exercises: PlannedExercise[]
@@ -304,6 +308,8 @@ function CustomDayExerciseRail({
   exerciseLogs: ExerciseLog[]
   currentExerciseIndex: number
   onExerciseStats?: (exerciseId: string) => void
+  onJumpToExercise?: (exerciseIndex: number) => void
+  amrapGroupId?: string | null
 }) {
   if (exercises.length <= 1) return null
 
@@ -321,26 +327,45 @@ function CustomDayExerciseRail({
           const totalSets = getExerciseTargetSetCount(planDay, i)
           const done = isExerciseDoneForDisplay(planDay, i, exerciseLogs, currentExerciseIndex)
           const active = i === currentExerciseIndex
-          const canOpenStats = done && onExerciseStats && def
-          const Tag = canOpenStats ? 'button' : 'div'
+          const canJump = Boolean(
+            onJumpToExercise &&
+              canJumpToExercise(planDay, exerciseLogs, currentExerciseIndex, i, {
+                amrapGroupId,
+              }),
+          )
+          const canOpenStats = done && !canJump && onExerciseStats && def
+          const interactive = canJump || Boolean(canOpenStats)
+          const Tag = interactive ? 'button' : 'div'
           const setsLabel = done
             ? pl.planSetsShort(totalSets)
-            : pl.customWorkoutExerciseDone(active ? passedSets : 0, totalSets)
+            : pl.customWorkoutExerciseDone(passedSets, totalSets)
 
           return (
             <Tag
               key={`${pe.exerciseId}-${i}`}
-              type={canOpenStats ? 'button' : undefined}
-              aria-label={canOpenStats ? pl.exerciseDetailOpenFor(name) : undefined}
+              type={interactive ? 'button' : undefined}
+              aria-label={
+                canJump
+                  ? pl.customWorkoutSwitchTo(name)
+                  : canOpenStats
+                    ? pl.exerciseDetailOpenFor(name)
+                    : undefined
+              }
               aria-current={active ? 'step' : undefined}
-              onClick={canOpenStats ? () => onExerciseStats(pe.exerciseId) : undefined}
+              onClick={
+                canJump
+                  ? () => onJumpToExercise?.(i)
+                  : canOpenStats
+                    ? () => onExerciseStats?.(pe.exerciseId)
+                    : undefined
+              }
               className={cn(
                 'flex min-w-[5.75rem] max-w-[9rem] shrink-0 flex-col gap-1 rounded-[var(--sr-radius-md)] px-2.5 py-2 text-left transition-colors',
                 done && 'bg-[var(--sr-success-muted)]',
                 active &&
                   'border-2 border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]',
                 !done && !active && 'border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',
-                canOpenStats &&
+                interactive &&
                   'cursor-pointer hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sr-brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sr-bg-base)]',
               )}
             >
@@ -385,6 +410,8 @@ function CustomDayPlanSheet({
   exerciseLogs,
   currentExerciseIndex,
   onClose,
+  onJumpToExercise,
+  amrapGroupId,
 }: {
   planDay: PlanDay
   exercises: PlannedExercise[]
@@ -392,9 +419,14 @@ function CustomDayPlanSheet({
   exerciseLogs: ExerciseLog[]
   currentExerciseIndex: number
   onClose: () => void
+  onJumpToExercise?: (exerciseIndex: number) => void
+  amrapGroupId?: string | null
 }) {
   return (
     <Sheet open onClose={onClose} title={pl.previewDayPlan}>
+      {exercises.length > 1 && (
+        <p className="mb-3 text-sm text-[var(--sr-text-secondary)]">{pl.previewDayPlanHint}</p>
+      )}
       <ul className="flex flex-col gap-3">
         {exercises.map((pe, i) => {
           const def = exerciseDefs.get(pe.exerciseId)
@@ -405,19 +437,38 @@ function CustomDayPlanSheet({
           const doneSets = countPassedSets(log)
           const totalSets = getExerciseTargetSetCount(planDay, i)
           const done = isExerciseDoneForDisplay(planDay, i, exerciseLogs, currentExerciseIndex)
+          const canJump = Boolean(
+            onJumpToExercise &&
+              canJumpToExercise(planDay, exerciseLogs, currentExerciseIndex, i, {
+                amrapGroupId,
+              }),
+          )
           const slots = getChecklistSlots(planDay, i, log?.sets.length ?? 0)
+          const RowTag = canJump ? 'button' : 'div'
           return (
-            <li
-              key={`${pe.exerciseId}-${i}`}
-              className={cn(
-                'rounded-[var(--sr-radius-md)] px-3 py-3',
-                active
-                  ? 'border-2 border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]'
-                  : done
-                    ? 'bg-[var(--sr-success-muted)]'
-                    : 'bg-[var(--sr-bg-surface)]',
-              )}
-            >
+            <li key={`${pe.exerciseId}-${i}`}>
+              <RowTag
+                type={canJump ? 'button' : undefined}
+                aria-label={canJump ? pl.customWorkoutSwitchTo(name) : undefined}
+                onClick={
+                  canJump
+                    ? () => {
+                        onJumpToExercise?.(i)
+                        onClose()
+                      }
+                    : undefined
+                }
+                className={cn(
+                  'w-full rounded-[var(--sr-radius-md)] px-3 py-3 text-left',
+                  active
+                    ? 'border-2 border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]'
+                    : done
+                      ? 'bg-[var(--sr-success-muted)]'
+                      : 'bg-[var(--sr-bg-surface)]',
+                  canJump &&
+                    'cursor-pointer hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sr-brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sr-bg-base)]',
+                )}
+              >
               <div className="flex items-baseline justify-between gap-2">
                 <p className="font-medium text-[var(--sr-text-primary)]">
                   {i + 1}. {name}
@@ -462,6 +513,7 @@ function CustomDayPlanSheet({
                   )
                 })}
               </div>
+              </RowTag>
             </li>
           )
         })}
@@ -767,6 +819,7 @@ export type ActiveCustomWorkoutScreenProps = {
   onCloseMenu: () => void
   onExerciseStats?: () => void
   onExerciseStatsById?: (exerciseId: string) => void
+  onJumpToExercise?: (exerciseIndex: number) => void
 }
 
 export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps) {
@@ -831,6 +884,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     onCloseMenu,
     onExerciseStats,
     onExerciseStatsById,
+    onJumpToExercise,
   } = props
 
   const prescription = planned.sets[setIndex]
@@ -870,6 +924,11 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
         : groupKind === 'amrap'
           ? pl.customWorkoutGroupAmrap
           : null
+
+  const jumpAmrapGroupId =
+    groupKind === 'amrap' && amrapEndAt
+      ? (getGroupForExercise(planDay, exerciseIndex)?.id ?? null)
+      : null
 
   const headerSub =
     cycleAttempt > 1
@@ -941,7 +1000,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
               </Button>
             )}
             <Button variant="ghost" fullWidth className="justify-start px-3" onClick={onShowPlan}>
-              {pl.previewDayPlan}
+              {dayExercises.length > 1 ? pl.customWorkoutSwitchExerciseMenu : pl.previewDayPlan}
             </Button>
             {sessionHasProgress && (
               <Button
@@ -975,6 +1034,8 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
         exerciseLogs={exerciseLogs}
         currentExerciseIndex={exerciseIndex}
         onExerciseStats={onExerciseStatsById}
+        onJumpToExercise={onJumpToExercise}
+        amrapGroupId={jumpAmrapGroupId}
       />
 
       {planned.note?.trim() && (
@@ -1125,6 +1186,8 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           exerciseLogs={exerciseLogs}
           currentExerciseIndex={exerciseIndex}
           onClose={onClosePlan}
+          onJumpToExercise={onJumpToExercise}
+          amrapGroupId={jumpAmrapGroupId}
         />
       )}
     </div>

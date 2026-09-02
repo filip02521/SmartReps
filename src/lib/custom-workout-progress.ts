@@ -188,3 +188,76 @@ export function canUndoCustomSet(
     step.next?.setIndex === currentSetIndex
   )
 }
+
+/** Whether the athlete can jump to this exercise mid-session (machine busy / reorder flow). */
+export function canJumpToExercise(
+  day: PlanDay,
+  exerciseLogs: ExerciseLog[],
+  currentExerciseIndex: number,
+  targetIndex: number,
+  opts?: { amrapGroupId?: string | null },
+): boolean {
+  if (targetIndex < 0 || targetIndex >= day.exercises.length) return false
+  if (targetIndex === currentExerciseIndex) return false
+  const group = getGroupForExercise(day, targetIndex)
+  if (group?.kind === 'amrap') {
+    if (opts?.amrapGroupId && group.id === opts.amrapGroupId) return true
+    const required = getExerciseTargetSetCount(day, targetIndex)
+    return countPassedSets(exerciseLogs[targetIndex]) < required
+  }
+  const required = getExerciseTargetSetCount(day, targetIndex)
+  const done = countPassedSets(exerciseLogs[targetIndex])
+  return done < required
+}
+
+/** Resume set/round index after jumping to an exercise (keeps logged sets). */
+export function resumeSetIndexForExercise(
+  day: PlanDay,
+  exerciseLogs: ExerciseLog[],
+  exerciseIndex: number,
+): number {
+  const done = countPassedSets(exerciseLogs[exerciseIndex])
+  const group = getGroupForExercise(day, exerciseIndex)
+  if (group?.kind === 'amrap') return done
+  const required = getExerciseTargetSetCount(day, exerciseIndex)
+  if (required <= 0) return 0
+  return Math.min(done, required - 1)
+}
+
+/**
+ * First exercise that still needs sets — used after jump-out-of-order so
+ * dayComplete / next pointers do not skip unfinished work.
+ */
+export function findNextIncompletePosition(
+  day: PlanDay,
+  exerciseLogs: ExerciseLog[],
+): { exerciseIndex: number; setIndex: number } | null {
+  for (let i = 0; i < day.exercises.length; i++) {
+    const done = countPassedSets(exerciseLogs[i])
+    const required = getExerciseTargetSetCount(day, i)
+    if (done < required) {
+      return {
+        exerciseIndex: i,
+        setIndex: resumeSetIndexForExercise(day, exerciseLogs, i),
+      }
+    }
+  }
+  return null
+}
+
+/** True when target exercise still has remaining work. */
+export function isExerciseIncomplete(
+  day: PlanDay,
+  exerciseLogs: ExerciseLog[],
+  exerciseIndex: number,
+  opts?: { amrapActiveGroupId?: string | null },
+): boolean {
+  if (exerciseIndex < 0 || exerciseIndex >= day.exercises.length) return false
+  const group = getGroupForExercise(day, exerciseIndex)
+  const done = countPassedSets(exerciseLogs[exerciseIndex])
+  if (group?.kind === 'amrap') {
+    if (opts?.amrapActiveGroupId && group.id === opts.amrapActiveGroupId) return true
+    return done < getExerciseTargetSetCount(day, exerciseIndex)
+  }
+  return done < getExerciseTargetSetCount(day, exerciseIndex)
+}
