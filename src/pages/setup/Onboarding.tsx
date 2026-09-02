@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import { LogoFull } from '@/components/brand/Logo'
 import { OnboardingIllustration } from '@/components/onboarding/OnboardingIllustrations'
@@ -20,7 +20,6 @@ export default function Onboarding() {
   const [wantStrong, setWantStrong] = useState(true)
   const [wantCustom, setWantCustom] = useState(false)
   const [programs, setPrograms] = useState<Program[]>(['pushups'])
-  const [restoring, setRestoring] = useState(false)
   const setSettings = useAppStore((s) => s.setSettings)
   const setSetupQueue = useAppStore((s) => s.setSetupQueue)
   const onboardingComplete = useAppStore((s) => s.settings.onboardingComplete)
@@ -36,19 +35,13 @@ export default function Onboarding() {
   const interestOk = wantStrong || wantCustom
   const programsOk = !wantStrong || programs.length > 0
 
-  useEffect(() => {
-    if (!hydrated) return
-    if (onboardingComplete) {
-      navigate('/', { replace: true })
-    }
-  }, [hydrated, onboardingComplete, navigate])
-
+  // Restore session in the background — never block the wizard on getSession/sync
+  // (Strict Mode cancel + hung auth left users on PageLoader forever).
   useEffect(() => {
     if (!hydrated || !isSupabaseConfigured || onboardingComplete) return
 
     let cancelled = false
     void (async () => {
-      setRestoring(true)
       try {
         const { data } = await supabase.auth.getSession()
         if (!data.session || cancelled) return
@@ -57,8 +50,8 @@ export default function Onboarding() {
         if (useAppStore.getState().settings.onboardingComplete) {
           navigate('/', { replace: true })
         }
-      } finally {
-        if (!cancelled) setRestoring(false)
+      } catch {
+        // Soft onboarding continues without cloud restore.
       }
     })()
 
@@ -113,12 +106,16 @@ export default function Onboarding() {
     navigate('/setup/login', { state: { fromOnboarding: true } })
   }
 
-  if (!hydrated || onboardingComplete || restoring) {
+  if (!hydrated) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
         <PageLoader />
       </div>
     )
+  }
+
+  if (onboardingComplete) {
+    return <Navigate to="/" replace />
   }
 
   return (
