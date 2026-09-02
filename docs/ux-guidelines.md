@@ -57,11 +57,12 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 
 ```
 [StepIndicator]
-[Welcome: Logo + opis Strong + własne · Zaczynam · Mam konto]
-[Interest: multi-select Programy SmartReps / Własne treningi]
-[Programs? — tylko Strong: pompki / podciąganie · test później]
-[Co dalej — soft bullets · Przejdź do aplikacji → /]
+[Welcome: Logo + opis · Zaczynam · Mam już konto]
+[Interest: Pompki i podciąganie / Własne plany]
+[Programs? — pompki / podciąganie · test później na Start]
+[Co dalej — soft bullets · Przejdź do Treningu → /]
 ```
+Shell: `px-5 pt-5 pb-7`, StepIndicator `mb-5`, CTA `mt-8 gap-2.5`.
 Bez auto Max Test; drugi program nie w setupQueue.
 
 ## Wireframe — Dashboard (home)

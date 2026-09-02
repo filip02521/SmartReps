@@ -276,29 +276,31 @@ export const pl = {
     'Wylogowano. Zaloguj się właściwym adresem e-mail, aby zsynchronizować swoje dane.',
   onboardingWelcome: 'Witaj w SmartReps',
   onboardingWelcomeBody:
-    'Gotowe cykle pompki i podciągania — albo własne treningi na siłownię. Offline, bez socialu. Ty decydujesz, kiedy zacząć.',
+    'Prowadzimy Cię przez gotowe cykle pompek i podciągania. Możesz też ułożyć własne plany na siłownię. Aplikacja działa offline — bez kont społecznościowych.',
   onboardingNewUser: 'Zaczynam',
-  onboardingHaveAccount: 'Mam już konto — zaloguj się',
-  onboardingInterestTitle: 'Co Cię interesuje?',
-  onboardingInterestHint: 'Możesz wybrać obie opcje.',
-  onboardingInterestStrongTitle: 'Programy SmartReps',
+  onboardingHaveAccount: 'Mam już konto',
+  onboardingInterestTitle: 'Co chcesz trenować?',
+  onboardingInterestHint: 'Zaznacz jedną opcję albo obie.',
+  onboardingInterestStrongTitle: 'Pompki i podciąganie',
   onboardingInterestStrongBody:
-    'Pompki i podciąganie: test max, poziom, dni treningowe i przerwy — prowadzimy Cię krok po kroku.',
-  onboardingInterestCustomTitle: 'Własne treningi',
+    'Gotowe programy: test maksymalnej liczby powtórzeń, dobór poziomu, dni treningowe i przerwy.',
+  onboardingInterestCustomTitle: 'Własne plany',
   onboardingInterestCustomBody:
-    'Buduj plany z własnymi ćwiczeniami — idealne na siłownię i maszyny.',
-  onboardingPickProgram: 'Które programy włączyć?',
+    'Sam układasz ćwiczenia — na siłownię, maszyny albo trening w domu.',
+  onboardingPickProgram: 'Który program włączyć?',
   onboardingPickProgramHint:
-    'Test max i wybór poziomu zrobisz później z ekranu Start — gdy będziesz gotowy.',
+    'Test maksymalnej liczby powtórzeń i wybór poziomu zrobisz później na ekranie Trening — kiedy będziesz gotowy.',
   onboardingNextTitle: 'Co dalej?',
-  onboardingNextHome: 'Przejdziesz na Start — bez wymuszania testu.',
+  onboardingNextHome:
+    'Wejdziesz na ekran Trening. Nic nie wymuszamy — sam wybierasz, kiedy zacząć.',
   onboardingNextStrong:
-    'Program skonfigurujesz z karty, gdy będziesz gotowy. Przy dwóch programach zrób testy osobno — zostaw sobie przerwę.',
-  onboardingNextCustom: 'Własne plany dodasz w Plany albo z sekcji na Start.',
-  onboardingEnterApp: 'Przejdź do aplikacji',
-  onboardingIllustStrong: 'Strong',
+    'Program uruchomisz z karty na ekranie Trening. Przy dwóch programach zrób testy osobno i zostaw sobie przerwę między nimi.',
+  onboardingNextCustom:
+    'Własne plany dodasz w zakładce Plany albo w sekcji na ekranie Trening.',
+  onboardingEnterApp: 'Przejdź do Treningu',
+  onboardingIllustStrong: 'Programy',
   onboardingIllustCustom: 'Własne',
-  onboardingIllustNext: 'Start → kiedy Ty chcesz',
+  onboardingIllustNext: 'Trening — kiedy Ty chcesz',
   restGateHint: (days: number) =>
     days === 1 ? '1 dzień przerwy między treningami' : `${days} dni przerwy między treningami`,
   totalRepsLastSession: (n: number) => `${n} powtórzeń łącznie (ostatni trening)`,

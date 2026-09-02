@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import { LogoFull } from '@/components/brand/Logo'
@@ -12,8 +12,12 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { runAuthenticatedSync, setAuthFromOnboarding } from '@/lib/auth-sync'
 import { track } from '@/lib/analytics'
 import type { Program } from '@/data/plans/types'
+import { cn } from '@/lib/utils'
 
 type WizardStep = 'welcome' | 'interest' | 'programs' | 'next'
+
+const SHELL =
+  'mx-auto flex min-h-dvh max-w-lg flex-col px-5 pt-5 pb-7 safe-top safe-bottom'
 
 export default function Onboarding() {
   const [stepId, setStepId] = useState<WizardStep>('welcome')
@@ -108,7 +112,7 @@ export default function Onboarding() {
 
   if (!hydrated) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
+      <div className={SHELL}>
         <PageLoader />
       </div>
     )
@@ -119,34 +123,59 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full max-w-lg flex-col px-4 py-8 safe-top safe-bottom">
-      <StepIndicator current={stepIndex} total={steps.length} />
+    <div className={SHELL}>
+      <div className="mb-5 shrink-0">
+        <StepIndicator current={stepIndex} total={steps.length} />
+      </div>
 
       {stepId === 'welcome' && (
-        <div className="flex flex-1 flex-col items-center justify-center text-center">
-          <LogoFull height={44} className="mb-6" />
-          <OnboardingIllustration step="welcome" />
-          <h1 className="mt-2 sr-text-h1">{pl.onboardingWelcome}</h1>
-          <p className="mt-3 max-w-sm text-[var(--sr-text-secondary)]">{pl.onboardingWelcomeBody}</p>
-          <Button className="mt-8" fullWidth onClick={goNext}>
-            {pl.onboardingNewUser}
-          </Button>
-          {isSupabaseConfigured && (
-            <Button variant="secondary" className="mt-3" fullWidth onClick={goToLogin}>
-              {pl.onboardingHaveAccount}
-            </Button>
-          )}
-        </div>
+        <StepLayout
+          centered
+          footer={
+            <>
+              <Button fullWidth onClick={goNext}>
+                {pl.onboardingNewUser}
+              </Button>
+              {isSupabaseConfigured && (
+                <Button variant="secondary" fullWidth onClick={goToLogin}>
+                  {pl.onboardingHaveAccount}
+                </Button>
+              )}
+            </>
+          }
+        >
+          <LogoFull height={40} className="mb-5" />
+          <div className="mb-5 w-full">
+            <OnboardingIllustration step="welcome" />
+          </div>
+          <h1 className="sr-text-h1 px-1">{pl.onboardingWelcome}</h1>
+          <p className="mt-3 max-w-sm px-1 text-pretty sr-text-body text-[var(--sr-text-secondary)]">
+            {pl.onboardingWelcomeBody}
+          </p>
+        </StepLayout>
       )}
 
       {stepId === 'interest' && (
-        <div className="flex flex-1 flex-col py-8">
-          <OnboardingIllustration step="interest" />
+        <StepLayout
+          footer={
+            <>
+              <Button fullWidth disabled={!interestOk} onClick={goNext}>
+                {pl.next}
+              </Button>
+              <Button variant="ghost" fullWidth onClick={goBack}>
+                {pl.back}
+              </Button>
+            </>
+          }
+        >
+          <div className="mb-4">
+            <OnboardingIllustration step="interest" />
+          </div>
           <h2 className="sr-text-h2">{pl.onboardingInterestTitle}</h2>
-          <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
+          <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
             {pl.onboardingInterestHint}
           </p>
-          <div className="mt-6 flex flex-col gap-3">
+          <div className="mt-5 flex flex-col gap-3">
             <InterestCard
               selected={wantStrong}
               title={pl.onboardingInterestStrongTitle}
@@ -162,25 +191,30 @@ export default function Onboarding() {
               onToggle={() => setWantCustom((v) => !v)}
             />
           </div>
-          <div className="mt-auto flex flex-col gap-2">
-            <Button fullWidth disabled={!interestOk} onClick={goNext}>
-              {pl.next}
-            </Button>
-            <Button variant="ghost" fullWidth onClick={goBack}>
-              {pl.back}
-            </Button>
-          </div>
-        </div>
+        </StepLayout>
       )}
 
       {stepId === 'programs' && (
-        <div className="flex flex-1 flex-col py-8">
-          <OnboardingIllustration step="programs" />
+        <StepLayout
+          footer={
+            <>
+              <Button fullWidth disabled={!programsOk} onClick={goNext}>
+                {pl.next}
+              </Button>
+              <Button variant="ghost" fullWidth onClick={goBack}>
+                {pl.back}
+              </Button>
+            </>
+          }
+        >
+          <div className="mb-4">
+            <OnboardingIllustration step="programs" />
+          </div>
           <h2 className="sr-text-h2">{pl.onboardingPickProgram}</h2>
-          <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
+          <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
             {pl.onboardingPickProgramHint}
           </p>
-          <div className="mt-6 flex flex-col gap-3">
+          <div className="mt-5 flex flex-col gap-3">
             {(['pushups', 'pullups'] as Program[]).map((p) => {
               const selected = programs.includes(p)
               return (
@@ -189,7 +223,7 @@ export default function Onboarding() {
                   type="button"
                   onClick={() => toggleProgram(p)}
                   aria-pressed={selected}
-                  className="flex min-h-[var(--sr-spacing-touch)] items-center justify-between rounded-[var(--sr-radius-lg)] border-2 p-4 text-left transition-colors"
+                  className="flex min-h-[var(--sr-spacing-touch)] items-center justify-between rounded-[var(--sr-radius-lg)] border-2 px-4 py-3.5 text-left transition-colors"
                   style={{
                     borderColor: selected
                       ? p === 'pushups'
@@ -199,46 +233,67 @@ export default function Onboarding() {
                     background: selected ? 'var(--sr-brand-primary-muted)' : 'transparent',
                   }}
                 >
-                  <p className="font-semibold">
+                  <p className="font-semibold text-[var(--sr-text-primary)]">
                     {p === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram}
                   </p>
                   {selected && (
-                    <Check size={20} className="text-[var(--sr-brand-primary)]" aria-hidden />
+                    <Check size={20} className="shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
                   )}
                 </button>
               )
             })}
           </div>
-          <div className="mt-auto flex flex-col gap-2">
-            <Button fullWidth disabled={!programsOk} onClick={goNext}>
-              {pl.next}
-            </Button>
-            <Button variant="ghost" fullWidth onClick={goBack}>
-              {pl.back}
-            </Button>
-          </div>
-        </div>
+        </StepLayout>
       )}
 
       {stepId === 'next' && (
-        <div className="flex flex-1 flex-col py-8">
-          <OnboardingIllustration step="next" />
+        <StepLayout
+          footer={
+            <>
+              <Button fullWidth disabled={!interestOk || !programsOk} onClick={finish}>
+                {pl.onboardingEnterApp}
+              </Button>
+              <Button variant="ghost" fullWidth onClick={goBack}>
+                {pl.back}
+              </Button>
+            </>
+          }
+        >
+          <div className="mb-4">
+            <OnboardingIllustration step="next" />
+          </div>
           <h2 className="sr-text-h2">{pl.onboardingNextTitle}</h2>
-          <div className="mt-6 flex flex-col gap-3">
+          <div className="mt-5 flex flex-col gap-3">
             <NextBullet text={pl.onboardingNextHome} />
             {wantStrong && <NextBullet text={pl.onboardingNextStrong} />}
             {wantCustom && <NextBullet text={pl.onboardingNextCustom} />}
           </div>
-          <div className="mt-auto flex flex-col gap-2">
-            <Button fullWidth disabled={!interestOk || !programsOk} onClick={finish}>
-              {pl.onboardingEnterApp}
-            </Button>
-            <Button variant="ghost" fullWidth onClick={goBack}>
-              {pl.back}
-            </Button>
-          </div>
-        </div>
+        </StepLayout>
       )}
+    </div>
+  )
+}
+
+function StepLayout({
+  children,
+  footer,
+  centered,
+}: {
+  children: ReactNode
+  footer: ReactNode
+  centered?: boolean
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col',
+          centered && 'items-center justify-center text-center',
+        )}
+      >
+        {children}
+      </div>
+      <div className="mt-8 flex shrink-0 flex-col gap-2.5">{footer}</div>
     </div>
   )
 }
@@ -261,7 +316,7 @@ function InterestCard({
       type="button"
       onClick={onToggle}
       aria-pressed={selected}
-      className="rounded-[var(--sr-radius-lg)] border-2 p-4 text-left transition-colors"
+      className="rounded-[var(--sr-radius-lg)] border-2 px-4 py-3.5 text-left transition-colors"
       style={{
         borderColor: selected ? accent : 'var(--sr-border-subtle)',
         background: selected ? 'var(--sr-brand-primary-muted)' : 'transparent',
@@ -270,9 +325,13 @@ function InterestCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-semibold text-[var(--sr-text-primary)]">{title}</p>
-          <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">{body}</p>
+          <p className="mt-1.5 text-pretty sr-text-body-sm leading-snug text-[var(--sr-text-secondary)]">
+            {body}
+          </p>
         </div>
-        {selected && <Check size={20} className="shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />}
+        {selected && (
+          <Check size={20} className="mt-0.5 shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
+        )}
       </div>
     </button>
   )
@@ -280,8 +339,10 @@ function InterestCard({
 
 function NextBullet({ text }: { text: string }) {
   return (
-    <div className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] p-4 sr-card">
-      <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">{text}</p>
+    <div className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-4 py-3.5">
+      <p className="text-pretty sr-text-body-sm leading-snug text-[var(--sr-text-secondary)]">
+        {text}
+      </p>
     </div>
   )
 }
