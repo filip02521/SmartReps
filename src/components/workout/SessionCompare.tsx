@@ -10,8 +10,10 @@ import {
   formatBuiltinSetInsightBadge,
   type BuiltinSessionInsights,
 } from '@/lib/session-summary-insights'
+import { formatSessionElapsed, sessionCompletedWallClockSec } from '@/lib/session-elapsed'
 import { pl } from '@/i18n/pl'
 import type { SetResultDraft } from '@/lib/progress-engine'
+import { cn } from '@/lib/utils'
 
 export function SessionCompare({
   rows,
@@ -19,26 +21,45 @@ export function SessionCompare({
   totalReps,
   previousTotalReps,
   insights,
+  startedAt,
+  completedAt,
 }: {
   rows: SetResultDraft[]
   previousRows?: SetResultDraft[]
   totalReps: number
   previousTotalReps?: number | null
   insights?: BuiltinSessionInsights
+  startedAt?: string
+  completedAt?: string | null
 }) {
   const totalDelta =
     previousTotalReps != null && previousTotalReps > 0
       ? totalReps - previousTotalReps
       : null
+  const wallClockSec =
+    startedAt != null ? sessionCompletedWallClockSec(startedAt, completedAt) : 0
 
   return (
     <>
       {insights && <SessionSummaryHighlights highlights={insights.highlights} />}
 
-      <div className="mb-4 grid grid-cols-2 gap-2">
+      <div
+        className={cn(
+          'mb-4 grid gap-2',
+          wallClockSec > 0 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2',
+        )}
+      >
+        {wallClockSec > 0 ? (
+          <NestedStat
+            size="lg"
+            highlight
+            overline={pl.workoutDuration}
+            value={formatSessionElapsed(wallClockSec)}
+          />
+        ) : null}
         <NestedStat
           size="lg"
-          highlight
+          highlight={wallClockSec === 0}
           overline={pl.totalReps}
           value={totalReps}
           hint={

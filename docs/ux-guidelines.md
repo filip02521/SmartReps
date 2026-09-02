@@ -124,7 +124,8 @@ Kolejność: konto → programy → ustawienia → dane. Soft enable bez auto-te
 ## Wireframe — Trening (`ActiveWorkoutScreen`)
 
 ```
-[← Pompki · Dzień 3 · Seria 2/5]
+[←] [Pompki · Dzień 3 · Seria 2/5] [⋮]
+    [⏱ mm:ss — czas treningu]
 [RepCounter: duża liczba + Zrobione]
 [SetChecklist]
 [RestTimerPill]
@@ -161,8 +162,9 @@ Hub: nazwa, lista dni (skrót ćwiczeń), progresja, Zapisz szkic / Zapisz i akt
 ## Wireframe — Trening custom (multi-exercise)
 
 ```
-[←] [Pompki · Dzień N · Seria j/m] [⋮]
-    [Nazwa planu · Ćw. i/n]
+[←] [Ćwiczenie] [⋮]
+    [Dzień N · Seria j/m]
+    [plan / grupa · ⏱ mm:ss]
 [rail: ćwiczenia dnia — tap niedokończone = skok; done = statystyki]
 [notatka trenera — opcjonalnie]
 [hint / below-target: popraw lub zapisz i jedź dalej — bez abortu dnia]

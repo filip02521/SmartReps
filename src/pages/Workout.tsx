@@ -658,6 +658,8 @@ export default function WorkoutPage() {
       nextLabel={nextLabel}
       checklistRef={checklistRef}
       showTechniqueLink={program === 'pushups'}
+      sessionHasProgress={hasSessionProgress}
+      sessionStartedAt={sessionMeta?.startedAt}
       onBack={() => {
         if (!hasSessionProgress) {
           discardEphemeralSession()
@@ -754,7 +756,6 @@ export default function WorkoutPage() {
         }
         void persistState().finally(() => navigate('/', { replace: true }))
       }}
-      sessionHasProgress={hasSessionProgress}
       onDismissLeave={() => setShowLeaveConfirm(false)}
       onClosePlan={() => setShowPlanSheet(false)}
       onCloseMenu={() => setShowMenu(false)}

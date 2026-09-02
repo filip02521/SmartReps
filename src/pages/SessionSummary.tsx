@@ -242,6 +242,8 @@ export default function SessionSummary() {
           totalReps={totalReps}
           previousTotalReps={previous?.totalReps ?? null}
           insights={insights}
+          startedAt={current?.startedAt}
+          completedAt={current?.completedAt}
         />
       </div>
 

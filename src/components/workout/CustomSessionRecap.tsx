@@ -28,6 +28,7 @@ import {
   SessionSummaryHighlights,
   SummaryInsightBadge,
 } from '@/components/workout/SessionSummaryHighlights'
+import { formatSessionElapsed, sessionCompletedWallClockSec } from '@/lib/session-elapsed'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 
@@ -59,10 +60,14 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights }:
   const logs = current.exerciseLogs ?? []
   const totalReps = customSessionTotalReps(current)
   const totalDurationSec = customSessionTotalDurationSec(current)
+  const wallClockSec = sessionCompletedWallClockSec(current.startedAt, current.completedAt)
   const prevTotalReps = previous ? customSessionTotalReps(previous) : null
   const totalDelta =
     prevTotalReps != null && prevTotalReps > 0 ? totalReps - prevTotalReps : null
   const { passed, total } = customSessionPassedSets(current)
+  const showWall = wallClockSec > 0
+  const showSetTime = totalDurationSec > 0
+  const statCount = 2 + (showWall ? 1 : 0) + (showSetTime ? 1 : 0)
 
   return (
     <>
@@ -71,21 +76,33 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights }:
       <div
         className={cn(
           'mb-4 grid gap-2',
-          totalDurationSec > 0 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2',
+          // 4 stats → keep 2×2 (avoids orphan on sm:3-col). 3 stats → 2 then 3 on sm+.
+          statCount === 4
+            ? 'grid-cols-2'
+            : statCount >= 3
+              ? 'grid-cols-2 sm:grid-cols-3'
+              : 'grid-cols-2',
         )}
       >
-        {totalDurationSec > 0 ? (
+        {showWall ? (
           <NestedStat
             size="lg"
-            highlight={totalReps === 0}
-            overline={pl.customWorkoutDurationSec}
-            value={totalDurationSec}
+            highlight
+            overline={pl.workoutDuration}
+            value={formatSessionElapsed(wallClockSec)}
+          />
+        ) : null}
+        {showSetTime ? (
+          <NestedStat
+            size="lg"
+            overline={pl.customWorkoutSetTimeSec}
+            value={formatSessionElapsed(totalDurationSec)}
             hint={pl.customSessionDurationTotalHint}
           />
         ) : null}
         <NestedStat
           size="lg"
-          highlight={totalDurationSec === 0}
+          highlight={!showWall && !showSetTime}
           overline={pl.totalReps}
           value={totalReps}
           hint={

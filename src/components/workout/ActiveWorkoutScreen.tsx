@@ -19,6 +19,7 @@ import {
 } from '@/components/workout/WorkoutComponents'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
+import { SessionElapsedLabel } from '@/components/workout/SessionElapsedLabel'
 import { Z_REST_PILL } from '@/lib/ui-chrome'
 
 export type ActiveWorkoutScreenProps = {
@@ -44,6 +45,8 @@ export type ActiveWorkoutScreenProps = {
   checklistRef?: RefObject<HTMLDivElement | null>
   showTechniqueLink?: boolean
   sessionHasProgress?: boolean
+  /** ISO start of the in-memory / persisted workout session. */
+  sessionStartedAt?: string | null
   onBack: () => void
   onToggleMenu: () => void
   onShowPlan: () => void
@@ -93,6 +96,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     checklistRef,
     showTechniqueLink = false,
     sessionHasProgress = false,
+    sessionStartedAt,
     onBack,
     onToggleMenu,
     onShowPlan,
@@ -142,9 +146,14 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         >
           <ArrowLeft size={22} />
         </button>
-        <p className="text-center sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
-          {pl.workoutHeader(programLabel, progress.currentDay, currentSetIndex + 1, day.sets.length)}
-        </p>
+        <div className="min-w-0 flex-1 px-1 text-center">
+          <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+            {pl.workoutHeader(programLabel, progress.currentDay, currentSetIndex + 1, day.sets.length)}
+          </p>
+          {sessionStartedAt && (
+            <SessionElapsedLabel startedAt={sessionStartedAt} className="mt-0.5" />
+          )}
+        </div>
         <button
           type="button"
           aria-label={pl.menuWorkout}

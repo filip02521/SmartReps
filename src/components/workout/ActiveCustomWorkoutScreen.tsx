@@ -11,6 +11,7 @@ import {
 } from '@/components/workout/WorkoutComponents'
 import { CustomPreviousResultHint } from '@/components/workout/CustomPreviousResultHint'
 import { RestSecChips } from '@/components/plans/RestSecChips'
+import { SessionElapsedLabel } from '@/components/workout/SessionElapsedLabel'
 import { pl } from '@/i18n/pl'
 import type {
   ExerciseDefinition,
@@ -868,6 +869,8 @@ export type ActiveCustomWorkoutScreenProps = {
   nextLabel: string
   checklistRef?: RefObject<HTMLDivElement | null>
   sessionHasProgress?: boolean
+  /** ISO start of the in-memory / persisted workout session. */
+  sessionStartedAt?: string | null
   weightKg: number | ''
   timerRunning: boolean
   canEditPreviousSet?: boolean
@@ -944,6 +947,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     nextLabel,
     checklistRef,
     sessionHasProgress = false,
+    sessionStartedAt,
     weightKg,
     timerRunning,
     canEditPreviousSet = false,
@@ -1061,10 +1065,15 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             </p>
           )}
           <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">{setLine}</p>
-          {(groupBadge || headerSub) && (
-            <p className="truncate sr-text-caption text-[var(--sr-text-muted)]">
-              {[groupBadge, headerSub].filter(Boolean).join(' · ')}
-            </p>
+          {(groupBadge || headerSub || sessionStartedAt) && (
+            <div className="mt-0.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
+              {(groupBadge || headerSub) && (
+                <p className="min-w-0 truncate sr-text-caption text-[var(--sr-text-muted)]">
+                  {[groupBadge, headerSub].filter(Boolean).join(' · ')}
+                </p>
+              )}
+              {sessionStartedAt && <SessionElapsedLabel startedAt={sessionStartedAt} />}
+            </div>
           )}
         </div>
         <button

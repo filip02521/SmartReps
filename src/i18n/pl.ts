@@ -452,6 +452,10 @@ export const pl = {
   missingSession: 'Brak danych sesji — wróć do ekranu Trening',
   workoutHeader: (program: string, day: number, set: number, total: number) =>
     `${program} · Dzień ${day} · Seria ${set}/${total}`,
+  workoutElapsedAria: (time: string) => `Czas treningu ${time}`,
+  workoutDuration: 'Czas treningu',
+  customWorkoutSetTimeSec: 'Czas ćwiczeń',
+  customSessionDurationTotalHint: 'Suma czasu z serii (np. plank)',
 
   // Empty
   firstWorkout: 'Twój pierwszy trening czeka',
@@ -596,7 +600,6 @@ export const pl = {
   customHomeEmptyHint: 'Włącz plany w Profilu → Aktywne plany.',
   customLastWorkoutInsight: (planName: string, when: string) =>
     `Ostatni własny trening: ${planName} · ${when}`,
-  customSessionDurationTotalHint: 'Suma czasu w sesji',
   customCycleRailTitle: 'Mapa cyklu',
   customCycleDayPassed: 'Ukończony',
   customCycleDayFailed: 'Niezaliczony',

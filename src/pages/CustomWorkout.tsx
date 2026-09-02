@@ -145,6 +145,7 @@ export default function CustomWorkoutPage() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const timerRef = useRef<number | null>(null)
   const sessionRef = useRef<Awaited<ReturnType<typeof createCustomSession>> | null>(null)
+  const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null)
   const finishingRef = useRef(false)
   const sessionPlanDirtyRef = useRef(false)
   const [baselineSets, setBaselineSets] = useState<Record<string, number>>({})
@@ -257,6 +258,7 @@ export default function CustomWorkoutPage() {
       if (generation !== initGenerationRef.current) return
 
       sessionRef.current = session
+      setSessionStartedAt(session.startedAt)
       sessionPlanDirtyRef.current = false
       basePlanRef.current = p
       setBaselineSets(captureBaselineSetCounts(dayPlan))
@@ -404,6 +406,7 @@ export default function CustomWorkoutPage() {
           )
 
           sessionRef.current = session
+          setSessionStartedAt(session.startedAt)
           useCustomWorkoutStore.getState().resumeSession({
             sessionId: session.id,
             customPlanId: planId,
@@ -770,6 +773,7 @@ export default function CustomWorkoutPage() {
         })
         const doneSessionId = sessionRef.current.id
         sessionRef.current = null
+        setSessionStartedAt(null)
         store.reset()
         navigate(`/workout/custom/${livePlan.id}/summary?session=${doneSessionId}`, {
           replace: true,
@@ -809,6 +813,7 @@ export default function CustomWorkoutPage() {
         })
         const doneSessionId = sessionRef.current.id
         sessionRef.current = null
+        setSessionStartedAt(null)
         store.reset()
         navigate(`/workout/custom/${livePlan.id}/summary?session=${doneSessionId}`, {
           replace: true,
@@ -1073,6 +1078,8 @@ export default function CustomWorkoutPage() {
     setLeaveOpen(false)
     await persistState()
     store.reset()
+    sessionRef.current = null
+    setSessionStartedAt(null)
     navigate('/plans?tab=mine')
   }
 
@@ -1080,6 +1087,7 @@ export default function CustomWorkoutPage() {
     sessionEpochRef.current += 1
     store.reset()
     sessionRef.current = null
+    setSessionStartedAt(null)
   }
 
   async function confirmCancel() {
@@ -1384,6 +1392,7 @@ export default function CustomWorkoutPage() {
         nextLabel={nextLabel}
         checklistRef={checklistRef}
         sessionHasProgress={sessionHasProgress}
+        sessionStartedAt={sessionStartedAt}
         weightKg={weightKg}
         timerRunning={timerRunning}
         canEditPreviousSet={canEditPreviousSet}
