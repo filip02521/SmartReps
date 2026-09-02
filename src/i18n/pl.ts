@@ -68,31 +68,35 @@ export const pl = {
     `Seria ${set}/${total} · Dzień ${day}`,
   homeNowDay: (n: number) => `Teraz: dzień ${n}`,
   homeProgramPaused: 'Program wstrzymany',
-  homeTipTestRest: (when: string) => `Test będzie dostępny ${when}.`,
-  homeTipHabitZero: 'Jeden krótki trening wystarczy, żeby wrócić do rytmu.',
-  homeTipHabitMet: 'Cel nawyku zaliczony — utrzymaj tempo.',
+  homeTipTestRest: (when: string, other = '') =>
+    `Będzie dostępny ${when}. Dziś odpocznij${other}.`,
+  homeTipTestRestOther: ' albo trenuj drugi program',
+  homeCardTestRestHint: (when: string) => `Test będzie dostępny ${when}.`,
+  homeTipTestReady: 'Zakończ cykl — zmierz 1RM i ustaw nowe ciężary.',
+  homeTipHabitZeroFirst: 'Zacznij od karty poniżej — aplikacja poprowadzi Cię dalej.',
+  homeTipHabitZero: 'Brak treningu w ostatnich 14 dniach.',
+  homeTipHabitMet: '3 treningi w 14 dniach — dobry rytm.',
   homeTipReturnAfterBreak: (days: number) =>
-    `Minęło ${days} dni od ostatniego treningu — wróć do planu, nawet krótką sesją.`,
-  homeTipHabitAlmost: (n: number) =>
-    n === 1
-      ? 'Masz 1 trening w 14 dni — brakuje jeszcze 2 do celu.'
-      : 'Masz 2 treningi w 14 dni — brakuje jeszcze 1 do celu.',
-  homeTipDualProgram:
-    'Masz dwa programy — jeden możesz trenować dziś, drugi czeka na konfigurację lub regenerację.',
+    `${days} dni przerwy. Wróć lekkim treningiem.`,
+  homeTipHabitAlmost: (remaining: number) =>
+    `Zostało ${remaining} do 3 treningów w 14 dniach.`,
+  homeTipDualProgram: 'Bez startowych ciężarów nie policzymy postępu.',
+  homeTipDualCta: 'Uzupełnij',
   homeTipLoginBackup:
     'Trenujesz lokalnie — zaloguj się, aby mieć kopię postępu w chmurze na innych urządzeniach.',
-  homeTipShowCard: 'Pokaż program',
+  homeTipShowCard: 'Pokaż kartę',
   homeTipTitleDefault: 'Wskazówka',
   homeTipTitleStale: 'Niedokończona sesja',
   homeTipTitleTestReady: 'Czas na test max',
   homeTipTitleTestRest: 'Test max wkrótce',
   homeTipTitleLevel: 'Rozważ niższy poziom',
-  homeTipTitleReturnAfterBreak: 'Wróć do treningu',
-  homeTipTitleHabitAlmost: 'Blisko celu 3/14',
-  homeTipTitleDualProgram: 'Dwa programy',
+  homeTipTitleReturnAfterBreak: 'Dawno Cię nie było',
+  homeTipTitleHabitAlmost: 'Blisko celu',
+  homeTipTitleDualProgram: 'Uzupełnij drugi program',
   homeTipTitleLoginBackup: 'Backup w chmurze',
-  homeTipTitleHabitZero: 'Wróć do rytmu',
-  homeTipTitleHabitMet: 'Cel nawyku zaliczony',
+  homeTipTitleHabitZero: 'Czas wrócić',
+  homeTipTitleHabitZeroFirst: 'Pierwszy trening',
+  homeTipTitleHabitMet: 'Cel zaliczony',
   trainAnywayNew: 'Trenuję mimo to',
   abandonResumeTrainAnywayTitle: 'Porzucić niedokończoną sesję?',
   abandonResumeTrainAnywayBody:

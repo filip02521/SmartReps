@@ -90,6 +90,8 @@ type AppStore = {
   /** LoginPromptPolicy — Summary post-D1 cloud backup prompt shown once. */
   hasSeenLoginCloudPrompt: boolean
   dismissedLoginBackupTip: boolean
+  /** Sticky dismiss for habit_met home tip (3 sessions / 14d). */
+  dismissedHabitMetTip: boolean
   /** Last sync failure reason for SyncStatusPanel (A1/A2). */
   lastSyncFailureReason: string | null
   setSettings: (partial: Partial<UserSettings>) => void
@@ -110,6 +112,7 @@ type AppStore = {
   dismissHomeTip: (id: string, dayKey: string) => void
   setHasSeenLoginCloudPrompt: (v: boolean) => void
   setDismissedLoginBackupTip: (v: boolean) => void
+  setDismissedHabitMetTip: (v: boolean) => void
   setLastSyncFailureReason: (reason: string | null) => void
 }
 
@@ -159,6 +162,7 @@ export const useAppStore = create<AppStore>()(
       dismissedHomeTipDay: null,
       hasSeenLoginCloudPrompt: false,
       dismissedLoginBackupTip: false,
+      dismissedHabitMetTip: false,
       lastSyncFailureReason: null,
       setSettings: (partial) =>
         set((s) => {
@@ -203,11 +207,12 @@ export const useAppStore = create<AppStore>()(
         set({ dismissedHomeTipId, dismissedHomeTipDay }),
       setHasSeenLoginCloudPrompt: (hasSeenLoginCloudPrompt) => set({ hasSeenLoginCloudPrompt }),
       setDismissedLoginBackupTip: (dismissedLoginBackupTip) => set({ dismissedLoginBackupTip }),
+      setDismissedHabitMetTip: (dismissedHabitMetTip) => set({ dismissedHabitMetTip }),
       setLastSyncFailureReason: (lastSyncFailureReason) => set({ lastSyncFailureReason }),
     }),
     {
       name: 'smartreps-app',
-      version: 6,
+      version: 7,
       migrate: (persisted, fromVersion) => {
         const p = (persisted ?? {}) as Partial<AppStore> & { settings?: Partial<UserSettings> }
         const baseSettings: UserSettings = {
@@ -237,6 +242,7 @@ export const useAppStore = create<AppStore>()(
             ...base,
             hasSeenLoginCloudPrompt: false,
             dismissedLoginBackupTip: false,
+            dismissedHabitMetTip: false,
             lastSyncFailureReason: null,
           }
         }
@@ -244,6 +250,8 @@ export const useAppStore = create<AppStore>()(
           ...base,
           hasSeenLoginCloudPrompt: p.hasSeenLoginCloudPrompt ?? false,
           dismissedLoginBackupTip: p.dismissedLoginBackupTip ?? false,
+          dismissedHabitMetTip:
+            fromVersion < 7 ? false : (p.dismissedHabitMetTip ?? false),
           lastSyncFailureReason: p.lastSyncFailureReason ?? null,
         }
       },
@@ -273,6 +281,7 @@ export const useAppStore = create<AppStore>()(
         dismissedHomeTipDay: s.dismissedHomeTipDay,
         hasSeenLoginCloudPrompt: s.hasSeenLoginCloudPrompt,
         dismissedLoginBackupTip: s.dismissedLoginBackupTip,
+        dismissedHabitMetTip: s.dismissedHabitMetTip,
         lastSyncFailureReason: s.lastSyncFailureReason,
       }),
     },

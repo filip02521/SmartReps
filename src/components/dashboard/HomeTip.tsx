@@ -56,14 +56,16 @@ export function HomeTip({
         ? () => onAction(tip.actionProgram!)
         : tip.scrollProgram && onScroll
           ? () => onScroll(tip.scrollProgram!)
-          : undefined
+          : tip.dismissible && tip.actionLabel && !tip.scrollProgram && !tip.navigateTo && !tip.actionProgram
+            ? () => onDismiss(tip.id)
+            : undefined
 
   return (
     <NoticeCard
       className="mb-4"
       tone={meta.tone}
       icon={meta.icon}
-      title={meta.title}
+      title={tip.title ?? meta.title}
       message={tip.message}
       actionLabel={actionLabel}
       onAction={handleAction}

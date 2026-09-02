@@ -58,11 +58,11 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 ```
 [Logo SmartReps]
 [Status dnia — headline + opcjonalny subtitle]
+[Attention: InstallCoach XOR HomeTip]
 [Zacznij trening]
   — ProgramHomeCard(s) z pełnym lifecycle
   — CustomPlanHomeCard(s) LUB empty: Stwórz plan + Biblioteka
 [Twoja aktywność — MetricStrip + trend „wcześniej”]
-[Attention: InstallCoach XOR HomeTip]
 [Tab bar: Trening · Postępy · Plany · Profil]
 ```
 

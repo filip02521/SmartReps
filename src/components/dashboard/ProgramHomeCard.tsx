@@ -283,7 +283,7 @@ export function ProgramHomeCard({
               hint={
                 bucket === 'resting'
                   ? pl.restGateHint(waitingRestDays)
-                  : pl.homeTipTestRest(stats?.nextWorkoutLabel ?? pl.today)
+                  : pl.homeCardTestRestHint(stats?.nextWorkoutLabel ?? pl.today)
               }
             />
           )

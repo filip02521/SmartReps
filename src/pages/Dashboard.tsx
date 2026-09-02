@@ -35,10 +35,12 @@ export default function Dashboard() {
   const dismissedHomeTipDay = useAppStore((s) => s.dismissedHomeTipDay)
   const hasCompletedFirstWorkout = useAppStore((s) => s.hasCompletedFirstWorkout)
   const dismissedLoginBackupTip = useAppStore((s) => s.dismissedLoginBackupTip)
+  const dismissedHabitMetTip = useAppStore((s) => s.dismissedHabitMetTip)
   const hasSeenLoginCloudPrompt = useAppStore((s) => s.hasSeenLoginCloudPrompt)
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const dismissHomeTip = useAppStore((s) => s.dismissHomeTip)
   const setDismissedLoginBackupTip = useAppStore((s) => s.setDismissedLoginBackupTip)
+  const setDismissedHabitMetTip = useAppStore((s) => s.setDismissedHabitMetTip)
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const hydrated = useStoreHydrated()
@@ -93,6 +95,7 @@ export default function Dashboard() {
       dismissedHomeTipId,
       dismissedHomeTipDay,
       showLoginBackup,
+      dismissedHabitMetTip,
     })
       .then((result) => {
         if (!cancelled) {
@@ -120,6 +123,7 @@ export default function Dashboard() {
     installVisible,
     hasCompletedFirstWorkout,
     dismissedLoginBackupTip,
+    dismissedHabitMetTip,
     hasSeenLoginCloudPrompt,
     hasSession,
   ])
@@ -143,6 +147,9 @@ export default function Dashboard() {
   const reload = () => setReloadEpoch((n) => n + 1)
   const showTip = installVisible === false && !!home?.tip
   const showAttention = installVisible === true || showTip
+  const tipSuppression = home?.tip
+    ? home.tipSuppression
+    : { stale: false, test: false, level: false }
 
   return (
     <div className={TAB_PAGE_SHELL}>
@@ -172,6 +179,34 @@ export default function Dashboard() {
         <>
           <HomeStatusHeader summary={home.summary} />
 
+          <div className={showAttention ? 'mb-4' : undefined}>
+            <InstallCoach demotePrimary onVisibilityChange={onInstallVisibility} />
+
+            {showTip && home.tip && (
+              <HomeTip
+                tip={home.tip}
+                onDismiss={(id) => {
+                  dismissHomeTip(id, localDayKey())
+                  if (home.tip?.kind === 'login_backup') {
+                    setDismissedLoginBackupTip(true)
+                  }
+                  if (home.tip?.kind === 'habit_met') {
+                    setDismissedHabitMetTip(true)
+                  }
+                }}
+                onAction={(program) => {
+                  if (home.tip?.kind === 'dual_program' && home.tip.actionProgram) {
+                    navigate(`/setup/test/${home.tip.actionProgram}`)
+                    return
+                  }
+                  void beginLevelChange(navigate, program)
+                }}
+                onNavigate={(path) => navigate(path, { state: { returnTo: '/' } })}
+                onScroll={scrollToProgram}
+              />
+            )}
+          </div>
+
           {settings.enabledPrograms.length === 0 ? (
             <EmptyState
               icon={<LogoMark size={48} />}
@@ -191,11 +226,7 @@ export default function Dashboard() {
                     key={`${card.program}-${reloadEpoch}`}
                     model={card}
                     allResting={home.summary.allResting}
-                    tipSuppression={
-                      showTip
-                        ? home.tipSuppression
-                        : { stale: false, test: false, level: false }
-                    }
+                    tipSuppression={tipSuppression}
                     onReload={reload}
                   />
                 ))}
@@ -217,31 +248,6 @@ export default function Dashboard() {
           {settings.enabledPrograms.length === 0 && <CustomPlansHomeSection />}
 
           <HomeActivitySection summary={home.summary} />
-
-          <div className={showAttention ? 'mb-4' : undefined}>
-            <InstallCoach demotePrimary onVisibilityChange={onInstallVisibility} />
-
-            {showTip && home.tip && (
-              <HomeTip
-                tip={home.tip}
-                onDismiss={(id) => {
-                  dismissHomeTip(id, localDayKey())
-                  if (home.tip?.kind === 'login_backup') {
-                    setDismissedLoginBackupTip(true)
-                  }
-                }}
-                onAction={(program) => {
-                  if (home.tip?.kind === 'dual_program' && home.tip.actionProgram) {
-                    navigate(`/setup/test/${home.tip.actionProgram}`)
-                    return
-                  }
-                  void beginLevelChange(navigate, program)
-                }}
-                onNavigate={(path) => navigate(path, { state: { returnTo: '/' } })}
-                onScroll={scrollToProgram}
-              />
-            )}
-          </div>
         </>
       ) : null}
     </div>

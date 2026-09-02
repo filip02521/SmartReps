@@ -206,7 +206,6 @@ describe('pickTip + tipSuppressionFrom', () => {
       'habit-zero',
       localDayKey(),
     )
-    // If dismissed habit-zero, may fall through to habit-met (sessions 0) or null/rest
     expect(tip?.id === 'habit-zero').toBe(false)
   })
 
@@ -228,6 +227,35 @@ describe('pickTip + tipSuppressionFrom', () => {
       null,
     )
     expect(tip?.kind).toBe('habit_almost')
+    expect(tip?.message).toBe(pl.homeTipHabitAlmost(1))
+  })
+
+  it('habit_almost / habit_zero / return skip when only resting', () => {
+    const resting = [
+      card({
+        program: 'pushups',
+        bucket: 'resting',
+        progress: prog({}),
+      }),
+    ]
+    expect(
+      pickTip(resting, 2, null, null, {
+        daysSinceLastPassedSession: 2,
+        enabledProgramCount: 1,
+      }),
+    ).toBeNull()
+    expect(
+      pickTip(resting, 0, null, null, {
+        daysSinceLastPassedSession: 20,
+        enabledProgramCount: 1,
+      }),
+    ).toBeNull()
+    expect(
+      pickTip(resting, 1, null, null, {
+        daysSinceLastPassedSession: 8,
+        enabledProgramCount: 1,
+      }),
+    ).toBeNull()
   })
 
   it('return_after_break after 7+ days', () => {
@@ -241,7 +269,7 @@ describe('pickTip + tipSuppressionFrom', () => {
     expect(tip?.kind).toBe('return_after_break')
   })
 
-  it('dual_program when one ready and one unconfigured', () => {
+  it('dual_program when second program unconfigured', () => {
     const tip = pickTip(
       [
         card({ program: 'pushups', bucket: 'ready', progress: prog({}) }),
@@ -253,6 +281,54 @@ describe('pickTip + tipSuppressionFrom', () => {
       { daysSinceLastPassedSession: 1, enabledProgramCount: 2 },
     )
     expect(tip?.kind).toBe('dual_program')
+    expect(tip?.dismissible).toBe(false)
+    expect(tip?.actionProgram).toBe('pullups')
+  })
+
+  it('dual_program does not fire when other program is only resting', () => {
+    const tip = pickTip(
+      [
+        card({ program: 'pushups', bucket: 'ready', progress: prog({}) }),
+        card({ program: 'pullups', bucket: 'resting', progress: prog({}) }),
+      ],
+      2,
+      null,
+      null,
+      { daysSinceLastPassedSession: 1, enabledProgramCount: 2 },
+    )
+    expect(tip?.kind).toBe('habit_almost')
+  })
+
+  it('habit_met only at exactly 3 sessions and respects sticky dismiss', () => {
+    const ready = [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })]
+    expect(pickTip(ready, 3, null, null)?.kind).toBe('habit_met')
+    expect(pickTip(ready, 4, null, null)).toBeNull()
+    expect(
+      pickTip(ready, 3, null, null, {
+        daysSinceLastPassedSession: 1,
+        enabledProgramCount: 1,
+        dismissedHabitMetTip: true,
+      }),
+    ).toBeNull()
+  })
+
+  it('habit_zero first vs return copy', () => {
+    const ready = [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })]
+    const first = pickTip(ready, 0, null, null, {
+      daysSinceLastPassedSession: null,
+      enabledProgramCount: 1,
+    })
+    expect(first?.kind).toBe('habit_zero')
+    expect(first?.title).toBe(pl.homeTipTitleHabitZeroFirst)
+    expect(first?.message).toBe(pl.homeTipHabitZeroFirst)
+
+    const returning = pickTip(ready, 0, null, null, {
+      daysSinceLastPassedSession: 20,
+      enabledProgramCount: 1,
+    })
+    expect(returning?.kind).toBe('habit_zero')
+    expect(returning?.title).toBe(pl.homeTipTitleHabitZero)
+    expect(returning?.message).toBe(pl.homeTipHabitZero)
   })
 
   it('login_backup when flagged and 3+ days since last session', () => {
@@ -312,10 +388,22 @@ describe('pickTip + tipSuppressionFrom', () => {
         }),
       ],
       0,
-      'habit-zero',
-      localDayKey(),
+      null,
+      null,
       { daysSinceLastPassedSession: 1, enabledProgramCount: 1 },
     )
     expect(tip).toBeNull()
+  })
+
+  it('tipSuppressionFrom only flags matching tip kinds', () => {
+    expect(tipSuppressionFrom(null)).toEqual({ stale: false, test: false, level: false })
+    expect(
+      tipSuppressionFrom({
+        id: 'test_ready',
+        kind: 'test_ready',
+        message: 'x',
+        dismissible: false,
+      }),
+    ).toEqual({ stale: false, test: true, level: false })
   })
 })

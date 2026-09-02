@@ -48,6 +48,7 @@ export async function clearAllLocalData(): Promise<void> {
     hasSeenStandaloneLoginCoach: false,
     hasSeenLoginCloudPrompt: false,
     dismissedLoginBackupTip: false,
+    dismissedHabitMetTip: false,
     lastSyncFailureReason: null,
     dismissedHomeTipId: null,
     dismissedHomeTipDay: null,

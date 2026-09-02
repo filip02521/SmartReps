@@ -62,6 +62,8 @@ export type HomeTipModel = {
   kind: TipKind
   message: string
   dismissible: boolean
+  /** Optional title override (otherwise HomeTip derives from kind). */
+  title?: string
   actionLabel?: string
   actionProgram?: Program
   scrollProgram?: Program
@@ -72,6 +74,7 @@ export type PickTipOpts = {
   daysSinceLastPassedSession: number | null
   enabledProgramCount: number
   showLoginBackup?: boolean
+  dismissedHabitMetTip?: boolean
 }
 
 export type TipSuppression = {
@@ -287,6 +290,9 @@ export function pickTip(
   const dismissed =
     dismissedDay === today && dismissedId ? new Set([dismissedId]) : new Set<string>()
 
+  const activeTrainable = (c: ProgramCardModel) =>
+    c.bucket === 'ready' || c.bucket.startsWith('resume')
+
   const staleCard = cards.find((c) => c.bucket === 'resume_stale')
   if (staleCard) {
     return {
@@ -303,7 +309,7 @@ export function pickTip(
     return {
       id: 'test_ready',
       kind: 'test_ready',
-      message: pl.cycleCompleteHint,
+      message: pl.homeTipTestReady,
       dismissible: false,
       scrollProgram: testReady.program,
     }
@@ -312,10 +318,17 @@ export function pickTip(
   const testRest = cards.find((c) => c.bucket === 'test_pending_rest')
   if (testRest) {
     const next = testRest.stats?.nextWorkoutLabel ?? pl.today
+    const otherActive = cards.some(
+      (c) => c.program !== testRest.program && activeTrainable(c),
+    )
+    const other =
+      (opts?.enabledProgramCount ?? cards.length) >= 2 && otherActive
+        ? pl.homeTipTestRestOther
+        : ''
     return {
       id: 'test_rest',
       kind: 'test_rest',
-      message: pl.homeTipTestRest(next),
+      message: pl.homeTipTestRest(next, other),
       dismissible: false,
       scrollProgram: testRest.program,
     }
@@ -340,9 +353,10 @@ export function pickTip(
   if (
     daysSince !== null &&
     daysSince >= 7 &&
+    sessions14d >= 1 &&
     !dismissed.has('return-after-break')
   ) {
-    const active = cards.find((c) => c.bucket === 'ready' || c.bucket === 'resting')
+    const active = cards.find(activeTrainable)
     if (active) {
       return {
         id: 'return-after-break',
@@ -358,35 +372,30 @@ export function pickTip(
     (sessions14d === 1 || sessions14d === 2) &&
     !dismissed.has('habit-almost')
   ) {
-    const scroll =
-      cards.find((c) => c.bucket === 'ready' || c.bucket.startsWith('resume'))?.program ??
-      cards.find((c) => c.bucket !== 'unconfigured')?.program
-    return {
-      id: 'habit-almost',
-      kind: 'habit_almost',
-      message: pl.homeTipHabitAlmost(sessions14d),
-      dismissible: true,
-      scrollProgram: scroll,
+    const active = cards.find(activeTrainable)
+    if (active) {
+      return {
+        id: 'habit-almost',
+        kind: 'habit_almost',
+        message: pl.homeTipHabitAlmost(3 - sessions14d),
+        dismissible: true,
+        scrollProgram: active.program,
+      }
     }
   }
 
   const enabledCount = opts?.enabledProgramCount ?? cards.length
-  if (enabledCount === 2 && !dismissed.has('dual-program')) {
-    const ready = cards.find((c) => c.bucket === 'ready')
-    const other = cards.find(
-      (c) =>
-        c.program !== ready?.program &&
-        (c.bucket === 'unconfigured' || c.bucket === 'resting'),
-    )
-    if (ready && other) {
+  if (enabledCount >= 2) {
+    const unconfigured = cards.find((c) => c.bucket === 'unconfigured')
+    if (unconfigured) {
       return {
         id: 'dual-program',
         kind: 'dual_program',
         message: pl.homeTipDualProgram,
-        dismissible: true,
-        scrollProgram: other.bucket === 'unconfigured' ? other.program : ready.program,
-        actionLabel: other.bucket === 'unconfigured' ? pl.startSetup : pl.homeTipShowCard,
-        actionProgram: other.bucket === 'unconfigured' ? other.program : undefined,
+        dismissible: false,
+        scrollProgram: unconfigured.program,
+        actionLabel: pl.homeTipDualCta,
+        actionProgram: unconfigured.program,
       }
     }
   }
@@ -407,26 +416,32 @@ export function pickTip(
     }
   }
 
-  const configuredCount = cards.filter((c) => c.bucket !== 'unconfigured').length
-  if (sessions14d === 0 && configuredCount >= 1 && !dismissed.has('habit-zero')) {
-    const scroll =
-      cards.find((c) => c.bucket === 'ready' || c.bucket.startsWith('resume'))?.program ??
-      cards.find((c) => c.bucket !== 'unconfigured')?.program
-    return {
-      id: 'habit-zero',
-      kind: 'habit_zero',
-      message: pl.homeTipHabitZero,
-      dismissible: true,
-      scrollProgram: scroll,
+  if (sessions14d === 0 && !dismissed.has('habit-zero')) {
+    const active = cards.find(activeTrainable)
+    if (active) {
+      const isFirst = daysSince === null
+      return {
+        id: 'habit-zero',
+        kind: 'habit_zero',
+        title: isFirst ? pl.homeTipTitleHabitZeroFirst : pl.homeTipTitleHabitZero,
+        message: isFirst ? pl.homeTipHabitZeroFirst : pl.homeTipHabitZero,
+        dismissible: true,
+        scrollProgram: active.program,
+      }
     }
   }
 
-  if (sessions14d >= 3 && !dismissed.has('habit-met')) {
+  if (
+    sessions14d === 3 &&
+    !opts?.dismissedHabitMetTip &&
+    !dismissed.has('habit-met')
+  ) {
     return {
       id: 'habit-met',
       kind: 'habit_met',
       message: pl.homeTipHabitMet,
       dismissible: true,
+      actionLabel: pl.ok,
     }
   }
 
@@ -469,6 +484,7 @@ export async function loadHomeDashboard(
     dismissedHomeTipId?: string | null
     dismissedHomeTipDay?: string | null
     showLoginBackup?: boolean
+    dismissedHabitMetTip?: boolean
   },
 ): Promise<HomeLoadResult> {
   const allSessions = await db.workoutSessions.toArray()
@@ -611,6 +627,7 @@ export async function loadHomeDashboard(
       daysSinceLastPassedSession: daysSince,
       enabledProgramCount: enabledPrograms.length,
       showLoginBackup: opts?.showLoginBackup,
+      dismissedHabitMetTip: opts?.dismissedHabitMetTip,
     },
   )
 
