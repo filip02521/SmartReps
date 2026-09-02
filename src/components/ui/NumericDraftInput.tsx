@@ -60,6 +60,9 @@ export function NumericDraftInput({
         e.currentTarget.select()
       }}
       onChange={(e) => setDraft(normalizeNumericDraft(e.target.value, mode))}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+      }}
       onBlur={() => {
         const next = commitNumericDraft(draft, mode, { min, max, emptyValue })
         onCommit(next)
