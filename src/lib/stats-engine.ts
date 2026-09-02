@@ -69,8 +69,9 @@ export async function getProgramStats(
   const cycle = getCycleById(progress.cycleId)
   const day = cycle?.days.find((d) => d.dayNumber === (lastSession?.dayNumber ?? progress.currentDay))
   const trend = getMaxSetTrend(passed)
-
-  if (trend.current === 0 && day) {
+  // Preview day target only when there is no real last-set actual (do not overwrite 0 reps).
+  const lastSetActual = lastSession ? getLastSetActual(lastSession) : null
+  if (lastSetActual == null && day) {
     trend.current = getLastSetTarget(day.sets) ?? 0
   }
 

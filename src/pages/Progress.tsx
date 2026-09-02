@@ -1,32 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronRight } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { format, subDays } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
-import { ActivityHeatmap } from '@/components/progress/ActivityHeatmap'
-import { ProgressSection } from '@/components/progress/ProgressSection'
-import { buildActivityHeatmap, exportSessionsCsv, downloadCsv } from '@/lib/export'
+import { OverviewPanel } from '@/components/progress/OverviewPanel'
+import { CyclePanel } from '@/components/progress/CyclePanel'
+import { HistoryPanel } from '@/components/progress/HistoryPanel'
+import { CustomProgressPanel } from '@/components/progress/CustomProgressPanel'
+import { buildActivityHeatmap } from '@/lib/export'
 import {
-  hasAnyProgramRecords,
   isCustomProgressHistorySession,
   isProgressHistorySession,
   sessionTotalReps,
 } from '@/lib/progress-history'
 import { Button } from '@/components/ui/Button'
-import { MetricStrip } from '@/components/ui/MetricStrip'
-import { NestedStat } from '@/components/ui/NestedStat'
-import { CycleDayPicker } from '@/components/ui/CycleDayPicker'
 import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Sheet } from '@/components/ui/Sheet'
-import { LogoMark } from '@/components/brand/Logo'
 import { Badge } from '@/components/ui/Card'
-import { EmptyState, SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
+import { SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
 import { db } from '@/lib/db'
 import { getProgramProgress } from '@/lib/program-service'
-import { navigateToTrain } from '@/lib/setup-flow'
 import { getCycleById } from '@/data/plans'
 import { getProgramStats, getMaxSetPerDay, getProgramRecords } from '@/lib/stats-engine'
 import { useAppStore } from '@/stores/app-store'
@@ -35,36 +29,34 @@ import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
 import type { Program } from '@/data/plans/types'
 import type { LocalWorkoutSession } from '@/lib/db'
 import { getCycleDayStatus } from '@/lib/cycle-progress'
-import { showToast } from '@/stores/toast-store'
 import { computeCustomExercisePrs, type ExercisePr } from '@/lib/custom-stats'
 import { ExerciseDetailSheet } from '@/components/plans/ExerciseDetailSheet'
-import { ExerciseSparkline } from '@/components/plans/ExerciseSparkline'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
-import type { ExerciseTrend } from '@/lib/custom-exercise-stats'
-import {
-  computeCustomSessionDetail,
-  formatCustomSessionSummary,
-  sessionTotalSets,
-} from '@/lib/custom-session-stats'
 import { cn } from '@/lib/utils'
 import { filterCustomHistorySessions } from '@/lib/custom-history-filters'
-import { CustomPlanCycleRail } from '@/components/progress/CustomPlanCycleRail'
 import type { CustomPlan, CustomProgramProgress } from '@/lib/exercise-model'
 
-type Tab = 'overview' | 'history' | 'cycle' | 'records' | 'custom'
+type Tab = 'overview' | 'history' | 'cycle' | 'custom'
+type CustomView = 'exercises' | 'plan' | 'history'
 type HistoryDateFilter = 'all' | '30d' | '90d'
 
 const HISTORY_PAGE_SIZE = 20
 
-const chartTooltipStyle = {
-  background: 'var(--sr-bg-elevated)',
-  border: '1px solid var(--sr-border-subtle)',
-  borderRadius: '8px',
-  color: 'var(--sr-text-primary)',
+function parseProgressTab(raw: string | null): Tab | 'records' | null {
+  if (raw === 'overview' || raw === 'history' || raw === 'cycle' || raw === 'custom' || raw === 'records') {
+    return raw
+  }
+  return null
 }
 
-const TAB_HINTS: Partial<Record<Tab, string>> = {
-  custom: pl.progressTabCustomHint,
+function parseCustomView(raw: string | null): CustomView {
+  if (raw === 'plan' || raw === 'history' || raw === 'exercises') return raw
+  return 'exercises'
+}
+
+function parseProgramParam(raw: string | null, enabled: Program[]): Program {
+  if ((raw === 'pushups' || raw === 'pullups') && enabled.includes(raw)) return raw
+  return enabled[0] ?? 'pushups'
 }
 
 function sessionStatusLabel(session: LocalWorkoutSession): string {
@@ -79,33 +71,24 @@ function sessionBadgeVariant(session: LocalWorkoutSession): 'success' | 'error' 
   return 'default'
 }
 
-function trendDotClass(trend: ExerciseTrend): string | null {
-  if (trend === 'up') return 'bg-[var(--sr-success)]'
-  if (trend === 'down') return 'bg-[var(--sr-error)]'
-  if (trend === 'flat') return 'bg-[var(--sr-text-muted)]'
-  return null
-}
-
-function formatExercisePrLine(pr: ExercisePr): string {
-  return (
-    [
-      pr.maxReps != null ? `${pr.maxReps} ${pl.repsUnit}` : null,
-      pr.maxDurationSec != null ? `${pr.maxDurationSec}${pl.durationUnitShort}` : null,
-      pr.maxWeightKg != null ? `${pr.maxWeightKg} ${pl.weightUnit}` : null,
-    ]
-      .filter(Boolean)
-      .join(' · ') || pl.noValue
-  )
-}
-
 export default function ProgressPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { settings } = useAppStore()
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
-  const [program, setProgram] = useState<Program>(settings.enabledPrograms[0] ?? 'pushups')
-  const [tab, setTab] = useState<Tab>(() =>
-    searchParams.get('tab') === 'custom' ? 'custom' : 'overview',
+  const [program, setProgram] = useState<Program>(() =>
+    parseProgramParam(searchParams.get('program'), settings.enabledPrograms),
+  )
+  const [tab, setTab] = useState<Tab>(() => {
+    const raw = parseProgressTab(searchParams.get('tab'))
+    if (raw === 'records' || raw == null) return 'overview'
+    return raw
+  })
+  const [scrollToRecords, setScrollToRecords] = useState(
+    () => searchParams.get('tab') === 'records',
+  )
+  const [customView, setCustomView] = useState<CustomView>(() =>
+    parseCustomView(searchParams.get('view')),
   )
   const [loading, setLoading] = useState(true)
   const [tests, setTests] = useState<{ date: string; dateLabel: string; reps: number }[]>([])
@@ -141,6 +124,7 @@ export default function ProgressPage() {
   const [customFiltersOpen, setCustomFiltersOpen] = useState(false)
   const [detailExercise, setDetailExercise] = useState<ExerciseDefinition | null>(null)
   const customHistoryRef = useRef<HTMLDivElement>(null)
+  const recordsScrollDone = useRef(false)
 
   const customFiltersActive =
     customHistoryPlanFilter !== 'all' ||
@@ -223,10 +207,6 @@ export default function ProgressPage() {
     }
     void load()
   }, [program, reloadEpoch, lastSyncedAt])
-
-  useEffect(() => {
-    if (searchParams.get('tab') === 'custom') setTab('custom')
-  }, [searchParams])
 
   useEffect(() => {
     setHistoryLimit(HISTORY_PAGE_SIZE)
@@ -328,12 +308,101 @@ export default function ProgressPage() {
     }
   }
 
+  useEffect(() => {
+    const raw = parseProgressTab(searchParams.get('tab'))
+    if (raw === 'records') {
+      setTab('overview')
+      recordsScrollDone.current = false
+      setScrollToRecords(true)
+      const next = new URLSearchParams(searchParams)
+      next.delete('tab')
+      setSearchParams(next, { replace: true })
+      return
+    }
+    if (raw === 'overview' && searchParams.has('tab')) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('tab')
+      setSearchParams(next, { replace: true })
+      setTab('overview')
+      setCustomView(parseCustomView(searchParams.get('view')))
+      setProgram(parseProgramParam(searchParams.get('program'), settings.enabledPrograms))
+      return
+    }
+    setTab(raw ?? 'overview')
+    setCustomView(parseCustomView(searchParams.get('view')))
+    setProgram(parseProgramParam(searchParams.get('program'), settings.enabledPrograms))
+  }, [searchParams, setSearchParams, settings.enabledPrograms])
+
+  const hasCustomData = customPlans.length > 0 || customSessionsAll.length > 0
+
+  function writeProgressParams(next: { tab?: Tab; view?: CustomView; program?: Program }) {
+    const params = new URLSearchParams(searchParams)
+    const tabValue = next.tab ?? tab
+    const viewValue = next.view ?? customView
+    const programValue = next.program ?? program
+    if (tabValue === 'overview') params.delete('tab')
+    else params.set('tab', tabValue)
+    if (tabValue === 'custom' && viewValue !== 'exercises') params.set('view', viewValue)
+    else params.delete('view')
+    if (settings.enabledPrograms.length > 1) params.set('program', programValue)
+    else params.delete('program')
+    setSearchParams(params, { replace: true })
+  }
+
+  function selectTab(next: Tab) {
+    setTab(next)
+    writeProgressParams({ tab: next })
+  }
+
+  function selectCustomView(next: CustomView) {
+    setCustomView(next)
+    writeProgressParams({ tab: 'custom', view: next })
+  }
+
+  function selectProgram(next: Program) {
+    setProgram(next)
+    writeProgressParams({ program: next })
+  }
+
+  useEffect(() => {
+    if (loading) return
+    if (tab === 'custom' && !hasCustomData) {
+      setTab('overview')
+      if (searchParams.get('tab') === 'custom') {
+        const next = new URLSearchParams(searchParams)
+        next.delete('tab')
+        next.delete('view')
+        setSearchParams(next, { replace: true })
+      }
+    }
+  }, [loading, tab, hasCustomData, searchParams, setSearchParams])
+
+  const hasAnyData = tests.length > 0 || historyBase.length > 0
+
+  useEffect(() => {
+    if (loading || !scrollToRecords || recordsScrollDone.current) return
+    if (tab !== 'overview') {
+      recordsScrollDone.current = true
+      setScrollToRecords(false)
+      return
+    }
+    const el = document.getElementById('progress-records')
+    if (!el) {
+      // Empty overview has no records section — clear so a later load can scroll once.
+      recordsScrollDone.current = true
+      setScrollToRecords(false)
+      return
+    }
+    recordsScrollDone.current = true
+    setScrollToRecords(false)
+    window.setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }, [loading, scrollToRecords, tab, hasAnyData])
+
   const tabOptions: { value: Tab; label: string }[] = [
     { value: 'overview', label: pl.tabOverview },
     { value: 'history', label: pl.tabHistory },
     { value: 'cycle', label: pl.tabCycle },
-    { value: 'records', label: pl.tabRecords },
-    { value: 'custom', label: pl.progressMyExercises },
+    ...(hasCustomData ? [{ value: 'custom' as const, label: pl.progressMyExercises }] : []),
   ]
 
   const programOptions = settings.enabledPrograms.map((p) => ({
@@ -342,24 +411,20 @@ export default function ProgressPage() {
   }))
 
   const statusSubtitle = !stats
-    ? pl.progressOverviewHint
+    ? undefined
     : stats.passedSessionCount === 0
       ? pl.progressStatusEmpty
       : stats.streakWeeks > 0
         ? pl.progressStatusStreak(stats.streakWeeks)
         : pl.progressStatusSessions(stats.passedSessionCount)
 
-  const hasAnyData = tests.length > 0 || historyBase.length > 0
-  const heatmapWorkouts = heatmap.flat().filter(
-    (c) => c.status === 'passed' || c.status === 'failed',
-  ).length
-
-  const activeTabLabel = tabOptions.find((t) => t.value === tab)?.label ?? pl.navProgress
+  const activeTab: Tab = tabOptions.some((t) => t.value === tab) ? tab : 'overview'
+  const activeTabLabel = tabOptions.find((t) => t.value === activeTab)?.label ?? pl.navProgress
 
   if (loading) {
     return (
       <div className={TAB_PAGE_SHELL}>
-        <PageHeader title={pl.navProgress} subtitle={pl.progressOverviewHint} />
+        <PageHeader title={pl.navProgress} />
         <SkeletonCard className="mt-4 min-h-[8rem]" />
         <SkeletonCard className="mt-4 min-h-[12rem]" />
       </div>
@@ -380,668 +445,119 @@ export default function ProgressPage() {
       <PageHeader title={pl.navProgress} subtitle={statusSubtitle} />
 
       {programOptions.length > 1 && (
-        <SegmentedControl
-          className="mb-4 flex-nowrap overflow-x-auto pb-0.5"
-          options={programOptions}
-          value={program}
-          onChange={setProgram}
-        />
+        <div className="mb-3">
+          <SegmentedControl
+            className="flex-nowrap overflow-x-auto pb-0.5"
+            size="compact"
+            options={programOptions}
+            value={program}
+            onChange={selectProgram}
+          />
+        </div>
       )}
 
       <SegmentedControl
-        className="flex-nowrap overflow-x-auto pb-0.5"
+        className="mb-0 flex-nowrap overflow-x-auto pb-0.5"
         size="compact"
         options={tabOptions}
-        value={tab}
-        onChange={setTab}
+        value={activeTab}
+        onChange={selectTab}
       />
-      {TAB_HINTS[tab] && (
-        <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">{TAB_HINTS[tab]}</p>
-      )}
 
       <div role="tabpanel" aria-label={activeTabLabel}>
-      {tab === 'overview' && (
-        <>
-          {stats && hasAnyData && (
-            <ProgressSection first title={pl.progressSummaryTitle}>
-              <MetricStrip
-                metrics={[
-                  {
-                    value: stats.maxTestRecord ?? pl.noValue,
-                    label: pl.recordTest,
-                    hint: pl.progressRecordTestHint,
-                  },
-                  {
-                    value: progress
-                      ? `${stats.completedDaysInCycle}/${stats.cycleDaysTotal}`
-                      : pl.noValue,
-                    label: pl.cycleDays,
-                    hint: pl.progressCycleDaysHint,
-                  },
-                  {
-                    value: stats.streakWeeks,
-                    label: pl.streakWeeks,
-                    hint: pl.homeStreakWeeksHint,
-                  },
-                ]}
-              />
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <NestedStat size="md" overline={pl.sessionsTotal} value={stats.passedSessionCount} />
-                <NestedStat size="md" overline={pl.totalRepsLabel} value={stats.totalRepsAllTime} />
-              </div>
-            </ProgressSection>
-          )}
-
-          {!hasAnyData ? (
-            <ProgressSection first title={pl.progressEmptyTitle} hint={pl.progressEmptyHint}>
-              <EmptyState
-                icon={<LogoMark size={48} />}
-                title={pl.firstWorkout}
-                description={pl.progressTabOverviewHint}
-                action={{
-                  label: pl.startFirstWorkout,
-                  onClick: () => void navigateToTrain(navigate, program),
-                }}
-              />
-            </ProgressSection>
-          ) : (
-            <>
-              {tests.length > 0 ? (
-                <ProgressSection title={pl.chartTestOverTime} hint={pl.progressTestChartHint}>
-                  <div className="h-44 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] py-3">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={tests}>
-                        <XAxis
-                          dataKey="dateLabel"
-                          tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
-                          stroke="var(--sr-border-subtle)"
-                          interval="preserveStartEnd"
-                        />
-                        <YAxis
-                          tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
-                          stroke="var(--sr-border-subtle)"
-                          width={28}
-                        />
-                        <Tooltip
-                          contentStyle={chartTooltipStyle}
-                          formatter={(value) => [value ?? 0, pl.repsUnit]}
-                          labelFormatter={(label) => String(label)}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="reps"
-                          stroke="var(--sr-brand-primary)"
-                          strokeWidth={2}
-                          dot={{ r: 3 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </ProgressSection>
-              ) : (
-                <ProgressSection title={pl.chartTestOverTime}>
-                  <p className="sr-text-body-sm text-[var(--sr-text-muted)]">{pl.progressChartEmpty}</p>
-                </ProgressSection>
-              )}
-
-              {maxPerDay.length > 0 && (
-                <ProgressSection title={pl.maxSetPerDay} hint={pl.progressMaxSetChartHint}>
-                  <div className="h-36 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] py-3">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={maxPerDay}>
-                        <XAxis
-                          dataKey="day"
-                          tickFormatter={(d) => pl.chartDayShort(Number(d))}
-                          tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
-                          stroke="var(--sr-border-subtle)"
-                        />
-                        <YAxis
-                          tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
-                          stroke="var(--sr-border-subtle)"
-                          width={28}
-                        />
-                        <Tooltip
-                          contentStyle={chartTooltipStyle}
-                          formatter={(value) => [value ?? 0, pl.repsUnit]}
-                          labelFormatter={(label) => String(label)}
-                        />
-                        <Bar dataKey="maxActual" fill="var(--sr-brand-primary)" radius={4} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </ProgressSection>
-              )}
-
-              <ProgressSection title={pl.activityHeatmap} hint={pl.progressHeatmapHint}>
-                <ActivityHeatmap grid={heatmap} showSummary={false} />
-                {heatmapWorkouts === 0 && (
-                  <p className="mt-2 sr-text-body-sm text-[var(--sr-text-muted)]">
-                    {pl.progressHeatmapEmpty}
-                  </p>
-                )}
-              </ProgressSection>
-            </>
-          )}
-        </>
+      {activeTab === 'overview' && (
+        <OverviewPanel
+          program={program}
+          stats={stats}
+          progress={progress}
+          tests={tests}
+          heatmap={heatmap}
+          hasAnyData={hasAnyData}
+          records={records}
+          navigate={navigate}
+        />
       )}
 
-      {tab === 'records' && records && (
-        <ProgressSection first title={pl.tabRecords}>
-          {hasAnyProgramRecords(records) ? (
-            <>
-              <NestedStat
-                size="lg"
-                overline={pl.recordBestTest}
-                value={records.bestTest ?? pl.noValue}
-                highlight={records.bestTest !== null}
-                hint={records.bestTest !== null ? pl.progressRecordHeroHint : undefined}
-              />
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <NestedStat size="md" overline={pl.recordBestMaxSet} value={records.bestMaxSet ?? pl.noValue} />
-                <NestedStat size="md" overline={pl.recordBestSession} value={records.bestSessionTotal ?? pl.noValue} />
-                <NestedStat
-                  className="col-span-2"
-                  size="md"
-                  overline={pl.recordHighestCycle}
-                  value={records.highestCycleName ?? pl.noValue}
-                />
-              </div>
-            </>
-          ) : (
-            <EmptyState
-              icon={<LogoMark size={48} />}
-              title={pl.progressRecordsEmpty}
-              description={pl.progressTabRecordsHint}
-              action={{
-                label: pl.startFirstWorkout,
-                onClick: () => void navigateToTrain(navigate, program),
-              }}
-            />
-          )}
-        </ProgressSection>
+      {activeTab === 'custom' && (
+        <CustomProgressPanel
+          customView={customView}
+          onSelectView={selectCustomView}
+          customPrs={customPrs}
+          onOpenExercise={(id) => void openExerciseDetail(id)}
+          customPlans={customPlans}
+          customCyclePlan={customCyclePlan}
+          customCyclePlanId={customCyclePlanId}
+          onCyclePlanChange={setCustomCyclePlanId}
+          customCycleProgress={customCycleProgress}
+          customCycleSessions={customCycleSessions}
+          onPlanDayClick={(day, planId) => {
+            setCustomHistoryPlanFilter(planId)
+            setCustomHistoryDayFilter(day)
+            setCustomHistoryResultFilter('all')
+            selectCustomView('history')
+            window.setTimeout(() => {
+              customHistoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }, 100)
+          }}
+          customHistoryRef={customHistoryRef}
+          customFiltersActive={customFiltersActive}
+          customActiveFilterCount={customActiveFilterCount}
+          onOpenFilters={() => setCustomFiltersOpen(true)}
+          customHistoryPlanFilter={customHistoryPlanFilter}
+          customHistoryDayFilter={customHistoryDayFilter}
+          customHistoryResultFilter={customHistoryResultFilter}
+          customPlanNames={customPlanNames}
+          onClearFilters={clearCustomFilters}
+          customHistoryVisible={customHistoryVisible}
+          customHistoryFilteredLength={customHistoryFiltered.length}
+          customHistoryLimit={customHistoryLimit}
+          onLoadMore={() => setCustomHistoryLimit((n) => n + HISTORY_PAGE_SIZE)}
+          historyPageSize={HISTORY_PAGE_SIZE}
+          customFiltersOpen={customFiltersOpen}
+          onCloseFilters={() => setCustomFiltersOpen(false)}
+          onHistoryPlanFilter={(v) => {
+            setCustomHistoryPlanFilter(v)
+            setCustomHistoryDayFilter('all')
+          }}
+          onHistoryResultFilter={setCustomHistoryResultFilter}
+          onHistoryDayFilter={setCustomHistoryDayFilter}
+          customSessionsAll={customSessionsAll}
+          navigate={navigate}
+        />
       )}
 
-      {tab === 'custom' && (
-        <>
-          <ProgressSection first title={pl.progressMyExercises}>
-            {customPrs.length === 0 ? (
-              <EmptyState
-                icon={<LogoMark size={48} />}
-                title={pl.progressCustomPrEmpty}
-                description={pl.progressTabCustomHint}
-                action={{
-                  label: pl.myPlansTitle,
-                  onClick: () => navigate('/plans?tab=mine'),
-                }}
-              />
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {customPrs.map((pr) => (
-                  <li key={pr.exerciseId}>
-                    <button
-                      type="button"
-                      className={cn(
-                        'flex w-full items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)]',
-                        'bg-[var(--sr-bg-surface)] p-3 text-left transition-colors',
-                        'hover:border-[var(--sr-border-strong)]',
-                        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]',
-                      )}
-                      onClick={() => void openExerciseDetail(pr.exerciseId)}
-                    >
-                      <ExerciseSparkline values={pr.sparkline} active={pr.sessionCount > 0} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <p className="truncate font-medium text-[var(--sr-text-primary)]">
-                            {pr.name}
-                          </p>
-                          {trendDotClass(pr.trend) && (
-                            <span
-                              className={cn(
-                                'h-1.5 w-1.5 shrink-0 rounded-full',
-                                trendDotClass(pr.trend),
-                              )}
-                              aria-hidden
-                            />
-                          )}
-                        </div>
-                        <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">
-                          {pl.progressCustomPr}: {formatExercisePrLine(pr)}
-                        </p>
-                        {pr.sessionCount > 0 && (
-                          <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
-                            {pl.progressCustomSessionCount(pr.sessionCount)}
-                          </p>
-                        )}
-                        {pr.lastSessionAt && (
-                          <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
-                            {pl.exerciseDetailLastTrained}:{' '}
-                            {format(new Date(pr.lastSessionAt), 'd MMM yyyy', { locale: plLocale })}
-                          </p>
-                        )}
-                      </div>
-                      <ChevronRight
-                        size={20}
-                        className="shrink-0 text-[var(--sr-text-muted)]"
-                        aria-hidden
-                      />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </ProgressSection>
-
-          {customCyclePlan && (
-            <ProgressSection title={pl.customCycleRailTitle} className="mt-8">
-              {customPlans.length > 1 && (
-                <div className="mb-3">
-                  <SegmentedControl
-                    value={customCyclePlanId}
-                    onChange={(v) => setCustomCyclePlanId(v)}
-                    options={customPlans.map((p) => ({ value: p.id, label: p.name }))}
-                  />
-                </div>
-              )}
-              <CustomPlanCycleRail
-                plan={customCyclePlan}
-                progress={customCycleProgress}
-                sessions={customCycleSessions}
-                onDayClick={(day) => {
-                  setCustomHistoryPlanFilter(customCyclePlan.id)
-                  setCustomHistoryDayFilter(day)
-                  setCustomHistoryResultFilter('all')
-                  setTab('custom')
-                  window.setTimeout(() => {
-                    customHistoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }, 100)
-                }}
-              />
-            </ProgressSection>
-          )}
-
-          <div ref={customHistoryRef}>
-          <ProgressSection title={pl.progressCustomHistory} className="mt-8">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant={customFiltersActive ? 'primary' : 'secondary'}
-                onClick={() => setCustomFiltersOpen(true)}
-              >
-                {pl.progressFilters}
-                {customFiltersActive ? ` (${customActiveFilterCount})` : ''}
-              </Button>
-            </div>
-
-            {customFiltersActive && (
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                {customHistoryPlanFilter !== 'all' && (
-                  <Badge variant="default">
-                    {customPlanNames[customHistoryPlanFilter] ?? pl.planDash}
-                  </Badge>
-                )}
-                {customHistoryDayFilter !== 'all' && (
-                  <Badge variant="default">{pl.planDayLabel(customHistoryDayFilter)}</Badge>
-                )}
-                {customHistoryResultFilter !== 'all' && (
-                  <Badge variant="default">
-                    {customHistoryResultFilter === 'passed' ? pl.passedShort : pl.failedShort}
-                  </Badge>
-                )}
-                <button
-                  type="button"
-                  className="sr-text-body-sm text-[var(--sr-brand-primary)] underline-offset-2 hover:underline"
-                  onClick={clearCustomFilters}
-                >
-                  {pl.clearFilters}
-                </button>
-              </div>
-            )}
-
-            {customHistoryVisible.length === 0 ? (
-              <EmptyState
-                icon={<LogoMark size={48} />}
-                title={
-                  customFiltersActive
-                    ? pl.customHistoryEmptyFiltered
-                    : pl.progressCustomHistoryEmpty
-                }
-                description={
-                  customFiltersActive
-                    ? pl.filterEmptyHistoryHint
-                    : pl.progressCustomHistoryEmptyHint
-                }
-                action={
-                  customFiltersActive
-                    ? { label: pl.clearFilters, onClick: clearCustomFilters }
-                    : {
-                        label: pl.myPlansTitle,
-                        onClick: () => navigate('/plans?tab=mine'),
-                      }
-                }
-              />
-            ) : (
-              <>
-                <ul className="divide-y divide-[var(--sr-border-subtle)]">
-                  {customHistoryVisible.map((s) => {
-                    const planName =
-                      (s.customPlanId && customPlanNames[s.customPlanId]) || pl.planDash
-                    const sets = sessionTotalSets(s)
-                    const detail = computeCustomSessionDetail(s.exerciseLogs)
-                    const planId = s.customPlanId
-                    return (
-                      <li key={s.id}>
-                        <button
-                          type="button"
-                          className={cn(
-                            'flex w-full items-center gap-3 py-3 text-left transition-colors',
-                            'rounded-[var(--sr-radius-md)] hover:bg-[var(--sr-bg-surface)]/60',
-                            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]',
-                          )}
-                          onClick={() => {
-                            if (planId) {
-                              navigate(
-                                `/workout/custom/${planId}/summary?session=${s.id}`,
-                              )
-                            }
-                          }}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-3">
-                              <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-                                {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
-                              </p>
-                              <Badge variant={sessionBadgeVariant(s)}>
-                                {sessionStatusLabel(s)}
-                              </Badge>
-                            </div>
-                            <p className="mt-1 font-medium text-[var(--sr-text-primary)]">
-                              {pl.progressCustomSessionMeta(planName, s.dayNumber)}
-                            </p>
-                            <p className="mt-1 text-sm text-[var(--sr-text-muted)]">
-                              {formatCustomSessionSummary(
-                                s.exerciseLogs?.length ?? 0,
-                                sets,
-                                detail,
-                              )}
-                            </p>
-                          </div>
-                          <ChevronRight
-                            size={20}
-                            className="shrink-0 text-[var(--sr-text-muted)]"
-                            aria-hidden
-                          />
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-                {customHistoryFiltered.length > customHistoryLimit && (
-                  <Button
-                    className="mt-4"
-                    variant="secondary"
-                    fullWidth
-                    onClick={() =>
-                      setCustomHistoryLimit((n) => n + HISTORY_PAGE_SIZE)
-                    }
-                  >
-                    {pl.progressLoadMore(
-                      Math.min(
-                        HISTORY_PAGE_SIZE,
-                        customHistoryFiltered.length - customHistoryLimit,
-                      ),
-                    )}
-                  </Button>
-                )}
-              </>
-            )}
-          </ProgressSection>
-          </div>
-
-          <Sheet
-            open={customFiltersOpen}
-            onClose={() => setCustomFiltersOpen(false)}
-            title={pl.progressFilters}
-          >
-            <div className="flex flex-col gap-4">
-              <p className="sr-text-overline text-[var(--sr-text-muted)]">
-                {pl.customHistoryFilterPlan}
-              </p>
-              <SegmentedControl
-                value={customHistoryPlanFilter}
-                onChange={(v) => {
-                  setCustomHistoryPlanFilter(v)
-                  setCustomHistoryDayFilter('all')
-                }}
-                options={[
-                  { value: 'all', label: pl.filterAll },
-                  ...customPlans.map((p) => ({ value: p.id, label: p.name })),
-                ]}
-              />
-              <p className="sr-text-overline text-[var(--sr-text-muted)]">
-                {pl.customHistoryFilterResult}
-              </p>
-              <SegmentedControl
-                value={customHistoryResultFilter}
-                onChange={(v) =>
-                  setCustomHistoryResultFilter(v as 'all' | 'passed' | 'failed')
-                }
-                options={[
-                  { value: 'all', label: pl.filterAll },
-                  { value: 'passed', label: pl.passedShort },
-                  { value: 'failed', label: pl.failedShort },
-                ]}
-              />
-              <p className="sr-text-overline text-[var(--sr-text-muted)]">
-                {pl.customHistoryFilterDay}
-              </p>
-              <SegmentedControl
-                value={customHistoryDayFilter === 'all' ? 'all' : String(customHistoryDayFilter)}
-                onChange={(v) =>
-                  setCustomHistoryDayFilter(v === 'all' ? 'all' : Number(v))
-                }
-                options={[
-                  { value: 'all', label: pl.filterAll },
-                  ...(customHistoryPlanFilter !== 'all'
-                    ? (customPlans.find((p) => p.id === customHistoryPlanFilter)?.days ?? [])
-                        .map((d) => d.dayNumber)
-                        .sort((a, b) => a - b)
-                        .map((n) => ({ value: String(n), label: pl.planDayLabel(n) }))
-                    : Array.from(
-                        new Set(
-                          customSessionsAll
-                            .filter(
-                              (s) =>
-                                customHistoryPlanFilter === 'all' ||
-                                s.customPlanId === customHistoryPlanFilter,
-                            )
-                            .map((s) => s.dayNumber),
-                        ),
-                      )
-                        .sort((a, b) => a - b)
-                        .map((n) => ({ value: String(n), label: pl.planDayLabel(n) }))),
-                ]}
-              />
-              <Button fullWidth onClick={() => setCustomFiltersOpen(false)}>
-                {pl.progressFiltersApply}
-              </Button>
-            </div>
-          </Sheet>
-        </>
+      {activeTab === 'history' && (
+        <HistoryPanel
+          program={program}
+          historyBaseCount={historyBase.length}
+          filteredCount={filteredSessions.length}
+          visibleSessions={visibleSessions}
+          hasMoreHistory={hasMoreHistory}
+          filtersActive={filtersActive}
+          activeFilterCount={activeFilterCount}
+          historyFilter={historyFilter}
+          historyCycleFilter={historyCycleFilter}
+          historyDateFilter={historyDateFilter}
+          onOpenFilters={() => setFiltersOpen(true)}
+          onClearFilters={clearFilters}
+          onLoadMore={() => setHistoryLimit((n) => n + HISTORY_PAGE_SIZE)}
+          onSelectSession={setSelectedSession}
+          navigate={navigate}
+        />
       )}
 
-      {tab === 'history' && (
-        <ProgressSection first>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              variant={filtersActive ? 'primary' : 'secondary'}
-              onClick={() => setFiltersOpen(true)}
-            >
-              {pl.progressFilters}
-              {filtersActive ? ` (${activeFilterCount})` : ''}
-            </Button>
-            {historyBase.length > 0 && (
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={async () => {
-                  const csv = await exportSessionsCsv(program)
-                  downloadCsv(`smartreps-${program}-${new Date().toISOString().slice(0, 10)}.csv`, csv)
-                  showToast(pl.toastExportDone, 'success')
-                }}
-              >
-                {pl.exportThisProgram}
-              </Button>
-            )}
-          </div>
-
-          {filtersActive && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {historyFilter !== 'all' && (
-                <Badge variant="default">
-                  {historyFilter === 'passed' ? pl.filterPassed : pl.filterFailed}
-                </Badge>
-              )}
-              {historyCycleFilter === 'current' && <Badge variant="default">{pl.filterCycleCurrent}</Badge>}
-              {historyDateFilter !== 'all' && (
-                <Badge variant="default">
-                  {historyDateFilter === '30d' ? pl.filterDate30 : pl.filterDate90}
-                </Badge>
-              )}
-              <button
-                type="button"
-                className="sr-text-body-sm text-[var(--sr-brand-primary)] underline-offset-2 hover:underline"
-                onClick={clearFilters}
-              >
-                {pl.clearFilters}
-              </button>
-            </div>
-          )}
-
-          {historyBase.length > 0 && (
-            <p className="mt-3 sr-text-body-sm text-[var(--sr-text-muted)]">
-              {pl.progressHistoryCount(filteredSessions.length)}
-            </p>
-          )}
-
-          {filteredSessions.length === 0 ? (
-            historyBase.length === 0 ? (
-              <div className="mt-4">
-                <EmptyState
-                  icon={<LogoMark size={48} />}
-                  title={pl.firstWorkout}
-                  description={pl.progressTabHistoryHint}
-                  action={{
-                    label: pl.startFirstWorkout,
-                    onClick: () => void navigateToTrain(navigate, program),
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="mt-4">
-                <EmptyState
-                  icon={<LogoMark size={48} />}
-                  title={pl.filterEmptyHistory}
-                  description={pl.filterEmptyHistoryHint}
-                  action={filtersActive ? { label: pl.clearFilters, onClick: clearFilters } : undefined}
-                />
-              </div>
-            )
-          ) : (
-            <>
-              <ul className="mt-3 divide-y divide-[var(--sr-border-subtle)]">
-                {visibleSessions.map((s) => (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      className={cn(
-                        'flex w-full min-h-11 items-center gap-3 py-3 text-left',
-                        'rounded-[var(--sr-radius-md)] transition-colors',
-                        'hover:bg-[var(--sr-bg-surface)] active:bg-[var(--sr-bg-surface)]',
-                      )}
-                      onClick={() => setSelectedSession(s)}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-                            {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
-                          </p>
-                          <Badge variant={sessionBadgeVariant(s)}>{sessionStatusLabel(s)}</Badge>
-                        </div>
-                        <p className="sr-text-h3 leading-snug text-[var(--sr-text-primary)]">
-                          {pl.dayLabel(s.dayNumber)}
-                          <span className="ml-2 tabular-nums sr-text-body-sm font-normal text-[var(--sr-text-secondary)]">
-                            {sessionTotalReps(s)} {pl.repsUnit}
-                            {s.setResults.length > 0 && (
-                              <> · {pl.progressSetCount(s.setResults.length)}</>
-                            )}
-                          </span>
-                        </p>
-                        <p className="sr-text-body-sm text-[var(--sr-text-muted)]">
-                          {getCycleById(s.cycleId)?.nameShort ?? s.cycleId}
-                        </p>
-                      </div>
-                      <ChevronRight
-                        size={20}
-                        className="shrink-0 text-[var(--sr-text-muted)]"
-                        aria-hidden
-                      />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {hasMoreHistory && (
-                <Button
-                  className="mt-3"
-                  variant="secondary"
-                  size="sm"
-                  fullWidth
-                  onClick={() => setHistoryLimit((n) => n + HISTORY_PAGE_SIZE)}
-                >
-                  {pl.progressLoadMore(filteredSessions.length - historyLimit)}
-                </Button>
-              )}
-            </>
-          )}
-        </ProgressSection>
+      {activeTab === 'cycle' && (
+        <CyclePanel
+          program={program}
+          cycle={cycle}
+          progress={progress}
+          stats={stats}
+          maxPerDay={maxPerDay}
+          cyclePreviewDay={cyclePreviewDay}
+          onSelectDay={handleCycleDayTap}
+          navigate={navigate}
+        />
       )}
-
-      {tab === 'cycle' &&
-        (cycle && progress ? (
-          <ProgressSection
-            first
-            title={pl.cycleMapTitle(cycle.nameShort)}
-            hint={pl.progressCycleProgress(stats?.completedDaysInCycle ?? 0, stats?.cycleDaysTotal ?? cycle.days.length)}
-          >
-            <CycleDayPicker
-              totalDays={cycle.days.length}
-              selectedDay={cyclePreviewDay}
-              onSelect={handleCycleDayTap}
-              days={cycle.days.map((d) => ({
-                dayNumber: d.dayNumber,
-                status: getCycleDayStatus(progress, d.dayNumber, cycle.days.length),
-              }))}
-            />
-            <p className="mt-3 sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.cycleMapHint}</p>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="mt-4"
-              fullWidth
-              onClick={() => navigate(`/plans?highlight=${progress.cycleId}`)}
-            >
-              {pl.progressFullCyclePlan}
-            </Button>
-          </ProgressSection>
-        ) : (
-          <ProgressSection first>
-            <EmptyState
-              icon={<LogoMark size={48} />}
-              title={pl.cycleNotConfigured}
-              action={{ label: pl.configureProgram, onClick: () => navigate(`/setup/test/${program}`) }}
-            />
-          </ProgressSection>
-        ))}
 
       </div>
 
@@ -1139,6 +655,18 @@ export default function ProgressPage() {
             ) : (
               <p className="mt-4 sr-text-body-sm text-[var(--sr-text-muted)]">{pl.progressSessionNoSets}</p>
             )}
+            <Button
+              className="mt-4"
+              variant="ghost"
+              fullWidth
+              onClick={() => {
+                const id = selectedSession.id
+                setSelectedSession(null)
+                navigate(`/workout/${selectedSession.program}/summary?session=${id}`)
+              }}
+            >
+              {pl.progressOpenFullSummary}
+            </Button>
           </>
         )}
       </Sheet>

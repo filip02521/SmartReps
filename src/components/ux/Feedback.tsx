@@ -12,11 +12,13 @@ export function EmptyState({
   title,
   description,
   action,
+  secondaryAction,
 }: {
   icon?: ReactNode
   title: string
   description?: string
   action?: { label: string; onClick: () => void }
+  secondaryAction?: { label: string; onClick: () => void }
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
@@ -25,8 +27,15 @@ export function EmptyState({
       {description && (
         <p className="max-w-xs text-sm text-[var(--sr-text-secondary)]">{description}</p>
       )}
-      {action && (
-        <Button onClick={action.onClick}>{action.label}</Button>
+      {(action || secondaryAction) && (
+        <div className="flex w-full max-w-xs flex-col gap-2">
+          {action && <Button onClick={action.onClick}>{action.label}</Button>}
+          {secondaryAction && (
+            <Button variant="secondary" onClick={secondaryAction.onClick}>
+              {secondaryAction.label}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   )

@@ -22,7 +22,7 @@ vi.mock('@/lib/program-service', () => ({
 
 import { useAppStore } from '@/stores/app-store'
 import { getProgramProgress } from '@/lib/program-service'
-import { navigateAfterAuth, resolvePostAuthNavigation } from '@/lib/post-auth-navigation'
+import { navigateAfterAuth, resolvePostAuthNavigation, isSafeReturnPath } from '@/lib/post-auth-navigation'
 import * as setupFlow from '@/lib/setup-flow'
 
 function mockState(partial: Record<string, unknown>) {
@@ -38,6 +38,29 @@ function mockState(partial: Record<string, unknown>) {
     ...partial,
   } as never)
 }
+
+describe('isSafeReturnPath', () => {
+  it('allows builtin workout and summary paths', () => {
+    expect(isSafeReturnPath('/workout/pushups')).toBe(true)
+    expect(isSafeReturnPath('/workout/pullups/summary')).toBe(true)
+    expect(isSafeReturnPath('/workout/pushups/summary?session=abc')).toBe(true)
+  })
+
+  it('blocks setup and unknown workout paths', () => {
+    expect(isSafeReturnPath('/setup/login')).toBe(false)
+    expect(isSafeReturnPath('/workout/other')).toBe(false)
+    expect(isSafeReturnPath('//evil')).toBe(false)
+  })
+
+  it('allows custom workout and tabs', () => {
+    expect(isSafeReturnPath('/workout/custom/plan-1')).toBe(true)
+    expect(isSafeReturnPath('/plans?tab=mine')).toBe(true)
+    expect(isSafeReturnPath('/plans?tab=library')).toBe(true)
+    expect(isSafeReturnPath('/plans?tab=programs')).toBe(true)
+    expect(isSafeReturnPath('/progress?tab=history')).toBe(true)
+    expect(isSafeReturnPath('/')).toBe(true)
+  })
+})
 
 describe('navigateAfterAuth', () => {
   const navigate = vi.fn() as unknown as NavigateFunction

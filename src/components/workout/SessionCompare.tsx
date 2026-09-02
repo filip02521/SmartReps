@@ -33,13 +33,7 @@ export function SessionCompare({
 
   return (
     <>
-      {insights && (
-        <SessionSummaryHighlights
-          prCount={insights.prCount}
-          progressCount={insights.progressCount}
-          highlights={insights.highlights}
-        />
-      )}
+      {insights && <SessionSummaryHighlights highlights={insights.highlights} />}
 
       <div className="mb-4 grid grid-cols-2 gap-2">
         <NestedStat

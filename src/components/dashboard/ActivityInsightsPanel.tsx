@@ -68,16 +68,21 @@ function PctBadge({
   )
 }
 
+/** Compact trend only — absolute 14d numbers live in MetricStrip above. */
 export function ActivityInsightsPanel({ insights }: { insights: ActivityInsights }) {
   const headline = repsHeadline(insights)
-  const showRepsCompare = insights.repsPrev14d > 0
-  const showSessionsCompare = insights.sessions14d > 0 || insights.sessionsPrev14d > 0
   const recordNote =
     insights.bestStreakWeeks > insights.streakWeeks && insights.bestStreakWeeks > 0
       ? pl.homeBestStreakRecord(insights.bestStreakWeeks)
       : null
+  const earlierLine =
+    insights.repsPrev14d > 0
+      ? pl.homeActivityRepsEarlier(insights.repsPrev14d)
+      : insights.sessionsPrev14d > 0
+        ? pl.homeActivitySessionsEarlier(insights.sessionsPrev14d)
+        : null
 
-  if (!headline && !showSessionsCompare && !recordNote) return null
+  if (!headline && !recordNote) return null
 
   return (
     <div
@@ -93,21 +98,17 @@ export function ActivityInsightsPanel({ insights }: { insights: ActivityInsights
           />
           <div className="min-w-0 space-y-0.5">
             <p className="sr-text-body-sm leading-snug text-[var(--sr-text-primary)]">{headline}</p>
-            {showRepsCompare && (
-              <p className="sr-text-body-sm tabular-nums text-[var(--sr-text-muted)]">
-                {pl.homeActivityRepsCompare(insights.reps14d, insights.repsPrev14d)}
-              </p>
-            )}
-            {showSessionsCompare && (
-              <p className="sr-text-body-sm tabular-nums text-[var(--sr-text-muted)]">
-                {pl.homeActivitySessionsCompare(insights.sessions14d, insights.sessionsPrev14d)}
-              </p>
+            {earlierLine && (
+              <p className="sr-text-body-sm tabular-nums text-[var(--sr-text-muted)]">{earlierLine}</p>
             )}
             {recordNote && (
               <p className="sr-text-caption text-[var(--sr-text-muted)]">{recordNote}</p>
             )}
           </div>
         </div>
+      )}
+      {!headline && recordNote && (
+        <p className="sr-text-caption text-[var(--sr-text-muted)]">{recordNote}</p>
       )}
     </div>
   )

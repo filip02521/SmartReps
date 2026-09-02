@@ -2,8 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LogoFull, LogoMark } from '@/components/brand/Logo'
 import { Button } from '@/components/ui/Button'
-import { PageLoader, SkeletonCard, EmptyState } from '@/components/ux/Feedback'
-import { HomeSummary } from '@/components/dashboard/HomeSummary'
+import { PageLoader, SkeletonCard, EmptyState, ErrorBanner } from '@/components/ux/Feedback'
+import {
+  HomeStatusHeader,
+  HomeActivitySection,
+} from '@/components/dashboard/HomeSummary'
 import { HomeTip } from '@/components/dashboard/HomeTip'
 import { ProgramHomeCard } from '@/components/dashboard/ProgramHomeCard'
 import { CustomPlansHomeSection } from '@/components/dashboard/CustomPlansHomeSection'
@@ -42,6 +45,7 @@ export default function Dashboard() {
   const [reloadEpoch, setReloadEpoch] = useState(0)
   const [home, setHome] = useState<HomeLoadResult | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [hasSession, setHasSession] = useState<boolean | null>(null)
   /** null = InstallCoach not yet reported — tip withheld to avoid dual attention. */
   const [installVisible, setInstallVisible] = useState<boolean | null>(null)
@@ -78,6 +82,7 @@ export default function Dashboard() {
     if (!hydrated) return
     let cancelled = false
     setLoading(true)
+    setLoadError(null)
     const showLoginBackup =
       installVisible === false &&
       hasCompletedFirstWorkout &&
@@ -88,12 +93,20 @@ export default function Dashboard() {
       dismissedHomeTipId,
       dismissedHomeTipDay,
       showLoginBackup,
-    }).then((result) => {
-      if (!cancelled) {
-        setHome(result)
-        setLoading(false)
-      }
     })
+      .then((result) => {
+        if (!cancelled) {
+          setHome(result)
+          setLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHome(null)
+          setLoadError(pl.errorLoadHome)
+          setLoading(false)
+        }
+      })
     return () => {
       cancelled = true
     }
@@ -129,6 +142,7 @@ export default function Dashboard() {
 
   const reload = () => setReloadEpoch((n) => n + 1)
   const showTip = installVisible === false && !!home?.tip
+  const showAttention = installVisible === true || showTip
 
   return (
     <div className={TAB_PAGE_SHELL}>
@@ -137,58 +151,26 @@ export default function Dashboard() {
         <h1 className="sr-only">{pl.navWorkout}</h1>
       </header>
 
-      {loading || !home ? (
+      {loadError && (
+        <ErrorBanner
+          message={loadError}
+          onRetry={() => {
+            setLoadError(null)
+            reload()
+          }}
+        />
+      )}
+
+      {loading && !home ? (
         <>
           <div className="mb-5 space-y-3" aria-busy aria-label={pl.loading}>
             <SkeletonCard className="min-h-[3.5rem]" />
-            <div className="grid grid-cols-3 gap-2">
-              <SkeletonCard className="min-h-[4.5rem]" />
-              <SkeletonCard className="min-h-[4.5rem]" />
-              <SkeletonCard className="min-h-[4.5rem]" />
-            </div>
-            <SkeletonCard className="min-h-[1.25rem]" />
-          </div>
-          <div className="flex flex-col gap-5">
             <SkeletonCard className="min-h-[20rem]" />
-            {settings.enabledPrograms.length > 1 && (
-              <SkeletonCard className="min-h-[20rem]" />
-            )}
           </div>
         </>
-      ) : (
+      ) : home ? (
         <>
-          <HomeSummary summary={home.summary} onScrollToProgram={scrollToProgram} />
-
-          <div
-            className={
-              installVisible === true || showTip
-                ? 'mb-4 min-h-[13.5rem]'
-                : undefined
-            }
-          >
-            <InstallCoach demotePrimary onVisibilityChange={onInstallVisibility} />
-
-            {showTip && home.tip && (
-              <HomeTip
-                tip={home.tip}
-                onDismiss={(id) => {
-                  dismissHomeTip(id, localDayKey())
-                  if (home.tip?.kind === 'login_backup') {
-                    setDismissedLoginBackupTip(true)
-                  }
-                }}
-                onAction={(program) => {
-                  if (home.tip?.kind === 'dual_program' && home.tip.actionProgram) {
-                    navigate(`/setup/test/${home.tip.actionProgram}`)
-                    return
-                  }
-                  void beginLevelChange(navigate, program)
-                }}
-                onNavigate={(path) => navigate(path, { state: { returnTo: '/' } })}
-                onScroll={scrollToProgram}
-              />
-            )}
-          </div>
+          <HomeStatusHeader summary={home.summary} />
 
           {settings.enabledPrograms.length === 0 ? (
             <EmptyState
@@ -198,9 +180,9 @@ export default function Dashboard() {
               action={{ label: pl.goToProfile, onClick: () => navigate('/profile') }}
             />
           ) : (
-            <section aria-label={pl.homeChooseTraining}>
-              <h2 className="sr-text-h2 text-[var(--sr-text-primary)]">{pl.homeChooseTraining}</h2>
-              <p className="mt-1 mb-4 text-sm text-[var(--sr-text-secondary)]">
+            <section aria-label={pl.homeStartTraining}>
+              <h2 className="sr-text-h2 text-[var(--sr-text-primary)]">{pl.homeStartTraining}</h2>
+              <p className="mt-1 mb-4 sr-text-body-sm text-[var(--sr-text-secondary)]">
                 {pl.homeChooseTrainingHint}
               </p>
               <div className="flex flex-col gap-5">
@@ -228,12 +210,40 @@ export default function Dashboard() {
                   {pl.homeAddSecondProgram}
                 </Button>
               )}
+              <CustomPlansHomeSection embedded />
             </section>
           )}
 
-          <CustomPlansHomeSection />
+          {settings.enabledPrograms.length === 0 && <CustomPlansHomeSection />}
+
+          <HomeActivitySection summary={home.summary} />
+
+          <div className={showAttention ? 'mb-4' : undefined}>
+            <InstallCoach demotePrimary onVisibilityChange={onInstallVisibility} />
+
+            {showTip && home.tip && (
+              <HomeTip
+                tip={home.tip}
+                onDismiss={(id) => {
+                  dismissHomeTip(id, localDayKey())
+                  if (home.tip?.kind === 'login_backup') {
+                    setDismissedLoginBackupTip(true)
+                  }
+                }}
+                onAction={(program) => {
+                  if (home.tip?.kind === 'dual_program' && home.tip.actionProgram) {
+                    navigate(`/setup/test/${home.tip.actionProgram}`)
+                    return
+                  }
+                  void beginLevelChange(navigate, program)
+                }}
+                onNavigate={(path) => navigate(path, { state: { returnTo: '/' } })}
+                onScroll={scrollToProgram}
+              />
+            )}
+          </div>
         </>
-      )}
+      ) : null}
     </div>
   )
 }

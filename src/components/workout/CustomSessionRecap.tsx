@@ -66,13 +66,7 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights }:
 
   return (
     <>
-      {insights && (
-        <SessionSummaryHighlights
-          prCount={insights.prCount}
-          progressCount={insights.progressCount}
-          highlights={insights.highlights}
-        />
-      )}
+      {insights && <SessionSummaryHighlights highlights={insights.highlights} />}
 
       <div
         className={cn(

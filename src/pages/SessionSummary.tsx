@@ -252,44 +252,10 @@ export default function SessionSummary() {
         </p>
       )}
 
-      {summaryActions.secondary.length > 0 && progress?.status !== 'test_pending' && (
-        <div className="mt-4 flex flex-col gap-2">
-          {summaryActions.secondary.map((action) => (
-            <Button
-              key={action.label}
-              size="touch"
-              fullWidth
-              variant={action.variant ?? 'secondary'}
-              onClick={() => action.onClick({ navigate })}
-            >
-              {action.label}
-            </Button>
-          ))}
-        </div>
-      )}
-
-      {showLoginPrompt && (
-        <NoticeCard
-          className="mt-6"
-          tone="brand"
-          icon={<LogIn size={20} strokeWidth={2.25} />}
-          title={pl.standaloneLoginCoachTitle}
-          message={pl.summaryLoginBackup}
-          actionLabel={pl.standaloneLoginCoachCta}
-          onAction={() => {
-            dismissLoginPrompt()
-            track('login_cloud_prompt_clicked')
-            navigate('/setup/login', {
-              state: { returnTo: `/workout/${program}/summary?session=${sessionId}` },
-            })
-          }}
-          dismissLabel={pl.standaloneLoginCoachDismiss}
-          onDismiss={dismissLoginPrompt}
-          stackActions
-        />
-      )}
-
       <div className="mt-6 flex flex-col gap-2">
+        <Button size="touch" fullWidth onClick={() => navigate('/', { replace: true })}>
+          {pl.backHome}
+        </Button>
         {!failed && (
           <Button
             variant="secondary"
@@ -319,10 +285,40 @@ export default function SessionSummary() {
             {pl.summaryShare}
           </Button>
         )}
-        <Button size="touch" fullWidth onClick={() => navigate('/', { replace: true })}>
-          {pl.backHome}
-        </Button>
+        {summaryActions.secondary.length > 0 && progress?.status !== 'test_pending' &&
+          summaryActions.secondary.map((action) => (
+            <Button
+              key={action.label}
+              size="touch"
+              fullWidth
+              variant={action.variant ?? 'secondary'}
+              onClick={() => action.onClick({ navigate })}
+            >
+              {action.label}
+            </Button>
+          ))}
       </div>
+
+      {showLoginPrompt && (
+        <NoticeCard
+          className="mt-6"
+          tone="brand"
+          icon={<LogIn size={20} strokeWidth={2.25} />}
+          title={pl.standaloneLoginCoachTitle}
+          message={pl.summaryLoginBackup}
+          actionLabel={pl.standaloneLoginCoachCta}
+          onAction={() => {
+            dismissLoginPrompt()
+            track('login_cloud_prompt_clicked')
+            navigate('/setup/login', {
+              state: { returnTo: `/workout/${program}/summary?session=${sessionId}` },
+            })
+          }}
+          dismissLabel={pl.standaloneLoginCoachDismiss}
+          onDismiss={dismissLoginPrompt}
+          stackActions
+        />
+      )}
     </div>
   )
 }

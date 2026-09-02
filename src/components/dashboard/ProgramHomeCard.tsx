@@ -163,9 +163,9 @@ export function ProgramHomeCard({
             onClick={() => {
               setShowMenu(false)
               if (progress) {
-                navigate(`/plans?highlight=${progress.cycleId}`)
+                navigate(`/plans?tab=programs&highlight=${progress.cycleId}`)
               } else {
-                navigate('/plans')
+                navigate('/plans?tab=programs')
               }
             }}
           >
@@ -177,7 +177,7 @@ export function ProgramHomeCard({
             className="justify-start px-3"
             onClick={() => {
               setShowMenu(false)
-              navigate('/progress')
+              navigate('/progress?tab=history')
             }}
           >
             {pl.menuHistory}

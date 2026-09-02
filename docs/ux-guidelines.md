@@ -58,33 +58,38 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 ```
 [Logo SmartReps]
 [Status dnia — headline + opcjonalny subtitle]
-[Twoja aktywność — MetricStrip + trend „niż wcześniej”]
-[Skrót programów — lista z dividerami]
+[Zacznij trening]
+  — ProgramHomeCard(s) z pełnym lifecycle
+  — CustomPlanHomeCard(s) LUB empty: Stwórz plan + Biblioteka
+[Twoja aktywność — MetricStrip + trend „wcześniej”]
 [Attention: InstallCoach XOR HomeTip]
-[Wybierz trening — ProgramHomeCard]
-[Tab bar]
+[Tab bar: Trening · Postępy · Plany · Profil]
 ```
 
 ## Wireframe — Postępy
 
 ```
-[PageHeader + kontekstowy subtitle]
-[program — jeśli 2+][tabs poziomo]
-[hint aktywnej zakładki]
+[PageHeader: streak LUB N sesji]
+[program compact — jeśli 2+][tabs: Przegląd · Historia · Cykl · Własne?]
+URL: ?tab=overview|history|cycle|custom ; ?view=exercises|plan|history ; ?program=
+?tab=records → overview + #progress-records (replace)
 [ProgressSection — flow, bez cieni Card]
-  Przegląd: MetricStrip + wykresy + heatmap
-  Historia: filtry + lista z dividerami + „pokaż więcej”
-  Cykl: postęp X/Y + CycleDayPicker
-  Rekordy: hero test max + siatka
+  Przegląd: MetricStrip (test max · dzień X/Y · sesje) + last-set trend + LineChart + heatmap summary + Rekordy (bez hero test)
+  Historia: filtry + lista + Sheet → „Pełne podsumowanie”
+  Cykl: CycleDayPicker + BarChart max-set + CTA highlight plan
+  Własne: Ćwiczenia | Plan | Historia (compact); tab tylko przy planach/sesjach custom
 ```
 
 ## Wireframe — Plany
 
 ```
-[PageHeader + hint katalogu]
-[PageSection pompki — ProgramAccentCard accordion]
-[PageSection podciąganie]
-[guma — PageSection]
+[PageHeader — hint zależny od segmentu]
+[Segmented: Moje (default) | Programy | Biblioteka]
+Moje: Nowy plan → Import → lista planów
+Programy: PageSection pompki / podciąganie / guma
+Biblioteka: ExerciseLibraryPanel inline (sheet tylko w edytorze)
+Query: ?tab=mine|programs|library ; legacy ?library=1 → library
+?highlight= → segment Programy
 ```
 
 ## Wireframe — Profil
@@ -173,8 +178,8 @@ Menu: Podgląd planu dnia (cele + postęp) · Anuluj
 Uruchom dev/preview na urządzeniu 375×667 (lub symulator). Sprawdź brak treści pod notch i stabilne tło nagłówka:
 
 1. **Dashboard** (`/`) — status dnia + karta programu, tab bar
-2. **Postępy** (`/progress`) — wykres / lista sesji, filtry
-3. **Plany** (`/plans`) — lista cykli, badge „Twój cykl”
+2. **Postępy** (`/progress`) — strip + wykres / Historia / Cykl; Własne gdy są dane
+3. **Plany** (`/plans`) — Moje | Programy | Biblioteka; badge „Twój cykl”
 4. **Profil** (`/profile`) — sekcja Konto + SyncStatusPanel
 5. **Onboarding** (`/setup/onboarding`) — hero + CTA, bez ucięcia u góry
 6. **Login** (`/setup/login`) — formularz e-mail + „Pomiń”

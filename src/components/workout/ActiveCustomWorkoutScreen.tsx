@@ -883,11 +883,12 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
               {exerciseDef.name}
             </p>
           )}
-          <p className="truncate text-xs text-[var(--sr-text-muted)]">{setLine}</p>
-          {groupBadge ? (
-            <p className="truncate text-xs font-medium text-[var(--sr-brand-primary)]">{groupBadge}</p>
-          ) : null}
-          <p className="truncate text-xs text-[var(--sr-text-muted)]">{headerSub}</p>
+          <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">{setLine}</p>
+          {(groupBadge || headerSub) && (
+            <p className="truncate sr-text-caption text-[var(--sr-text-muted)]">
+              {[groupBadge, headerSub].filter(Boolean).join(' · ')}
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -920,6 +921,19 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             <Button variant="ghost" fullWidth className="justify-start px-3" onClick={onShowPlan}>
               {pl.previewDayPlan}
             </Button>
+            {sessionHasProgress && (
+              <Button
+                variant="ghost"
+                fullWidth
+                className="justify-start px-3"
+                onClick={() => {
+                  onCloseMenu()
+                  onBack()
+                }}
+              >
+                {pl.leaveWorkoutMenu}
+              </Button>
+            )}
             <Button
               variant="ghost"
               fullWidth
@@ -1063,7 +1077,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           message={
             sessionHasProgress ? pl.cancelWorkoutConfirm : pl.cancelWorkoutConfirmEmpty
           }
-          confirmLabel={pl.cancelWorkout}
+          confirmLabel={pl.cancelWorkoutConfirmAction}
           variant="danger"
           onConfirm={onConfirmCancel}
           onCancel={onDismissCancel}
@@ -1074,8 +1088,8 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
         <ConfirmSheet
           title={pl.leaveWorkoutTitle}
           message={pl.leaveWorkoutConfirm}
-          confirmLabel={pl.yes}
-          cancelLabel={pl.no}
+          confirmLabel={pl.leaveWorkoutConfirmAction}
+          cancelLabel={pl.cancel}
           onConfirm={onConfirmLeave}
           onCancel={onDismissLeave}
         />

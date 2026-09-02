@@ -10,9 +10,9 @@ import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet } from '@/components/ui/Sheet'
-import { EmptyState, SkeletonCard } from '@/components/ux/Feedback'
+import { EmptyState, SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
 import { LogoMark } from '@/components/brand/Logo'
-import { ExerciseLibrarySheet } from '@/components/plans/ExerciseLibrarySheet'
+import { ExerciseLibraryPanel } from '@/components/plans/ExerciseLibraryPanel'
 import { CustomPlanEditor } from '@/components/plans/CustomPlanEditor'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { getTargetReps } from '@/lib/progress-engine'
@@ -38,7 +38,20 @@ import { downloadCustomPlanJson } from '@/lib/export-backup'
 import { getCustomPlanResumeInfo, type CustomPlanResumeInfo } from '@/lib/custom-plan-resume'
 import { cn } from '@/lib/utils'
 
-type PlansTab = 'builtin' | 'mine'
+type PlansTab = 'mine' | 'programs' | 'library'
+
+function parsePlansTab(tabParam: string | null, libraryParam: string | null): PlansTab {
+  if (libraryParam === '1' || tabParam === 'library') return 'library'
+  if (tabParam === 'programs' || tabParam === 'builtin') return 'programs'
+  if (tabParam === 'mine' || tabParam == null || tabParam === '') return 'mine'
+  return 'mine'
+}
+
+function plansSubtitle(tab: PlansTab): string {
+  if (tab === 'mine') return pl.plansMinePageHint
+  if (tab === 'library') return pl.plansLibraryPageHint
+  return pl.plansCatalogHint
+}
 
 function planExerciseCount(plan: CustomPlan): number {
   return plan.days.reduce((sum, d) => sum + d.exercises.length, 0)
@@ -60,19 +73,22 @@ export default function PlansPage() {
   const editParam = searchParams.get('edit')
   const dayParam = searchParams.get('day')
   const tabParam = searchParams.get('tab')
-  const [tab, setTab] = useState<PlansTab>(tabParam === 'mine' ? 'mine' : 'builtin')
+  const libraryParam = searchParams.get('library')
+  const [tab, setTab] = useState<PlansTab>(() =>
+    highlightId ? 'programs' : parsePlansTab(tabParam, libraryParam),
+  )
   const [openId, setOpenId] = useState<string | null>(null)
   const [progressByProgram, setProgressByProgram] = useState<
     Partial<Record<Program, LocalProgramProgress>>
   >({})
   const [customPlans, setCustomPlans] = useState<CustomPlan[]>([])
   const [customLoading, setCustomLoading] = useState(true)
+  const [customLoadError, setCustomLoadError] = useState<string | null>(null)
   const [customResume, setCustomResume] = useState<Record<string, CustomPlanResumeInfo | null>>({})
   const [customProgress, setCustomProgress] = useState<
     Record<string, CustomProgramProgress | null>
   >({})
   const [exercises, setExercises] = useState<ExerciseDefinition[]>([])
-  const [libraryOpen, setLibraryOpen] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null)
   const [editorInitialDay, setEditorInitialDay] = useState<number | null>(null)
@@ -84,8 +100,23 @@ export default function PlansPage() {
   const pushups = allCycles.filter((c) => c.program === 'pushups')
   const pullups = allCycles.filter((c) => c.program === 'pullups')
 
+  function writeTabParam(next: PlansTab) {
+    const params = new URLSearchParams(searchParams)
+    params.delete('library')
+    params.delete('highlight')
+    if (next === 'mine') {
+      params.set('tab', 'mine')
+    } else if (next === 'programs') {
+      params.set('tab', 'programs')
+    } else {
+      params.set('tab', 'library')
+    }
+    setSearchParams(params, { replace: true })
+  }
+
   async function reloadCustom() {
     setCustomLoading(true)
+    setCustomLoadError(null)
     try {
       const plans = await listCustomPlans()
       setCustomPlans(plans)
@@ -99,6 +130,8 @@ export default function PlansPage() {
       }
       setCustomResume(resumeMap)
       setCustomProgress(progressMap)
+    } catch {
+      setCustomLoadError(pl.errorLoadPlans)
     } finally {
       setCustomLoading(false)
     }
@@ -155,28 +188,43 @@ export default function PlansPage() {
   }, [lastSyncedAt])
 
   useEffect(() => {
-    setTab(tabParam === 'mine' ? 'mine' : 'builtin')
-  }, [tabParam])
+    if (highlightId) {
+      setTab('programs')
+      return
+    }
+    setTab(parsePlansTab(tabParam, libraryParam))
+  }, [tabParam, libraryParam, highlightId])
+
+  useEffect(() => {
+    if (libraryParam !== '1') return
+    const next = new URLSearchParams(searchParams)
+    next.set('tab', 'library')
+    next.delete('library')
+    setSearchParams(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy library=1 once
+  }, [libraryParam])
 
   useEffect(() => {
     if (!editParam) return
+    setTab('mine')
     const dayNum = dayParam ? Number(dayParam) : undefined
     void openEditor(editParam, dayNum && Number.isFinite(dayNum) ? { dayNumber: dayNum } : undefined)
     const next = new URLSearchParams(searchParams)
     next.delete('edit')
     next.delete('day')
+    if (next.get('tab') !== 'mine') next.set('tab', 'mine')
     setSearchParams(next, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open once per edit param
   }, [editParam])
 
   useEffect(() => {
-    if (!highlightId) return
+    if (!highlightId || tab !== 'programs') return
     setOpenId(highlightId)
     const t = window.setTimeout(() => {
       highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 100)
     return () => window.clearTimeout(t)
-  }, [highlightId, progressByProgram])
+  }, [highlightId, progressByProgram, tab])
 
   const currentCycleIds = new Set(
     Object.values(progressByProgram)
@@ -186,40 +234,44 @@ export default function PlansPage() {
 
   return (
     <div className={TAB_PAGE_SHELL}>
-      <PageHeader title={pl.navPlans} subtitle={pl.plansCatalogHint} />
+      <PageHeader title={pl.navPlans} subtitle={plansSubtitle(tab)} />
 
       <SegmentedControl
         className="mt-2"
         value={tab}
         onChange={(v) => {
           setTab(v)
-          setSearchParams(v === 'mine' ? { tab: 'mine' } : {})
+          writeTabParam(v)
         }}
         options={[
-          { value: 'builtin', label: pl.plansTabBuiltin },
           { value: 'mine', label: pl.plansTabMine },
+          { value: 'programs', label: pl.plansTabPrograms },
+          { value: 'library', label: pl.plansTabLibrary },
         ]}
       />
 
       {tab === 'mine' && (
-        <PageSection title={pl.myPlansTitle} hint={pl.myPlansHint} className="mt-4">
+        <PageSection
+          title={pl.myPlansTitle}
+          hint={customPlans.length > 0 && !customLoading ? pl.myPlansHint : undefined}
+          className="mt-4"
+        >
+          {customLoadError && (
+            <ErrorBanner message={customLoadError} onRetry={() => void reloadCustom()} />
+          )}
           <div className="mb-4 flex flex-col gap-2">
             <Button type="button" size="touch" fullWidth onClick={() => void openEditor(null)}>
               {pl.newCustomPlan}
             </Button>
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant="secondary" size="sm" onClick={() => setLibraryOpen(true)}>
-                {pl.exerciseLibrary}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => importInputRef.current?.click()}
-              >
-                {pl.planImportJson}
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              fullWidth
+              onClick={() => importInputRef.current?.click()}
+            >
+              {pl.planImportJson}
+            </Button>
             <input
               ref={importInputRef}
               type="file"
@@ -245,6 +297,13 @@ export default function PlansPage() {
               action={{
                 label: pl.myPlansEmptyCta,
                 onClick: () => void openEditor(null),
+              }}
+              secondaryAction={{
+                label: pl.plansTabLibrary,
+                onClick: () => {
+                  setTab('library')
+                  writeTabParam('library')
+                },
               }}
             />
           ) : (
@@ -330,7 +389,13 @@ export default function PlansPage() {
         </PageSection>
       )}
 
-      {tab === 'builtin' &&
+      {tab === 'library' && (
+        <div className="mt-4">
+          <ExerciseLibraryPanel mode="manage" onExercisesChange={() => void reloadCustom()} />
+        </div>
+      )}
+
+      {tab === 'programs' &&
         (allCycles.length === 0 ? (
           <EmptyState icon={<LogoMark size={48} />} title={pl.noPlans} />
         ) : (
@@ -372,13 +437,6 @@ export default function PlansPage() {
           </>
         ))}
 
-      <ExerciseLibrarySheet
-        open={libraryOpen}
-        onClose={() => {
-          setLibraryOpen(false)
-          void reloadCustom()
-        }}
-      />
       <CustomPlanEditor
         open={editorOpen}
         planId={editingPlanId}

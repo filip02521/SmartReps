@@ -50,7 +50,7 @@ export function getSummaryActions({
     secondary: [
       {
         label: pl.summaryCtaProgress,
-        onClick: ({ navigate }) => navigate('/progress'),
+        onClick: ({ navigate }) => navigate('/progress?tab=overview'),
       },
     ],
   }

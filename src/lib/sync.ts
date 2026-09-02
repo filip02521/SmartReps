@@ -19,6 +19,7 @@ import {
   mapRemoteProgressToLocal,
   shouldPreferLocalProgress,
 } from '@/lib/progress-sync-merge'
+import { shouldPreferLocalSession } from '@/lib/session-sync-merge'
 import {
   hasPendingActiveWorkoutDelete,
   hasPendingActiveWorkoutUpdate,
@@ -504,6 +505,10 @@ export async function syncAllLocalData(): Promise<SyncResult> {
       }
     }
 
+    // Custom plans/exercises before sessions — workout_sessions.custom_plan_id FK.
+    const { pushCustomEntities } = await import('@/lib/custom-sync')
+    errors += await pushCustomEntities(userId)
+
     const sessions = await db.workoutSessions.toArray()
     for (const session of sessions) {
       try {
@@ -535,9 +540,6 @@ export async function syncAllLocalData(): Promise<SyncResult> {
       }
     }
 
-    const { pushCustomEntities } = await import('@/lib/custom-sync')
-    errors += await pushCustomEntities(userId)
-
     errors += await flushSyncQueue()
   } catch (err) {
     console.warn('[sync] syncAllLocalData failed', err)
@@ -565,18 +567,30 @@ async function mergeProgressRemote(userId: string, remote: RemoteProgressRow) {
 
 async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
   const local = await db.workoutSessions.get(remote.id)
-  const remoteTime = new Date(remote.completed_at ?? remote.started_at).getTime()
-  const localTime = local?.completedAt
-    ? new Date(local.completedAt).getTime()
-    : local?.startedAt
-      ? new Date(local.startedAt).getTime()
-      : 0
 
   const setResults = (remote.set_results ?? [])
     .filter((r) => (r as { exercise_order?: number }).exercise_order == null || (r as { exercise_order?: number }).exercise_order === 0)
     .map(mapRemoteSetRow)
   const programKind =
     remote.program_kind === 'custom' || remote.program === 'custom' ? 'custom' : 'builtin'
+  const remoteLogs = Array.isArray(remote.exercise_logs_json)
+    ? (remote.exercise_logs_json as LocalWorkoutSession['exerciseLogs'])
+    : undefined
+
+  if (
+    local &&
+    shouldPreferLocalSession(local, {
+      status: remote.status,
+      started_at: remote.started_at,
+      completed_at: remote.completed_at,
+      setResults,
+      exerciseLogs: remoteLogs,
+    })
+  ) {
+    await upsertSession(userId, local)
+    return
+  }
+
   const mapped: LocalWorkoutSession = {
     id: remote.id,
     program: (remote.program === 'custom' ? 'custom' : remote.program) as LocalWorkoutSession['program'],
@@ -591,24 +605,10 @@ async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
     passed: remote.passed ?? undefined,
     totalReps: remote.total_reps ?? undefined,
     setResults: setResults.length ? setResults : local?.setResults ?? [],
-    exerciseLogs: Array.isArray(remote.exercise_logs_json)
-      ? (remote.exercise_logs_json as LocalWorkoutSession['exerciseLogs'])
-      : local?.exerciseLogs,
+    exerciseLogs: remoteLogs?.length ? remoteLogs : local?.exerciseLogs,
   }
 
-  if (
-    programKind === 'custom' &&
-    (!mapped.exerciseLogs || mapped.exerciseLogs.length === 0) &&
-    local?.exerciseLogs?.length
-  ) {
-    mapped.exerciseLogs = local.exerciseLogs
-  }
-
-  if (!local || remoteTime >= localTime) {
-    await db.workoutSessions.put(mapped)
-  } else if (localTime > remoteTime) {
-    await upsertSession(userId, local)
-  }
+  await db.workoutSessions.put(mapped)
 }
 
 async function reconcileActiveWorkoutsAfterPull(remotePrograms: Set<string>): Promise<void> {

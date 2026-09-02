@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, ArrowLeft } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { TextField, CheckboxField } from '@/components/ui/TextField'
@@ -681,10 +681,12 @@ export function CustomPlanEditor({
             <Button
               type="button"
               variant="ghost"
-              className="self-start"
+              className="self-start gap-1.5"
               onClick={() => setView({ screen: 'hub' })}
+              aria-label={pl.planBack}
             >
-              ← {pl.planBack}
+              <ArrowLeft size={18} aria-hidden />
+              {pl.planBack}
             </Button>
 
             {isDayLocked(day.dayNumber) && (
@@ -968,10 +970,12 @@ export function CustomPlanEditor({
             <Button
               type="button"
               variant="ghost"
-              className="self-start"
+              className="self-start gap-1.5"
               onClick={() => setView({ screen: 'day', dayIndex: view.dayIndex })}
+              aria-label={pl.planBack}
             >
-              ← {pl.planBack}
+              <ArrowLeft size={18} aria-hidden />
+              {pl.planBack}
             </Button>
             <ExerciseLibraryPanel
               mode="pick"
@@ -986,10 +990,12 @@ export function CustomPlanEditor({
             <Button
               type="button"
               variant="ghost"
-              className="self-start"
+              className="self-start gap-1.5"
               onClick={() => setView({ screen: 'day', dayIndex: view.dayIndex })}
+              aria-label={pl.planBack}
             >
-              ← {pl.planBack}
+              <ArrowLeft size={18} aria-hidden />
+              {pl.planBack}
             </Button>
 
             {isDayLocked(day.dayNumber) && (

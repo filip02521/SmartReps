@@ -234,37 +234,16 @@ export default function CustomSessionSummary() {
         {pl.attemptShort(session.cycleAttempt)}
       </p>
 
-      {showLoginPrompt && (
-        <NoticeCard
-          className="mt-6"
-          tone="brand"
-          icon={<LogIn size={20} strokeWidth={2.25} />}
-          title={pl.standaloneLoginCoachTitle}
-          message={pl.summaryLoginBackup}
-          actionLabel={pl.standaloneLoginCoachCta}
-          onAction={() => {
-            dismissLoginPrompt()
-            track('login_cloud_prompt_clicked')
-            if (resolvedPlanId && planName) {
-              useAppStore.getState().setPendingCustomStart({
-                customPlanId: resolvedPlanId,
-                planName,
-                navigateToWorkout: session?.passed !== false,
-              })
-            }
-            navigate('/setup/login', {
-              state: {
-                returnTo: `/workout/custom/${resolvedPlanId}/summary?session=${sessionId}`,
-              },
-            })
-          }}
-          dismissLabel={pl.standaloneLoginCoachDismiss}
-          onDismiss={dismissLoginPrompt}
-          stackActions
-        />
-      )}
-
       <div className="mt-6 flex flex-col gap-2">
+        {resolvedPlanId ? (
+          <Button size="touch" fullWidth onClick={() => navigate(`/plans?tab=mine`)}>
+            {pl.customSummaryBackToPlan}
+          </Button>
+        ) : (
+          <Button size="touch" fullWidth onClick={() => navigate('/')}>
+            {pl.backHome}
+          </Button>
+        )}
         {!failed && planName && (
           <Button
             variant="secondary"
@@ -296,15 +275,11 @@ export default function CustomSessionSummary() {
           </Button>
         )}
         {resolvedPlanId && (
-          <Button
-            size="touch"
-            fullWidth
-            onClick={() => navigate(`/plans?tab=mine`)}
-          >
-            {pl.customSummaryBackToPlan}
+          <Button variant="ghost" fullWidth onClick={() => navigate('/')}>
+            {pl.backHome}
           </Button>
         )}
-        <Button variant="secondary" fullWidth onClick={() => navigate('/progress?tab=custom')}>
+        <Button variant="ghost" fullWidth onClick={() => navigate('/progress?tab=custom&view=history')}>
           {pl.customSummaryViewProgress}
         </Button>
         {failed && resolvedPlanId && (
@@ -316,10 +291,37 @@ export default function CustomSessionSummary() {
             {pl.customFailRetryDay}
           </Button>
         )}
-        <Button variant="ghost" fullWidth onClick={() => navigate('/')}>
-          {pl.backHome}
-        </Button>
       </div>
+
+      {showLoginPrompt && (
+        <NoticeCard
+          className="mt-6"
+          tone="brand"
+          icon={<LogIn size={20} strokeWidth={2.25} />}
+          title={pl.standaloneLoginCoachTitle}
+          message={pl.summaryLoginBackup}
+          actionLabel={pl.standaloneLoginCoachCta}
+          onAction={() => {
+            dismissLoginPrompt()
+            track('login_cloud_prompt_clicked')
+            if (resolvedPlanId && planName) {
+              useAppStore.getState().setPendingCustomStart({
+                customPlanId: resolvedPlanId,
+                planName,
+                navigateToWorkout: session?.passed !== false,
+              })
+            }
+            navigate('/setup/login', {
+              state: {
+                returnTo: `/workout/custom/${resolvedPlanId}/summary?session=${sessionId}`,
+              },
+            })
+          }}
+          dismissLabel={pl.standaloneLoginCoachDismiss}
+          onDismiss={dismissLoginPrompt}
+          stackActions
+        />
+      )}
     </div>
   )
 }

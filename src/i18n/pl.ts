@@ -25,6 +25,17 @@ export const pl = {
   homeRepsBadgeDown: (pct: number) => `−${pct}% powt.`,
   homeRepsBadgeSame: 'Bez zmian',
   homeRepsBadgeNew: 'Powrót po przerwie',
+  homeActivityRepsEarlier: (previous: number) => `wcześniej ${previous} powt.`,
+  homeActivitySessionsEarlier: (previous: number) => {
+    const label =
+      previous === 1
+        ? '1 trening'
+        : previous >= 2 && previous <= 4
+          ? `${previous} treningi`
+          : `${previous} treningów`
+    return `wcześniej ${label}`
+  },
+  /** @deprecated Prefer homeActivityRepsEarlier — kept for any residual imports */
   homeActivityRepsCompare: (current: number, previous: number) =>
     `${current} powt. · wcześniej ${previous}`,
   homeActivitySessionsCompare: (current: number, previous: number) => {
@@ -132,7 +143,12 @@ export const pl = {
   finishDay: 'Zakończ dzień',
   cancelWorkout: 'Anuluj trening',
   cancelWorkoutConfirm: 'Postęp tej sesji zostanie utracony. Anulować trening?',
-  cancelWorkoutConfirmEmpty: 'Wyjdź bez rozpoczynania treningu?',
+  cancelWorkoutConfirmEmpty: 'Anulować trening bez zapisanej serii?',
+  cancelWorkoutConfirmAction: 'Porzuć sesję',
+  leaveWorkoutMenu: 'Wyjdź (zapisz)',
+  leaveWorkoutConfirm: 'Trening jest w toku. Wyjść? Postęp sesji zostanie zapisany.',
+  leaveWorkoutTitle: 'Wyjść z treningu?',
+  leaveWorkoutConfirmAction: 'Wyjdź i zapisz',
   lastTime: (actual: number, target: number) => `Ostatnio: ${actual}/${target}`,
   restLabel: 'Przerwa',
   nextSet: (n: number, reps: number, unit: string) =>
@@ -146,8 +162,6 @@ export const pl = {
   exactLiveHint: (n: number) => `Wymagane dokładnie ${n} — nie więcej, nie mniej`,
   restInProgress: 'Trwa przerwa — poczekaj lub otwórz timer.',
   skipRestConfirm: 'Pominąć przerwę i przejść do następnej serii?',
-  leaveWorkoutConfirm: 'Trening jest w toku. Wyjść? Postęp sesji zostanie zapisany.',
-  leaveWorkoutTitle: 'Wyjść z treningu?',
   previewDayPlan: 'Podgląd planu dnia',
   helpTechnique: 'Wskazówki techniki',
   negativeCountdown: (sec: number) => `Przygotuj opuszczanie · ${sec}s`,
@@ -264,6 +278,8 @@ export const pl = {
   errorSaveSet: 'Nie udało się zapisać serii. Spróbuj ponownie.',
   errorLoadProgram: 'Nie udało się wczytać programu. Spróbuj ponownie.',
   errorLoadProgress: 'Nie udało się wczytać postępów. Spróbuj ponownie.',
+  errorLoadHome: 'Nie udało się wczytać ekranu głównego. Spróbuj ponownie.',
+  errorLoadPlans: 'Nie udało się wczytać planów. Spróbuj ponownie.',
   errorLoadSummary: 'Nie udało się wczytać podsumowania. Spróbuj ponownie.',
   errorStartWorkout: 'Nie udało się rozpocząć treningu. Spróbuj ponownie.',
   errorFinishDay: 'Nie udało się zakończyć dnia. Spróbuj ponownie.',
@@ -340,8 +356,6 @@ export const pl = {
   previewPlan: 'Podgląd planu',
   previewDay1: 'Podgląd dnia 1',
   previewFullCycle: 'Zobacz pełny cykl',
-  tabRecords: 'Rekordy',
-  recordBestTest: 'Najlepszy test',
   recordBestMaxSet: 'Najlepsza seria max',
   recordBestSession: 'Najwięcej powtórzeń w sesji',
   recordHighestCycle: 'Najwyższy osiągnięty cykl',
@@ -578,20 +592,26 @@ export const pl = {
   pwaUpdateBody: 'Dostępna jest aktualizacja aplikacji. Odśwież, aby wczytać najnowsze zmiany.',
   pwaUpdateReload: 'Odśwież teraz',
   pwaUpdateLater: 'Później',
-  progressOverviewHint: 'Podsumowanie testów, sesji i nawyku dla wybranego programu.',
-  progressTabOverviewHint: 'Rekordy, wykres testu max i mapa aktywności.',
   progressTabHistoryHint: 'Lista treningów — dotknij wpis, aby zobaczyć serie.',
-  progressTabCycleHint: 'Mapa dni w bieżącym cyklu — ukończone i planowane.',
-  progressTabRecordsHint: 'Twoje najlepsze wyniki w tym programie.',
   progressSummaryTitle: 'Podsumowanie',
   progressRecordTestHint: 'test max',
   progressCycleDaysHint: 'w cyklu',
+  progressSessionsHint: 'sesje',
+  progressLastSetTrend: (current: number, previous: number) =>
+    `Ostatnia seria max: ${current} · wcześniej ${previous}`,
+  progressOpenFullSummary: 'Pełne podsumowanie',
+  progressCustomViewExercises: 'Ćwiczenia',
+  progressCustomViewPlan: 'Plan',
+  progressCustomViewHistory: 'Historia',
+  progressCustomPlanEmpty: 'Brak aktywnego planu',
+  progressCustomPlanEmptyHint: 'Stwórz plan, aby zobaczyć mapę dni i postęp.',
   progressTestChartHint: 'Ostatnie testy maksymalne',
   progressMaxSetChartHint: 'Najlepsza seria w każdym dniu (bieżący cykl)',
   progressHeatmapHint: 'Zielony = udany trening, czerwony = nieudany dzień',
   progressHeatmapEmpty: 'Mapa wypełni się po pierwszych treningach.',
   progressEmptyTitle: 'Na start',
   progressEmptyHint: 'Po pierwszym treningu zobaczysz tu wykresy i mapę aktywności.',
+  progressRecordsSectionTitle: 'Rekordy',
   progressHistoryCount: (n: number) =>
     n === 1 ? '1 sesja' : n >= 2 && n <= 4 ? `${n} sesje` : `${n} sesji`,
   progressSetCount: (n: number) =>
@@ -604,7 +624,6 @@ export const pl = {
   progressFiltersApply: 'Gotowe',
   progressCycleProgress: (done: number, total: number) =>
     total > 0 ? `Ukończono ${done} z ${total} dni w cyklu` : '',
-  progressRecordHeroHint: 'Twój najlepszy wynik testu max',
   progressRecordsEmpty: 'Po treningach i teście max pojawią się tu rekordy.',
   progressSessionNoSets: 'Brak zapisanych serii w tej sesji.',
   cycleDayPreviewTitle: (day: number) => `${pl.cycleDayPreview} ${day}`,
@@ -626,6 +645,8 @@ export const pl = {
   // Plans — resistance bands
   plansCatalogHint:
     'Katalog cykli — poziom i start wybierasz na Treningu lub w Profilu.',
+  plansMinePageHint: 'Własne plany treningowe — edycja i start.',
+  plansLibraryPageHint: 'Ćwiczenia do użycia w planach.',
   plansProgramHint: 'Rozwiń cykl, aby zobaczyć cele serii w kolejnych dniach.',
   plansYourCycle: 'Twój cykl',
   plansDayCount: (n: number) => (n === 1 ? '1 dzień' : `${n} dni`),
@@ -834,13 +855,16 @@ export const pl = {
   celebrationPullupsAmbition: 'Cel ambicji osiągnięty!',
 
   // Custom plans & exercises
-  plansTabBuiltin: 'Wbudowane',
+  plansTabBuiltin: 'Programy',
+  plansTabPrograms: 'Programy',
   plansTabMine: 'Moje',
+  plansTabLibrary: 'Biblioteka',
   myPlansTitle: 'Moje plany',
   myPlansHint: 'Ułóż własny trening z kilkoma ćwiczeniami.',
   myPlansEmpty: 'Nie masz jeszcze własnego planu.',
   myPlansEmptyCta: 'Stwórz plan',
   newCustomPlan: 'Nowy plan',
+  homeStartTraining: 'Zacznij trening',
   exerciseLibrary: 'Biblioteka ćwiczeń',
   exerciseLibraryHint: 'Ćwiczenia do użycia w planach.',
   exerciseLibraryPickHint: 'Wybierz ćwiczenie do planu lub zobacz statystyki.',
@@ -1024,8 +1048,12 @@ export const pl = {
   customDayPassed: 'Dzień zaliczony',
   customDayFailed: 'Dzień niezaliczony',
   customFailRetryDay: 'Powtórz dzień',
-  homeCustomPlans: 'Własne plany',
+  homeCustomPlans: 'Moje plany',
   homeCustomPlansHint: 'Aktywne plany — dzień, ćwiczenia i status.',
+  homeCustomEmptyDiscoverHint:
+    'Tu pojawią się Twoje plany. Stwórz plan albo dodaj ćwiczenia do biblioteki.',
+  homeCustomEmptyCreate: 'Stwórz plan',
+  homeCustomEmptyLibrary: 'Biblioteka ćwiczeń',
   homeSeeAllCustom: 'Zobacz wszystkie',
   homeCustomDayOf: (current: number, total: number) =>
     total > 0 ? `Dzień ${current} z ${total}` : pl.dayLabel(current),

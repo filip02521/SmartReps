@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { CustomPlanHomeCard } from '@/components/dashboard/CustomPlanHomeCard'
-import { EmptyState } from '@/components/ux/Feedback'
+import { EmptyState, SkeletonCard } from '@/components/ux/Feedback'
 import { LogoMark } from '@/components/brand/Logo'
 import { pl } from '@/i18n/pl'
 import { listCustomPlans, listExercises } from '@/lib/custom-plan-service'
@@ -15,13 +15,15 @@ import { resolveHomeCustomPlans, countHiddenHomeCustomPlans } from '@/lib/enable
 import { useAppStore } from '@/stores/app-store'
 import { db } from '@/lib/db'
 
-export function CustomPlansHomeSection() {
+/** Custom plans block for home — always renders after load (skeleton / empty / cards). */
+export function CustomPlansHomeSection({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate()
   const enabledIds = useAppStore((s) => s.settings.enabledCustomPlanIds)
   const filterExplicit = useAppStore((s) => s.settings.customPlansFilterExplicit)
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const [cards, setCards] = useState<CustomPlanHomeCardModel[]>([])
   const [extraPlanCount, setExtraPlanCount] = useState(0)
+  const [loaded, setLoaded] = useState(false)
   const [reloadTick, setReloadTick] = useState(0)
 
   useEffect(() => {
@@ -64,13 +66,25 @@ export function CustomPlansHomeSection() {
         )
       }
       setCards(models)
+      setLoaded(true)
     })()
   }, [enabledIds, filterExplicit, lastSyncedAt, reloadTick])
+
+  const shellClass = embedded ? 'mt-5' : 'mt-8'
+  const aria = pl.homeCustomPlans
+
+  if (!loaded) {
+    return (
+      <div className={shellClass} aria-busy aria-label={aria}>
+        <SkeletonCard className="min-h-[6rem]" />
+      </div>
+    )
+  }
 
   if (cards.length === 0) {
     if (filterExplicit && enabledIds.length === 0) {
       return (
-        <section className="mt-8" aria-label={pl.homeCustomPlans}>
+        <section className={shellClass} aria-label={aria}>
           <EmptyState
             icon={<LogoMark size={40} />}
             title={pl.customHomeEmptyTitle}
@@ -83,20 +97,68 @@ export function CustomPlansHomeSection() {
         </section>
       )
     }
-    return null
+    return (
+      <section className={shellClass} aria-label={aria}>
+        {!embedded && (
+          <div className="mb-3">
+            <h2 className="sr-text-h2 text-[var(--sr-text-primary)]">{pl.homeCustomPlans}</h2>
+            <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">
+              {pl.homeCustomEmptyDiscoverHint}
+            </p>
+          </div>
+        )}
+        {embedded && (
+          <p className="mb-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
+            {pl.homeCustomEmptyDiscoverHint}
+          </p>
+        )}
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            size={embedded ? 'sm' : 'touch'}
+            fullWidth
+            variant={embedded ? 'secondary' : 'primary'}
+            onClick={() => navigate('/plans?tab=mine')}
+          >
+            {pl.homeCustomEmptyCreate}
+          </Button>
+          <Button
+            type="button"
+            variant={embedded ? 'ghost' : 'secondary'}
+            size="sm"
+            fullWidth
+            onClick={() => navigate('/plans?tab=library')}
+          >
+            {pl.homeCustomEmptyLibrary}
+          </Button>
+        </div>
+      </section>
+    )
   }
 
   return (
-    <section className="mt-8" aria-label={pl.homeCustomPlans}>
-      <div className="mb-3 flex items-baseline justify-between gap-2">
-        <div>
-          <h2 className="sr-text-h2 text-[var(--sr-text-primary)]">{pl.homeCustomPlans}</h2>
-          <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.homeCustomPlansHint}</p>
+    <section className={shellClass} aria-label={aria}>
+      {!embedded && (
+        <div className="mb-3 flex items-baseline justify-between gap-2">
+          <div>
+            <h2 className="sr-text-h2 text-[var(--sr-text-primary)]">{pl.homeCustomPlans}</h2>
+            <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.homeCustomPlansHint}</p>
+          </div>
+          <Button type="button" size="sm" variant="ghost" onClick={() => navigate('/plans?tab=mine')}>
+            {pl.homeSeeAllCustom}
+          </Button>
         </div>
-        <Button type="button" size="sm" variant="ghost" onClick={() => navigate('/plans?tab=mine')}>
-          {pl.homeSeeAllCustom}
-        </Button>
-      </div>
+      )}
+      {embedded && (
+        <div className="mb-2 flex items-baseline justify-between gap-2">
+          <p className="sr-text-body-sm font-medium text-[var(--sr-text-secondary)]">
+            {pl.homeCustomPlans}
+          </p>
+          <Button type="button" size="sm" variant="ghost" onClick={() => navigate('/plans?tab=mine')}>
+            {pl.homeSeeAllCustom}
+          </Button>
+        </div>
+      )}
       <ul className="flex flex-col gap-3">
         {cards.map((model) => (
           <li key={model.planId}>
@@ -115,6 +177,15 @@ export function CustomPlansHomeSection() {
           {pl.customHomeMorePlans(extraPlanCount)}
         </Button>
       )}
+      <Button
+        type="button"
+        variant="ghost"
+        className="mt-1"
+        fullWidth
+        onClick={() => navigate('/plans?tab=library')}
+      >
+        {pl.homeCustomEmptyLibrary}
+      </Button>
     </section>
   )
 }

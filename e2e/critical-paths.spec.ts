@@ -234,7 +234,7 @@ test.describe('SmartReps routing critical paths', () => {
     await expect(page.getByRole('heading', { name: 'Profil' })).toBeVisible({ timeout: 20_000 })
     await upsertProgramProgress(page, { program: 'pullups', cycleId: 'pullups-4-5' })
     await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible({
       timeout: 15_000,
     })
     await expect(page.getByRole('heading', { name: 'Podciąganie', level: 2 })).toBeVisible({
@@ -250,14 +250,14 @@ test.describe('SmartReps routing critical paths', () => {
     await page.goto('/setup/login')
     await page.getByRole('button', { name: 'Pomiń — trenuję bez konta' }).click()
     await expect(page).toHaveURL('/', { timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible()
   })
 
   test('1b) seeded Dashboard home shows summary + card', async ({ page }) => {
     await seedOnboardedWithProgress(page)
     await page.goto('/')
     await expect(page.getByRole('img', { name: 'SmartReps' })).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible()
     await expect(page.getByText(/3 treningi w 14 dni/)).toBeVisible()
     await expect(page.getByRole('button', { name: /Rozpocznij Dzień/ })).toBeVisible({
       timeout: 15_000,
@@ -335,18 +335,17 @@ test.describe('SmartReps routing critical paths', () => {
 
     await page.getByRole('button', { name: 'Menu treningu' }).click()
     await page.getByRole('button', { name: 'Anuluj trening' }).click()
-    // Confirm sheet also titled Anuluj trening — confirm danger action
-    await page.getByRole('button', { name: 'Anuluj trening' }).last().click()
+    await page.getByRole('button', { name: 'Porzuć sesję' }).click()
 
     await expect(page).toHaveURL(/\/$/, { timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible({
       timeout: 15_000,
     })
     await expect(page.getByText(/W toku:/)).toHaveCount(0)
     await expect(page.getByRole('button', { name: /Kontynuuj Dzień/ })).toHaveCount(0)
 
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible({
       timeout: 15_000,
     })
     await expect(page.getByText(/W toku:/)).toHaveCount(0)
@@ -427,7 +426,7 @@ test.describe('SmartReps routing critical paths', () => {
     }, undefined, { timeout: 20_000 })
 
     await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible({
       timeout: 15_000,
     })
     await expect(page.getByRole('button', { name: /Rozpocznij Dzień 1/ })).toBeVisible({

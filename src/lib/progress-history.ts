@@ -23,8 +23,8 @@ export type ProgramRecords = {
 }
 
 export function hasAnyProgramRecords(records: ProgramRecords): boolean {
+  // bestTest lives in the overview MetricStrip — do not count it as Rekordy content.
   return (
-    records.bestTest !== null ||
     records.bestMaxSet !== null ||
     records.bestSessionTotal !== null ||
     records.highestCycleName !== null

@@ -52,9 +52,10 @@ test.describe('custom plans smoke', () => {
   test('plans mine tab opens library and new plan editor hub', async ({ page }) => {
     await page.goto('/plans?tab=mine')
     await expect(page.getByRole('tab', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
-    await page.getByRole('button', { name: 'Biblioteka ćwiczeń' }).click()
-    await expect(page.getByText('Ćwiczenia do użycia w planach.')).toBeVisible()
-    await page.keyboard.press('Escape')
+    await page.getByRole('tab', { name: 'Biblioteka' }).click()
+    await expect(page.getByRole('tab', { name: 'Biblioteka', selected: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Dodaj ćwiczenie' })).toBeVisible()
+    await page.getByRole('tab', { name: 'Moje' }).click()
     await page.getByRole('button', { name: 'Nowy plan' }).first().click()
     await expect(page.getByLabel('Nazwa planu')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Dodaj dzień' })).toBeVisible()
@@ -82,19 +83,16 @@ test.describe('custom plans smoke', () => {
   })
 
   test('default exercises are present in library on first open', async ({ page }) => {
-    await page.goto('/plans?tab=mine')
-    await page.getByRole('button', { name: 'Biblioteka ćwiczeń' }).click()
+    await page.goto('/plans?tab=library')
+    await expect(page.getByRole('tab', { name: 'Biblioteka' })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByText('Pompki')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('Przysiady')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Dodaj zestaw startowy' })).toHaveCount(0)
-    await page.keyboard.press('Escape')
   })
 
   test('merges duplicate exercises in library by name', async ({ page }) => {
-    await page.goto('/plans?tab=mine')
-    await page.getByRole('button', { name: 'Biblioteka ćwiczeń' }).click()
+    await page.goto('/plans?tab=library')
     await expect(page.getByText('Pompki').first()).toBeVisible({ timeout: 10_000 })
-    await page.keyboard.press('Escape')
 
     await page.evaluate(async () => {
       const now = new Date().toISOString()
@@ -122,10 +120,10 @@ test.describe('custom plans smoke', () => {
       })
     })
 
-    await page.getByRole('button', { name: 'Biblioteka ćwiczeń' }).click()
+    await page.getByRole('tab', { name: 'Moje' }).click()
+    await page.getByRole('tab', { name: 'Biblioteka' }).click()
     await expect(page.getByText('Pompki').first()).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('Pompki')).toHaveCount(1)
-    await page.keyboard.press('Escape')
   })
 
   test('custom workout completes a single-set day', async ({ page }) => {
@@ -680,7 +678,7 @@ test.describe('custom plans smoke', () => {
       { planId, sessionId },
     )
 
-    await page.goto('/progress?tab=custom')
+    await page.goto('/progress?tab=custom&view=history')
     await expect(page.getByText('E2E history plan')).toBeVisible({ timeout: 15_000 })
     await page.getByText('E2E history plan').click()
     await expect(page.getByText('Dzień niezaliczony')).toBeVisible({ timeout: 15_000 })

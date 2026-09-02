@@ -100,7 +100,7 @@ test.describe('iPhone SE smoke', () => {
     await seedOnboardedWithProgress(page)
     await page.goto('/')
     await expect(page.getByRole('img', { name: 'SmartReps' })).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible({
       timeout: 15_000,
     })
     await expect(page.getByRole('navigation', { name: 'Główna nawigacja' })).toBeVisible()
@@ -116,7 +116,7 @@ test.describe('iPhone SE smoke', () => {
   test('bottom sheets are not clipped by tab bar (program menu)', async ({ page }) => {
     await seedOnboardedWithProgress(page)
     await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Wybierz trening' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible({
       timeout: 20_000,
     })
 

@@ -167,6 +167,19 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
                 {pl.helpTechniquePushups}
               </Button>
             )}
+            {sessionHasProgress && (
+              <Button
+                variant="ghost"
+                fullWidth
+                className="justify-start px-3"
+                onClick={() => {
+                  onCloseMenu()
+                  onBack()
+                }}
+              >
+                {pl.leaveWorkoutMenu}
+              </Button>
+            )}
             <Button
               variant="ghost"
               fullWidth
@@ -271,7 +284,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         <ConfirmSheet
           title={pl.cancelWorkout}
           message={sessionHasProgress ? pl.cancelWorkoutConfirm : pl.cancelWorkoutConfirmEmpty}
-          confirmLabel={pl.cancelWorkout}
+          confirmLabel={pl.cancelWorkoutConfirmAction}
           variant="danger"
           onConfirm={onConfirmCancel}
           onCancel={onDismissCancel}
@@ -282,8 +295,8 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         <ConfirmSheet
           title={pl.leaveWorkoutTitle}
           message={pl.leaveWorkoutConfirm}
-          confirmLabel={pl.yes}
-          cancelLabel={pl.no}
+          confirmLabel={pl.leaveWorkoutConfirmAction}
+          cancelLabel={pl.cancel}
           onConfirm={onConfirmLeave}
           onCancel={onDismissLeave}
         />

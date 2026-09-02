@@ -40,6 +40,7 @@ export async function clearAllLocalData(): Promise<void> {
     setupQueue: [],
     lastAuthUserId: null,
     enabledProgramsUpdatedAt: null,
+    enabledCustomWorkoutsUpdatedAt: null,
     uiSettingsUpdatedAt: null,
     lastSyncedAt: null,
     hasCompletedFirstWorkout: false,

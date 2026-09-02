@@ -9,9 +9,11 @@ let authNavLock: Promise<void> | null = null
 export function isSafeReturnPath(path: string): boolean {
   if (!path.startsWith('/') || path.includes('//')) return false
   if (path.startsWith('/setup/')) return false
-  if (path === '/') return true
+  const pathOnly = path.split('?')[0] ?? path
+  if (pathOnly === '/') return true
+  if (/^\/workout\/(pushups|pullups)(\/summary)?$/.test(pathOnly)) return true
   const allowedRoots = ['/profile', '/progress', '/plans', '/workout/custom']
-  return allowedRoots.some((root) => path === root || path.startsWith(`${root}/`))
+  return allowedRoots.some((root) => pathOnly === root || pathOnly.startsWith(`${root}/`))
 }
 
 async function waitForHydration(timeoutMs = 3000): Promise<void> {

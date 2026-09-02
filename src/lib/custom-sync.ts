@@ -149,6 +149,7 @@ function mapActiveCustomRestTimer(remote: RemoteActiveCustomWorkout): string | n
 
 export async function upsertActiveCustomWorkout(userId: string, row: ActiveCustomWorkoutState) {
   const timerFields = parseRestTimerForRemote(row.restTimerJson)
+  // Schema (013) has rest_timer_json only — do NOT send rest_started_at (builtin column).
   const { error } = await supabase.from('active_custom_workout_state').upsert(
     {
       user_id: userId,
@@ -157,7 +158,6 @@ export async function upsertActiveCustomWorkout(userId: string, row: ActiveCusto
       current_exercise_index: row.currentExerciseIndex,
       current_set_index: row.currentSetIndex,
       exercise_logs_json: row.exerciseLogs,
-      rest_started_at: timerFields.rest_started_at,
       rest_timer_json: timerFields.rest_timer_json,
       updated_at: row.updatedAt,
     },

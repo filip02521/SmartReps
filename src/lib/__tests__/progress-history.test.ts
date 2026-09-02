@@ -59,7 +59,7 @@ describe('hasAnyProgramRecords', () => {
     ).toBe(false)
   })
 
-  it('returns true when any record exists', () => {
+  it('returns true when a secondary record exists', () => {
     expect(
       hasAnyProgramRecords({
         bestTest: null,
@@ -68,5 +68,16 @@ describe('hasAnyProgramRecords', () => {
         highestCycleName: null,
       }),
     ).toBe(true)
+  })
+
+  it('ignores bestTest alone (shown in strip, not Rekordy grid)', () => {
+    expect(
+      hasAnyProgramRecords({
+        bestTest: 40,
+        bestMaxSet: null,
+        bestSessionTotal: null,
+        highestCycleName: null,
+      }),
+    ).toBe(false)
   })
 })
