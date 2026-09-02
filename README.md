@@ -76,10 +76,11 @@ Bez `.env` ekran logowania ma opcję pominięcia — trening działa w pełni lo
 5. W **Authentication → URL Configuration** ustaw:
    - **Site URL:** `https://smart-reps.vercel.app`
    - **Redirect URLs:** `https://smart-reps.vercel.app/**`, `http://localhost:5173/**`, oraz `/setup/login`
-6. **Custom SMTP + szablon OTP** (AWS SES): uzupełnij `SUPABASE_ACCESS_TOKEN` w
+6. **Custom SMTP + szablony OTP** (AWS SES): uzupełnij `SUPABASE_ACCESS_TOKEN` w
    `.env.smtp.local` (gitignored), potem `node scripts/configure-supabase-smtp.mjs`.
-   Skrypt ustawia SMTP, szablon (`{{ .Token }}`), `mailer_otp_length=6` i Site URL.
-   Nadawca: `SmartReps <SR@ontime.mikran.pl>`. Logowanie wyłącznie kodem (bez magic linku w mailu).
+   Skrypt ustawia SMTP, `mailer_autoconfirm=true`, szablony Magic Link **i** Confirm
+   (`{{ .Token }}` tylko — bez `ConfirmationURL`), `mailer_otp_length=6` i Site URL.
+   Nadawca: `SmartReps <SR@ontime.mikran.pl>`. Logowanie wyłącznie kodem (bez linku w mailu).
 7. W aplikacji: Profil → Zaloguj się (6-cyfrowy kod z e-maila)
 
 ## Produkcja

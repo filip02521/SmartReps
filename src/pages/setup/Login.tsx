@@ -188,15 +188,10 @@ export default function Login() {
       return
     }
     setLoading(true)
-    const params = new URLSearchParams()
-    const backPath = effectiveReturnTo()
-    if (backPath) params.set('returnTo', backPath)
-    if (fromOnboarding) params.set('fromOnboarding', '1')
-    const query = params.toString()
-    const redirectTo = `${window.location.origin}/setup/login${query ? `?${query}` : ''}`
     const { error } = await supabase.auth.signInWithOtp({
       email: trimmed,
-      options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
+      // Code-only login: do not attach a magic-link redirect. OTP arrives as {{ .Token }}.
+      options: { shouldCreateUser: true },
     })
     setLoading(false)
     if (error) {

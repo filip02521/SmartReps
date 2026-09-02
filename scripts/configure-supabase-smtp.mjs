@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * Configure Supabase Auth custom SMTP (AWS SES) + Magic Link / OTP email template.
+ * Configure Supabase Auth custom SMTP (AWS SES) + email OTP templates.
  *
- * Keeps server OTP length, email copy, and the PWA login UI in sync (6-digit code).
+ * SmartReps logs in with a 6-digit code only (no magic-link buttons in email).
+ * New users previously got the default "Confirm your email" link template when
+ * mailer_autoconfirm was false — that broke PWA / first-run signup.
  *
  * Requires SUPABASE_ACCESS_TOKEN — https://supabase.com/dashboard/account/tokens
  * Loads optional `.env.smtp.local` from repo root (gitignored).
@@ -41,6 +43,22 @@ function loadEnvFile(filePath) {
   }
 }
 
+function readOtpTemplate(fileName) {
+  const templatePath = path.join(root, 'supabase/templates', fileName)
+  const templateHtml = fs.readFileSync(templatePath, 'utf8')
+  if (!templateHtml.includes('{{ .Token }}')) {
+    console.error(`${fileName} must include {{ .Token }} for email OTP`)
+    process.exit(1)
+  }
+  if (templateHtml.includes('{{ .ConfirmationURL }}')) {
+    console.error(
+      `${fileName} must NOT include {{ .ConfirmationURL }} — mail scanners auto-click links and break OTP login.`,
+    )
+    process.exit(1)
+  }
+  return templateHtml
+}
+
 loadEnvFile(path.join(root, '.env.smtp.local'))
 
 const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'pwfymoxjrgnovzcmmfyn'
@@ -57,25 +75,19 @@ if (!smtpUser || !smtpPass) {
   process.exit(1)
 }
 
-const templatePath = path.join(root, 'supabase/templates/magic_link.html')
-const templateHtml = fs.readFileSync(templatePath, 'utf8')
-if (!templateHtml.includes('{{ .Token }}')) {
-  console.error('Template must include {{ .Token }} for email OTP')
-  process.exit(1)
-}
-if (templateHtml.includes('{{ .ConfirmationURL }}')) {
-  console.warn(
-    'Warning: ConfirmationURL in OTP template can be auto-clicked by mail scanners and invalidate the code. Prefer Token-only.',
-  )
-}
+const magicLinkHtml = readOtpTemplate('magic_link.html')
+const confirmationHtml = readOtpTemplate('confirmation.html')
 
 const siteUrl = process.env.SITE_URL || 'https://smart-reps.vercel.app'
 const uriAllowList =
   process.env.URI_ALLOW_LIST ||
   'https://smart-reps.vercel.app/**,http://localhost:5173/**'
+const otpSubject = process.env.MAILER_SUBJECT || 'Kod logowania SmartReps'
 
 const body = {
   external_email_enabled: true,
+  // Confirm email via OTP entry in-app — never send a clickable confirm link.
+  mailer_autoconfirm: true,
   site_url: siteUrl,
   uri_allow_list: uriAllowList,
   smtp_host: process.env.SMTP_HOST || 'email-smtp.eu-central-1.amazonaws.com',
@@ -84,8 +96,11 @@ const body = {
   smtp_pass: smtpPass,
   smtp_admin_email: process.env.SMTP_ADMIN_EMAIL || 'SR@ontime.mikran.pl',
   smtp_sender_name: process.env.SMTP_SENDER_NAME || 'SmartReps',
-  mailer_subjects_magic_link: process.env.MAILER_SUBJECT || 'Kod logowania SmartReps',
-  mailer_templates_magic_link_content: templateHtml,
+  mailer_subjects_magic_link: otpSubject,
+  mailer_templates_magic_link_content: magicLinkHtml,
+  // Safety net if Auth still emits a confirmation mail for an unconfirmed user.
+  mailer_subjects_confirmation: otpSubject,
+  mailer_templates_confirmation_content: confirmationHtml,
   mailer_otp_length: OTP_LENGTH,
   mailer_otp_exp: OTP_EXP_SECONDS,
   // Custom SMTP unlocks higher throughput vs built-in mailer (~2–4/h).
@@ -113,24 +128,42 @@ try {
     headers: { Authorization: `Bearer ${token}` },
   })
   const j = await check.json()
+  const magic = String(j.mailer_templates_magic_link_content || '')
+  const confirm = String(j.mailer_templates_confirmation_content || '')
   verified = {
     smtp_host: j.smtp_host,
     smtp_admin_email: j.smtp_admin_email,
     smtp_sender_name: j.smtp_sender_name,
+    mailer_autoconfirm: j.mailer_autoconfirm,
     mailer_otp_length: j.mailer_otp_length,
     mailer_otp_exp: j.mailer_otp_exp,
-    subject: j.mailer_subjects_magic_link,
-    has_token: String(j.mailer_templates_magic_link_content || '').includes('{{ .Token }}'),
-    has_link: String(j.mailer_templates_magic_link_content || '').includes('{{ .ConfirmationURL }}'),
+    subject_magic: j.mailer_subjects_magic_link,
+    subject_confirm: j.mailer_subjects_confirmation,
+    magic_has_token: magic.includes('{{ .Token }}'),
+    magic_has_link: magic.includes('{{ .ConfirmationURL }}'),
+    confirm_has_token: confirm.includes('{{ .Token }}'),
+    confirm_has_link: confirm.includes('{{ .ConfirmationURL }}'),
     site_url: j.site_url,
   }
 } catch {
   verified = { verify: 'skipped' }
 }
 
-console.log('OK — custom SMTP + OTP template applied on', PROJECT_REF)
+const ok =
+  verified.mailer_autoconfirm === true &&
+  verified.magic_has_token === true &&
+  verified.magic_has_link === false &&
+  verified.confirm_has_token === true &&
+  verified.confirm_has_link === false &&
+  verified.mailer_otp_length === OTP_LENGTH
+
+console.log('OK — custom SMTP + OTP templates applied on', PROJECT_REF)
 console.log('From:', body.smtp_sender_name, `<${body.smtp_admin_email}>`)
 console.log('Host:', body.smtp_host + ':' + body.smtp_port)
-console.log('Subject:', body.mailer_subjects_magic_link)
+console.log('Subject:', otpSubject)
 console.log('OTP length/exp:', OTP_LENGTH, '/', OTP_EXP_SECONDS + 's')
 console.log('Verified:', verified)
+if (!ok) {
+  console.error('Verification failed — auth email config is not OTP-only.')
+  process.exit(1)
+}
