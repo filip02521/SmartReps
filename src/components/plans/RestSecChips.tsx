@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { TextField } from '@/components/ui/TextField'
+import { NumericDraftInput } from '@/components/ui/NumericDraftInput'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
@@ -68,13 +68,15 @@ export function RestSecChips({
         </button>
       </div>
       {customOpen && (
-        <TextField
+        <NumericDraftInput
           id={id}
           className="mt-2"
-          type="number"
+          ariaLabel={label}
+          mode="integer"
           min={0}
           value={value}
-          onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
+          disabled={disabled}
+          onCommit={onChange}
         />
       )}
     </div>

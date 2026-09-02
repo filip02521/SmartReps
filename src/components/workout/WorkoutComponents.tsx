@@ -10,6 +10,7 @@ import type { Program } from '@/data/plans/types'
 import { useState, type ReactNode } from 'react'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { ProgressRing } from '@/components/ui/ProgressRing'
+import { NumericDraftInput } from '@/components/ui/NumericDraftInput'
 import { PreviousResultBadge } from '@/components/workout/PreviousResultBadge'
 import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { Z_REST_EXPANDED, Z_CELEBRATION } from '@/lib/ui-chrome'
@@ -112,15 +113,20 @@ export function RepCounter({
           {pl.exactLiveHint(targetReps)}
         </p>
       )}
-      <p
+      <NumericDraftInput
+        ariaLabel={pl.exerciseMetricReps}
+        value={actual}
+        mode="integer"
+        min={0}
+        max={maxReps}
+        disabled={disabled}
+        onCommit={(n) => onActualChange(Math.min(maxReps, Math.max(0, n)))}
         className={cn(
-          'sr-text-display tabular-nums leading-none text-[var(--sr-text-primary)]',
+          'w-auto min-w-[4.5rem] max-w-[9rem] border-0 bg-transparent px-1 py-0 text-center sr-text-display leading-none shadow-none',
           pulseFlash && 'animate-pulse-success',
           isExact && actual !== targetReps && actual > 0 && 'text-[var(--sr-warning)]',
         )}
-      >
-        {actual}
-      </p>
+      />
       {lastActual !== undefined && (
         <PreviousResultBadge actual={lastActual} target={targetReps} />
       )}

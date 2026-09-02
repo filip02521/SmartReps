@@ -40,6 +40,7 @@ import { metricTargetDisplayValue } from '@/lib/plan-resolver'
 import type { RestTimerState } from '@/lib/rest-timer'
 import { Z_REST_PILL, FOCUS_RING } from '@/lib/ui-chrome'
 import { cn } from '@/lib/utils'
+import { NumericDraftInput } from '@/components/ui/NumericDraftInput'
 
 const WORKOUT_STEPPER_BTN =
   'flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-primary)] disabled:opacity-40'
@@ -98,42 +99,52 @@ function WorkoutMetricColumn({
   value,
   unit,
   valueClassName,
+  mode = 'integer',
   onDecrease,
   onIncrease,
+  onCommit,
   decreaseLabel,
   increaseLabel,
   decreaseDisabled,
   increaseDisabled,
+  disabled,
 }: {
   label: string
   value: number
   unit?: string
   valueClassName?: string
+  mode?: 'integer' | 'decimal'
   onDecrease: () => void
   onIncrease: () => void
+  onCommit: (value: number) => void
   decreaseLabel: string
   increaseLabel: string
   decreaseDisabled?: boolean
   increaseDisabled?: boolean
+  disabled?: boolean
 }) {
   return (
     <div className="flex min-w-0 flex-col items-center gap-2">
       <p className="text-xs font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
         {label}
       </p>
-      <p
-        className={cn(
-          'sr-text-h2 tabular-nums font-semibold leading-none text-[var(--sr-text-primary)]',
-          valueClassName,
-        )}
-      >
-        {value}
+      <div className="flex w-full items-baseline justify-center gap-1">
+        <NumericDraftInput
+          ariaLabel={label}
+          value={value}
+          mode={mode}
+          min={0}
+          disabled={disabled}
+          onCommit={onCommit}
+          className={cn(
+            'max-w-[7.5rem] border-0 bg-transparent px-1 py-0 text-center sr-text-h2 font-semibold leading-none shadow-none',
+            valueClassName,
+          )}
+        />
         {unit && (
-          <span className="ml-0.5 sr-text-body-sm font-medium text-[var(--sr-text-muted)]">
-            {unit}
-          </span>
+          <span className="sr-text-body-sm font-medium text-[var(--sr-text-muted)]">{unit}</span>
         )}
-      </p>
+      </div>
       <div className="flex items-center gap-2">
         <WorkoutStepperButton
           ariaLabel={decreaseLabel}
@@ -559,16 +570,21 @@ function CustomMetricCounter({
 
       {!isRepsWeight && (
         <div className="flex items-baseline gap-2">
-          <p
+          <NumericDraftInput
+            ariaLabel={isDuration ? pl.customWorkoutDurationSec : pl.exerciseMetricReps}
+            value={actual}
+            mode="integer"
+            min={0}
+            max={maxValue}
+            disabled={disabled}
+            onCommit={(n) => onActualChange(Math.min(maxValue, Math.max(0, n)))}
             className={cn(
-              'sr-text-display tabular-nums leading-none text-[var(--sr-text-primary)]',
+              'w-auto min-w-[4.5rem] max-w-[9rem] border-0 bg-transparent px-1 py-0 text-center sr-text-display leading-none shadow-none',
               pulseFlash && 'animate-pulse-success',
               isExact && actual !== targetReps && actual > 0 && 'text-[var(--sr-warning)]',
               isDuration && timerRunning && 'text-[var(--sr-brand-primary)]',
             )}
-          >
-            {actual}
-          </p>
+          />
           {isDuration && (
             <span className="sr-text-body-sm font-medium text-[var(--sr-text-muted)]">
               {pl.customDurationUnit}
@@ -587,6 +603,8 @@ function CustomMetricCounter({
             <WorkoutMetricColumn
               label={pl.exerciseMetricReps}
               value={actual}
+              mode="integer"
+              disabled={disabled}
               valueClassName={cn(
                 pulseFlash && 'animate-pulse-success',
                 isExact && actual !== targetReps && actual > 0 && 'text-[var(--sr-warning)]',
@@ -597,18 +615,22 @@ function CustomMetricCounter({
               increaseDisabled={disabled || actual >= maxValue}
               onDecrease={() => onActualChange(Math.max(0, actual - step))}
               onIncrease={() => onActualChange(Math.min(maxValue, actual + step))}
+              onCommit={(n) => onActualChange(Math.min(maxValue, Math.max(0, n)))}
             />
             <div className="pl-3">
               <WorkoutMetricColumn
                 label={pl.customWorkoutWeightKg}
                 value={weightValue}
+                mode="decimal"
                 unit={pl.customWorkoutWeightShort}
+                disabled={disabled}
                 decreaseLabel={pl.customWorkoutLessWeight}
                 increaseLabel={pl.customWorkoutMoreWeight}
                 decreaseDisabled={disabled || weightValue <= 0}
                 increaseDisabled={disabled}
                 onDecrease={() => onWeightChange(Math.max(0, weightValue - weightStep))}
                 onIncrease={() => onWeightChange(weightValue + weightStep)}
+                onCommit={(n) => onWeightChange(Math.max(0, n))}
               />
             </div>
           </div>
