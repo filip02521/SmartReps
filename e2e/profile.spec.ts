@@ -129,6 +129,17 @@ test.describe('Profile data actions', () => {
     await expect(page.getByRole('button', { name: 'Eksport CSV wszystkich programów' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Eksport backupu (JSON)' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Import backupu' })).toBeVisible()
+    await expect(page.getByText('Niebezpieczne')).toBeVisible()
+  })
+
+  test('unconfigured program shows setup on training CTA', async ({ page }) => {
+    await openProfile(page)
+    await expect(page.getByRole('heading', { name: 'Pompki', level: 3 })).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(page.getByRole('button', { name: 'Skonfiguruj na Treningu' })).toBeVisible()
+    await page.getByRole('button', { name: 'Menu programu' }).click()
+    await expect(page.getByRole('button', { name: 'Wyłącz program' })).toBeVisible()
   })
 
   test('import sheet opens from data section', async ({ page }) => {

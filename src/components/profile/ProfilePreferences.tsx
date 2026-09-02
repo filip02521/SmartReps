@@ -1,0 +1,149 @@
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { PageSection } from '@/components/ui/PageSection'
+import { CheckboxField } from '@/components/ui/TextField'
+import { pl } from '@/i18n/pl'
+import type { UserSettings } from '@/stores/app-store'
+
+const SECTION = 'mt-8'
+
+type Theme = UserSettings['theme']
+
+export function ProfilePreferences({
+  theme,
+  highContrast,
+  timerSound,
+  timerVibration,
+  keepScreenOn,
+  pushNotifications,
+  workoutReminders,
+  reminderHour,
+  pushDescription,
+  remindersDenied,
+  pushDisabled,
+  localRemindersDisabled,
+  showReminderHour,
+  onThemeChange,
+  onHighContrastChange,
+  onTimerSoundChange,
+  onTimerVibrationChange,
+  onKeepScreenOnChange,
+  onPushChange,
+  onLocalRemindersChange,
+  onReminderHourChange,
+}: {
+  theme: Theme
+  highContrast: boolean
+  timerSound: boolean
+  timerVibration: boolean
+  keepScreenOn: boolean
+  pushNotifications: boolean
+  workoutReminders: boolean
+  reminderHour: number
+  pushDescription: string
+  remindersDenied: boolean
+  pushDisabled: boolean
+  localRemindersDisabled: boolean
+  showReminderHour: boolean
+  onThemeChange: (t: Theme) => void
+  onHighContrastChange: (on: boolean) => void
+  onTimerSoundChange: (on: boolean) => void
+  onTimerVibrationChange: (on: boolean) => void
+  onKeepScreenOnChange: (on: boolean) => void
+  onPushChange: (on: boolean) => void
+  onLocalRemindersChange: (on: boolean) => void
+  onReminderHourChange: (hour: number) => void
+}) {
+  return (
+    <>
+      <PageSection title={pl.appearance} className={SECTION}>
+        <SegmentedControl
+          options={[
+            { value: 'system' as const, label: pl.themeSystem },
+            { value: 'dark' as const, label: pl.themeDark },
+            { value: 'light' as const, label: pl.themeLight },
+          ]}
+          value={theme}
+          onChange={onThemeChange}
+        />
+        <CheckboxField
+          id="high-contrast"
+          className="mt-4"
+          label={pl.highContrast}
+          checked={highContrast}
+          onChange={onHighContrastChange}
+        />
+      </PageSection>
+
+      <PageSection title={pl.trainingSettings} className={SECTION}>
+        <div className="flex flex-col gap-1">
+          <CheckboxField
+            id="timer-sound"
+            label={pl.timerSound}
+            description={pl.timerSoundHint}
+            checked={timerSound}
+            onChange={onTimerSoundChange}
+          />
+          <CheckboxField
+            id="timer-vibration"
+            label={pl.timerVibration}
+            description={pl.timerVibrationHint}
+            checked={timerVibration}
+            onChange={onTimerVibrationChange}
+          />
+          <CheckboxField
+            id="keep-screen-on"
+            className="mt-2"
+            label={pl.keepScreenOn}
+            description={pl.keepScreenOnHint}
+            checked={keepScreenOn}
+            onChange={onKeepScreenOnChange}
+          />
+        </div>
+      </PageSection>
+
+      <PageSection title={pl.remindersSection} className={SECTION}>
+        <div className="flex flex-col gap-1">
+          <CheckboxField
+            id="push-notifications"
+            label={pl.pushNotifications}
+            description={pushDescription}
+            checked={pushNotifications}
+            disabled={pushDisabled}
+            onChange={onPushChange}
+          />
+          <CheckboxField
+            id="workout-reminders"
+            className="mt-2"
+            label={pl.workoutReminders}
+            description={pl.workoutRemindersHint}
+            checked={workoutReminders && !pushNotifications}
+            disabled={localRemindersDisabled}
+            onChange={onLocalRemindersChange}
+          />
+        </div>
+        {remindersDenied && (
+          <>
+            <p className="mt-2 text-xs text-[var(--sr-warning)]">{pl.workoutRemindersDenied}</p>
+            <p className="mt-1 text-xs text-[var(--sr-warning)]">{pl.pushOsSettingsHint}</p>
+          </>
+        )}
+        {showReminderHour && (
+          <label className="mt-4 block text-sm">
+            <span className="font-medium">{pl.reminderHourLabel}</span>
+            <select
+              className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-3 text-base text-[var(--sr-text-primary)]"
+              value={reminderHour}
+              onChange={(e) => onReminderHourChange(Number(e.target.value))}
+            >
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>
+                  {pl.reminderHourOption(h)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </PageSection>
+    </>
+  )
+}

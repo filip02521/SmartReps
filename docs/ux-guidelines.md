@@ -108,9 +108,16 @@ Query: ?tab=mine|programs|library ; legacy ?library=1 → library
 ## Wireframe — Profil
 
 ```
-[PageHeader]
-[Konto | Wygląd | Trening | Programy | Dane | O aplikacji]
+[PageHeader: Profil]
+[Konto — AccountHero: badge · sync · 1 CTA · FAQ · Wyloguj ghost]
+[Programy — karty Strong kompakt + ⋮ · dodaj dashed · własne wiersze]
+[Wygląd]
+[Ustawienia treningu]
+[Przypomnienia]
+[Dane — import/eksport · Niebezpieczne]
+[O aplikacji]
 ```
+Kolejność: konto → programy → ustawienia → dane. Soft enable bez auto-testu; unconfigured → Trening `/?program=`.
 
 ## Wireframe — Trening (`ActiveWorkoutScreen`)
 
@@ -193,7 +200,7 @@ Uruchom dev/preview na urządzeniu 375×667 (lub symulator). Sprawdź brak treś
 1. **Dashboard** (`/`) — status dnia + karta programu, tab bar
 2. **Postępy** (`/progress`) — strip + wykres / Historia / Cykl; Własne gdy są dane
 3. **Plany** (`/plans`) — Moje | Programy | Biblioteka; badge „Twój cykl”
-4. **Profil** (`/profile`) — sekcja Konto + SyncStatusPanel
+4. **Profil** (`/profile`) — AccountHero + Programy + ustawienia + dane
 5. **Onboarding** (`/setup/onboarding`) — welcome → interest → programs? → next → Start; bez forsa testu
 6. **Login** (`/setup/login`) — formularz e-mail + „Pomiń”
 7. **Trening aktywny** (`/workout/pushups?force=1`) — licznik serii, menu treningu, bez nachodzenia na home indicator

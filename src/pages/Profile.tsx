@@ -1,23 +1,25 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { MoreVertical } from 'lucide-react'
 import { useAppStore } from '@/stores/app-store'
 import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Card'
-import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { PageSection } from '@/components/ui/PageSection'
-import { ProgramAccentCard } from '@/components/ui/ProgramAccentCard'
-import { NestedStat } from '@/components/ui/NestedStat'
 import { CheckboxField } from '@/components/ui/TextField'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { Sheet } from '@/components/ui/Sheet'
 import { SkeletonCard } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
-import { SyncStatusPanel } from '@/components/profile/SyncStatusPanel'
+import { AccountHero } from '@/components/profile/AccountHero'
+import { ProgramSettingsCard } from '@/components/profile/ProgramSettingsCard'
+import { ProfilePreferences } from '@/components/profile/ProfilePreferences'
+import { ProfileDataSection } from '@/components/profile/ProfileDataSection'
+import { ImportBackupSheet } from '@/components/profile/ImportBackupSheet'
 import { runAuthenticatedSync } from '@/lib/auth-sync'
 import { signOutUser } from '@/lib/auth-lifecycle'
 import { pl } from '@/i18n/pl'
-import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
+import { FOCUS_RING, TAB_PAGE_SHELL } from '@/lib/ui-chrome'
+import { cn } from '@/lib/utils'
 import { requestWorkoutReminderPermission, scheduleDailyReminder, cancelReminder } from '@/lib/notifications'
 import {
   getVapidPublicKey,
@@ -31,8 +33,6 @@ import { applyThemeColor } from '@/lib/theme-color'
 import {
   getProgramProgress,
   reconcileActiveWorkout,
-  getStatusLabel,
-  getStatusTone,
   setProgramPaused,
 } from '@/lib/program-service'
 import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
@@ -40,14 +40,13 @@ import { clearAllLocalData } from '@/lib/local-data'
 import { exportSessionsCsv, exportCustomSessionsCsv, downloadCsv, mergeSessionCsvExports } from '@/lib/export'
 import { exportBackupSnapshot, downloadBackupJson } from '@/lib/export-backup'
 import { deleteRemoteAccount } from '@/lib/account-delete'
-import { ImportBackupSheet } from '@/components/profile/ImportBackupSheet'
 import { TextField } from '@/components/ui/TextField'
-import { getCycleById } from '@/data/plans'
 import { showToast } from '@/stores/toast-store'
 import type { LocalProgramProgress } from '@/lib/db'
 import type { Program } from '@/data/plans/types'
 
 const appVersion = import.meta.env.VITE_APP_VERSION ?? '1.0.0'
+const SECTION = 'mt-8'
 
 function applyTheme(theme: 'system' | 'dark' | 'light') {
   if (theme === 'system') {
@@ -61,113 +60,6 @@ function applyTheme(theme: 'system' | 'dark' | 'light') {
 function applyHighContrast(on: boolean) {
   if (on) document.documentElement.setAttribute('data-high-contrast', 'true')
   else document.documentElement.removeAttribute('data-high-contrast')
-}
-
-function ProgramSettingsBlock({
-  program,
-  progress,
-  canDisable,
-  onChangeLevel,
-  onRetest,
-  onTogglePause,
-  onDisable,
-}: {
-  program: Program
-  progress?: LocalProgramProgress
-  canDisable: boolean
-  onChangeLevel: () => void
-  onRetest: () => void
-  onTogglePause: () => void
-  onDisable: () => void
-}) {
-  const label = program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
-  const cycle = progress ? getCycleById(progress.cycleId) : undefined
-  const paused = progress?.status === 'paused'
-  const statusLabel = progress ? getStatusLabel(progress) : null
-  const statusTone = progress ? getStatusTone(progress) : 'info'
-  const badgeVariant =
-    statusTone === 'success'
-      ? 'success'
-      : statusTone === 'warning'
-        ? 'warning'
-        : statusTone === 'error'
-          ? 'error'
-          : 'info'
-
-  const cycleHint =
-    progress && progress.cycleAttempt > 1 ? pl.attemptLabel(progress.cycleAttempt) : undefined
-
-  return (
-    <ProgramAccentCard program={program} aria-labelledby={`program-settings-${program}`}>
-      <div className="flex items-start justify-between gap-3">
-        <h3
-          id={`program-settings-${program}`}
-          className="sr-text-h3 text-[var(--sr-text-primary)]"
-          title={label}
-        >
-          {label}
-        </h3>
-        {statusLabel && <Badge variant={badgeVariant}>{statusLabel}</Badge>}
-      </div>
-
-      {cycle ? (
-        <NestedStat
-          className="mt-3"
-          size="md"
-          overline={cycle.nameShort}
-          value={progress ? pl.dayOfTotal(progress.currentDay, cycle.days.length) : undefined}
-          hint={cycleHint}
-        />
-      ) : (
-        <NestedStat className="mt-3" size="md" value={pl.notConfigured} />
-      )}
-
-      <div className="mt-4 flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] pt-3">
-        <Button
-          variant="secondary"
-          size="md"
-          fullWidth
-          className="justify-start px-4 font-medium"
-          onClick={onChangeLevel}
-        >
-          {pl.menuChangeLevel}
-        </Button>
-        <Button
-          variant="secondary"
-          size="md"
-          fullWidth
-          className="justify-start px-4 font-medium"
-          onClick={onRetest}
-        >
-          {pl.menuRetest}
-        </Button>
-        {progress && (
-          <Button
-            variant="ghost"
-            size="md"
-            fullWidth
-            className="justify-start px-4 text-[var(--sr-text-secondary)]"
-            onClick={onTogglePause}
-          >
-            {paused ? pl.resumeProgram : pl.pauseProgram}
-          </Button>
-        )}
-        {canDisable && (
-          <div className="mt-1 border-t border-[var(--sr-border-subtle)] pt-2">
-            <Button
-              variant="ghost"
-              size="md"
-              fullWidth
-              className="justify-start px-4 text-[var(--sr-error)] hover:text-[var(--sr-error)]"
-              onClick={onDisable}
-            >
-              {pl.disableProgram}
-            </Button>
-          </div>
-        )}
-      </div>
-    </ProgramAccentCard>
-  )
 }
 
 export default function ProfilePage() {
@@ -185,6 +77,7 @@ export default function ProfilePage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deletingAccount, setDeletingAccount] = useState(false)
   const [showImportSheet, setShowImportSheet] = useState(false)
+  const [customMenuPlanId, setCustomMenuPlanId] = useState<string | null>(null)
   const [progressByProgram, setProgressByProgram] = useState<Partial<Record<Program, LocalProgramProgress>>>({})
   const [programsReady, setProgramsReady] = useState(false)
   const [customActivePlans, setCustomActivePlans] = useState<
@@ -236,7 +129,9 @@ export default function ProfilePage() {
 
     void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null))
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setEmail(session?.user?.email ?? null)
     })
 
@@ -287,6 +182,21 @@ export default function ProfilePage() {
     try {
       const snapshot = await exportBackupSnapshot()
       downloadBackupJson(snapshot)
+      showToast(pl.toastExportDone, 'success')
+    } catch {
+      showToast(pl.exportFailed, 'error')
+    }
+  }
+
+  const exportCsvBackup = async () => {
+    try {
+      const chunks: string[] = []
+      for (const program of ['pushups', 'pullups'] as const) {
+        chunks.push(await exportSessionsCsv(program))
+      }
+      chunks.push(await exportCustomSessionsCsv())
+      const merged = mergeSessionCsvExports(chunks)
+      downloadCsv(`smartreps-export-${new Date().toISOString().slice(0, 10)}.csv`, merged)
       showToast(pl.toastExportDone, 'success')
     } catch {
       showToast(pl.exportFailed, 'error')
@@ -349,10 +259,9 @@ export default function ProfilePage() {
     await beginLevelChange(navigate, program)
   }
 
-  const addProgram = async (program: Program) => {
+  const addProgram = (program: Program) => {
     if (settings.enabledPrograms.includes(program)) return
     setSettings({ enabledPrograms: [...settings.enabledPrograms, program] })
-    // Soft UX: do not auto-force Max Test — user starts from the home card.
   }
 
   const disableProgram = (program: Program) => {
@@ -389,188 +298,47 @@ export default function ProfilePage() {
       ? pl.pushUnavailable
       : pl.pushNotificationsHint
 
+  const showReminderHour =
+    settings.pushNotifications || (settings.workoutReminders && !settings.pushNotifications)
+
+  const customMenuPlan = customActivePlans.find((p) => p.id === customMenuPlanId) ?? null
+
   return (
     <div className={TAB_PAGE_SHELL}>
-      <PageHeader
-        title={pl.navProfile}
-        subtitle={email ? pl.accountLoggedIn(email) : pl.accountLocalOnly}
-      />
+      <PageHeader title={pl.navProfile} />
 
       <PageSection title={pl.account}>
-        <div className="flex flex-col gap-3">
-          <SyncStatusPanel
-            syncing={syncing}
-            online={online}
-            onSyncNow={handleSyncNow}
-            onLogin={() => navigate('/setup/login', { state: { returnTo: '/profile' } })}
-          />
-          {isSupabaseConfigured && email && (
-            <Button
-              variant="ghost"
-              size="sm"
-              fullWidth
-              className="justify-start px-4"
-              onClick={() => setShowLogoutConfirm(true)}
-            >
-              {pl.logout}
-            </Button>
-          )}
-        </div>
-      </PageSection>
-
-      <PageSection title={pl.appearance}>
-        <SegmentedControl
-          options={[
-            { value: 'system' as const, label: pl.themeSystem },
-            { value: 'dark' as const, label: pl.themeDark },
-            { value: 'light' as const, label: pl.themeLight },
-          ]}
-          value={settings.theme}
-          onChange={(t) => {
-            setSettings({ theme: t })
-            applyTheme(t)
-          }}
-        />
-        <CheckboxField
-          id="high-contrast"
-          className="mt-4"
-          label={pl.highContrast}
-          checked={settings.highContrast}
-          onChange={(checked) => {
-            setSettings({ highContrast: checked })
-            applyHighContrast(checked)
-          }}
+        <AccountHero
+          syncing={syncing}
+          online={online}
+          showLogout={isSupabaseConfigured && !!email}
+          onSyncNow={handleSyncNow}
+          onLogin={() => navigate('/setup/login', { state: { returnTo: '/profile' } })}
+          onLogout={() => setShowLogoutConfirm(true)}
         />
       </PageSection>
 
-      <PageSection title={pl.trainingSettings}>
-        <div className="flex flex-col gap-1">
-          <CheckboxField
-            id="timer-sound"
-            label={pl.timerSound}
-            description={pl.timerSoundHint}
-            checked={settings.timerSound}
-            onChange={(checked) => setSettings({ timerSound: checked })}
-          />
-          <CheckboxField
-            id="timer-vibration"
-            label={pl.timerVibration}
-            description={pl.timerVibrationHint}
-            checked={settings.timerVibration}
-            onChange={(checked) => setSettings({ timerVibration: checked })}
-          />
-          <CheckboxField
-            id="keep-screen-on"
-            className="mt-2"
-            label={pl.keepScreenOn}
-            description={pl.keepScreenOnHint}
-            checked={settings.keepScreenOn}
-            onChange={(checked) => setSettings({ keepScreenOn: checked })}
-          />
-          <CheckboxField
-            id="push-notifications"
-            className="mt-2"
-            label={pl.pushNotifications}
-            description={pushDescription}
-            checked={settings.pushNotifications}
-            disabled={
-              !email ||
-              !isWebPushSupported() ||
-              !getVapidPublicKey() ||
-              (remindersDenied && !settings.pushNotifications)
-            }
-            onChange={(on) => {
-              void (async () => {
-                if (on) {
-                  const ok = await subscribeWebPush(settings.reminderHour)
-                  if (!ok) {
-                    if (typeof Notification !== 'undefined') {
-                      setNotifPermission(Notification.permission)
-                    }
-                    showToast(pl.pushSubscribeFailed, 'error')
-                    return
-                  }
-                  cancelReminder()
-                  setSettings({ pushNotifications: true, workoutReminders: false })
-                  track('reminder_toggle', { mode: 'push', on: true })
-                  showToast(pl.toastPushEnabled, 'success')
-                } else {
-                  await unsubscribeWebPush()
-                  setSettings({ pushNotifications: false })
-                  track('reminder_toggle', { mode: 'push', on: false })
-                }
-              })()
-            }}
-          />
-          <CheckboxField
-            id="workout-reminders"
-            className="mt-2"
-            label={pl.workoutReminders}
-            description={pl.workoutRemindersHint}
-            checked={settings.workoutReminders && !settings.pushNotifications}
-            disabled={
-              settings.pushNotifications || (remindersDenied && !settings.workoutReminders)
-            }
-            onChange={(on) => {
-              void (async () => {
-                if (on) {
-                  if (typeof Notification !== 'undefined' && Notification.permission === 'denied') return
-                  const granted = await requestWorkoutReminderPermission()
-                  if (!granted) return
-                  scheduleDailyReminder(settings.reminderHour, 0)
-                } else {
-                  cancelReminder()
-                }
-                setSettings({ workoutReminders: on && Notification.permission === 'granted' })
-                track('reminder_toggle', { mode: 'in_app', on })
-              })()
-            }}
-          />
-        </div>
-        {remindersDenied && (
-          <>
-            <p className="mt-2 text-xs text-[var(--sr-warning)]">{pl.workoutRemindersDenied}</p>
-            <p className="mt-1 text-xs text-[var(--sr-warning)]">{pl.pushOsSettingsHint}</p>
-          </>
-        )}
-        <label className="mt-4 block text-sm">
-          <span className="font-medium">{pl.reminderHourLabel}</span>
-          <select
-            className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-3 text-base text-[var(--sr-text-primary)]"
-            value={settings.reminderHour}
-            onChange={(e) => {
-              const hour = Number(e.target.value)
-              setSettings({ reminderHour: hour })
-              if (settings.pushNotifications) {
-                void updatePushReminderHour(hour)
-              } else if (settings.workoutReminders && Notification.permission === 'granted') {
-                scheduleDailyReminder(hour, 0)
-              }
-            }}
-          >
-            {Array.from({ length: 24 }, (_, h) => (
-              <option key={h} value={h}>
-                {pl.reminderHourOption(h)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </PageSection>
-
-      <PageSection title={pl.programs}>
+      <PageSection title={pl.programs} className={SECTION}>
         {showProgramsLoading ? (
           <div className="flex flex-col gap-4" aria-busy aria-label={pl.profileProgramsLoading}>
-            <SkeletonCard className="min-h-[9rem]" />
-            {settings.enabledPrograms.length > 1 && <SkeletonCard className="min-h-[9rem]" />}
+            <SkeletonCard className="min-h-[7rem]" />
+            {settings.enabledPrograms.length > 1 && <SkeletonCard className="min-h-[7rem]" />}
           </div>
         ) : (
           <div className="flex flex-col gap-4">
+            {settings.enabledPrograms.length === 0 && (
+              <p className="text-pretty sr-text-body-sm text-[var(--sr-text-secondary)]">
+                {pl.profileProgramsEmpty}
+              </p>
+            )}
+
             {settings.enabledPrograms.map((program) => (
-              <ProgramSettingsBlock
+              <ProgramSettingsCard
                 key={program}
                 program={program}
                 progress={progressByProgram[program]}
                 canDisable={true}
+                onSetupOnTraining={() => navigate(`/?program=${program}`)}
                 onChangeLevel={() => void changeLevel(program)}
                 onRetest={() => void retest(program)}
                 onTogglePause={() => void togglePause(program)}
@@ -579,7 +347,7 @@ export default function ProfilePage() {
             ))}
 
             {missingPrograms.length > 0 && (
-              <div className="rounded-[var(--sr-radius-md)] border border-dashed border-[var(--sr-border-strong)] bg-[var(--sr-bg-surface)]/60 p-3">
+              <div className="rounded-[var(--sr-radius-md)] border border-dashed border-[var(--sr-border-strong)] bg-[var(--sr-bg-surface)]/60 px-3 py-3.5">
                 <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
                   {pl.addProgram}
                 </p>
@@ -591,7 +359,7 @@ export default function ProfilePage() {
                       size="md"
                       fullWidth
                       className="justify-start px-4"
-                      onClick={() => void addProgram(p)}
+                      onClick={() => addProgram(p)}
                     >
                       {p === 'pushups' ? pl.addProgramPushups : pl.addProgramPullups}
                     </Button>
@@ -599,126 +367,163 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+
+            {customActivePlans.length > 0 && (
+              <div className="mt-2">
+                <p className="mb-1 text-sm font-medium text-[var(--sr-text-primary)]">
+                  {pl.profileCustomPlansSubhead}
+                </p>
+                <p className="mb-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
+                  {pl.activeWorkoutsHint}
+                </p>
+                <div className="flex flex-col gap-2.5">
+                  {customActivePlans.map((plan) => {
+                    const onTraining =
+                      !settings.customPlansFilterExplicit ||
+                      settings.enabledCustomPlanIds.includes(plan.id)
+                    return (
+                      <div
+                        key={plan.id}
+                        className="flex items-start gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2.5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <CheckboxField
+                            id={`custom-plan-${plan.id}`}
+                            label={plan.name}
+                            description={
+                              plan.paused
+                                ? pl.planPaused
+                                : onTraining
+                                  ? pl.profileCustomOnTraining
+                                  : undefined
+                            }
+                            checked={onTraining}
+                            onChange={(checked) => {
+                              const current = settings.customPlansFilterExplicit
+                                ? [...settings.enabledCustomPlanIds]
+                                : customActivePlans.map((p) => p.id)
+                              const next = checked
+                                ? Array.from(new Set([...current, plan.id]))
+                                : current.filter((id) => id !== plan.id)
+                              setSettings({
+                                customPlansFilterExplicit: true,
+                                enabledCustomPlanIds: next,
+                              })
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className={cn(
+                            'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] hover:bg-[var(--sr-bg-elevated)]',
+                            FOCUS_RING,
+                          )}
+                          aria-label={pl.menuProgram}
+                          onClick={() => setCustomMenuPlanId(plan.id)}
+                        >
+                          <MoreVertical size={20} />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </PageSection>
 
-      {customActivePlans.length > 0 && (
-        <PageSection title={pl.activeWorkoutsTitle} hint={pl.activeWorkoutsHint}>
-          <div className="flex flex-col gap-1">
-            {customActivePlans.map((plan) => (
-              <div
-                key={plan.id}
-                className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2"
-              >
-                <CheckboxField
-                  id={`custom-plan-${plan.id}`}
-                  label={plan.name}
-                  checked={
-                    !settings.customPlansFilterExplicit ||
-                    settings.enabledCustomPlanIds.includes(plan.id)
-                  }
-                  onChange={(checked) => {
-                    const current = settings.customPlansFilterExplicit
-                      ? [...settings.enabledCustomPlanIds]
-                      : customActivePlans.map((p) => p.id)
-                    const next = checked
-                      ? Array.from(new Set([...current, plan.id]))
-                      : current.filter((id) => id !== plan.id)
-                    setSettings({
-                      customPlansFilterExplicit: true,
-                      enabledCustomPlanIds: next,
-                    })
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  fullWidth
-                  className="mt-1 justify-start px-1 text-[var(--sr-text-secondary)]"
-                  onClick={() => void toggleCustomPlanPause(plan.id, plan.paused)}
-                >
-                  {plan.paused ? pl.planResume : pl.planPause}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </PageSection>
-      )}
-
-      <PageSection title={pl.dataSection}>
-        <div className="flex flex-col gap-2">
-          <Button
-            variant="secondary"
-            size="md"
-            fullWidth
-            className="justify-start px-4"
-            onClick={() => setShowImportSheet(true)}
-          >
-            {pl.importBackupTitle}
-          </Button>
-          <Button
-            variant="secondary"
-            size="md"
-            fullWidth
-            className="justify-start px-4"
-            onClick={() => void exportJsonBackup()}
-          >
-            {pl.exportBackupJson}
-          </Button>
-          <Button
-            variant="secondary"
-            size="md"
-            fullWidth
-            className="justify-start px-4"
-            onClick={async () => {
-              try {
-                // All programs with local history — not only currently enabled.
-                const chunks: string[] = []
-                for (const program of ['pushups', 'pullups'] as const) {
-                  chunks.push(await exportSessionsCsv(program))
+      <ProfilePreferences
+        theme={settings.theme}
+        highContrast={settings.highContrast}
+        timerSound={settings.timerSound}
+        timerVibration={settings.timerVibration}
+        keepScreenOn={settings.keepScreenOn}
+        pushNotifications={settings.pushNotifications}
+        workoutReminders={settings.workoutReminders}
+        reminderHour={settings.reminderHour}
+        pushDescription={pushDescription}
+        remindersDenied={remindersDenied}
+        pushDisabled={
+          !email ||
+          !isWebPushSupported() ||
+          !getVapidPublicKey() ||
+          (remindersDenied && !settings.pushNotifications)
+        }
+        localRemindersDisabled={
+          settings.pushNotifications || (remindersDenied && !settings.workoutReminders)
+        }
+        showReminderHour={showReminderHour}
+        onThemeChange={(t) => {
+          setSettings({ theme: t })
+          applyTheme(t)
+        }}
+        onHighContrastChange={(checked) => {
+          setSettings({ highContrast: checked })
+          applyHighContrast(checked)
+        }}
+        onTimerSoundChange={(checked) => setSettings({ timerSound: checked })}
+        onTimerVibrationChange={(checked) => setSettings({ timerVibration: checked })}
+        onKeepScreenOnChange={(checked) => setSettings({ keepScreenOn: checked })}
+        onPushChange={(on) => {
+          void (async () => {
+            if (on) {
+              const ok = await subscribeWebPush(settings.reminderHour)
+              if (!ok) {
+                if (typeof Notification !== 'undefined') {
+                  setNotifPermission(Notification.permission)
                 }
-                chunks.push(await exportCustomSessionsCsv())
-                const merged = mergeSessionCsvExports(chunks)
-                downloadCsv(`smartreps-export-${new Date().toISOString().slice(0, 10)}.csv`, merged)
-                showToast(pl.toastExportDone, 'success')
-              } catch {
-                showToast(pl.exportFailed, 'error')
+                showToast(pl.pushSubscribeFailed, 'error')
+                return
               }
-            }}
-          >
-            {pl.exportAllPrograms}
-          </Button>
-          <div className="mt-2 border-t border-[var(--sr-border-subtle)] pt-3">
-            <Button
-              variant="ghost"
-              size="md"
-              fullWidth
-              className="justify-start px-4 text-[var(--sr-error)] hover:text-[var(--sr-error)]"
-              onClick={() => setShowClearConfirm(true)}
-            >
-              {pl.clearLocalData}
-            </Button>
-            {isSupabaseConfigured && email && (
-              <Button
-                variant="ghost"
-                size="md"
-                fullWidth
-                className="justify-start px-4 text-[var(--sr-error)] hover:text-[var(--sr-error)]"
-                onClick={() => {
-                  setDeleteConfirmText('')
-                  setShowDeleteConfirm(true)
-                }}
-              >
-                {pl.deleteAccount}
-              </Button>
-            )}
-          </div>
-        </div>
-      </PageSection>
+              cancelReminder()
+              setSettings({ pushNotifications: true, workoutReminders: false })
+              track('reminder_toggle', { mode: 'push', on: true })
+              showToast(pl.toastPushEnabled, 'success')
+            } else {
+              await unsubscribeWebPush()
+              setSettings({ pushNotifications: false })
+              track('reminder_toggle', { mode: 'push', on: false })
+            }
+          })()
+        }}
+        onLocalRemindersChange={(on) => {
+          void (async () => {
+            if (on) {
+              if (typeof Notification !== 'undefined' && Notification.permission === 'denied') return
+              const granted = await requestWorkoutReminderPermission()
+              if (!granted) return
+              scheduleDailyReminder(settings.reminderHour, 0)
+            } else {
+              cancelReminder()
+            }
+            setSettings({ workoutReminders: on && Notification.permission === 'granted' })
+            track('reminder_toggle', { mode: 'in_app', on })
+          })()
+        }}
+        onReminderHourChange={(hour) => {
+          setSettings({ reminderHour: hour })
+          if (settings.pushNotifications) {
+            void updatePushReminderHour(hour)
+          } else if (settings.workoutReminders && Notification.permission === 'granted') {
+            scheduleDailyReminder(hour, 0)
+          }
+        }}
+      />
 
-      <PageSection title={pl.about}>
+      <ProfileDataSection
+        showDeleteAccount={isSupabaseConfigured && !!email}
+        onImport={() => setShowImportSheet(true)}
+        onExportJson={() => void exportJsonBackup()}
+        onExportCsv={() => void exportCsvBackup()}
+        onClearLocal={() => setShowClearConfirm(true)}
+        onDeleteAccount={() => {
+          setDeleteConfirmText('')
+          setShowDeleteConfirm(true)
+        }}
+      />
+
+      <PageSection title={pl.about} className={SECTION}>
         <div className="flex flex-col gap-2 text-sm">
           <Link to="/privacy" className="text-[var(--sr-brand-primary)]">
             {pl.privacyLink}
@@ -727,14 +532,48 @@ export default function ProfilePage() {
             {pl.termsLink}
           </Link>
         </div>
-        <p className="mt-4 text-sm leading-relaxed text-[var(--sr-text-secondary)]">{pl.healthDisclaimer}</p>
+        <p className="mt-4 text-sm leading-relaxed text-[var(--sr-text-secondary)]">
+          {pl.healthDisclaimer}
+        </p>
         <p className="mt-3 text-xs text-[var(--sr-text-muted)]">
-          <a href="https://100pompek.pl" className="text-[var(--sr-brand-primary)]" target="_blank" rel="noreferrer">100pompek.pl</a>
+          <a
+            href="https://100pompek.pl"
+            className="text-[var(--sr-brand-primary)]"
+            target="_blank"
+            rel="noreferrer"
+          >
+            100pompek.pl
+          </a>
           {' · '}
-          <a href="https://podciaganie.pl" className="text-[var(--sr-brand-primary)]" target="_blank" rel="noreferrer">podciaganie.pl</a>
+          <a
+            href="https://podciaganie.pl"
+            className="text-[var(--sr-brand-primary)]"
+            target="_blank"
+            rel="noreferrer"
+          >
+            podciaganie.pl
+          </a>
         </p>
         <p className="mt-4 text-xs text-[var(--sr-text-muted)]">{pl.appVersion(appVersion)}</p>
       </PageSection>
+
+      {customMenuPlan && (
+        <Sheet open onClose={() => setCustomMenuPlanId(null)} title={customMenuPlan.name} showClose>
+          <Button
+            variant="secondary"
+            size="md"
+            fullWidth
+            className="justify-start px-4"
+            onClick={() => {
+              const plan = customMenuPlan
+              setCustomMenuPlanId(null)
+              void toggleCustomPlanPause(plan.id, plan.paused)
+            }}
+          >
+            {customMenuPlan.paused ? pl.planResume : pl.planPause}
+          </Button>
+        </Sheet>
+      )}
 
       {pendingChangeLevel && (
         <ConfirmSheet
@@ -816,12 +655,7 @@ export default function ProfilePage() {
           >
             {deletingAccount ? pl.deleteAccountInProgress : pl.deleteAccountConfirm}
           </Button>
-          <Button
-            variant="ghost"
-            className="mt-2"
-            fullWidth
-            onClick={() => setShowDeleteConfirm(false)}
-          >
+          <Button variant="ghost" className="mt-2" fullWidth onClick={() => setShowDeleteConfirm(false)}>
             {pl.cancel}
           </Button>
         </Sheet>
