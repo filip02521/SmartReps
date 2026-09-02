@@ -15,7 +15,8 @@ Osoby trenujące pompki i/lub podciąganie w domu, które chcą **jasnego planu 
 
 - Cykle pompki + podciąganie, Strong-style workout, postępy, PWA, OTP login, sync Supabase
 - **Własne ćwiczenia i plany multi-exercise** (biblioteka, kreator, trening custom)
-- Honest reminders (przy otwartej app), później Web Push
+- Honest reminders (przy otwartej app) + Web Push (VAPID; godzina + dzień gdy trening dostępny po `nextWorkoutAfter`)
+- Własne plany: poniżej celu = dzień i tak zaliczony (miękka wzmianka na summary); Strong = fail → restart od dnia 1
 - Marka PL-first, privacy/terms
 
 ## Poza scope (na razie)

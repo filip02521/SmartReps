@@ -121,6 +121,7 @@ export async function unsubscribeWebPush(): Promise<void> {
 }
 
 export async function updatePushReminderHour(reminderHour: number): Promise<void> {
+  // Server cron still gates on next_workout_after (calendar day in this timezone).
   if (!isSupabaseConfigured || !isWebPushSupported()) return
   try {
     const registration = await navigator.serviceWorker.ready

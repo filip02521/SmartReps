@@ -25,6 +25,7 @@ import {
   customSessionTotalReps,
   customSessionTotalDurationSec,
   customSessionPassedSets,
+  customSessionHasBelowTarget,
 } from '@/lib/custom-session-comparison'
 
 function seed(session: LocalWorkoutSession) {
@@ -112,5 +113,6 @@ describe('getCustomSessionComparison', () => {
     expect(customSessionTotalReps(session)).toBe(15)
     expect(customSessionTotalDurationSec(session)).toBe(0)
     expect(customSessionPassedSets(session)).toEqual({ passed: 1, total: 2 })
+    expect(customSessionHasBelowTarget(session)).toBe(true)
   })
 })

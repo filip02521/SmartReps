@@ -18,7 +18,6 @@ import {
 import { metricTargetDisplayValue } from '@/lib/plan-resolver'
 import {
   abandonCustomWorkout,
-  appendFailedSetLog,
   createCustomSession,
   customSessionHasProgress,
   finalizeCustomDay,
@@ -27,6 +26,18 @@ import {
   reconcileActiveCustomWorkout,
   type PreviousCustomSetResult,
 } from '@/lib/custom-session-service'
+import {
+  canAddSetToExercise,
+  canRemoveSetFromExercise,
+  addSetToPlanExercise,
+  removeSetFromPlanExercise,
+  applyDayOverrideToPlan,
+  captureBaselineSetCounts,
+  captureBaselineRests,
+  baselineSetCountForExercise,
+  sessionDayIsDirty,
+  setRestBetweenSetsOnExercise,
+} from '@/lib/custom-plan-session-patch'
 import { getOrCreateCustomProgress, saveCustomPlan } from '@/lib/custom-plan-service'
 import {
   filterValidDayExercises,
@@ -99,6 +110,9 @@ export default function CustomWorkoutPage() {
 
   const store = useCustomWorkoutStore()
   const [plan, setPlan] = useState<CustomPlan | null>(null)
+  const planRef = useRef<CustomPlan | null>(null)
+  /** Saved plan without session-only day overrides — used for progression / restAfterDay. */
+  const basePlanRef = useRef<CustomPlan | null>(null)
   const [exercises, setExercises] = useState<Map<string, ExerciseDefinition>>(new Map())
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -132,6 +146,9 @@ export default function CustomWorkoutPage() {
   const timerRef = useRef<number | null>(null)
   const sessionRef = useRef<Awaited<ReturnType<typeof createCustomSession>> | null>(null)
   const finishingRef = useRef(false)
+  const sessionPlanDirtyRef = useRef(false)
+  const [baselineSets, setBaselineSets] = useState<Record<string, number>>({})
+  const [baselineRests, setBaselineRests] = useState<Record<string, number>>({})
   const initGenerationRef = useRef(0)
   const sessionEpochRef = useRef(0)
   const staleConfirmedRef = useRef(false)
@@ -142,6 +159,15 @@ export default function CustomWorkoutPage() {
     if (!plan) return null
     return plan.days.find((d) => d.dayNumber === store.dayNumber) ?? plan.days[0] ?? null
   }, [plan, store.dayNumber])
+
+  useEffect(() => {
+    planRef.current = plan
+  }, [plan])
+
+  const setPlanLive = useCallback((next: CustomPlan | null) => {
+    planRef.current = next
+    setPlan(next)
+  }, [])
 
   const planned = day?.exercises[store.currentExerciseIndex]
   const exDef = planned ? exercises.get(planned.exerciseId) : undefined
@@ -231,6 +257,10 @@ export default function CustomWorkoutPage() {
       if (generation !== initGenerationRef.current) return
 
       sessionRef.current = session
+      sessionPlanDirtyRef.current = false
+      basePlanRef.current = p
+      setBaselineSets(captureBaselineSetCounts(dayPlan))
+      setBaselineRests(captureBaselineRests(dayPlan))
       const initialLogs = dayPlan.exercises.map((e) => ({
         exerciseId: e.exerciseId,
         order: e.order,
@@ -244,7 +274,7 @@ export default function CustomWorkoutPage() {
         exerciseCount: dayPlan.exercises.length,
       })
       useCustomWorkoutStore.setState({ exerciseLogs: initialLogs })
-      setPlan(p)
+      setPlanLive(p)
       setLoadError(null)
       setLoadErrorKind(null)
       if (!hasSeenWorkoutHint) {
@@ -253,7 +283,7 @@ export default function CustomWorkoutPage() {
       }
       setLoading(false)
     },
-    [planId, hasSeenWorkoutHint, setSettings],
+    [planId, hasSeenWorkoutHint, setSettings, setPlanLive],
   )
 
   const initWorkout = useCallback(
@@ -288,7 +318,7 @@ export default function CustomWorkoutPage() {
 
       if (progress.status === 'paused' && !forceStart && !hasResume) {
         setLoadError(pl.errorProgramPaused)
-        setPlan(p)
+        setPlanLive(p)
         setLoading(false)
         return
       }
@@ -300,7 +330,7 @@ export default function CustomWorkoutPage() {
             daysUntilWorkout(new Date(progress.nextWorkoutAfter)),
           )
           setRestBlocked(true)
-          setPlan(p)
+          setPlanLive(p)
           setLoading(false)
           return
         }
@@ -325,14 +355,33 @@ export default function CustomWorkoutPage() {
                 active.currentExerciseIndex,
               ),
             })
-            setPlan(p)
+            setPlanLive(p)
             setShowStaleConfirm(true)
             setLoading(false)
             return
           }
 
-          const resumeDay =
+          const resumeDayBase =
             p.days.find((d) => d.dayNumber === session.dayNumber) ?? p.days[0]
+          if (!resumeDayBase) {
+            navigate('/plans?tab=mine', { replace: true })
+            return
+          }
+          let planForResume = p
+          // Baseline from saved plan (before session override).
+          basePlanRef.current = p
+          setBaselineSets(captureBaselineSetCounts(resumeDayBase))
+          setBaselineRests(captureBaselineRests(resumeDayBase))
+          if (active.dayOverrideJson) {
+            const patched = applyDayOverrideToPlan(p, active.dayOverrideJson)
+            if (patched) {
+              planForResume = patched
+              sessionPlanDirtyRef.current = true
+            }
+          }
+          const resumeDay =
+            planForResume.days.find((d) => d.dayNumber === session.dayNumber) ??
+            planForResume.days[0]
           if (!resumeDay) {
             navigate('/plans?tab=mine', { replace: true })
             return
@@ -343,7 +392,7 @@ export default function CustomWorkoutPage() {
             setLoadErrorKind('missing_exercise')
             setLoadErrorDayNumber(session.dayNumber)
             setMissingExerciseId(missingOnResume.exerciseId)
-            setPlan(p)
+            setPlanLive(p)
             setLoading(false)
             return
           }
@@ -367,7 +416,7 @@ export default function CustomWorkoutPage() {
             amrapEndAt: active.amrapEndAt ?? null,
             amrapGroupId: active.amrapGroupId ?? null,
           })
-          setPlan(p)
+          setPlanLive(planForResume)
           if (!hasSeenWorkoutHint) {
             setShowHint(true)
             setSettings({ hasSeenWorkoutHint: true })
@@ -387,7 +436,7 @@ export default function CustomWorkoutPage() {
         setLoadError(pl.customWorkoutMissingDay)
         setLoadErrorKind('empty_day')
         setLoadErrorDayNumber(dayNumber)
-        setPlan(p)
+        setPlanLive(p)
         setLoading(false)
         return
       }
@@ -397,7 +446,7 @@ export default function CustomWorkoutPage() {
         setLoadErrorKind('missing_exercise')
         setLoadErrorDayNumber(dayNumber)
         setMissingExerciseId(missing.exerciseId)
-        setPlan(p)
+        setPlanLive(p)
         setLoading(false)
         return
       }
@@ -406,7 +455,7 @@ export default function CustomWorkoutPage() {
         progress.status === 'cycle_complete' ? progress.cycleAttempt + 1 : progress.cycleAttempt
       await startNewSession(p, dayPlan, dayNumber, cycleAttempt, generation)
     },
-    [planId, forceStart, navigate, hasSeenWorkoutHint, setSettings, startNewSession],
+    [planId, forceStart, navigate, hasSeenWorkoutHint, setSettings, startNewSession, setPlanLive],
   )
 
   const handleSkipMissingExercise = useCallback(async () => {
@@ -452,7 +501,7 @@ export default function CustomWorkoutPage() {
           replacement.id,
         )
         const saved = await saveCustomPlan(patched, { skipValidation: true })
-        setPlan(saved)
+        setPlanLive(saved)
         setExercises((prev) => {
           const next = new Map(prev)
           next.set(replacement.id, replacement)
@@ -469,7 +518,7 @@ export default function CustomWorkoutPage() {
         setLoadError(pl.errorCrash)
       }
     },
-    [planId, plan, loadErrorDayNumber, missingExerciseId, initWorkout],
+    [planId, plan, loadErrorDayNumber, missingExerciseId, initWorkout, setPlanLive],
   )
 
   useEffect(() => {
@@ -641,39 +690,159 @@ export default function CustomWorkoutPage() {
     isResting,
   ])
 
-  async function finalizeFailedDay(result: SetLog) {
-    if (!plan || !sessionRef.current || !planned || finishingRef.current) return
-    finishingRef.current = true
+  /** Log set (hit or below target) and continue — custom never aborts the day on underperformance. */
+  async function acceptSetAndContinue(result: SetLog) {
+    const livePlan = planRef.current ?? plan
+    if (!livePlan || !sessionRef.current) return
+    const liveDay =
+      livePlan.days.find((d) => d.dayNumber === store.dayNumber) ?? livePlan.days[0]
+    const livePlanned = liveDay?.exercises[store.currentExerciseIndex]
+    if (!liveDay || !livePlanned) return
+
+    setFailedIndex(undefined)
+    if (result.passed) {
+      setPulseFlash(true)
+      window.setTimeout(() => setPulseFlash(false), 450)
+    }
+
+    const nav = getNextWorkoutPosition(
+      liveDay,
+      store.currentExerciseIndex,
+      store.currentSetIndex,
+      store.amrapEndAt,
+    )
+    const beforeComplete = useCustomWorkoutStore.getState()
+    store.completeSet(livePlanned.exerciseId, livePlanned.order, result, nav.next ?? undefined)
+
+    if (nav.restSec > 0) {
+      store.setRestTimer(createRestTimer(nav.restSec, 'expanded'))
+    }
+
+    let latest = useCustomWorkoutStore.getState()
+    const inAmrap = Boolean(latest.amrapGroupId)
+    const landedIncomplete = isExerciseIncomplete(
+      liveDay,
+      latest.exerciseLogs,
+      latest.currentExerciseIndex,
+      { amrapActiveGroupId: latest.amrapGroupId },
+    )
+
+    // After out-of-order jumps, linear dayComplete / next can land on a finished
+    // exercise or end the day while earlier work remains — redirect first.
+    if (!inAmrap && (nav.dayComplete || !nav.next || !landedIncomplete)) {
+      const incomplete = findNextIncompletePosition(liveDay, latest.exerciseLogs)
+      if (incomplete) {
+        if (
+          incomplete.exerciseIndex !== latest.currentExerciseIndex ||
+          incomplete.setIndex !== latest.currentSetIndex
+        ) {
+          store.setPointers(incomplete.exerciseIndex, incomplete.setIndex)
+          latest = useCustomWorkoutStore.getState()
+        }
+      } else if (nav.dayComplete || !nav.next) {
+        try {
+          await persistCustomActive(sessionRef.current, {
+            currentExerciseIndex: latest.currentExerciseIndex,
+            currentSetIndex: latest.currentSetIndex,
+            exerciseLogs: latest.exerciseLogs,
+            restTimerJson: latest.restTimer ? JSON.stringify(latest.restTimer) : null,
+            amrapEndAt: latest.amrapEndAt,
+            amrapGroupId: latest.amrapGroupId,
+          })
+        } catch {
+          useCustomWorkoutStore.setState({
+            exerciseLogs: beforeComplete.exerciseLogs,
+            currentExerciseIndex: beforeComplete.currentExerciseIndex,
+            currentSetIndex: beforeComplete.currentSetIndex,
+            restTimer: beforeComplete.restTimer,
+            amrapEndAt: beforeComplete.amrapEndAt,
+            amrapGroupId: beforeComplete.amrapGroupId,
+            failedRetryUsed: beforeComplete.failedRetryUsed,
+          })
+          setSaveError(pl.errorSaveSet)
+          return
+        }
+        await finalizeCustomDay({
+          session: sessionRef.current,
+          plan: basePlanRef.current ?? livePlan,
+          exerciseLogs: latest.exerciseLogs,
+          sessionDayPatchJson: sessionDayPatchJsonNow(),
+        })
+        const doneSessionId = sessionRef.current.id
+        sessionRef.current = null
+        store.reset()
+        navigate(`/workout/custom/${livePlan.id}/summary?session=${doneSessionId}`, {
+          replace: true,
+        })
+        return
+      }
+    } else if (inAmrap && (nav.dayComplete || !nav.next)) {
+      const incomplete = findNextIncompletePosition(liveDay, latest.exerciseLogs)
+      if (!incomplete) {
+        try {
+          await persistCustomActive(sessionRef.current, {
+            currentExerciseIndex: latest.currentExerciseIndex,
+            currentSetIndex: latest.currentSetIndex,
+            exerciseLogs: latest.exerciseLogs,
+            restTimerJson: latest.restTimer ? JSON.stringify(latest.restTimer) : null,
+            amrapEndAt: latest.amrapEndAt,
+            amrapGroupId: latest.amrapGroupId,
+          })
+        } catch {
+          useCustomWorkoutStore.setState({
+            exerciseLogs: beforeComplete.exerciseLogs,
+            currentExerciseIndex: beforeComplete.currentExerciseIndex,
+            currentSetIndex: beforeComplete.currentSetIndex,
+            restTimer: beforeComplete.restTimer,
+            amrapEndAt: beforeComplete.amrapEndAt,
+            amrapGroupId: beforeComplete.amrapGroupId,
+            failedRetryUsed: beforeComplete.failedRetryUsed,
+          })
+          setSaveError(pl.errorSaveSet)
+          return
+        }
+        await finalizeCustomDay({
+          session: sessionRef.current,
+          plan: basePlanRef.current ?? livePlan,
+          exerciseLogs: latest.exerciseLogs,
+          sessionDayPatchJson: sessionDayPatchJsonNow(),
+        })
+        const doneSessionId = sessionRef.current.id
+        sessionRef.current = null
+        store.reset()
+        navigate(`/workout/custom/${livePlan.id}/summary?session=${doneSessionId}`, {
+          replace: true,
+        })
+        return
+      }
+      store.setPointers(incomplete.exerciseIndex, incomplete.setIndex)
+      latest = useCustomWorkoutStore.getState()
+    }
+
     try {
-      const latest = useCustomWorkoutStore.getState()
-      const logs = appendFailedSetLog(
-        latest.exerciseLogs,
-        latest.currentExerciseIndex,
-        planned.exerciseId,
-        planned.order,
-        result,
-      )
-      useCustomWorkoutStore.setState({ exerciseLogs: logs })
       await persistCustomActive(sessionRef.current, {
         currentExerciseIndex: latest.currentExerciseIndex,
         currentSetIndex: latest.currentSetIndex,
-        exerciseLogs: logs,
-        restTimerJson: null,
-      })
-      await finalizeCustomDay({
-        session: sessionRef.current,
-        plan,
-        exerciseLogs: logs,
-        passed: false,
-      })
-      store.reset()
-      navigate(`/workout/custom/${plan.id}/summary?failed=1&session=${sessionRef.current.id}`, {
-        replace: true,
+        exerciseLogs: latest.exerciseLogs,
+        restTimerJson: latest.restTimer ? JSON.stringify(latest.restTimer) : null,
+        amrapEndAt: latest.amrapEndAt,
+        amrapGroupId: latest.amrapGroupId,
       })
     } catch {
-      setSaveError(pl.errorFinishDay)
-      finishingRef.current = false
+      useCustomWorkoutStore.setState({
+        exerciseLogs: beforeComplete.exerciseLogs,
+        currentExerciseIndex: beforeComplete.currentExerciseIndex,
+        currentSetIndex: beforeComplete.currentSetIndex,
+        restTimer: beforeComplete.restTimer,
+        amrapEndAt: beforeComplete.amrapEndAt,
+        amrapGroupId: beforeComplete.amrapGroupId,
+        failedRetryUsed: beforeComplete.failedRetryUsed,
+      })
+      setSaveError(pl.errorSaveSet)
+      return
     }
+
+    scrollChecklistToActive()
   }
 
   async function handleDone() {
@@ -723,146 +892,13 @@ export default function CustomWorkoutPage() {
           finishingRef.current = false
           return
         }
-        await finalizeFailedDay(result)
+        // Second confirm: keep below-target set and continue the day.
+        await acceptSetAndContinue(result)
         return
       }
 
       onSetCompleteFeedback({ sound: timerSound, vibration: timerVibration })
-      setFailedIndex(undefined)
-      setPulseFlash(true)
-      window.setTimeout(() => setPulseFlash(false), 450)
-
-      const nav = getNextWorkoutPosition(
-        day,
-        store.currentExerciseIndex,
-        store.currentSetIndex,
-        store.amrapEndAt,
-      )
-      const beforeComplete = useCustomWorkoutStore.getState()
-      store.completeSet(planned.exerciseId, planned.order, result, nav.next ?? undefined)
-
-      if (nav.restSec > 0) {
-        store.setRestTimer(createRestTimer(nav.restSec, 'expanded'))
-      }
-
-      let latest = useCustomWorkoutStore.getState()
-      const inAmrap = Boolean(latest.amrapGroupId)
-      const landedIncomplete = isExerciseIncomplete(day, latest.exerciseLogs, latest.currentExerciseIndex, {
-        amrapActiveGroupId: latest.amrapGroupId,
-      })
-
-      // After out-of-order jumps, linear dayComplete / next can land on a finished
-      // exercise or end the day while earlier work remains — redirect first.
-      if (!inAmrap && (nav.dayComplete || !nav.next || !landedIncomplete)) {
-        const incomplete = findNextIncompletePosition(day, latest.exerciseLogs)
-        if (incomplete) {
-          if (
-            incomplete.exerciseIndex !== latest.currentExerciseIndex ||
-            incomplete.setIndex !== latest.currentSetIndex
-          ) {
-            store.setPointers(incomplete.exerciseIndex, incomplete.setIndex)
-            latest = useCustomWorkoutStore.getState()
-          }
-        } else if (nav.dayComplete || !nav.next) {
-          try {
-            await persistCustomActive(sessionRef.current, {
-              currentExerciseIndex: latest.currentExerciseIndex,
-              currentSetIndex: latest.currentSetIndex,
-              exerciseLogs: latest.exerciseLogs,
-              restTimerJson: latest.restTimer ? JSON.stringify(latest.restTimer) : null,
-              amrapEndAt: latest.amrapEndAt,
-              amrapGroupId: latest.amrapGroupId,
-            })
-          } catch {
-            useCustomWorkoutStore.setState({
-              exerciseLogs: beforeComplete.exerciseLogs,
-              currentExerciseIndex: beforeComplete.currentExerciseIndex,
-              currentSetIndex: beforeComplete.currentSetIndex,
-              restTimer: beforeComplete.restTimer,
-              amrapEndAt: beforeComplete.amrapEndAt,
-              amrapGroupId: beforeComplete.amrapGroupId,
-              failedRetryUsed: beforeComplete.failedRetryUsed,
-            })
-            setSaveError(pl.errorSaveSet)
-            return
-          }
-          await finalizeCustomDay({
-            session: sessionRef.current,
-            plan,
-            exerciseLogs: latest.exerciseLogs,
-            passed: true,
-          })
-          store.reset()
-          navigate(`/workout/custom/${plan.id}/summary?session=${sessionRef.current.id}`, {
-            replace: true,
-          })
-          return
-        }
-      } else if (inAmrap && (nav.dayComplete || !nav.next)) {
-        const incomplete = findNextIncompletePosition(day, latest.exerciseLogs)
-        if (!incomplete) {
-          try {
-            await persistCustomActive(sessionRef.current, {
-              currentExerciseIndex: latest.currentExerciseIndex,
-              currentSetIndex: latest.currentSetIndex,
-              exerciseLogs: latest.exerciseLogs,
-              restTimerJson: latest.restTimer ? JSON.stringify(latest.restTimer) : null,
-              amrapEndAt: latest.amrapEndAt,
-              amrapGroupId: latest.amrapGroupId,
-            })
-          } catch {
-            useCustomWorkoutStore.setState({
-              exerciseLogs: beforeComplete.exerciseLogs,
-              currentExerciseIndex: beforeComplete.currentExerciseIndex,
-              currentSetIndex: beforeComplete.currentSetIndex,
-              restTimer: beforeComplete.restTimer,
-              amrapEndAt: beforeComplete.amrapEndAt,
-              amrapGroupId: beforeComplete.amrapGroupId,
-              failedRetryUsed: beforeComplete.failedRetryUsed,
-            })
-            setSaveError(pl.errorSaveSet)
-            return
-          }
-          await finalizeCustomDay({
-            session: sessionRef.current,
-            plan,
-            exerciseLogs: latest.exerciseLogs,
-            passed: true,
-          })
-          store.reset()
-          navigate(`/workout/custom/${plan.id}/summary?session=${sessionRef.current.id}`, {
-            replace: true,
-          })
-          return
-        }
-        store.setPointers(incomplete.exerciseIndex, incomplete.setIndex)
-        latest = useCustomWorkoutStore.getState()
-      }
-
-      try {
-        await persistCustomActive(sessionRef.current, {
-          currentExerciseIndex: latest.currentExerciseIndex,
-          currentSetIndex: latest.currentSetIndex,
-          exerciseLogs: latest.exerciseLogs,
-          restTimerJson: latest.restTimer ? JSON.stringify(latest.restTimer) : null,
-          amrapEndAt: latest.amrapEndAt,
-          amrapGroupId: latest.amrapGroupId,
-        })
-      } catch {
-        useCustomWorkoutStore.setState({
-          exerciseLogs: beforeComplete.exerciseLogs,
-          currentExerciseIndex: beforeComplete.currentExerciseIndex,
-          currentSetIndex: beforeComplete.currentSetIndex,
-          restTimer: beforeComplete.restTimer,
-          amrapEndAt: beforeComplete.amrapEndAt,
-          amrapGroupId: beforeComplete.amrapGroupId,
-          failedRetryUsed: beforeComplete.failedRetryUsed,
-        })
-        setSaveError(pl.errorSaveSet)
-        return
-      }
-
-      scrollChecklistToActive()
+      await acceptSetAndContinue(result)
     } catch {
       setSaveError(pl.errorSaveSet)
     } finally {
@@ -870,7 +906,7 @@ export default function CustomWorkoutPage() {
     }
   }
 
-  function buildCurrentFailResult(): SetLog | null {
+  function buildCurrentBelowTargetResult(): SetLog | null {
     if (!planned || !prescription || !exDef) return null
     const actual: SetActual =
       exDef.primaryMetric === 'duration_sec'
@@ -890,6 +926,147 @@ export default function CustomWorkoutPage() {
       passed: false,
       prescription,
     }
+  }
+
+  function persistDayOverride(
+    overrideDay: import('@/lib/exercise-model').PlanDay,
+    restTimerJsonOverride?: string | null,
+  ) {
+    if (finishingRef.current || !sessionRef.current) return
+    const dirty = sessionDayIsDirty(overrideDay, baselineSets, baselineRests)
+    const after = useCustomWorkoutStore.getState()
+    const restTimerJson =
+      restTimerJsonOverride !== undefined
+        ? restTimerJsonOverride
+        : after.restTimer
+          ? JSON.stringify(after.restTimer)
+          : null
+    void persistCustomActive(sessionRef.current, {
+      currentExerciseIndex: after.currentExerciseIndex,
+      currentSetIndex: after.currentSetIndex,
+      exerciseLogs: after.exerciseLogs,
+      restTimerJson,
+      amrapEndAt: after.amrapEndAt,
+      amrapGroupId: after.amrapGroupId,
+      dayOverrideJson: dirty ? JSON.stringify(overrideDay) : null,
+    }).catch(() => {
+      setSaveError(pl.errorSaveSet)
+    })
+    sessionPlanDirtyRef.current = dirty
+  }
+
+  function sessionDayPatchJsonNow(): string | undefined {
+    if (!sessionPlanDirtyRef.current) return undefined
+    const livePlan = planRef.current
+    if (!livePlan) return undefined
+    const dayNumber = useCustomWorkoutStore.getState().dayNumber
+    const liveDay =
+      livePlan.days.find((d) => d.dayNumber === dayNumber) ?? livePlan.days[0]
+    return liveDay ? JSON.stringify(liveDay) : undefined
+  }
+
+  function handleRestChange(sec: number) {
+    if (finishingRef.current) return
+    const livePlan = planRef.current ?? plan
+    const liveDay =
+      livePlan?.days.find((d) => d.dayNumber === store.dayNumber) ?? livePlan?.days[0]
+    if (!livePlan || !liveDay) return
+    const exerciseIndex = store.currentExerciseIndex
+    const next = setRestBetweenSetsOnExercise(livePlan, liveDay.dayNumber, exerciseIndex, sec)
+    if (!next) return
+    setPlanLive(next)
+    const overrideDay = next.days.find((d) => d.dayNumber === liveDay.dayNumber)
+    if (!overrideDay) return
+
+    let restTimerJsonOverride: string | null | undefined
+    const rt = useCustomWorkoutStore.getState().restTimer
+    if (rt && rt.mode !== 'idle' && rt.startedAt) {
+      const elapsed = Math.max(0, Math.floor((Date.now() - rt.startedAt) / 1000))
+      const nextTimer = {
+        ...rt,
+        totalSec: Math.max(0, Math.floor(sec)),
+        remainingSec: Math.max(0, Math.floor(sec) - elapsed),
+      }
+      store.setRestTimer(nextTimer)
+      restTimerJsonOverride = JSON.stringify(nextTimer)
+    }
+    persistDayOverride(overrideDay, restTimerJsonOverride)
+  }
+
+  function handleAddSet() {
+    if (finishingRef.current) return
+    const livePlan = planRef.current ?? plan
+    const liveDay =
+      livePlan?.days.find((d) => d.dayNumber === store.dayNumber) ?? livePlan?.days[0]
+    if (!livePlan || !liveDay) return
+    if (restTimer && restTimer.mode !== 'idle') return
+    const exerciseIndex = store.currentExerciseIndex
+    const next = addSetToPlanExercise(livePlan, liveDay.dayNumber, exerciseIndex)
+    if (!next) return
+    setPlanLive(next)
+    const overrideDay = next.days.find((d) => d.dayNumber === liveDay.dayNumber)
+    if (!overrideDay) return
+    const latest = useCustomWorkoutStore.getState()
+    const logged = latest.exerciseLogs[exerciseIndex]?.sets.length ?? 0
+    const newLen = overrideDay.exercises[exerciseIndex]?.sets.length ?? 0
+    // If prior slots are already logged, focus the new empty set.
+    if (newLen > 0 && logged >= newLen - 1) {
+      store.setPointers(exerciseIndex, newLen - 1)
+    }
+    persistDayOverride(overrideDay)
+    window.setTimeout(() => scrollChecklistToActive(), 50)
+  }
+
+  function handleRemoveSet() {
+    if (finishingRef.current) return
+    const livePlan = planRef.current ?? plan
+    const liveDay =
+      livePlan?.days.find((d) => d.dayNumber === store.dayNumber) ?? livePlan?.days[0]
+    if (!livePlan || !liveDay) return
+    if (restTimer && restTimer.mode !== 'idle') return
+    const exerciseIndex = store.currentExerciseIndex
+    const plannedEx = liveDay.exercises[exerciseIndex]
+    if (!plannedEx) return
+    const baseline = baselineSetCountForExercise(
+      baselineSets,
+      plannedEx.exerciseId,
+      plannedEx.sets.length,
+    )
+    let logged = useCustomWorkoutStore.getState().exerciseLogs[exerciseIndex]?.sets.length ?? 0
+    if (!canRemoveSetFromExercise(liveDay, exerciseIndex, baseline, logged)) return
+
+    // Logged trailing extra → undo result, then drop the slot.
+    if (logged === plannedEx.sets.length && plannedEx.sets.length > baseline) {
+      const removed = store.undoLastSet()
+      if (!removed) return
+      setFailedIndex(undefined)
+      if (exDef?.primaryMetric === 'duration_sec') {
+        setActualSec(removed.actual.durationSec ?? 0)
+      } else {
+        setActualReps(removed.actual.reps ?? 0)
+        if (removed.actual.weightKg != null) setWeightKg(removed.actual.weightKg)
+      }
+      logged = useCustomWorkoutStore.getState().exerciseLogs[exerciseIndex]?.sets.length ?? 0
+    }
+
+    const next = removeSetFromPlanExercise(
+      livePlan,
+      liveDay.dayNumber,
+      exerciseIndex,
+      baseline,
+      logged,
+    )
+    if (!next) return
+    setPlanLive(next)
+    setFailedIndex(undefined)
+    const overrideDay = next.days.find((d) => d.dayNumber === liveDay.dayNumber)
+    if (!overrideDay) return
+    const newLen = overrideDay.exercises[exerciseIndex]?.sets.length ?? 0
+    const latest = useCustomWorkoutStore.getState()
+    if (latest.currentExerciseIndex === exerciseIndex && latest.currentSetIndex >= newLen) {
+      store.setPointers(exerciseIndex, Math.max(0, newLen - 1))
+    }
+    persistDayOverride(overrideDay)
   }
 
   async function confirmLeave() {
@@ -1140,6 +1317,32 @@ export default function CustomWorkoutPage() {
     )
   const failedRetryVisible = failedIndex === store.currentSetIndex
   const activeGroup = day && planned ? getGroupForExercise(day, store.currentExerciseIndex) : null
+  const canAddSet =
+    day != null &&
+    canAddSetToExercise(day, store.currentExerciseIndex) &&
+    !(restTimer && restTimer.mode !== 'idle') &&
+    !failedRetryVisible
+  const currentBaseline =
+    planned != null
+      ? baselineSetCountForExercise(baselineSets, planned.exerciseId, planned.sets.length)
+      : 0
+  const canRemoveSet =
+    day != null &&
+    !activeGroup &&
+    canRemoveSetFromExercise(
+      day,
+      store.currentExerciseIndex,
+      currentBaseline,
+      setResults.length,
+    ) &&
+    !(restTimer && restTimer.mode !== 'idle') &&
+    !failedRetryVisible
+  const showSetAdjust =
+    day != null &&
+    !activeGroup &&
+    !(restTimer && restTimer.mode !== 'idle') &&
+    !failedRetryVisible
+  const showRestAdjust = day != null && !activeGroup && !failedRetryVisible
 
   return (
     <>
@@ -1221,8 +1424,19 @@ export default function CustomWorkoutPage() {
         onRetry={() => setFailedIndex(undefined)}
         onFinishDayEarly={() => {
           if (finishingRef.current) return
-          const failResult = buildCurrentFailResult()
-          if (failResult) void finalizeFailedDay(failResult)
+          const below = buildCurrentBelowTargetResult()
+          if (!below) return
+          finishingRef.current = true
+          void (async () => {
+            try {
+              onSetFailedFeedback({ sound: timerSound, vibration: timerVibration })
+              await acceptSetAndContinue(below)
+            } catch {
+              setSaveError(pl.errorSaveSet)
+            } finally {
+              finishingRef.current = false
+            }
+          })()
         }}
         onExpandTimer={() => {
           if (restTimer) mutateRestTimer({ ...restTimer, mode: 'expanded' })
@@ -1245,6 +1459,14 @@ export default function CustomWorkoutPage() {
           if (def) setDetailExercise(def)
         }}
         onJumpToExercise={handleJumpToExercise}
+        canAddSet={canAddSet}
+        canRemoveSet={canRemoveSet}
+        showSetAdjust={showSetAdjust}
+        baselineSetCount={currentBaseline}
+        onAddSet={handleAddSet}
+        onRemoveSet={handleRemoveSet}
+        showRestAdjust={showRestAdjust}
+        onRestChange={handleRestChange}
       />
       <ExerciseDetailSheet
         open={detailExercise != null}

@@ -140,18 +140,36 @@ type DueWorkout =
       nextWorkoutAfter: string | null
     }
 
-function isWorkoutDue(status: string, nextWorkoutAfter: string | null, now: Date): boolean {
+/**
+ * Align with client `isWorkoutAvailable`: due when local calendar day
+ * (user timezone) is on/after the local calendar day of next_workout_after.
+ * Fire time remains reminder_hour — this only gates the day.
+ */
+function isWorkoutDue(
+  status: string,
+  nextWorkoutAfter: string | null,
+  now: Date,
+  timeZone: string,
+): boolean {
   if (status === 'paused' || status === 'cycle_failed' || status === 'test_pending') {
     return false
   }
   if (status === 'cycle_complete') return false
   if (status !== 'active' && status !== 'rest') return false
   if (!nextWorkoutAfter) return true
-  return new Date(nextWorkoutAfter).getTime() <= now.getTime()
+  const todayYmd = localDateInTz(now, timeZone)
+  const dueYmd = localDateInTz(new Date(nextWorkoutAfter), timeZone)
+  return todayYmd >= dueYmd
 }
 
-function pickDueWorkout(candidates: DueWorkout[], now: Date): DueWorkout | null {
-  const due = candidates.filter((c) => isWorkoutDue(c.status, c.nextWorkoutAfter, now))
+function pickDueWorkout(
+  candidates: DueWorkout[],
+  now: Date,
+  timeZone: string,
+): DueWorkout | null {
+  const due = candidates.filter((c) =>
+    isWorkoutDue(c.status, c.nextWorkoutAfter, now, timeZone),
+  )
   if (!due.length) return null
   due.sort((a, b) => {
     if (!a.nextWorkoutAfter && !b.nextWorkoutAfter) return 0
@@ -298,55 +316,54 @@ Deno.serve(async (req) => {
         })),
     ]
 
-    const chosen = pickDueWorkout(candidates, now)
+    const chosen = pickDueWorkout(candidates, now, tz)
 
-    if (candidates.length > 0 && !chosen) {
+    // Only remind when a workout is due (next_workout_after calendar day + status).
+    if (!chosen) {
       skipped += 1
       continue
     }
 
-    if (chosen) {
-      const dayStart = localDayStartInTz(now, tz)
-      const dayEnd = localDayEndInTz(now, tz)
-      let todaySessionsQuery = supabase
-        .from('workout_sessions')
-        .select('id, passed, status, started_at')
-        .eq('user_id', userId)
-        .eq('status', 'completed')
-        .gte('started_at', dayStart.toISOString())
-        .lt('started_at', dayEnd.toISOString())
+    const dayStart = localDayStartInTz(now, tz)
+    const dayEnd = localDayEndInTz(now, tz)
+    let todaySessionsQuery = supabase
+      .from('workout_sessions')
+      .select('id, passed, status, started_at')
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+      .gte('started_at', dayStart.toISOString())
+      .lt('started_at', dayEnd.toISOString())
 
-      if (chosen.kind === 'builtin') {
-        todaySessionsQuery = todaySessionsQuery.eq('program', chosen.program)
-      } else {
-        todaySessionsQuery = todaySessionsQuery
-          .eq('program', 'custom')
-          .eq('custom_plan_id', chosen.customPlanId)
-      }
+    if (chosen.kind === 'builtin') {
+      todaySessionsQuery = todaySessionsQuery.eq('program', chosen.program)
+    } else {
+      todaySessionsQuery = todaySessionsQuery
+        .eq('program', 'custom')
+        .eq('custom_plan_id', chosen.customPlanId)
+    }
 
-      const { data: todaySessions } = await todaySessionsQuery
+    const { data: todaySessions } = await todaySessionsQuery
 
-      const alreadyTrained = (todaySessions ?? []).some((s) => s.passed === true)
-      if (alreadyTrained) {
-        skipped += 1
-        continue
-      }
+    const alreadyTrained = (todaySessions ?? []).some((s) => s.passed === true)
+    if (alreadyTrained) {
+      skipped += 1
+      continue
     }
 
     let title = 'SmartReps'
-    let body = 'Czas na trening — sprawdź swój plan na dziś.'
+    let body = 'Trening jest dostępny — czas trenować.'
     let url = '/'
     let program: string | null = null
 
-    if (chosen?.kind === 'builtin') {
+    if (chosen.kind === 'builtin') {
       const label = PROGRAM_LABELS[chosen.program] ?? chosen.program
       title = `SmartReps — ${label}`
-      body = `Dzień ${chosen.currentDay}: sprawdź plan na dziś.`
+      body = `Dzień ${chosen.currentDay} jest dostępny — czas trenować.`
       url = `/?program=${chosen.program}`
       program = chosen.program
-    } else if (chosen?.kind === 'custom') {
+    } else {
       title = `SmartReps — ${chosen.planName}`
-      body = `Dzień ${chosen.currentDay}: sprawdź plan na dziś.`
+      body = `Dzień ${chosen.currentDay} jest dostępny — czas trenować.`
       url = `/workout/custom/${chosen.customPlanId}`
       program = 'custom'
     }

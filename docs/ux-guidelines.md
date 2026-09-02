@@ -72,8 +72,8 @@ Bez auto Max Test; drugi program nie w setupQueue.
 [Status dnia — headline + opcjonalny subtitle]
 [Attention: InstallCoach XOR HomeTip]
 [Zacznij trening]
+  — CustomPlanHomeCard(s) LUB empty: Stwórz plan + Biblioteka (nad Strong)
   — ProgramHomeCard(s) z pełnym lifecycle (unconfigured: badge + soft hint + CTA)
-  — CustomPlanHomeCard(s) LUB empty: Stwórz plan + Biblioteka
   — custom-only ([] builtins): Empty „Twój trening…” + Stwórz plan / Włącz Strong
 [Twoja aktywność — MetricStrip + trend „wcześniej”]
 [Tab bar: Trening · Postępy · Plany · Profil]
@@ -82,12 +82,14 @@ Bez auto Max Test; drugi program nie w setupQueue.
 ## Wireframe — Postępy
 
 ```
-[PageHeader: streak LUB N sesji]
+[PageHeader: N sesji w programie]
 [program compact — jeśli 2+][tabs: Przegląd · Historia · Cykl · Własne?]
 URL: ?tab=overview|history|cycle|custom ; ?view=exercises|plan|history ; ?program=
 ?tab=records → overview + #progress-records (replace)
 [ProgressSection — flow, bez cieni Card]
-  Przegląd: MetricStrip (test max · dzień X/Y · sesje) + last-set trend + LineChart + heatmap summary + Rekordy (bez hero test)
+  Przegląd: MetricStrip (treningi 14d · streak · powt. 14d) + trend „wcześniej”
+    + NestedStat (test max · dzień X/Y · sesje) + last-set trend
+    + LineChart + heatmap 12 tyg. (Pn–Nd, bez drugiej mapy) + Rekordy
   Historia: filtry + lista + Sheet → „Pełne podsumowanie”
   Cykl: CycleDayPicker + BarChart max-set + CTA highlight plan
   Własne: Ćwiczenia | Plan | Historia (compact); tab tylko przy planach/sesjach custom
@@ -113,7 +115,7 @@ Query: ?tab=mine|programs|library ; legacy ?library=1 → library
 [Programy — karty Strong kompakt + ⋮ · dodaj dashed · własne wiersze]
 [Wygląd]
 [Ustawienia treningu]
-[Przypomnienia]
+[Przypomnienia — push: godzina lokalna w dniu dostępnego treningu]
 [Dane — import/eksport · Niebezpieczne]
 [O aplikacji]
 ```
@@ -163,12 +165,14 @@ Hub: nazwa, lista dni (skrót ćwiczeń), progresja, Zapisz szkic / Zapisz i akt
     [Nazwa planu · Ćw. i/n]
 [rail: ćwiczenia dnia — tap niedokończone = skok; done = statystyki]
 [notatka trenera — opcjonalnie]
-[hint / fail banner]
+[hint / below-target: popraw lub zapisz i jedź dalej — bez abortu dnia]
+[panel: Przerwa | Serie · chipy + − N + w jednej linii · hint]
+[SetChecklist — „dodana” na extra]
 [RepCounter: cel + display + −/Zrobione/+]
-[SetChecklist + przerwa między seriami]
 [RestTimerExpanded po serii]
 Menu: Zmień ćwiczenie / Ćwiczenia dnia (tap = skok) · Anuluj
 ```
+Summary custom: dzień zaliczony; jeśli serie poniżej celu — jedna spokojna linia („mniej niż w planie — to w porządku”).
 
 ## Checklist przed merge
 

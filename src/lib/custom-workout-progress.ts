@@ -40,6 +40,11 @@ export function countPassedSets(log: ExerciseLog | undefined): number {
   return log?.sets.filter((s) => s.passed).length ?? 0
 }
 
+/** Logged slots (including below-target) — drives progress / incomplete checks. */
+export function countLoggedSets(log: ExerciseLog | undefined): number {
+  return log?.sets.length ?? 0
+}
+
 /** Rail / plan sheet: exercise finished (handles supersets jumping back). */
 export function isExerciseDoneForDisplay(
   day: PlanDay,
@@ -49,7 +54,7 @@ export function isExerciseDoneForDisplay(
 ): boolean {
   if (exerciseIndex === currentExerciseIndex) return false
   const required = getExerciseTargetSetCount(day, exerciseIndex)
-  const completed = countPassedSets(exerciseLogs[exerciseIndex])
+  const completed = countLoggedSets(exerciseLogs[exerciseIndex])
   if (completed >= required) return true
 
   const group = getGroupForExercise(day, exerciseIndex)
@@ -102,14 +107,14 @@ export function reconcileCustomWorkoutResume(
   const at = day.exercises[ex]
   if (at && aligned[ex]?.exerciseId === at.exerciseId) {
     const required = getExerciseTargetSetCount(day, ex)
-    if (set < required && countPassedSets(aligned[ex]) <= set) {
+    if (set < required && countLoggedSets(aligned[ex]) <= set) {
       return { day, exerciseLogs: aligned, currentExerciseIndex: ex, currentSetIndex: set }
     }
   }
 
   for (let i = 0; i < day.exercises.length; i++) {
     const required = getExerciseTargetSetCount(day, i)
-    const done = countPassedSets(aligned[i])
+    const done = countLoggedSets(aligned[i])
     if (done < required) {
       return {
         day,
@@ -203,11 +208,14 @@ export function canJumpToExercise(
   if (group?.kind === 'amrap') {
     if (opts?.amrapGroupId && group.id === opts.amrapGroupId) return true
     const required = getExerciseTargetSetCount(day, targetIndex)
-    return countPassedSets(exerciseLogs[targetIndex]) < required
+    return countLoggedSets(exerciseLogs[targetIndex]) < required
   }
-  const required = getExerciseTargetSetCount(day, targetIndex)
-  const done = countPassedSets(exerciseLogs[targetIndex])
-  return done < required
+  if (group?.kind === 'circuit' || group?.kind === 'superset') {
+    const required = getExerciseTargetSetCount(day, targetIndex)
+    return countLoggedSets(exerciseLogs[targetIndex]) < required
+  }
+  // Linear: allow return to add more sets after finishing planned slots.
+  return true
 }
 
 /** Resume set/round index after jumping to an exercise (keeps logged sets). */
@@ -216,7 +224,7 @@ export function resumeSetIndexForExercise(
   exerciseLogs: ExerciseLog[],
   exerciseIndex: number,
 ): number {
-  const done = countPassedSets(exerciseLogs[exerciseIndex])
+  const done = countLoggedSets(exerciseLogs[exerciseIndex])
   const group = getGroupForExercise(day, exerciseIndex)
   if (group?.kind === 'amrap') return done
   const required = getExerciseTargetSetCount(day, exerciseIndex)
@@ -233,7 +241,7 @@ export function findNextIncompletePosition(
   exerciseLogs: ExerciseLog[],
 ): { exerciseIndex: number; setIndex: number } | null {
   for (let i = 0; i < day.exercises.length; i++) {
-    const done = countPassedSets(exerciseLogs[i])
+    const done = countLoggedSets(exerciseLogs[i])
     const required = getExerciseTargetSetCount(day, i)
     if (done < required) {
       return {
@@ -254,7 +262,7 @@ export function isExerciseIncomplete(
 ): boolean {
   if (exerciseIndex < 0 || exerciseIndex >= day.exercises.length) return false
   const group = getGroupForExercise(day, exerciseIndex)
-  const done = countPassedSets(exerciseLogs[exerciseIndex])
+  const done = countLoggedSets(exerciseLogs[exerciseIndex])
   if (group?.kind === 'amrap') {
     if (opts?.amrapActiveGroupId && group.id === opts.amrapActiveGroupId) return true
     return done < getExerciseTargetSetCount(day, exerciseIndex)

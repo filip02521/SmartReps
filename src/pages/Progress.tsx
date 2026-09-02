@@ -23,6 +23,7 @@ import { db } from '@/lib/db'
 import { getProgramProgress } from '@/lib/program-service'
 import { getCycleById } from '@/data/plans'
 import { getProgramStats, getMaxSetPerDay, getProgramRecords } from '@/lib/stats-engine'
+import { buildActivityInsights } from '@/lib/weekly-recap'
 import { useAppStore } from '@/stores/app-store'
 import { pl } from '@/i18n/pl'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
@@ -410,13 +411,17 @@ export default function ProgressPage() {
     label: p === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram,
   }))
 
+  const activityInsights = useMemo(() => {
+    const passed = sessions.filter((s) => s.status === 'completed' && s.passed)
+    return buildActivityInsights(passed)
+  }, [sessions])
+
+  // Streak lives in MetricStrip; header keeps session count as stable status line.
   const statusSubtitle = !stats
     ? undefined
     : stats.passedSessionCount === 0
       ? pl.progressStatusEmpty
-      : stats.streakWeeks > 0
-        ? pl.progressStatusStreak(stats.streakWeeks)
-        : pl.progressStatusSessions(stats.passedSessionCount)
+      : pl.progressStatusSessions(stats.passedSessionCount)
 
   const activeTab: Tab = tabOptions.some((t) => t.value === tab) ? tab : 'overview'
   const activeTabLabel = tabOptions.find((t) => t.value === activeTab)?.label ?? pl.navProgress
@@ -472,6 +477,7 @@ export default function ProgressPage() {
           progress={progress}
           tests={tests}
           heatmap={heatmap}
+          activity={activityInsights}
           hasAnyData={hasAnyData}
           records={records}
           navigate={navigate}

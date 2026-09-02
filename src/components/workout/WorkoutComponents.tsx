@@ -19,17 +19,19 @@ export function WorkoutFailRetryRow({
   onRetry,
   onFinishEarly,
   finishLabel,
+  finishVariant = 'danger',
 }: {
   onRetry: () => void
   onFinishEarly: () => void
   finishLabel: string
+  finishVariant?: 'danger' | 'secondary'
 }) {
   return (
     <div className="mt-2 flex gap-2">
       <Button variant="secondary" fullWidth onClick={onRetry}>
         {pl.retry}
       </Button>
-      <Button variant="danger" fullWidth onClick={onFinishEarly}>
+      <Button variant={finishVariant} fullWidth onClick={onFinishEarly}>
         {finishLabel}
       </Button>
     </div>

@@ -42,6 +42,8 @@ export type RemoteSessionRow = {
   passed: boolean | null
   total_reps: number | null
   exercise_logs_json?: unknown
+  session_day_patch_json?: unknown
+  progression_diff_json?: unknown
   set_results?: RemoteSetRow[]
 }
 

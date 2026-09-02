@@ -10,6 +10,7 @@ import {
   WorkoutFailRetryRow,
 } from '@/components/workout/WorkoutComponents'
 import { CustomPreviousResultHint } from '@/components/workout/CustomPreviousResultHint'
+import { RestSecChips } from '@/components/plans/RestSecChips'
 import { pl } from '@/i18n/pl'
 import type {
   ExerciseDefinition,
@@ -183,6 +184,7 @@ function CustomSetRow({
   state,
   result,
   editable,
+  isExtra,
   onClick,
 }: {
   setNumber: number
@@ -191,6 +193,7 @@ function CustomSetRow({
   state: 'pending' | 'active' | 'done' | 'failed'
   result?: SetLog
   editable?: boolean
+  isExtra?: boolean
   onClick?: () => void
 }) {
   const canPress = Boolean(onClick) && (state !== 'done' || editable)
@@ -205,7 +208,11 @@ function CustomSetRow({
       disabled={!canPress}
       data-active-set={state === 'active' ? 'true' : undefined}
       aria-label={
-        editable ? `${pl.setColumn} ${setNumber} — ${pl.editPreviousSet}` : undefined
+        editable
+          ? `${pl.setColumn} ${setNumber} — ${pl.editPreviousSet}`
+          : isExtra
+            ? `${pl.setColumn} ${setNumber} (${pl.customWorkoutSetExtraBadge})`
+            : undefined
       }
       className={cn(
         'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] px-4 py-3.5 text-left transition-colors',
@@ -219,7 +226,7 @@ function CustomSetRow({
     >
       <span
         className={cn(
-          'flex items-center gap-2 font-medium',
+          'flex min-w-0 items-center gap-2 font-medium',
           state === 'done' && 'text-[var(--sr-success)]',
           state === 'failed' && 'text-[var(--sr-error)]',
           state === 'pending' && 'text-[var(--sr-text-secondary)]',
@@ -227,11 +234,18 @@ function CustomSetRow({
         )}
       >
         <SetStatusIcon state={state} />
-        {pl.setColumn} {setNumber}
+        <span className="truncate">
+          {pl.setColumn} {setNumber}
+          {isExtra ? (
+            <span className="ml-1.5 sr-text-caption font-normal text-[var(--sr-text-muted)]">
+              {pl.customWorkoutSetExtraBadge}
+            </span>
+          ) : null}
+        </span>
       </span>
       <span
         className={cn(
-          'tabular-nums text-base font-semibold',
+          'shrink-0 tabular-nums text-base font-semibold',
           state === 'done' && 'text-[var(--sr-text-primary)]',
           state === 'failed' && 'text-[var(--sr-error)]',
           state === 'pending' && 'text-[var(--sr-text-primary)]',
@@ -254,6 +268,7 @@ function CustomSetChecklist({
   currentIndex,
   results,
   failedIndex,
+  baselineSetCount,
   onEditLastSet,
 }: {
   sets: SetPrescription[]
@@ -261,8 +276,13 @@ function CustomSetChecklist({
   currentIndex: number
   results: SetLog[]
   failedIndex?: number
+  /** Sets at/after this 0-based index are session extras (index >= baseline). */
+  baselineSetCount?: number
   onEditLastSet?: () => void
 }) {
+  const baseline = baselineSetCount ?? sets.length
+  const lastLoggedSetNumber =
+    results.length > 0 ? results[results.length - 1]!.setNumber : null
   return (
     <div className="flex flex-col gap-2 overflow-y-auto">
       {sets.map((prescription, i) => {
@@ -274,7 +294,10 @@ function CustomSetChecklist({
         else if (failedIndex === i) state = 'failed'
         else if (i === currentIndex) state = 'active'
         const editable =
-          state === 'done' && setNumber === currentIndex && Boolean(onEditLastSet)
+          Boolean(onEditLastSet) &&
+          result != null &&
+          setNumber === lastLoggedSetNumber &&
+          (state === 'done' || state === 'failed')
         return (
           <CustomSetRow
             key={setNumber}
@@ -284,10 +307,64 @@ function CustomSetChecklist({
             state={state}
             result={result}
             editable={editable}
+            isExtra={i >= baseline}
             onClick={editable ? onEditLastSet : undefined}
           />
         )
       })}
+    </div>
+  )
+}
+
+/** Compact − N + stepper — same height/chrome as rest chips. */
+function CustomSetCountStepper({
+  count,
+  canAdd,
+  canRemove,
+  onAdd,
+  onRemove,
+}: {
+  count: number
+  canAdd: boolean
+  canRemove: boolean
+  onAdd?: () => void
+  onRemove?: () => void
+}) {
+  return (
+    <div
+      className="flex h-9 shrink-0 items-stretch overflow-hidden rounded-[var(--sr-radius-sm)] border border-[var(--sr-border-subtle)]"
+      role="group"
+      aria-label={pl.customWorkoutSetsSection}
+    >
+      <button
+        type="button"
+        className={cn(
+          'flex w-9 items-center justify-center text-[var(--sr-text-secondary)]',
+          'disabled:opacity-40',
+          FOCUS_RING,
+        )}
+        disabled={!canRemove || !onRemove}
+        onClick={onRemove}
+        aria-label={pl.customWorkoutRemoveSet}
+      >
+        <Minus size={15} strokeWidth={2.25} aria-hidden />
+      </button>
+      <span className="flex min-w-[1.75rem] items-center justify-center border-x border-[var(--sr-border-subtle)] px-1 text-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
+        {pl.customWorkoutSetsCount(count)}
+      </span>
+      <button
+        type="button"
+        className={cn(
+          'flex w-9 items-center justify-center text-[var(--sr-text-secondary)]',
+          'disabled:opacity-40',
+          FOCUS_RING,
+        )}
+        disabled={!canAdd || !onAdd}
+        onClick={onAdd}
+        aria-label={pl.customWorkoutAddSet}
+      >
+        <Plus size={15} strokeWidth={2.25} aria-hidden />
+      </button>
     </div>
   )
 }
@@ -820,6 +897,17 @@ export type ActiveCustomWorkoutScreenProps = {
   onExerciseStats?: () => void
   onExerciseStatsById?: (exerciseId: string) => void
   onJumpToExercise?: (exerciseIndex: number) => void
+  /** Linear (non-group) exercises only — adds a pending set for this session. */
+  canAddSet?: boolean
+  canRemoveSet?: boolean
+  /** Show − N + even when one side is disabled (discoverability). */
+  showSetAdjust?: boolean
+  baselineSetCount?: number
+  onAddSet?: () => void
+  onRemoveSet?: () => void
+  /** Change restBetweenSetsSec for this exercise (session-only until summary). */
+  showRestAdjust?: boolean
+  onRestChange?: (sec: number) => void
 }
 
 export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps) {
@@ -885,6 +973,14 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     onExerciseStats,
     onExerciseStatsById,
     onJumpToExercise,
+    canAddSet = false,
+    canRemoveSet = false,
+    showSetAdjust = false,
+    baselineSetCount,
+    onAddSet,
+    onRemoveSet,
+    showRestAdjust = false,
+    onRestChange,
   } = props
 
   const prescription = planned.sets[setIndex]
@@ -1057,7 +1153,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
       )}
 
       {failedRetryVisible && (
-        <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-error-muted)] px-3 py-2 text-sm text-[var(--sr-error)]">
+        <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-3 py-2 text-sm text-[var(--sr-text-secondary)]">
           {pl.customFailBannerHint}
         </div>
       )}
@@ -1104,25 +1200,90 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             onRetry={onRetry}
             onFinishEarly={onFinishDayEarly}
             finishLabel={pl.customFailEndLabel}
+            finishVariant="secondary"
           />
         )}
       </div>
 
       <div ref={checklistRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-28">
-        <div className="mb-3 flex items-end justify-between gap-2">
-          <p className="sr-text-overline text-[var(--sr-text-muted)]">
-            {pl.customWorkoutSetsSection}
-          </p>
-          <p className="text-xs text-[var(--sr-text-muted)]">
-            {pl.customWorkoutRestChip(planned.restBetweenSetsSec)}
-          </p>
-        </div>
+        {showRestAdjust || showSetAdjust ? (
+          <div className="mb-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]/40 px-3 py-2.5">
+            {showRestAdjust && onRestChange ? (
+              <>
+                <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                  <p className="min-w-0 text-xs font-medium text-[var(--sr-text-secondary)]">
+                    {pl.customWorkoutRestAdjustLabel}
+                  </p>
+                  {!isResting && showSetAdjust && (
+                    <p className="shrink-0 text-xs font-medium text-[var(--sr-text-secondary)]">
+                      {pl.customWorkoutSetsSection}
+                    </p>
+                  )}
+                </div>
+                <RestSecChips
+                  id="workout-rest-between-sets"
+                  label={pl.customWorkoutRestAdjustLabel}
+                  value={planned.restBetweenSetsSec}
+                  onChange={onRestChange}
+                  hideLabel
+                  size="compact"
+                  nowrap
+                  trailing={
+                    !isResting && showSetAdjust ? (
+                      <CustomSetCountStepper
+                        count={(checklistSets ?? planned.sets).length}
+                        canAdd={canAddSet}
+                        canRemove={canRemoveSet}
+                        onAdd={onAddSet}
+                        onRemove={onRemoveSet}
+                      />
+                    ) : undefined
+                  }
+                />
+              </>
+            ) : (
+              !isResting &&
+              showSetAdjust && (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-[var(--sr-text-secondary)]">
+                      {pl.customWorkoutSetsSection}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
+                      {pl.customWorkoutRestChip(planned.restBetweenSetsSec)}
+                    </p>
+                  </div>
+                  <CustomSetCountStepper
+                    count={(checklistSets ?? planned.sets).length}
+                    canAdd={canAddSet}
+                    canRemove={canRemoveSet}
+                    onAdd={onAddSet}
+                    onRemove={onRemoveSet}
+                  />
+                </div>
+              )
+            )}
+            <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
+              {pl.customWorkoutSetsAdjustHint}
+            </p>
+          </div>
+        ) : (
+          <div className="mb-3">
+            <p className="sr-text-overline text-[var(--sr-text-muted)]">
+              {pl.customWorkoutSetsSection}
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
+              {pl.customWorkoutRestChip(planned.restBetweenSetsSec)}
+            </p>
+          </div>
+        )}
         <CustomSetChecklist
           sets={checklistSets ?? planned.sets}
           metric={exerciseDef.primaryMetric}
           currentIndex={positionSetIndex ?? setIndex}
           results={setResults}
           failedIndex={failedIndex}
+          baselineSetCount={baselineSetCount}
           onEditLastSet={canEditPreviousSet ? onEditPreviousSet : undefined}
         />
       </div>

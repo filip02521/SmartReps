@@ -84,6 +84,28 @@ function mapSessionRow(userId: string, row: LocalWorkoutSession) {
     passed: row.passed ?? null,
     total_reps: row.totalReps ?? null,
     exercise_logs_json: row.exerciseLogs ?? null,
+    session_day_patch_json: parseJsonbField(row.sessionDayPatchJson),
+    progression_diff_json: parseJsonbField(row.progressionDiffJson),
+  }
+}
+
+/** Dexie stores JSON columns as strings; Supabase expects jsonb objects/arrays. */
+function parseJsonbField(value: string | null | undefined): unknown {
+  if (value == null || value === '') return null
+  try {
+    return JSON.parse(value) as unknown
+  } catch {
+    return value
+  }
+}
+
+function jsonbToLocalString(value: unknown): string | null {
+  if (value == null) return null
+  if (typeof value === 'string') return value.length > 0 ? value : null
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return null
   }
 }
 
@@ -606,6 +628,14 @@ async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
     totalReps: remote.total_reps ?? undefined,
     setResults: setResults.length ? setResults : local?.setResults ?? [],
     exerciseLogs: remoteLogs?.length ? remoteLogs : local?.exerciseLogs,
+    sessionDayPatchJson:
+      remote.session_day_patch_json !== undefined
+        ? jsonbToLocalString(remote.session_day_patch_json)
+        : (local?.sessionDayPatchJson ?? null),
+    progressionDiffJson:
+      remote.progression_diff_json !== undefined
+        ? (jsonbToLocalString(remote.progression_diff_json) ?? undefined)
+        : local?.progressionDiffJson,
   }
 
   await db.workoutSessions.put(mapped)

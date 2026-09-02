@@ -77,7 +77,7 @@ export function CustomPlansHomeSection({
     })()
   }, [enabledIds, filterExplicit, lastSyncedAt, reloadTick])
 
-  const shellClass = embedded ? 'mt-5' : 'mt-8'
+  const shellClass = embedded ? undefined : 'mt-8'
   const aria = pl.homeCustomPlans
 
   if (!loaded) {

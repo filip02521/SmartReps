@@ -38,6 +38,8 @@ export type LocalWorkoutSession = {
   exerciseLogs?: ExerciseLog[]
   /** JSON snapshot of progression diff after cycle complete (see custom-progression). */
   progressionDiffJson?: string
+  /** Session PlanDay snapshot when sets/rest were edited mid-workout (offer save on summary). */
+  sessionDayPatchJson?: string | null
 }
 
 export type ActiveWorkoutState = {
@@ -60,6 +62,8 @@ export type ActiveCustomWorkoutState = {
   /** AMRAP block end timestamp (ms since epoch), persisted for resume. */
   amrapEndAt?: number | null
   amrapGroupId?: string | null
+  /** Session-only PlanDay JSON (e.g. extra sets) — not written to custom_plans until summary confirm. */
+  dayOverrideJson?: string | null
   updatedAt: string
 }
 

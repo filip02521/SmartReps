@@ -213,6 +213,7 @@ export default function Dashboard() {
                 {pl.homeChooseTrainingHint}
               </p>
               <div className="flex flex-col gap-5">
+                <CustomPlansHomeSection embedded />
                 {home.cards.map((card) => (
                   <ProgramHomeCard
                     key={`${card.program}-${reloadEpoch}`}
@@ -233,7 +234,6 @@ export default function Dashboard() {
                   {pl.homeAddSecondProgram}
                 </Button>
               )}
-              <CustomPlansHomeSection embedded />
             </section>
           )}
 

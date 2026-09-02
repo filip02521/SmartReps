@@ -28,6 +28,19 @@ export function ActivityHeatmap({
       )}
       <div className="overflow-x-auto" role="img" aria-label={pl.heatmapSummary(workoutCount, weeks)}>
         <div className="flex w-full min-w-0 flex-col gap-1">
+          <div
+            className="grid grid-cols-7 gap-1"
+            aria-hidden="true"
+          >
+            {pl.progressWeekdayLabels.map((label) => (
+              <span
+                key={label}
+                className="text-center sr-text-caption text-[var(--sr-text-muted)]"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
           {grid.map((week, wi) => (
             <div key={wi} className="grid grid-cols-7 gap-1">
               {week.map((cell) => (

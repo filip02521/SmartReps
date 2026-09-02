@@ -1,6 +1,7 @@
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ActivityHeatmap } from '@/components/progress/ActivityHeatmap'
 import { ProgressSection } from '@/components/progress/ProgressSection'
+import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
 import { LogoMark } from '@/components/brand/Logo'
 import { EmptyState } from '@/components/ux/Feedback'
 import { MetricStrip } from '@/components/ui/MetricStrip'
@@ -9,6 +10,7 @@ import { pl } from '@/i18n/pl'
 import type { HeatmapCell } from '@/lib/export'
 import type { LocalProgramProgress } from '@/lib/db'
 import type { ProgramStats } from '@/lib/stats-engine'
+import type { ActivityInsights } from '@/lib/weekly-recap'
 import { hasAnyProgramRecords } from '@/lib/progress-history'
 import { navigateToTrain } from '@/lib/setup-flow'
 import type { Program } from '@/data/plans/types'
@@ -21,6 +23,7 @@ export function OverviewPanel({
   progress,
   tests,
   heatmap,
+  activity,
   hasAnyData,
   records,
   navigate,
@@ -30,6 +33,7 @@ export function OverviewPanel({
   progress: LocalProgramProgress | undefined
   tests: { date: string; dateLabel: string; reps: number }[]
   heatmap: HeatmapCell[][]
+  activity: ActivityInsights | null
   hasAnyData: boolean
   records: {
     bestTest: number | null
@@ -55,24 +59,51 @@ export function OverviewPanel({
           <MetricStrip
             metrics={[
               {
-                value: stats.maxTestRecord ?? pl.noValue,
-                label: pl.recordTest,
-                hint: pl.progressRecordTestHint,
+                value: activity?.sessions14d ?? 0,
+                label: pl.homeSessions14d,
+                hint: pl.homeSessions14dHint,
               },
               {
-                value: progress
-                  ? `${stats.completedDaysInCycle}/${stats.cycleDaysTotal}`
-                  : pl.noValue,
-                label: pl.cycleDays,
-                hint: pl.progressCycleDaysHint,
+                value: stats.streakWeeks,
+                label: pl.streakWeeks,
+                hint: pl.streakWeeksHint,
               },
               {
-                value: stats.passedSessionCount,
-                label: pl.sessionsTotal,
-                hint: pl.progressSessionsHint,
+                value: activity?.reps14d ?? 0,
+                label: pl.homeReps14d,
+                hint: pl.homeReps14dHint,
               },
             ]}
+            goal={{
+              label: pl.homeGoal3in14,
+              current: activity?.sessions14d ?? 0,
+              max: 3,
+            }}
           />
+          {activity && (
+            <ActivityInsightsPanel insights={activity} ariaLabel={pl.progressActivityAria} />
+          )}
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <NestedStat
+              size="sm"
+              overline={pl.recordTest}
+              value={stats.maxTestRecord ?? pl.noValue}
+            />
+            <NestedStat
+              size="sm"
+              overline={pl.cycleDays}
+              value={
+                progress
+                  ? `${stats.completedDaysInCycle}/${stats.cycleDaysTotal}`
+                  : pl.noValue
+              }
+            />
+            <NestedStat
+              size="sm"
+              overline={pl.sessionsTotal}
+              value={stats.passedSessionCount}
+            />
+          </div>
           {showTrend && (
             <p className="mt-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
               {pl.progressLastSetTrend(trend.current, previousLastSet)}

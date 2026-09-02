@@ -94,3 +94,9 @@ export function customSessionPassedSets(session: LocalWorkoutSession): { passed:
   }
   return { passed, total }
 }
+
+/** True when any logged set missed its prescription (soft note — not a failed day). */
+export function customSessionHasBelowTarget(session: LocalWorkoutSession): boolean {
+  const { passed, total } = customSessionPassedSets(session)
+  return total > 0 && passed < total
+}

@@ -472,7 +472,7 @@ export const pl = {
   sessionsTotal: 'Sesje',
   totalRepsLabel: 'Powtórzenia łącznie',
   streakWeeks: 'Tygodnie z rzędu',
-  streakWeeksHint: 'najdłuższa seria',
+  streakWeeksHint: 'obecna seria',
   tabOverview: 'Przegląd',
   tabHistory: 'Historia',
   tabCycle: 'Cykl',
@@ -533,8 +533,34 @@ export const pl = {
   customSummaryBackToPlan: 'Wróć do planu',
   customSummaryViewProgress: 'Zobacz postępy',
   customSummaryRecSuccess: 'Zrób zaplanowaną przerwę — wróć, gdy będziesz gotowy.',
-  customSummaryRecFail: 'Ten sam dzień czeka po przerwie. Możesz spróbować ponownie, gdy będziesz gotowy.',
-  customSummaryFailPolicy: 'Po nieudanym dniu: 1 dzień przerwy, potem ta sama próba.',
+  customSummaryBelowTarget:
+    'W niektórych seriach zrobiono mniej niż w planie — to w porządku.',
+  /** @deprecated Custom days no longer fail; kept for residual imports */
+  customSummaryRecFail: 'Trening zapisany — wróć, gdy będziesz gotowy.',
+  /** @deprecated */
+  customSummaryFailPolicy: '',
+  customFailEndLabel: 'Zapisz i kontynuuj',
+  customFailBannerHint: 'Poniżej celu — możesz poprawić albo zapisać wynik i iść dalej.',
+  customWorkoutAddSet: 'Dodaj serię',
+  customWorkoutRemoveSet: 'Usuń serię',
+  customWorkoutSetsCount: (n: number) => `${n}`,
+  customWorkoutSetsAdjustHint: 'Tylko ten trening — zapis w planie na końcu.',
+  customWorkoutSetExtraBadge: 'dodana',
+  customWorkoutAddSetHint: 'Tylko na ten trening — na końcu zdecydujesz, czy zapisać w planie.',
+  customWorkoutRestAdjustLabel: 'Przerwa między seriami',
+  customSummaryUpdatePlanTitle: 'Zaktualizować plan?',
+  customSummaryUpdatePlanBody:
+    'Zmiany z tego treningu możesz zapisać w planie albo odrzucić.',
+  customSummaryUpdatePlanSets: (name: string, from: number, to: number) =>
+    `${name}: serie ${from} → ${to}`,
+  customSummaryUpdatePlanRest: (name: string, from: number, to: number) =>
+    `${name}: przerwa ${from}s → ${to}s`,
+  customSummaryUpdatePlanTargetsNote:
+    'Cele serii zostaną ustawione według wyników z tego treningu.',
+  customSummaryUpdatePlanConfirm: 'Zapisz w planie',
+  customSummaryUpdatePlanDiscard: 'Nie zmieniaj planu',
+  customSummaryUpdatePlanDone: 'Plan zaktualizowany.',
+  customSummaryUpdatePlanFailed: 'Nie udało się zapisać zmian w planie.',
   customWorkoutProblemTitle: 'Nie można rozpocząć treningu',
   missingSessionHint: 'Sesja wygasła lub nie istała na tym urządzeniu.',
   customHomeEmptyTitle: 'Brak planów na starcie',
@@ -564,8 +590,6 @@ export const pl = {
   customWorkoutReplaceExercise: 'Zastąp ćwiczenie',
   customWorkoutReplaceExerciseHint: 'Wybierz ćwiczenie z biblioteki — plan zostanie zaktualizowany.',
   customEditBlockedActiveDay: 'Ten dzień jest w trakcie treningu — edytuj inne dni.',
-  customFailEndLabel: 'Zakończ dzień',
-  customFailBannerHint: 'Nie wszystkie serie zaliczone — możesz spróbować ponownie po przerwie.',
   customHomeMorePlans: (n: number) =>
     n === 1 ? '+1 plan więcej w Plany' : `+${n} plany więcej w Plany`,
   customHomePinPrompt: 'W Profilu możesz wybrać, które plany widzisz na ekranie głównym.',
@@ -627,8 +651,10 @@ export const pl = {
   progressRecordTestHint: 'test max',
   progressCycleDaysHint: 'w cyklu',
   progressSessionsHint: 'sesje',
+  progressActivityAria: 'Trend 14 dni w programie',
+  progressWeekdayLabels: ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'] as const,
   progressLastSetTrend: (current: number, previous: number) =>
-    `Ostatnia seria max: ${current} · wcześniej ${previous}`,
+    `Ostatnia seria max (ten sam dzień): ${current} · wcześniej ${previous}`,
   progressOpenFullSummary: 'Pełne podsumowanie',
   progressCustomViewExercises: 'Ćwiczenia',
   progressCustomViewPlan: 'Plan',
@@ -721,7 +747,7 @@ export const pl = {
     'Powiadomienia są zablokowane w ustawieniach systemu / przeglądarki. Włącz je, aby korzystać z przypomnień.',
   pushNotifications: 'Powiadomienia push',
   pushNotificationsHint:
-    'Prawdziwe przypomnienie nawet po zamknięciu aplikacji (wymaga instalacji PWA i konta).',
+    'Przypomnienie w wybranej godzinie w dniu, gdy trening jest dostępny (po odpoczynku). Wymaga PWA i konta.',
   pushNeedsLogin: 'Zaloguj się, aby włączyć powiadomienia push.',
   pushUnavailable: 'Push niedostępny na tym urządzeniu / w tej przeglądarce (brak VAPID lub Web Push).',
   pushSubscribeFailed: 'Nie udało się włączyć powiadomień push.',

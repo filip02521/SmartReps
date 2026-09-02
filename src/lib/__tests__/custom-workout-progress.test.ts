@@ -194,7 +194,7 @@ describe('canJumpToExercise + resumeSetIndexForExercise', () => {
     ],
   }
 
-  it('allows jump to incomplete later/earlier exercises, not current or finished', () => {
+  it('allows jump to any other linear exercise (incl. finished — to add more sets)', () => {
     const logs: ExerciseLog[] = [
       {
         exerciseId: 'a',
@@ -224,7 +224,7 @@ describe('canJumpToExercise + resumeSetIndexForExercise', () => {
     ]
     expect(canJumpToExercise(linearDay, logs, 0, 0)).toBe(false)
     expect(canJumpToExercise(linearDay, logs, 0, 1)).toBe(true)
-    expect(canJumpToExercise(linearDay, logs, 0, 2)).toBe(false)
+    expect(canJumpToExercise(linearDay, logs, 0, 2)).toBe(true)
     expect(resumeSetIndexForExercise(linearDay, logs, 0)).toBe(1)
     expect(resumeSetIndexForExercise(linearDay, logs, 1)).toBe(0)
   })

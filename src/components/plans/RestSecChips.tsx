@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/Button'
 import { NumericDraftInput } from '@/components/ui/NumericDraftInput'
 import { pl } from '@/i18n/pl'
@@ -17,55 +17,78 @@ export function RestSecChips({
   value,
   onChange,
   disabled = false,
+  hideLabel = false,
+  size = 'default',
+  nowrap = false,
+  trailing,
 }: {
   id: string
   label: string
   value: number
   onChange: (sec: number) => void
   disabled?: boolean
+  /** When label is rendered by a parent row (e.g. workout header). */
+  hideLabel?: boolean
+  size?: 'default' | 'compact'
+  /** Keep chips on one line (horizontal scroll if needed). */
+  nowrap?: boolean
+  /** Right-side control aligned with the chip row (e.g. set stepper). */
+  trailing?: ReactNode
 }) {
   const [customOpen, setCustomOpen] = useState(!isPresetValue(value) && value > 0)
+  const compact = size === 'compact'
 
   useEffect(() => {
     setCustomOpen(!isPresetValue(value) && value > 0)
   }, [value])
 
+  const chipClass = (active: boolean) =>
+    cn(
+      'rounded-[var(--sr-radius-sm)] border font-medium',
+      FOCUS_RING,
+      compact ? 'min-h-9 shrink-0 px-2.5 text-xs' : 'min-h-11 px-3 text-sm',
+      active
+        ? 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-text-primary)]'
+        : 'border-[var(--sr-border-subtle)] text-[var(--sr-text-secondary)]',
+    )
+
   return (
     <div className={cn(disabled && 'pointer-events-none opacity-60')}>
-      <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">{label}</p>
-      <div className="flex flex-wrap gap-2">
-        {PRESETS.map((sec) => (
-          <button
-            key={sec}
-            type="button"
-            className={cn(
-              'min-h-11 rounded-[var(--sr-radius-sm)] border px-3 text-sm font-medium',
-              FOCUS_RING,
-              value === sec && !customOpen
-                ? 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-text-primary)]'
-                : 'border-[var(--sr-border-subtle)] text-[var(--sr-text-secondary)]',
-            )}
-            onClick={() => {
-              setCustomOpen(false)
-              onChange(sec)
-            }}
-          >
-            {sec}s
-          </button>
-        ))}
-        <button
-          type="button"
+      {!hideLabel && (
+        <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">{label}</p>
+      )}
+      <div className={cn('flex items-center gap-2', trailing && 'gap-3')}>
+        <div
           className={cn(
-            'min-h-11 rounded-[var(--sr-radius-sm)] border px-3 text-sm font-medium',
-            FOCUS_RING,
-            customOpen
-              ? 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-text-primary)]'
-              : 'border-[var(--sr-border-subtle)] text-[var(--sr-text-secondary)]',
+            'min-w-0',
+            trailing ? 'flex-1' : undefined,
+            nowrap
+              ? 'flex flex-nowrap gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+              : cn('flex flex-wrap', compact ? 'gap-1.5' : 'gap-2'),
           )}
-          onClick={() => setCustomOpen(true)}
         >
-          {pl.planRestChipCustom}
-        </button>
+          {PRESETS.map((sec) => (
+            <button
+              key={sec}
+              type="button"
+              className={chipClass(value === sec && !customOpen)}
+              onClick={() => {
+                setCustomOpen(false)
+                onChange(sec)
+              }}
+            >
+              {sec}s
+            </button>
+          ))}
+          <button
+            type="button"
+            className={chipClass(customOpen)}
+            onClick={() => setCustomOpen(true)}
+          >
+            {pl.planRestChipCustom}
+          </button>
+        </div>
+        {trailing}
       </div>
       {customOpen && (
         <NumericDraftInput

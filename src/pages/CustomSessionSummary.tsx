@@ -13,8 +13,24 @@ import { NoticeCard, LogIn } from '@/components/ux/NoticeCard'
 import { pl } from '@/i18n/pl'
 import { db } from '@/lib/db'
 import type { LocalWorkoutSession } from '@/lib/db'
-import type { CustomProgramProgress, ExerciseDefinition } from '@/lib/exercise-model'
-import { getCustomSessionComparison } from '@/lib/custom-session-comparison'
+import type {
+  CustomPlan,
+  CustomProgramProgress,
+  ExerciseDefinition,
+} from '@/lib/exercise-model'
+import {
+  customSessionHasBelowTarget,
+  getCustomSessionComparison,
+} from '@/lib/custom-session-comparison'
+import {
+  applySessionLogsToPlanDay,
+  buildSessionPlanChanges,
+  isPlanUpdateDeclined,
+  markPlanUpdateDeclined,
+  parseSessionDayPatchJson,
+  sessionSuggestsPlanUpdate,
+} from '@/lib/custom-plan-session-patch'
+import { saveCustomPlan } from '@/lib/custom-plan-service'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import { computeCustomSessionInsights, type CustomSessionInsights } from '@/lib/session-summary-insights'
 import { sessionTotalSets } from '@/lib/custom-session-stats'
@@ -22,6 +38,7 @@ import { daysUntilWorkout } from '@/lib/progress-engine'
 import { shouldShowLoginCloudPrompt } from '@/lib/summary-actions'
 import { shareCustomSessionCard } from '@/lib/share-card'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
+import { enqueueSync } from '@/lib/sync'
 import { track } from '@/lib/analytics'
 import { trackShareCard } from '@/lib/analytics'
 import { useAppStore } from '@/stores/app-store'
@@ -32,7 +49,6 @@ export default function CustomSessionSummary() {
   const { planId } = useParams<{ planId: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const failedParam = searchParams.get('failed') === '1'
   const sessionId = searchParams.get('session')
   const hasSeenLoginCloudPrompt = useAppStore((s) => s.hasSeenLoginCloudPrompt)
   const setHasSeenLoginCloudPrompt = useAppStore((s) => s.setHasSeenLoginCloudPrompt)
@@ -41,16 +57,20 @@ export default function CustomSessionSummary() {
   const [loading, setLoading] = useState(true)
   const [session, setSession] = useState<LocalWorkoutSession | null>(null)
   const [previous, setPrevious] = useState<LocalWorkoutSession | undefined>()
+  const [plan, setPlan] = useState<CustomPlan | null>(null)
   const [planName, setPlanName] = useState<string | null>(null)
   const [progress, setProgress] = useState<CustomProgramProgress | null>(null)
   const [exerciseMap, setExerciseMap] = useState<Map<string, ExerciseDefinition>>(new Map())
   const [insights, setInsights] = useState<CustomSessionInsights | undefined>()
   const [email, setEmail] = useState<string | null | undefined>(undefined)
   const [sharing, setSharing] = useState(false)
+  const [offerPlanUpdate, setOfferPlanUpdate] = useState(false)
+  const [planUpdateBusy, setPlanUpdateBusy] = useState(false)
+  const [planUpdateDone, setPlanUpdateDone] = useState(false)
 
   useEffect(() => {
     releaseBodyScrollLock()
-  }, [sessionId, failedParam])
+  }, [sessionId])
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -97,11 +117,19 @@ export default function CustomSessionSummary() {
               .toArray(),
           ])
           setPlanName(plan?.name ?? null)
+          setPlan(plan ?? null)
           setProgress(prog ?? null)
           setPrevious(comparison.previous)
           const map = new Map<string, ExerciseDefinition>()
           for (const ex of exercises) map.set(ex.id, ex)
           setExerciseMap(map)
+          const sessionDay = parseSessionDayPatchJson(s.sessionDayPatchJson)
+          const suggests =
+            !!plan &&
+            !isPlanUpdateDeclined(s.id) &&
+            sessionSuggestsPlanUpdate(plan, s.dayNumber, s.exerciseLogs ?? [], sessionDay)
+          setOfferPlanUpdate(suggests)
+          setPlanUpdateDone(false)
           setInsights(
             computeCustomSessionInsights({
               current: s,
@@ -111,6 +139,8 @@ export default function CustomSessionSummary() {
             }),
           )
         } else {
+          setPlan(null)
+          setOfferPlanUpdate(false)
           setInsights(undefined)
         }
       } finally {
@@ -135,6 +165,59 @@ export default function CustomSessionSummary() {
     loginPromptTrackedRef.current = true
     track('login_cloud_prompt_shown')
   }, [showLoginPrompt])
+
+  async function handleSavePlanFromSession() {
+    if (!session || !plan || planUpdateBusy) return
+    setPlanUpdateBusy(true)
+    try {
+      const sessionDay = parseSessionDayPatchJson(session.sessionDayPatchJson)
+      const next = applySessionLogsToPlanDay(
+        plan,
+        session.dayNumber,
+        session.exerciseLogs ?? [],
+        exerciseMap,
+        sessionDay,
+      )
+      const saved = await saveCustomPlan(next, { skipValidation: true })
+      setPlan(saved)
+      const cleared: LocalWorkoutSession = {
+        ...session,
+        sessionDayPatchJson: null,
+      }
+      await db.workoutSessions.put(cleared)
+      await enqueueSync('workout_sessions', 'update', cleared)
+      setSession(cleared)
+      setOfferPlanUpdate(false)
+      setPlanUpdateDone(true)
+      showToast(pl.customSummaryUpdatePlanDone, 'success')
+      track('custom_plan_updated_from_session')
+    } catch {
+      showToast(pl.customSummaryUpdatePlanFailed, 'error')
+    } finally {
+      setPlanUpdateBusy(false)
+    }
+  }
+
+  async function handleDiscardPlanUpdate() {
+    if (!session) {
+      setOfferPlanUpdate(false)
+      return
+    }
+    markPlanUpdateDeclined(session.id)
+    const cleared: LocalWorkoutSession = {
+      ...session,
+      sessionDayPatchJson: null,
+    }
+    try {
+      await db.workoutSessions.put(cleared)
+      await enqueueSync('workout_sessions', 'update', cleared)
+      setSession(cleared)
+    } catch {
+      /* local only — decline flag still hides the card */
+    }
+    setOfferPlanUpdate(false)
+    track('custom_plan_update_discarded')
+  }
 
   if (loading) {
     return (
@@ -168,46 +251,108 @@ export default function CustomSessionSummary() {
   }
 
   const resolvedPlanId = session.customPlanId ?? planId
-  const failed = session.passed === false || (session.passed == null && failedParam)
+  const belowTarget = customSessionHasBelowTarget(session)
   const totalSets = sessionTotalSets(session)
   const exerciseCount = session.exerciseLogs?.length ?? 0
   const cycleComplete =
-    !failed &&
-    session.passed === true &&
+    session.passed !== false &&
     (progress?.status === 'cycle_complete' || !!session.progressionDiffJson)
   const daysLeft = daysUntilWorkout(
     progress?.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
   )
   const dismissLoginPrompt = () => setHasSeenLoginCloudPrompt(true)
+  const sessionDayPatch = parseSessionDayPatchJson(session.sessionDayPatchJson)
+  const planChanges =
+    plan != null
+      ? buildSessionPlanChanges(
+          plan,
+          session.dayNumber,
+          session.exerciseLogs ?? [],
+          sessionDayPatch,
+        )
+      : []
+  const planChangeHasSets = planChanges.some((c) => c.kind === 'sets')
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
       <PageHeader
-        title={failed ? pl.customDayFailed : pl.customDayPassed}
+        title={pl.customDayPassed}
         subtitle={
-          failed && progress?.nextWorkoutAfter
-            ? pl.restPrimaryLabel(pl.restIn(daysLeft))
-            : planName
-              ? pl.progressCustomSessionMeta(planName, session.dayNumber)
-              : pl.dayLabel(session.dayNumber)
+          planName
+            ? pl.progressCustomSessionMeta(planName, session.dayNumber)
+            : pl.dayLabel(session.dayNumber)
         }
       />
 
-      {!failed && progress?.nextWorkoutAfter && progress.status === 'rest' && (
+      {progress?.nextWorkoutAfter && progress.status === 'rest' && (
         <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">
           {pl.nextWorkoutIn(daysLeft)}
         </p>
       )}
 
-      {!failed && !(progress?.nextWorkoutAfter && progress.status === 'rest') && (
+      {!(progress?.nextWorkoutAfter && progress.status === 'rest') && (
         <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.customSummaryRecSuccess}</p>
       )}
 
-      {failed && (
-        <Card className="mt-4 border border-[var(--sr-error)] p-4">
-          <p className="text-sm text-[var(--sr-error)]">{pl.customSummaryRecFail}</p>
-          <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.customSummaryFailPolicy}</p>
+      {belowTarget && (
+        <p className="mt-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
+          {pl.customSummaryBelowTarget}
+        </p>
+      )}
+
+      {offerPlanUpdate && planChanges.length > 0 && (
+        <Card className="mt-4 border border-[var(--sr-border-subtle)] p-4">
+          <p className="font-medium text-[var(--sr-text-primary)]">
+            {pl.customSummaryUpdatePlanTitle}
+          </p>
+          <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
+            {pl.customSummaryUpdatePlanBody}
+          </p>
+          {planChanges.length > 0 && (
+            <ul className="mt-3 list-disc space-y-1 pl-5 sr-text-body-sm text-[var(--sr-text-primary)]">
+              {planChanges.map((change) => {
+                const name = exerciseMap.get(change.exerciseId)?.name ?? change.exerciseId
+                const key = `${change.kind}-${change.exerciseId}-${change.from}-${change.to}`
+                return (
+                  <li key={key}>
+                    {change.kind === 'sets'
+                      ? pl.customSummaryUpdatePlanSets(name, change.from, change.to)
+                      : pl.customSummaryUpdatePlanRest(name, change.from, change.to)}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+          {planChangeHasSets && (
+            <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
+              {pl.customSummaryUpdatePlanTargetsNote}
+            </p>
+          )}
+          <div className="mt-4 flex flex-col gap-2">
+            <Button
+              size="touch"
+              fullWidth
+              disabled={planUpdateBusy}
+              onClick={() => void handleSavePlanFromSession()}
+            >
+              {pl.customSummaryUpdatePlanConfirm}
+            </Button>
+            <Button
+              variant="ghost"
+              fullWidth
+              disabled={planUpdateBusy}
+              onClick={() => void handleDiscardPlanUpdate()}
+            >
+              {pl.customSummaryUpdatePlanDiscard}
+            </Button>
+          </div>
         </Card>
+      )}
+
+      {planUpdateDone && (
+        <p className="mt-3 sr-text-body-sm text-[var(--sr-success)]">
+          {pl.customSummaryUpdatePlanDone}
+        </p>
       )}
 
       {cycleComplete && (
@@ -244,7 +389,7 @@ export default function CustomSessionSummary() {
             {pl.backHome}
           </Button>
         )}
-        {!failed && planName && (
+        {planName && (
           <Button
             variant="secondary"
             size="touch"
@@ -282,15 +427,6 @@ export default function CustomSessionSummary() {
         <Button variant="ghost" fullWidth onClick={() => navigate('/progress?tab=custom&view=history')}>
           {pl.customSummaryViewProgress}
         </Button>
-        {failed && resolvedPlanId && (
-          <Button
-            variant="ghost"
-            fullWidth
-            onClick={() => navigate(`/workout/custom/${resolvedPlanId}?force=1`)}
-          >
-            {pl.customFailRetryDay}
-          </Button>
-        )}
       </div>
 
       {showLoginPrompt && (

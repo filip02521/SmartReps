@@ -112,7 +112,29 @@ type RemoteActiveCustomWorkout = {
   exercise_logs_json: ActiveCustomWorkoutState['exerciseLogs']
   rest_timer_json: unknown
   rest_started_at?: string | null
+  day_override_json?: unknown
+  amrap_end_at?: number | null
+  amrap_group_id?: string | null
   updated_at: string
+}
+
+function jsonbToLocalString(value: unknown): string | null {
+  if (value == null) return null
+  if (typeof value === 'string') return value.length > 0 ? value : null
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return null
+  }
+}
+
+function parseJsonbField(value: string | null | undefined): unknown {
+  if (value == null || value === '') return null
+  try {
+    return JSON.parse(value) as unknown
+  } catch {
+    return value
+  }
 }
 
 function parseRestTimerForRemote(restTimerJson: string | null): {
@@ -149,7 +171,7 @@ function mapActiveCustomRestTimer(remote: RemoteActiveCustomWorkout): string | n
 
 export async function upsertActiveCustomWorkout(userId: string, row: ActiveCustomWorkoutState) {
   const timerFields = parseRestTimerForRemote(row.restTimerJson)
-  // Schema (013) has rest_timer_json only — do NOT send rest_started_at (builtin column).
+  // Schema (013+015): rest_timer_json, day_override_json, amrap_* — do NOT send rest_started_at.
   const { error } = await supabase.from('active_custom_workout_state').upsert(
     {
       user_id: userId,
@@ -159,6 +181,9 @@ export async function upsertActiveCustomWorkout(userId: string, row: ActiveCusto
       current_set_index: row.currentSetIndex,
       exercise_logs_json: row.exerciseLogs,
       rest_timer_json: timerFields.rest_timer_json,
+      day_override_json: parseJsonbField(row.dayOverrideJson ?? null),
+      amrap_end_at: row.amrapEndAt ?? null,
+      amrap_group_id: row.amrapGroupId ?? null,
       updated_at: row.updatedAt,
     },
     { onConflict: 'user_id,custom_plan_id' },
@@ -186,7 +211,8 @@ async function mergeActiveCustomRemote(userId: string, remote: RemoteActiveCusto
   }
 
   const remoteLogs = remote.exercise_logs_json ?? []
-  if (!remoteCustomSessionHasProgress(remoteLogs)) {
+  const remoteDayOverride = jsonbToLocalString(remote.day_override_json)
+  if (!remoteCustomSessionHasProgress(remoteLogs) && !remoteDayOverride) {
     await deleteActiveCustomWorkoutRemote(userId, customPlanId)
     return
   }
@@ -202,6 +228,9 @@ async function mergeActiveCustomRemote(userId: string, remote: RemoteActiveCusto
     currentSetIndex: remote.current_set_index,
     exerciseLogs: remoteLogs,
     restTimerJson: mapActiveCustomRestTimer(remote),
+    dayOverrideJson: remoteDayOverride,
+    amrapEndAt: remote.amrap_end_at ?? null,
+    amrapGroupId: remote.amrap_group_id ?? null,
     updatedAt: remote.updated_at,
   }
 

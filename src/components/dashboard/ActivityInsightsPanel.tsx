@@ -69,7 +69,13 @@ function PctBadge({
 }
 
 /** Compact trend only — absolute 14d numbers live in MetricStrip above. */
-export function ActivityInsightsPanel({ insights }: { insights: ActivityInsights }) {
+export function ActivityInsightsPanel({
+  insights,
+  ariaLabel = pl.homeActivityInsightsAria,
+}: {
+  insights: ActivityInsights
+  ariaLabel?: string
+}) {
   const headline = repsHeadline(insights)
   const recordNote =
     insights.bestStreakWeeks > insights.streakWeeks && insights.bestStreakWeeks > 0
@@ -87,7 +93,7 @@ export function ActivityInsightsPanel({ insights }: { insights: ActivityInsights
   return (
     <div
       className="mt-3 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-3 py-2.5"
-      aria-label={pl.homeActivityInsightsAria}
+      aria-label={ariaLabel}
     >
       {headline && (
         <div className="flex items-start gap-3">
