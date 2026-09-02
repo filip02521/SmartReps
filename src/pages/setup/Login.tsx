@@ -58,6 +58,16 @@ function stripAuthParamsFromUrl(): void {
 /** Must match Supabase `mailer_otp_length` (scripts/configure-supabase-smtp.mjs). */
 const OTP_LENGTH = 6
 const OTP_PATTERN = new RegExp(`^\\d{${OTP_LENGTH}}$`)
+/** Must match Supabase `smtp_max_frequency` (seconds between OTP emails). */
+const OTP_RESEND_COOLDOWN_SEC = 30
+
+function parseOtpRateLimitSeconds(message: string | undefined): number | null {
+  if (!message) return null
+  const match = message.match(/after\s+(\d+)\s+seconds?/i)
+  if (!match) return null
+  const n = Number(match[1])
+  return Number.isFinite(n) && n > 0 ? n : null
+}
 
 async function verifyEmailOtp(email: string, token: string) {
   const attempt = await supabase.auth.verifyOtp({ email, token, type: 'email' })
@@ -71,6 +81,7 @@ export default function Login() {
   const [otpCode, setOtpCode] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [resendIn, setResendIn] = useState(0)
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null)
   const navigate = useNavigate()
   const location = useLocation()
@@ -92,6 +103,12 @@ export default function Login() {
   }, [fromOnboarding])
 
   useEffect(() => {
+    if (resendIn <= 0) return
+    const id = window.setTimeout(() => setResendIn((n) => Math.max(0, n - 1)), 1000)
+    return () => window.clearTimeout(id)
+  }, [resendIn])
+
+  useEffect(() => {
     if (!hydrated || !isSupabaseConfigured) return
 
     void supabase.auth.getSession().then(({ data }) => {
@@ -103,6 +120,7 @@ export default function Login() {
         setSignedInEmail(null)
         setSent(false)
         setOtpCode('')
+        setResendIn(0)
         return
       }
       if (session?.user.email) {
@@ -182,6 +200,10 @@ export default function Login() {
       showToast(pl.loginLogoutToSwitchHint, 'error')
       return
     }
+    if (resendIn > 0) {
+      showToast(pl.loginOtpRateLimited(resendIn), 'info')
+      return
+    }
     const trimmed = email.trim()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       showToast(pl.loginInvalidEmail, 'error')
@@ -195,11 +217,22 @@ export default function Login() {
     })
     setLoading(false)
     if (error) {
+      const wait = parseOtpRateLimitSeconds(error.message) ?? OTP_RESEND_COOLDOWN_SEC
+      if (
+        error.status === 429 ||
+        /rate.?limit|after\s+\d+\s+seconds/i.test(error.message ?? '')
+      ) {
+        setResendIn(wait)
+        setSent(true)
+        showToast(pl.loginOtpRateLimited(wait), 'info')
+        return
+      }
       showToast(pl.errorSendLink, 'error')
       return
     }
     setSent(true)
     setOtpCode('')
+    setResendIn(OTP_RESEND_COOLDOWN_SEC)
   }
 
   const verifyCode = async () => {
@@ -315,8 +348,13 @@ export default function Login() {
             {pl.loginVerifyCode}
           </Button>
 
-          <Button variant="secondary" fullWidth disabled={loading} onClick={() => void sendOtp()}>
-            {pl.loginResendCode}
+          <Button
+            variant="secondary"
+            fullWidth
+            disabled={loading || resendIn > 0}
+            onClick={() => void sendOtp()}
+          >
+            {resendIn > 0 ? pl.loginResendWait(resendIn) : pl.loginResendCode}
           </Button>
 
           {standalone ? (

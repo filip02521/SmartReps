@@ -103,6 +103,8 @@ const body = {
   mailer_templates_confirmation_content: confirmationHtml,
   mailer_otp_length: OTP_LENGTH,
   mailer_otp_exp: OTP_EXP_SECONDS,
+  // Seconds between OTP emails to the same address (Supabase default is 60).
+  smtp_max_frequency: Number(process.env.SMTP_MAX_FREQUENCY || 30),
   // Custom SMTP unlocks higher throughput vs built-in mailer (~2–4/h).
   rate_limit_email_sent: Number(process.env.RATE_LIMIT_EMAIL_SENT || 30),
 }
@@ -137,6 +139,7 @@ try {
     mailer_autoconfirm: j.mailer_autoconfirm,
     mailer_otp_length: j.mailer_otp_length,
     mailer_otp_exp: j.mailer_otp_exp,
+    smtp_max_frequency: j.smtp_max_frequency,
     subject_magic: j.mailer_subjects_magic_link,
     subject_confirm: j.mailer_subjects_confirmation,
     magic_has_token: magic.includes('{{ .Token }}'),
@@ -155,13 +158,15 @@ const ok =
   verified.magic_has_link === false &&
   verified.confirm_has_token === true &&
   verified.confirm_has_link === false &&
-  verified.mailer_otp_length === OTP_LENGTH
+  verified.mailer_otp_length === OTP_LENGTH &&
+  Number(verified.smtp_max_frequency) <= 30
 
 console.log('OK — custom SMTP + OTP templates applied on', PROJECT_REF)
 console.log('From:', body.smtp_sender_name, `<${body.smtp_admin_email}>`)
 console.log('Host:', body.smtp_host + ':' + body.smtp_port)
 console.log('Subject:', otpSubject)
 console.log('OTP length/exp:', OTP_LENGTH, '/', OTP_EXP_SECONDS + 's')
+console.log('SMTP max frequency:', body.smtp_max_frequency, 's')
 console.log('Verified:', verified)
 if (!ok) {
   console.error('Verification failed — auth email config is not OTP-only.')

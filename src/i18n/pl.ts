@@ -237,6 +237,9 @@ export const pl = {
   loginVerifyCode: 'Zaloguj się kodem',
   loginOtpInvalid: 'Nieprawidłowy lub wygasły kod. Sprawdź e-mail i spróbuj ponownie.',
   loginResendCode: 'Wyślij kod ponownie',
+  loginResendWait: (seconds: number) => `Wyślij ponownie za ${seconds} s`,
+  loginOtpRateLimited: (seconds: number) =>
+    `Kod już wysłany — poczekaj ${seconds} s i spróbuj ponownie (albo sprawdź skrzynkę).`,
   loginPwaCodeHint:
     'Wpisz tutaj 6-cyfrowy kod z e-maila — tak logujesz się po dodaniu SmartReps do ekranu głównego.',
   loginBrowserLinkHint:
