@@ -108,19 +108,30 @@ describe('navigateAfterAuth', () => {
     expect(navigate).toHaveBeenCalledWith('/', { replace: true })
   })
 
-  it('starts next incomplete enabled program', async () => {
-    mockState({ pendingStart: null })
-    vi.mocked(getProgramProgress).mockImplementation(async (program) => {
-      if (program === 'pushups') return { status: 'active' } as never
-      return undefined
+  it('goes home when enabled programs lack progress but no active setup chain', async () => {
+    mockState({ pendingStart: null, setupQueue: [] })
+    vi.mocked(getProgramProgress).mockResolvedValue(undefined)
+
+    await navigateAfterAuth(navigate)
+
+    expect(navigate).toHaveBeenCalledWith('/', { replace: true })
+  })
+
+  it('drains queued incomplete program after auth', async () => {
+    const setSetupQueue = vi.fn()
+    mockState({
+      pendingStart: null,
+      setupQueue: ['pullups'],
+      setSetupQueue,
     })
+    vi.mocked(getProgramProgress).mockResolvedValue(undefined)
 
     await navigateAfterAuth(navigate)
 
     expect(navigate).toHaveBeenCalledWith('/setup/test/pullups', { replace: true })
   })
 
-  it('goes home when all enabled programs are configured', async () => {
+  it('goes home when all queued programs are configured', async () => {
     const setSetupQueue = vi.fn()
     mockState({
       setupQueue: ['pullups'],

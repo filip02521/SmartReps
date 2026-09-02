@@ -387,7 +387,10 @@ export function pickTip(
   const enabledCount = opts?.enabledProgramCount ?? cards.length
   if (enabledCount >= 2) {
     const unconfigured = cards.find((c) => c.bucket === 'unconfigured')
-    if (unconfigured) {
+    // Only nudge the *second* program — not when every enabled card still needs setup
+    // (soft onboarding lands dual-unconfigured users on home without forcing Max Test).
+    const hasConfigured = cards.some((c) => c.bucket !== 'unconfigured')
+    if (unconfigured && hasConfigured) {
       return {
         id: 'dual-program',
         kind: 'dual_program',

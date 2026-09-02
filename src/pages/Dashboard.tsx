@@ -15,7 +15,7 @@ import { pl } from '@/i18n/pl'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
-import { drainIncompleteSetup, beginLevelChange } from '@/lib/setup-flow'
+import { beginLevelChange } from '@/lib/setup-flow'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import {
   loadHomeDashboard,
@@ -55,21 +55,6 @@ export default function Dashboard() {
   const onInstallVisibility = useCallback((v: boolean) => {
     setInstallVisible(v)
   }, [])
-
-  useEffect(() => {
-    if (!hydrated || !settings.onboardingComplete) return
-    let cancelled = false
-    void (async () => {
-      const safeNavigate: typeof navigate = ((to, options) => {
-        if (cancelled) return
-        navigate(to, options)
-      }) as typeof navigate
-      await drainIncompleteSetup(safeNavigate)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [hydrated, settings.onboardingComplete, settings.enabledPrograms, navigate])
 
   useEffect(() => {
     if (!hydrated) return
@@ -212,7 +197,14 @@ export default function Dashboard() {
               icon={<LogoMark size={48} />}
               title={pl.noProgramsTitle}
               description={pl.noProgramsDesc}
-              action={{ label: pl.goToProfile, onClick: () => navigate('/profile') }}
+              action={{
+                label: pl.noProgramsCreatePlan,
+                onClick: () => navigate('/plans?tab=mine'),
+              }}
+              secondaryAction={{
+                label: pl.noProgramsGoProfile,
+                onClick: () => navigate('/profile'),
+              }}
             />
           ) : (
             <section aria-label={pl.homeStartTraining}>
@@ -245,7 +237,10 @@ export default function Dashboard() {
             </section>
           )}
 
-          {settings.enabledPrograms.length === 0 && <CustomPlansHomeSection />}
+          {/* Cards only when custom-only — EmptyState above already owns create CTAs */}
+          {settings.enabledPrograms.length === 0 && (
+            <CustomPlansHomeSection hideEmptyDiscover />
+          )}
 
           <HomeActivitySection summary={home.summary} />
         </>

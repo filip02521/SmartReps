@@ -16,7 +16,14 @@ import { useAppStore } from '@/stores/app-store'
 import { db } from '@/lib/db'
 
 /** Custom plans block for home — always renders after load (skeleton / empty / cards). */
-export function CustomPlansHomeSection({ embedded = false }: { embedded?: boolean }) {
+export function CustomPlansHomeSection({
+  embedded = false,
+  hideEmptyDiscover = false,
+}: {
+  embedded?: boolean
+  /** When true, skip empty create/library CTAs (parent EmptyState already owns them). */
+  hideEmptyDiscover?: boolean
+}) {
   const navigate = useNavigate()
   const enabledIds = useAppStore((s) => s.settings.enabledCustomPlanIds)
   const filterExplicit = useAppStore((s) => s.settings.customPlansFilterExplicit)
@@ -74,6 +81,7 @@ export function CustomPlansHomeSection({ embedded = false }: { embedded?: boolea
   const aria = pl.homeCustomPlans
 
   if (!loaded) {
+    if (hideEmptyDiscover) return null
     return (
       <div className={shellClass} aria-busy aria-label={aria}>
         <SkeletonCard className="min-h-[6rem]" />
@@ -82,6 +90,7 @@ export function CustomPlansHomeSection({ embedded = false }: { embedded?: boolea
   }
 
   if (cards.length === 0) {
+    if (hideEmptyDiscover) return null
     if (filterExplicit && enabledIds.length === 0) {
       return (
         <section className={shellClass} aria-label={aria}>

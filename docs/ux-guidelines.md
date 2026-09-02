@@ -53,6 +53,17 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 2. **POZIOM 2** — kontekst: seria, `PreviousResultBadge`
 3. **POZIOM 3** — SetChecklist, timer pill
 
+## Wireframe — Onboarding (`/setup/onboarding`)
+
+```
+[StepIndicator]
+[Welcome: Logo + opis Strong + własne · Zaczynam · Mam konto]
+[Interest: multi-select Programy SmartReps / Własne treningi]
+[Programs? — tylko Strong: pompki / podciąganie · test później]
+[Co dalej — soft bullets · Przejdź do aplikacji → /]
+```
+Bez auto Max Test; drugi program nie w setupQueue.
+
 ## Wireframe — Dashboard (home)
 
 ```
@@ -60,8 +71,9 @@ Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
 [Status dnia — headline + opcjonalny subtitle]
 [Attention: InstallCoach XOR HomeTip]
 [Zacznij trening]
-  — ProgramHomeCard(s) z pełnym lifecycle
+  — ProgramHomeCard(s) z pełnym lifecycle (unconfigured: badge + soft hint + CTA)
   — CustomPlanHomeCard(s) LUB empty: Stwórz plan + Biblioteka
+  — custom-only ([] builtins): Empty „Twój trening…” + Stwórz plan / Włącz Strong
 [Twoja aktywność — MetricStrip + trend „wcześniej”]
 [Tab bar: Trening · Postępy · Plany · Profil]
 ```
@@ -181,6 +193,6 @@ Uruchom dev/preview na urządzeniu 375×667 (lub symulator). Sprawdź brak treś
 2. **Postępy** (`/progress`) — strip + wykres / Historia / Cykl; Własne gdy są dane
 3. **Plany** (`/plans`) — Moje | Programy | Biblioteka; badge „Twój cykl”
 4. **Profil** (`/profile`) — sekcja Konto + SyncStatusPanel
-5. **Onboarding** (`/setup/onboarding`) — hero + CTA, bez ucięcia u góry
+5. **Onboarding** (`/setup/onboarding`) — welcome → interest → programs? → next → Start; bez forsa testu
 6. **Login** (`/setup/login`) — formularz e-mail + „Pomiń”
 7. **Trening aktywny** (`/workout/pushups?force=1`) — licznik serii, menu treningu, bez nachodzenia na home indicator

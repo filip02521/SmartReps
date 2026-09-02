@@ -153,15 +153,25 @@ async function seedOnboardedWithProgress(
 }
 
 test.describe('SmartReps routing critical paths', () => {
-  test('1) onboarding → test → cycle → start → workout', async ({ page }) => {
+  test('1) onboarding soft → home → setup → workout', async ({ page }) => {
     test.setTimeout(90_000)
     await page.goto('/setup/onboarding')
     await expect(page.getByRole('heading', { name: 'Witaj w SmartReps' })).toBeVisible({
       timeout: 15_000,
     })
-    await page.getByRole('button', { name: 'Pierwszy raz — skonfiguruj program' }).click()
+    await page.getByRole('button', { name: 'Zaczynam' }).click()
+    await expect(page.getByRole('heading', { name: 'Co Cię interesuje?' })).toBeVisible()
     await page.getByRole('button', { name: 'Dalej' }).click()
-    await page.getByRole('button', { name: 'Wykonaj test' }).click()
+    await expect(page.getByRole('heading', { name: 'Które programy włączyć?' })).toBeVisible()
+    await page.getByRole('button', { name: 'Dalej' }).click()
+    await expect(page.getByRole('heading', { name: 'Co dalej?' })).toBeVisible()
+    await page.getByRole('button', { name: 'Przejdź do aplikacji' }).click()
+
+    await expect(page).toHaveURL('/', { timeout: 15_000 })
+    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible({
+      timeout: 15_000,
+    })
+    await page.getByRole('button', { name: 'Rozpocznij konfigurację' }).first().click()
 
     await expect(page).toHaveURL(/\/setup\/test\/pushups/)
     await page.getByRole('checkbox', { name: 'Rozumiem i chcę kontynuować' }).check()
@@ -188,18 +198,48 @@ test.describe('SmartReps routing critical paths', () => {
     await expect(page.getByRole('button', { name: 'Zrobione' })).toBeVisible({ timeout: 15_000 })
   })
 
-  test('1c) onboarding dual program drains to pullups test', async ({ page }) => {
+  test('1a) custom-only onboarding → home empty + create plan CTA', async ({ page }) => {
+    test.setTimeout(60_000)
+    await page.goto('/setup/onboarding')
+    await expect(page.getByRole('heading', { name: 'Witaj w SmartReps' })).toBeVisible({
+      timeout: 15_000,
+    })
+    await page.getByRole('button', { name: 'Zaczynam' }).click()
+    await expect(page.getByRole('heading', { name: 'Co Cię interesuje?' })).toBeVisible()
+    await page.getByRole('button', { name: /Programy SmartReps/ }).click()
+    await page.getByRole('button', { name: /Własne treningi/ }).click()
+    await page.getByRole('button', { name: 'Dalej' }).click()
+    await expect(page.getByRole('heading', { name: 'Co dalej?' })).toBeVisible()
+    await page.getByRole('button', { name: 'Przejdź do aplikacji' }).click()
+
+    await expect(page).toHaveURL('/', { timeout: 15_000 })
+    await expect(page.getByRole('heading', { name: 'Twój trening, Twoje zasady' })).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(page.getByRole('button', { name: 'Stwórz plan' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Włącz program Strong' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Rozpocznij konfigurację' })).toHaveCount(0)
+  })
+
+  test('1c) dual Strong stays on home — no auto drain to pullups', async ({ page }) => {
     test.setTimeout(120_000)
     await page.goto('/setup/onboarding')
     await expect(page.getByRole('heading', { name: 'Witaj w SmartReps' })).toBeVisible({
       timeout: 15_000,
     })
-    await page.getByRole('button', { name: 'Pierwszy raz — skonfiguruj program' }).click()
-
+    await page.getByRole('button', { name: 'Zaczynam' }).click()
+    await page.getByRole('button', { name: 'Dalej' }).click()
     await page.getByRole('button', { name: 'Podciąganie' }).click()
     await page.getByRole('button', { name: 'Dalej' }).click()
-    await page.getByRole('button', { name: 'Wykonaj test' }).click()
+    await page.getByRole('button', { name: 'Przejdź do aplikacji' }).click()
 
+    await expect(page).toHaveURL('/', { timeout: 15_000 })
+    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(page.getByRole('button', { name: 'Rozpocznij konfigurację' })).toHaveCount(2)
+
+    await page.getByRole('button', { name: 'Rozpocznij konfigurację' }).first().click()
     await expect(page).toHaveURL(/\/setup\/test\/pushups/)
 
     await page.getByRole('checkbox', { name: 'Rozumiem i chcę kontynuować' }).check()
@@ -221,10 +261,13 @@ test.describe('SmartReps routing critical paths', () => {
     await expect(page).toHaveURL(/\/setup\/login/)
     await page.getByRole('button', { name: 'Pomiń — trenuję bez konta' }).click()
 
-    await expect(page).toHaveURL(/\/setup\/test\/pullups/, { timeout: 25_000 })
-    await expect(page.getByRole('heading', { name: /Test podciągania/i })).toBeVisible({
+    await expect(page).toHaveURL(/\/workout\/pushups/, { timeout: 25_000 })
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible({
       timeout: 15_000,
     })
+    await expect(page.getByRole('button', { name: 'Rozpocznij konfigurację' })).toBeVisible()
+    await expect(page).not.toHaveURL(/\/setup\/test\/pullups/)
   })
 
   test('1d) seeded pullups progress → start workout', async ({ page }) => {

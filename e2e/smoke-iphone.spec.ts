@@ -89,7 +89,7 @@ test.describe('iPhone SE smoke', () => {
     await expect(page.getByRole('heading', { name: 'Witaj w SmartReps' })).toBeVisible({
       timeout: 15_000,
     })
-    await expect(page.getByRole('button', { name: 'Pierwszy raz — skonfiguruj program' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Zaczynam' })).toBeVisible()
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
     )

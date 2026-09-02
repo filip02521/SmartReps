@@ -285,6 +285,20 @@ describe('pickTip + tipSuppressionFrom', () => {
     expect(tip?.actionProgram).toBe('pullups')
   })
 
+  it('dual_program does not fire when all enabled programs are unconfigured', () => {
+    const tip = pickTip(
+      [
+        card({ program: 'pushups', bucket: 'unconfigured' }),
+        card({ program: 'pullups', bucket: 'unconfigured' }),
+      ],
+      0,
+      null,
+      null,
+      { daysSinceLastPassedSession: null, enabledProgramCount: 2 },
+    )
+    expect(tip?.kind).not.toBe('dual_program')
+  })
+
   it('dual_program does not fire when other program is only resting', () => {
     const tip = pickTip(
       [

@@ -91,8 +91,11 @@ export function ProgramHomeCard({
   if (bucket === 'unconfigured' || !progress) {
     return (
       <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
-        <p className="font-semibold text-[var(--sr-text-primary)]">{model.label}</p>
-        <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.notConfigured}</p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="font-semibold text-[var(--sr-text-primary)]">{model.label}</p>
+          <Badge variant="info">{pl.notConfigured}</Badge>
+        </div>
+        <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.notConfiguredHint}</p>
         <Button
           className="mt-5"
           size="touch"

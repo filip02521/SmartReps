@@ -57,7 +57,7 @@ export const pl = {
   homeStatusRestHeadline: 'Dziś odpoczynek',
   homeStatusRestSubtitle: (when: string) => `Następny trening ${when}`,
   homeStatusAllPaused: 'Programy wstrzymane — wznów, gdy będziesz gotowy',
-  homeStatusSetup: 'Skonfiguruj program, aby zacząć',
+  homeStatusSetup: 'Programy czekają na konfigurację — gdy będziesz gotowy',
   homeStatusSetupMixed: 'Wznów program lub dokończ konfigurację',
   homeStatusFallback: 'Twój plan treningowy',
   homeProgramLevelDay: (level: string, day: number, total: number) =>
@@ -80,8 +80,8 @@ export const pl = {
     `${days} dni przerwy. Wróć lekkim treningiem.`,
   homeTipHabitAlmost: (remaining: number) =>
     `Zostało ${remaining} do 3 treningów w 14 dniach.`,
-  homeTipDualProgram: 'Bez startowych ciężarów nie policzymy postępu.',
-  homeTipDualCta: 'Uzupełnij',
+  homeTipDualProgram: 'Drugi program czeka na test max i poziom — zrób to, gdy będziesz gotowy.',
+  homeTipDualCta: 'Skonfiguruj',
   homeTipLoginBackup:
     'Trenujesz lokalnie — zaloguj się, aby mieć kopię postępu w chmurze na innych urządzeniach.',
   homeTipShowCard: 'Pokaż kartę',
@@ -92,7 +92,7 @@ export const pl = {
   homeTipTitleLevel: 'Rozważ niższy poziom',
   homeTipTitleReturnAfterBreak: 'Dawno Cię nie było',
   homeTipTitleHabitAlmost: 'Blisko celu',
-  homeTipTitleDualProgram: 'Uzupełnij drugi program',
+  homeTipTitleDualProgram: 'Skonfiguruj drugi program',
   homeTipTitleLoginBackup: 'Backup w chmurze',
   homeTipTitleHabitZero: 'Czas wrócić',
   homeTipTitleHabitZeroFirst: 'Pierwszy trening',
@@ -112,8 +112,10 @@ export const pl = {
   continueSession: 'Kontynuuj sesję',
   resumeDespiteRestHint:
     'Masz niedokończony trening — możesz go dokończyć mimo zalecanej przerwy.',
-  noProgramsTitle: 'Brak włączonych programów',
-  noProgramsDesc: 'Dodaj program w profilu, aby zacząć trenować.',
+  noProgramsTitle: 'Twój trening, Twoje zasady',
+  noProgramsDesc: 'Zacznij od własnego planu — albo włącz pompki / podciąganie w profilu.',
+  noProgramsCreatePlan: 'Stwórz plan',
+  noProgramsGoProfile: 'Włącz program Strong',
   goToProfile: 'Przejdź do profilu',
   rest: 'Przerwa',
   test: 'Wykonaj test',
@@ -137,7 +139,8 @@ export const pl = {
   staleSession: 'Sesja sprzed ponad 24 godzin — kontynuuj lub zacznij od nowa.',
   staleSessionShort: 'Sesja sprzed 24h',
   startFresh: 'Zacznij od nowa',
-  notConfigured: 'Nie skonfigurowano',
+  notConfigured: 'Do skonfigurowania',
+  notConfiguredHint: 'Test max i poziom — gdy będziesz gotowy.',
   startSetup: 'Rozpocznij konfigurację',
   setupNextProgram: (name: string) => `Skonfiguruj ${name}`,
 
@@ -272,10 +275,30 @@ export const pl = {
   accountSwitchWrongAccountToast:
     'Wylogowano. Zaloguj się właściwym adresem e-mail, aby zsynchronizować swoje dane.',
   onboardingWelcome: 'Witaj w SmartReps',
-  onboardingNewUser: 'Pierwszy raz — skonfiguruj program',
+  onboardingWelcomeBody:
+    'Gotowe cykle pompki i podciągania — albo własne treningi na siłownię. Offline, bez socialu. Ty decydujesz, kiedy zacząć.',
+  onboardingNewUser: 'Zaczynam',
   onboardingHaveAccount: 'Mam już konto — zaloguj się',
-  onboardingPickProgram: 'Wybierz program',
-  onboardingRulesTitle: 'Jak to działa',
+  onboardingInterestTitle: 'Co Cię interesuje?',
+  onboardingInterestHint: 'Możesz wybrać obie opcje.',
+  onboardingInterestStrongTitle: 'Programy SmartReps',
+  onboardingInterestStrongBody:
+    'Pompki i podciąganie: test max, poziom, dni treningowe i przerwy — prowadzimy Cię krok po kroku.',
+  onboardingInterestCustomTitle: 'Własne treningi',
+  onboardingInterestCustomBody:
+    'Buduj plany z własnymi ćwiczeniami — idealne na siłownię i maszyny.',
+  onboardingPickProgram: 'Które programy włączyć?',
+  onboardingPickProgramHint:
+    'Test max i wybór poziomu zrobisz później z ekranu Start — gdy będziesz gotowy.',
+  onboardingNextTitle: 'Co dalej?',
+  onboardingNextHome: 'Przejdziesz na Start — bez wymuszania testu.',
+  onboardingNextStrong:
+    'Program skonfigurujesz z karty, gdy będziesz gotowy. Przy dwóch programach zrób testy osobno — zostaw sobie przerwę.',
+  onboardingNextCustom: 'Własne plany dodasz w Plany albo z sekcji na Start.',
+  onboardingEnterApp: 'Przejdź do aplikacji',
+  onboardingIllustStrong: 'Strong',
+  onboardingIllustCustom: 'Własne',
+  onboardingIllustNext: 'Start → kiedy Ty chcesz',
   restGateHint: (days: number) =>
     days === 1 ? '1 dzień przerwy między treningami' : `${days} dni przerwy między treningami`,
   totalRepsLastSession: (n: number) => `${n} powtórzeń łącznie (ostatni trening)`,
@@ -328,12 +351,6 @@ export const pl = {
   tryAgain: 'Spróbuj ponownie',
   sessionInProgress: 'w toku',
   helpTechniquePushups: 'Technika pompek',
-  onboardingRuleTestTitle: 'Test max',
-  onboardingRuleTestText: 'Zacznij od testu — aplikacja dobierze odpowiedni poziom.',
-  onboardingRuleRestTitle: 'Przerwy',
-  onboardingRuleRestText: 'Szanuj przerwy między dniami — regeneracja buduje siłę.',
-  onboardingRuleRestartTitle: 'Restart',
-  onboardingRuleRestartText: 'Nieudany dzień? Po przerwie wracasz do dnia 1 tego cyklu.',
   retestAfterCycle: (program: string) => `Test po cyklu — ${program}`,
   mainNav: 'Główna nawigacja',
 
@@ -751,6 +768,8 @@ export const pl = {
   disableProgram: 'Wyłącz program',
   disableProgramConfirm:
     'Program zniknie z ekranu Trening. Historia pozostanie na urządzeniu. Kontynuować?',
+  disableProgramConfirmLast:
+    'To ostatni program Strong — Start przejdzie na własne plany. Historia Strong zostanie na urządzeniu. Kontynuować?',
   pauseProgram: 'Wstrzymaj program',
   resumeProgram: 'Wznów program',
   clearLocalData: 'Wyczyść lokalne dane',

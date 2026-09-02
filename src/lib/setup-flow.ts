@@ -11,39 +11,49 @@ export function isProgram(value: string | undefined | null): value is Program {
 
 let setupDrainLock: Promise<boolean> | null = null
 
-/** True when any enabled program still lacks progress (needs MaxTest). */
+/**
+ * True only for an active setup chain (pending test/start or queued program
+ * still without progress). Unconfigured enabled programs alone are NOT incomplete —
+ * soft onboarding leaves them on home until the user taps the card.
+ */
 export async function hasIncompleteSetup(): Promise<boolean> {
-  const enabled = useAppStore.getState().settings.enabledPrograms
-  for (const program of enabled) {
+  const { pendingTest, pendingStart, setupQueue } = useAppStore.getState()
+  if (pendingTest || pendingStart) return true
+  for (const program of setupQueue) {
     if (!(await getProgramProgress(program))) return true
   }
   return false
 }
 
 /**
- * Navigate to the first enabled program that still needs setup.
+ * Continue an active setup chain only.
  * Returns true if a navigation was issued.
- * Uses enabledPrograms as source of truth (setupQueue is legacy mirror only).
  */
 export async function drainIncompleteSetup(navigate: NavigateFunction): Promise<boolean> {
   if (setupDrainLock) return setupDrainLock
 
   setupDrainLock = (async () => {
-    const enabled = useAppStore.getState().settings.enabledPrograms
-    for (const program of enabled) {
+    const state = useAppStore.getState()
+
+    if (state.pendingTest) {
+      // pendingTest is set only after a completed max test → resume cycle picker
+      const program = state.pendingTest.program
+      navigate(`/setup/cycle/${program}`, { replace: true })
+      return true
+    }
+
+    const queue = state.setupQueue
+    for (const program of queue) {
       const prog = await getProgramProgress(program)
       if (!prog) {
-        const stillNeeded: Program[] = []
-        for (const p of enabled) {
-          if (p === program) continue
-          if (!(await getProgramProgress(p))) stillNeeded.push(p)
-        }
+        const stillNeeded = queue.filter((p) => p !== program)
         useAppStore.getState().setSetupQueue(stillNeeded)
         navigate(`/setup/test/${program}`, { replace: true })
         return true
       }
     }
-    if (useAppStore.getState().setupQueue.length > 0) {
+
+    if (queue.length > 0) {
       useAppStore.getState().setSetupQueue([])
     }
     return false

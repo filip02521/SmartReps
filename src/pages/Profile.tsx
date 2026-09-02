@@ -352,15 +352,12 @@ export default function ProfilePage() {
   const addProgram = async (program: Program) => {
     if (settings.enabledPrograms.includes(program)) return
     setSettings({ enabledPrograms: [...settings.enabledPrograms, program] })
-    const existing = await getProgramProgress(program)
-    if (!existing) {
-      navigate(`/setup/test/${program}`)
-    }
+    // Soft UX: do not auto-force Max Test — user starts from the home card.
   }
 
   const disableProgram = (program: Program) => {
     const next = settings.enabledPrograms.filter((p) => p !== program)
-    setSettings({ enabledPrograms: next.length ? next : settings.enabledPrograms })
+    setSettings({ enabledPrograms: next })
     setPendingDisable(null)
   }
 
@@ -573,7 +570,7 @@ export default function ProfilePage() {
                 key={program}
                 program={program}
                 progress={progressByProgram[program]}
-                canDisable={settings.enabledPrograms.length > 1}
+                canDisable={true}
                 onChangeLevel={() => void changeLevel(program)}
                 onRetest={() => void retest(program)}
                 onTogglePause={() => void togglePause(program)}
@@ -762,7 +759,11 @@ export default function ProfilePage() {
       {pendingDisable && (
         <ConfirmSheet
           title={pl.disableProgram}
-          message={pl.disableProgramConfirm}
+          message={
+            settings.enabledPrograms.length === 1
+              ? pl.disableProgramConfirmLast
+              : pl.disableProgramConfirm
+          }
           confirmLabel={pl.confirm}
           variant="danger"
           onConfirm={() => disableProgram(pendingDisable)}
