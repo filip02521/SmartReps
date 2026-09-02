@@ -28,6 +28,8 @@ export type UserSettings = {
   /** When true, enabledCustomPlanIds is authoritative (empty = hide all on home). */
   customPlansFilterExplicit: boolean
   onboardingComplete: boolean
+  /** Public author name for community catalog (synced to profiles.display_name). */
+  displayName?: string
 }
 
 export type PendingTest = {
@@ -139,6 +141,7 @@ export const defaultSettings: UserSettings = {
   enabledCustomPlanIds: [],
   customPlansFilterExplicit: false,
   onboardingComplete: false,
+  displayName: '',
 }
 
 export const useAppStore = create<AppStore>()(

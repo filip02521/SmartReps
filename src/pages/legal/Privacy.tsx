@@ -31,8 +31,15 @@ export default function PrivacyPage() {
           (CSV) lub pełny backup (JSON) z postępem i ustawieniami na tym urządzeniu.
         </p>
         <p>
+          <strong>Katalog społecznościowy:</strong> przy publikacji planu zapisujemy w chmurze
+          snapshot treningu, podpis autora (wyświetlana nazwa), tagi oraz metadane (np. liczba
+          polubień i importów). Import i polubienie wymagają konta. Katalog nie udostępnia Twojego
+          e-maila ani prywatnych draftów.
+        </p>
+        <p>
           <strong>Usunięcie konta:</strong> zalogowany użytkownik może w Profilu trwale usunąć konto
-          w chmurze (postęp, sesje, subskrypcje push). Usunięcie konta nie kasuje automatycznie danych
+          w chmurze (postęp, sesje, subskrypcje push, publikacje społecznościowe, polubienia,
+          importy i zgłoszenia powiązane z kontem). Usunięcie konta nie kasuje automatycznie danych
           lokalnych — możesz je wyczyścić osobno. Przed usunięciem zalecamy pobrać backup.
         </p>
         <p>

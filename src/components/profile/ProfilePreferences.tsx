@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { PageSection } from '@/components/ui/PageSection'
-import { CheckboxField } from '@/components/ui/TextField'
+import { CheckboxField, TextField } from '@/components/ui/TextField'
+import { Button } from '@/components/ui/Button'
 import { pl } from '@/i18n/pl'
 import type { UserSettings } from '@/stores/app-store'
 
@@ -17,6 +19,7 @@ export function ProfilePreferences({
   pushNotifications,
   workoutReminders,
   reminderHour,
+  displayName,
   pushDescription,
   remindersDenied,
   pushDisabled,
@@ -30,6 +33,7 @@ export function ProfilePreferences({
   onPushChange,
   onLocalRemindersChange,
   onReminderHourChange,
+  onDisplayNameSave,
 }: {
   theme: Theme
   highContrast: boolean
@@ -39,6 +43,7 @@ export function ProfilePreferences({
   pushNotifications: boolean
   workoutReminders: boolean
   reminderHour: number
+  displayName: string
   pushDescription: string
   remindersDenied: boolean
   pushDisabled: boolean
@@ -52,9 +57,31 @@ export function ProfilePreferences({
   onPushChange: (on: boolean) => void
   onLocalRemindersChange: (on: boolean) => void
   onReminderHourChange: (hour: number) => void
+  onDisplayNameSave: (name: string) => void | Promise<void>
 }) {
+  const [nameDraft, setNameDraft] = useState(displayName)
+  useEffect(() => {
+    setNameDraft(displayName)
+  }, [displayName])
+
   return (
     <>
+      <PageSection title={pl.communityDisplayName} hint={pl.communityDisplayNameHint} className={SECTION}>
+        <TextField
+          id="profile-display-name"
+          value={nameDraft}
+          onChange={(e) => setNameDraft(e.target.value.slice(0, 40))}
+        />
+        <Button
+          type="button"
+          className="mt-3"
+          size="sm"
+          onClick={() => void onDisplayNameSave(nameDraft.trim())}
+        >
+          {pl.communityDisplayNameSave}
+        </Button>
+      </PageSection>
+
       <PageSection title={pl.appearance} className={SECTION}>
         <SegmentedControl
           options={[

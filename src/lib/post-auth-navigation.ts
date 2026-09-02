@@ -12,6 +12,7 @@ export function isSafeReturnPath(path: string): boolean {
   const pathOnly = path.split('?')[0] ?? path
   if (pathOnly === '/') return true
   if (/^\/workout\/(pushups|pullups)(\/summary)?$/.test(pathOnly)) return true
+  if (/^\/community\/[a-z0-9-]+$/.test(pathOnly)) return true
   const allowedRoots = ['/profile', '/progress', '/plans', '/workout/custom']
   return allowedRoots.some((root) => pathOnly === root || pathOnly.startsWith(`${root}/`))
 }
@@ -51,6 +52,15 @@ async function executeAuthNavigation(
   ) {
     navigate(returnTo, { replace: true })
     return
+  }
+
+  // Preserve community (and other) returnTo across onboarding / incomplete setup.
+  if (returnTo && isSafeReturnPath(returnTo) && (!settings.onboardingComplete || incomplete)) {
+    try {
+      sessionStorage.setItem('auth-return-to', returnTo)
+    } catch {
+      // ignore
+    }
   }
 
   if (pendingCustomStart) {

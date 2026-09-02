@@ -9,7 +9,8 @@ import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
-import { runAuthenticatedSync, setAuthFromOnboarding } from '@/lib/auth-sync'
+import { runAuthenticatedSync, setAuthFromOnboarding, consumeAuthReturnTo } from '@/lib/auth-sync'
+import { resolvePostAuthNavigation } from '@/lib/post-auth-navigation'
 import { track } from '@/lib/analytics'
 import type { Program } from '@/data/plans/types'
 import { cn } from '@/lib/utils'
@@ -102,7 +103,7 @@ export default function Onboarding() {
       custom: wantCustom,
       programCount: selected.length,
     })
-    navigate('/', { replace: true })
+    void resolvePostAuthNavigation(navigate, consumeAuthReturnTo())
   }
 
   const goToLogin = () => {

@@ -60,6 +60,12 @@ describe('isSafeReturnPath', () => {
     expect(isSafeReturnPath('/progress?tab=history')).toBe(true)
     expect(isSafeReturnPath('/')).toBe(true)
   })
+
+  it('allows community publication paths', () => {
+    expect(isSafeReturnPath('/community/silowy-plan-abcdef')).toBe(true)
+    expect(isSafeReturnPath('/community/Bad_Slug')).toBe(false)
+    expect(isSafeReturnPath('/community/')).toBe(false)
+  })
 })
 
 describe('navigateAfterAuth', () => {
@@ -193,6 +199,22 @@ describe('resolvePostAuthNavigation', () => {
     await resolvePostAuthNavigation(navigate, '/profile')
 
     expect(navigate).toHaveBeenCalledWith('/profile', { replace: true })
+  })
+
+  it('preserves community returnTo when onboarding incomplete', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    mockState({
+      pendingStart: null,
+      settings: { enabledPrograms: ['pushups'], onboardingComplete: false },
+    })
+    vi.spyOn(setupFlow, 'hasIncompleteSetup').mockResolvedValue(false)
+    vi.spyOn(setupFlow, 'drainIncompleteSetup').mockResolvedValue(false)
+
+    await resolvePostAuthNavigation(navigate, '/community/plan-abc123')
+
+    expect(setItem).toHaveBeenCalledWith('auth-return-to', '/community/plan-abc123')
+    expect(navigate).toHaveBeenCalledWith('/', { replace: true })
+    setItem.mockRestore()
   })
 
   it('rejects unsafe returnTo paths', async () => {

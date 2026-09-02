@@ -10,6 +10,7 @@ import {
 import { HomeTip } from '@/components/dashboard/HomeTip'
 import { ProgramHomeCard } from '@/components/dashboard/ProgramHomeCard'
 import { CustomPlansHomeSection } from '@/components/dashboard/CustomPlansHomeSection'
+import { CommunityHomeTeaser } from '@/components/dashboard/CommunityHomeTeaser'
 import { InstallCoach } from '@/components/ux/InstallCoach'
 import { pl } from '@/i18n/pl'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
@@ -241,6 +242,8 @@ export default function Dashboard() {
           {settings.enabledPrograms.length === 0 && (
             <CustomPlansHomeSection hideEmptyDiscover />
           )}
+
+          <CommunityHomeTeaser />
 
           <HomeActivitySection summary={home.summary} />
         </>

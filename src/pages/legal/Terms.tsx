@@ -26,6 +26,14 @@ export default function TermsPage() {
           oryginalnych programów należą do ich autorów; SmartReps implementuje śledzenie postępu.
         </p>
         <p>
+          W katalogu społecznościowym możesz publikować własne plany (tytuł, opis, strukturę
+          treningu) oraz importować plany innych użytkowników jako lokalną kopię. Publikując,
+          udzielasz SmartReps niewyłącznej licencji na wyświetlanie planu w katalogu i umożliwienie
+          importu kopii innym użytkownikom. Nie publikuj danych osobowych w opisach ani treści
+          niebezpiecznych / niezgodnych z prawem. Możesz wycofać publikację (unpublish) oraz
+          zgłosić cudzą treść. Zastrzegamy prawo do ukrycia lub usunięcia zgłoszonych publikacji.
+        </p>
+        <p>
           Możesz zaprzestać korzystania w dowolnym momencie i usunąć dane lokalne w Profilu.
           Kontynuując, potwierdzasz zapoznanie się z polityką prywatności.
         </p>

@@ -442,6 +442,7 @@ export default function ProfilePage() {
         pushNotifications={settings.pushNotifications}
         workoutReminders={settings.workoutReminders}
         reminderHour={settings.reminderHour}
+        displayName={settings.displayName ?? ''}
         pushDescription={pushDescription}
         remindersDenied={remindersDenied}
         pushDisabled={
@@ -465,6 +466,24 @@ export default function ProfilePage() {
         onTimerSoundChange={(checked) => setSettings({ timerSound: checked })}
         onTimerVibrationChange={(checked) => setSettings({ timerVibration: checked })}
         onKeepScreenOnChange={(checked) => setSettings({ keepScreenOn: checked })}
+        onDisplayNameSave={async (name) => {
+          if (!name) {
+            showToast(pl.communityPublishNeedName, 'error')
+            return
+          }
+          const prev = settings.displayName ?? ''
+          setSettings({ displayName: name })
+          try {
+            const { refreshCommunityAuthorDisplayName } = await import('@/lib/community-api')
+            await refreshCommunityAuthorDisplayName(name)
+            const { pushProfileSettingsOnly } = await import('@/lib/sync')
+            await pushProfileSettingsOnly()
+            showToast(pl.communityDisplayNameSaved, 'success')
+          } catch {
+            setSettings({ displayName: prev })
+            showToast(pl.communityErrorGeneric, 'error')
+          }
+        }}
         onPushChange={(on) => {
           void (async () => {
             if (on) {

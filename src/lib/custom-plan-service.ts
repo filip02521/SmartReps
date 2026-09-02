@@ -271,6 +271,27 @@ export async function deleteCustomPlan(planId: string): Promise<void> {
       enabledCustomPlanIds: pruneEnabledCustomPlanIds(settings.enabledCustomPlanIds, planId),
     })
   }
+
+  // Catalog entries are not FK-linked — unpublish so the snapshot does not outlive the plan.
+  try {
+    const { isSupabaseConfigured, supabase } = await import('@/lib/supabase/client')
+    if (isSupabaseConfigured) {
+      const { data } = await supabase.auth.getUser()
+      if (data.user) {
+        const { fetchMyPublicationForPlan, unpublishCommunityPlan } = await import(
+          '@/lib/community-api'
+        )
+        const pub = await fetchMyPublicationForPlan(planId)
+        if (pub && pub.status === 'published') {
+          await unpublishCommunityPlan(pub.id)
+          const { clearCommunityListCache } = await import('@/lib/community-list-cache')
+          clearCommunityListCache()
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[community] unpublish on plan delete failed', err)
+  }
 }
 
 export async function setCustomPlanPaused(planId: string, paused: boolean): Promise<void> {

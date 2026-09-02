@@ -175,6 +175,7 @@ async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
   const { error } = await supabase.from('profiles').upsert(
     {
       id: userId,
+      display_name: settings.displayName?.trim() ? settings.displayName.trim() : null,
       enabled_programs: settings.enabledPrograms,
       enabled_programs_updated_at: programsUpdatedAt,
       enabled_workouts_json: settings.enabledCustomPlanIds,
@@ -210,7 +211,7 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, ui_settings_updated_at',
+        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, ui_settings_updated_at',
       )
       .eq('id', userId)
       .maybeSingle()
@@ -218,6 +219,15 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
     mergeEnabledProgramsFromProfile(data)
     mergeEnabledCustomWorkoutsFromProfile(data)
     mergeUiSettingsFromProfile(data)
+    if (data && typeof data.display_name === 'string') {
+      const name = data.display_name.trim()
+      const { settings } = useAppStore.getState()
+      if (name && name !== settings.displayName) {
+        useAppStore.getState().setSettings({ displayName: name })
+      } else if (!settings.displayName && name) {
+        useAppStore.getState().setSettings({ displayName: name })
+      }
+    }
     return { ok: true, errors: 0 }
   } catch (err) {
     console.warn('[sync] pullProfileEnabledPrograms failed', err)

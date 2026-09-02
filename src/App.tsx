@@ -27,6 +27,9 @@ import { AccountSwitchGate } from '@/components/ux/AccountSwitchGate'
 const ProgressPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Progress')))
 const PlansPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Plans')))
 const ProfilePage = lazy(lazyWithChunkRecovery(() => import('@/pages/Profile')))
+const CommunityPublicationPage = lazy(
+  lazyWithChunkRecovery(() => import('@/pages/CommunityPublication')),
+)
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return (
@@ -52,6 +55,14 @@ export default function App() {
       <Routes>
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route
+          path="/community/:slug"
+          element={
+            <LazyPage>
+              <CommunityPublicationPage />
+            </LazyPage>
+          }
+        />
         <Route path="/setup/onboarding" element={<Onboarding />} />
         <Route path="/setup/login" element={<Login />} />
         <Route path="/setup/technique" element={<TechniquePushups />} />

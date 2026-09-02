@@ -50,6 +50,8 @@ export async function upsertCustomPlan(userId: string, plan: CustomPlan) {
       days: plan.days,
     },
     progression_json: plan.progression ?? null,
+    deload_json: plan.deload ?? null,
+    community_publication_id: plan.communityPublicationId ?? null,
     created_at: plan.createdAt,
     updated_at: plan.updatedAt,
   })
@@ -100,6 +102,8 @@ type RemotePlan = {
   source: CustomPlan['source']
   plan_json: { days: CustomPlan['days'] }
   progression_json: CustomPlan['progression']
+  deload_json?: CustomPlan['deload']
+  community_publication_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -331,6 +335,8 @@ function mapPlan(row: RemotePlan): CustomPlan {
     updatedAt: row.updated_at,
     source: row.source,
     progression: row.progression_json ?? null,
+    deload: row.deload_json ?? null,
+    communityPublicationId: row.community_publication_id ?? null,
   }
 }
 

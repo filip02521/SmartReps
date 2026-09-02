@@ -13,6 +13,7 @@ export function parseEnabledCustomPlanIds(raw: unknown): string[] {
 }
 
 export type RemoteProfileSettings = {
+  display_name?: string | null
   enabled_programs: string[] | null
   enabled_programs_updated_at: string | null
   enabled_workouts_json?: string[] | null

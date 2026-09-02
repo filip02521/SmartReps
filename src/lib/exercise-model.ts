@@ -71,7 +71,7 @@ export type PlanDay = {
 
 export type CustomPlanStatus = 'draft' | 'active'
 
-export type CustomPlanSource = 'user' | 'duplicate' | 'import'
+export type CustomPlanSource = 'user' | 'duplicate' | 'import' | 'community'
 
 export type CustomPlan = {
   id: string
@@ -86,6 +86,8 @@ export type CustomPlan = {
   progression?: ProgressionRule | null
   /** Optional deload every N cycles (negative deltas). */
   deload?: DeloadRule | null
+  /** Set when plan was imported from community catalog. */
+  communityPublicationId?: string | null
 }
 
 export type DeloadRule = {

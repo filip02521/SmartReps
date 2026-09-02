@@ -671,7 +671,11 @@ export function CustomPlanEditor({
               {pl.planSaveDraft}
             </Button>
             <Button type="button" size="touch" fullWidth onClick={() => void handleActivate()}>
-              {plan.status === 'active' ? pl.planSaveActive : pl.planPublish}
+              {plan.status === 'active'
+                ? pl.planSaveActive
+                : plan.source === 'community'
+                  ? pl.communityActivateHint
+                  : pl.planPublish}
             </Button>
           </div>
         )}

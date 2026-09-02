@@ -36,13 +36,18 @@ import {
 import { getActiveCustomWorkoutDay } from '@/lib/custom-plan-edit-lock'
 import { downloadCustomPlanJson } from '@/lib/export-backup'
 import { getCustomPlanResumeInfo, type CustomPlanResumeInfo } from '@/lib/custom-plan-resume'
+import { CommunityCatalogPanel } from '@/components/community/CommunityCatalogPanel'
+import { MyCommunityPublicationsPanel } from '@/components/community/MyCommunityPublicationsPanel'
+import { PublishCommunitySheet } from '@/components/community/PublishCommunitySheet'
+import { useOnline } from '@/hooks/useOnline'
 import { cn } from '@/lib/utils'
 
-type PlansTab = 'mine' | 'programs' | 'library'
+type PlansTab = 'mine' | 'programs' | 'library' | 'community'
 
 function parsePlansTab(tabParam: string | null, libraryParam: string | null): PlansTab {
   if (libraryParam === '1' || tabParam === 'library') return 'library'
   if (tabParam === 'programs' || tabParam === 'builtin') return 'programs'
+  if (tabParam === 'community') return 'community'
   if (tabParam === 'mine' || tabParam == null || tabParam === '') return 'mine'
   return 'mine'
 }
@@ -50,6 +55,7 @@ function parsePlansTab(tabParam: string | null, libraryParam: string | null): Pl
 function plansSubtitle(tab: PlansTab): string {
   if (tab === 'mine') return pl.plansMinePageHint
   if (tab === 'library') return pl.plansLibraryPageHint
+  if (tab === 'community') return pl.plansCommunityPageHint
   return pl.plansCatalogHint
 }
 
@@ -94,7 +100,10 @@ export default function PlansPage() {
   const [editorInitialDay, setEditorInitialDay] = useState<number | null>(null)
   const [editorActiveDay, setEditorActiveDay] = useState<number | null>(null)
   const [morePlan, setMorePlan] = useState<CustomPlan | null>(null)
+  const [publishPlan, setPublishPlan] = useState<CustomPlan | null>(null)
   const [deletePlan, setDeletePlan] = useState<CustomPlan | null>(null)
+  const online = useOnline()
+  const communityMine = searchParams.get('mine') === '1'
   const importInputRef = useRef<HTMLInputElement>(null)
   const highlightRef = useRef<HTMLDivElement | null>(null)
   const pushups = allCycles.filter((c) => c.program === 'pushups')
@@ -104,10 +113,13 @@ export default function PlansPage() {
     const params = new URLSearchParams(searchParams)
     params.delete('library')
     params.delete('highlight')
+    if (next !== 'community') params.delete('mine')
     if (next === 'mine') {
       params.set('tab', 'mine')
     } else if (next === 'programs') {
       params.set('tab', 'programs')
+    } else if (next === 'community') {
+      params.set('tab', 'community')
     } else {
       params.set('tab', 'library')
     }
@@ -238,6 +250,7 @@ export default function PlansPage() {
 
       <SegmentedControl
         className="mt-2"
+        size="compact"
         value={tab}
         onChange={(v) => {
           setTab(v)
@@ -245,10 +258,18 @@ export default function PlansPage() {
         }}
         options={[
           { value: 'mine', label: pl.plansTabMine },
+          { value: 'community', label: pl.plansTabCommunity },
           { value: 'programs', label: pl.plansTabPrograms },
           { value: 'library', label: pl.plansTabLibrary },
         ]}
       />
+
+      {tab === 'community' &&
+        (communityMine ? (
+          <MyCommunityPublicationsPanel />
+        ) : (
+          <CommunityCatalogPanel showMyLink />
+        ))}
 
       {tab === 'mine' && (
         <PageSection
@@ -488,6 +509,24 @@ export default function PlansPage() {
                 type="button"
                 variant="secondary"
                 fullWidth
+                disabled={!online}
+                onClick={() => {
+                  if (!online) {
+                    showToast(pl.communityPublishOfflineHint, 'info')
+                    return
+                  }
+                  setPublishPlan(morePlan)
+                  setMorePlan(null)
+                }}
+              >
+                {pl.communityPublish}
+              </Button>
+            ) : null}
+            {morePlan.status === 'active' ? (
+              <Button
+                type="button"
+                variant="secondary"
+                fullWidth
                 onClick={() =>
                   void setCustomPlanPaused(
                     morePlan.id,
@@ -526,6 +565,12 @@ export default function PlansPage() {
           onCancel={() => setDeletePlan(null)}
         />
       )}
+
+      <PublishCommunitySheet
+        plan={publishPlan}
+        open={publishPlan != null}
+        onClose={() => setPublishPlan(null)}
+      />
     </div>
   )
 }

@@ -71,6 +71,10 @@ Deno.serve(async (req) => {
   }
 
   const tables = [
+    'community_reports',
+    'community_likes',
+    'community_imports',
+    'community_publications',
     'active_custom_workout_state',
     'custom_program_progress',
     'custom_plans',
@@ -84,8 +88,15 @@ Deno.serve(async (req) => {
   ] as const
 
   for (const table of tables) {
-    const col = table === 'profiles' ? 'id' : 'user_id'
-    const { error } = await admin.from(table).delete().eq(col, userId)
+    const column =
+      table === 'profiles'
+        ? 'id'
+        : table === 'community_publications'
+          ? 'author_id'
+          : table === 'community_reports'
+            ? 'reporter_id'
+            : 'user_id'
+    const { error } = await admin.from(table).delete().eq(column, userId)
     if (error) {
       console.error(`delete ${table} failed`, error.message)
       return new Response(JSON.stringify({ error: 'delete_failed', table }), {
