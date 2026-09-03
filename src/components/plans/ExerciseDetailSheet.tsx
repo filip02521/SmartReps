@@ -2,16 +2,26 @@ import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { useNavigate } from 'react-router-dom'
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
+import {
+  Bar,
+  BarChart,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { BarChart2, TrendingDown, TrendingUp } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Card'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { ProgressSection } from '@/components/progress/ProgressSection'
+import { PROGRESS_CHART_TOOLTIP_STYLE } from '@/components/progress/chart-style'
 import { EmptyState, SkeletonCard } from '@/components/ux/Feedback'
 import { LogoMark } from '@/components/brand/Logo'
-import type { ExerciseDefinition } from '@/lib/exercise-model'
+import type { ExerciseDefinition, PrimaryMetric } from '@/lib/exercise-model'
 import {
   computeExerciseDetailStats,
   exercisePrDisplay,
@@ -20,23 +30,29 @@ import {
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 
-const chartTooltipStyle = {
-  background: 'var(--sr-bg-elevated)',
-  border: '1px solid var(--sr-border-subtle)',
-  borderRadius: '8px',
-  color: 'var(--sr-text-primary)',
-}
-
-function metricBadgeLabel(metric: ExerciseDefinition['primaryMetric']): string {
+function metricBadgeLabel(metric: PrimaryMetric): string {
   if (metric === 'reps') return pl.exerciseMetricReps
   if (metric === 'duration_sec') return pl.exerciseMetricDuration
   return pl.exerciseMetricRepsWeight
 }
 
-function chartValueLabel(metric: ExerciseDefinition['primaryMetric']): string {
+function chartValueLabel(metric: PrimaryMetric): string {
   if (metric === 'duration_sec') return pl.exerciseDetailChartDuration
   if (metric === 'reps_weight') return pl.exerciseDetailChartReps
   return pl.repsUnit
+}
+
+function loadChartUnit(metric: PrimaryMetric): string {
+  if (metric === 'duration_sec') return pl.exerciseDetailLoadChartDuration
+  if (metric === 'reps_weight') return pl.exerciseDetailLoadChartVolume
+  return pl.exerciseDetailLoadChartReps
+}
+
+function formatDurationMinutes(totalSec: number): string {
+  if (totalSec < 60) return `${totalSec}s`
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  return s === 0 ? `${m} min` : `${m} min ${s}s`
 }
 
 function trendCopy(stats: ExerciseDetailStats): string | null {
@@ -59,6 +75,8 @@ function ExerciseDetailSkeleton() {
       </div>
       <SkeletonCard className="h-20" />
       <SkeletonCard className="h-44" />
+      <SkeletonCard className="h-44" />
+      <SkeletonCard className="h-28" />
     </div>
   )
 }
@@ -194,7 +212,66 @@ export function ExerciseDetailSheet({
                 highlight
                 overline={pl.progressCustomPr}
                 value={exercisePrDisplay(stats)}
+                hint={
+                  stats.prDate && stats.prSessionLabel
+                    ? (exercise.primaryMetric === 'reps_weight'
+                        ? pl.exerciseDetailPrHintRepsWeight
+                        : exercise.primaryMetric === 'duration_sec'
+                          ? pl.exerciseDetailPrHintDuration
+                          : pl.exerciseDetailPrHint)(
+                        format(new Date(stats.prDate), 'd MMM yyyy', { locale: plLocale }),
+                        stats.prSessionLabel,
+                      )
+                    : undefined
+                }
               />
+
+              <ProgressSection title={pl.exerciseDetailLoadTitle}>
+                <div className="grid grid-cols-2 gap-2">
+                  {exercise.primaryMetric === 'duration_sec' ? (
+                    <NestedStat
+                      size="md"
+                      overline={pl.exerciseDetailTotalDuration}
+                      value={formatDurationMinutes(stats.totalDurationSecAllTime)}
+                    />
+                  ) : exercise.primaryMetric === 'reps_weight' ? (
+                    <NestedStat
+                      size="md"
+                      overline={pl.exerciseDetailTotalVolume}
+                      value={`${Math.round(stats.totalVolumeKgAllTime ?? 0)} ${pl.exerciseDetailTotalVolumeUnit}`}
+                    />
+                  ) : (
+                    <NestedStat
+                      size="md"
+                      overline={pl.exerciseDetailTotalReps}
+                      value={stats.totalRepsAllTime}
+                    />
+                  )}
+                  <NestedStat
+                    size="md"
+                    overline={pl.exerciseDetailAvgBest}
+                    value={
+                      stats.avgBestPerSession != null
+                        ? `${stats.avgBestPerSession} ${chartValueLabel(exercise.primaryMetric)}`
+                        : '—'
+                    }
+                  />
+                  <NestedStat
+                    size="md"
+                    overline={pl.exerciseDetailSessions30d}
+                    value={stats.sessionsLast30d}
+                  />
+                  <NestedStat
+                    size="md"
+                    overline={pl.exerciseDetailAvgPerWeek}
+                    value={
+                      stats.avgSessionsPerWeek != null
+                        ? pl.exerciseDetailAvgPerWeekUnit(stats.avgSessionsPerWeek)
+                        : '—'
+                    }
+                  />
+                </div>
+              </ProgressSection>
 
               <ProgressSection title={pl.exerciseDetailChartTitle} hint={pl.exerciseDetailChartHint}>
                 {stats.chartPoints.length >= 2 ? (
@@ -213,7 +290,7 @@ export function ExerciseDetailSheet({
                           width={32}
                         />
                         <Tooltip
-                          contentStyle={chartTooltipStyle}
+                          contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
                           formatter={(value, _name, item) => {
                             const row = item.payload as ExerciseDetailStats['chartPoints'][0]
                             const secondary = row.tooltipSecondary
@@ -249,6 +326,73 @@ export function ExerciseDetailSheet({
                   </p>
                 )}
               </ProgressSection>
+
+              {stats.loadPerSession.length >= 2 && (
+                <ProgressSection
+                  title={pl.exerciseDetailLoadChartTitle}
+                  hint={pl.exerciseDetailLoadChartHint}
+                >
+                  <div className="h-44 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] py-3">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={stats.loadPerSession}>
+                        <XAxis
+                          dataKey="dateLabel"
+                          tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                          stroke="var(--sr-border-subtle)"
+                          interval="preserveStartEnd"
+                        />
+                        <YAxis
+                          tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                          stroke="var(--sr-border-subtle)"
+                          width={32}
+                        />
+                        <Tooltip
+                          contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
+                          formatter={(value) => [
+                            `${value ?? 0} ${loadChartUnit(exercise.primaryMetric)}`,
+                            pl.exerciseDetailLoadChartTooltip,
+                          ]}
+                          labelFormatter={(label) => String(label)}
+                        />
+                        <Bar dataKey="value" fill="var(--sr-brand-primary)" radius={4} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </ProgressSection>
+              )}
+
+              {stats.lastSessionSets.length > 0 && (
+                <ProgressSection
+                  title={pl.exerciseDetailLastSessionTitle}
+                  hint={pl.exerciseDetailLastSessionHint}
+                >
+                  <ul className="divide-y divide-[var(--sr-border-subtle)]">
+                    {stats.lastSessionSets.map((set) => (
+                      <li
+                        key={set.setNumber}
+                        className="flex items-center justify-between gap-3 py-2.5 first:pt-0"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="sr-text-overline w-6 shrink-0 text-[var(--sr-text-muted)]">
+                            {pl.exerciseDetailSetShort(set.setNumber)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-medium tabular-nums text-[var(--sr-text-primary)]">
+                              {set.actualLabel}
+                            </p>
+                            <p className="sr-text-caption text-[var(--sr-text-muted)]">
+                              {pl.exerciseDetailTargetShort}: {set.targetLabel}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant={set.passed ? 'success' : 'error'}>
+                          {set.passed ? pl.passedShort : pl.failedShort}
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                </ProgressSection>
+              )}
 
               {stats.recentSessions.length > 0 && (
                 <ProgressSection

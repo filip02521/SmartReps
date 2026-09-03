@@ -22,7 +22,19 @@ import { SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
 import { db } from '@/lib/db'
 import { getProgramProgress } from '@/lib/program-service'
 import { getCycleById } from '@/data/plans'
-import { getProgramStats, getMaxSetPerDay, getProgramRecords } from '@/lib/stats-engine'
+import {
+  getProgramStats,
+  getMaxSetPerDay,
+  getProgramRecords,
+  getMaxSetPerSession,
+  getProgramRecordsWithDates,
+  getProgramVolumeStats,
+  getDayCycleTrend,
+  type SessionChartPoint,
+  type ProgramRecordsWithDates,
+  type ProgramVolumeStats,
+  type DayCycleTrend,
+} from '@/lib/stats-engine'
 import { buildActivityInsights } from '@/lib/weekly-recap'
 import { useAppStore } from '@/stores/app-store'
 import { pl } from '@/i18n/pl'
@@ -133,6 +145,10 @@ export default function ProgressPage() {
   const [stats, setStats] = useState<Awaited<ReturnType<typeof getProgramStats>> | null>(null)
   const [records, setRecords] = useState<Awaited<ReturnType<typeof getProgramRecords>> | null>(null)
   const [maxPerDay, setMaxPerDay] = useState<{ day: number; maxActual: number }[]>([])
+  const [sessionChart, setSessionChart] = useState<SessionChartPoint[]>([])
+  const [recordsWithDates, setRecordsWithDates] = useState<ProgramRecordsWithDates | null>(null)
+  const [volumeStats, setVolumeStats] = useState<ProgramVolumeStats | null>(null)
+  const [dayCycleTrend, setDayCycleTrend] = useState<DayCycleTrend[]>([])
   const [historyFilter, setHistoryFilter] = useState<'all' | 'passed' | 'failed'>('all')
   const [historyCycleFilter, setHistoryCycleFilter] = useState<'all' | 'current'>('all')
   const [historyDateFilter, setHistoryDateFilter] = useState<HistoryDateFilter>('all')
@@ -209,11 +225,16 @@ export default function ProgressPage() {
         if (prog) {
           setStats(await getProgramStats(program, prog))
           setMaxPerDay(await getMaxSetPerDay(program, prog.cycleId, prog.cycleAttempt))
+          setDayCycleTrend(await getDayCycleTrend(program, prog.cycleId, prog.cycleAttempt))
         } else {
           setStats(null)
           setMaxPerDay([])
+          setDayCycleTrend([])
         }
         setRecords(await getProgramRecords(program))
+        setSessionChart(await getMaxSetPerSession(program))
+        setRecordsWithDates(await getProgramRecordsWithDates(program))
+        setVolumeStats(await getProgramVolumeStats(program))
         setHeatmap(await buildActivityHeatmap(program))
         setCustomPrs(await computeCustomExercisePrs())
         const customHistory = (await db.workoutSessions.toArray())
@@ -575,6 +596,10 @@ export default function ProgressPage() {
           activity={activityInsights}
           hasAnyData={hasAnyData}
           records={records}
+          sessionChart={sessionChart}
+          recordsWithDates={recordsWithDates}
+          volumeStats={volumeStats}
+          dayCycleTrend={dayCycleTrend}
           navigate={navigate}
         />
       )}

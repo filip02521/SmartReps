@@ -12,6 +12,7 @@ export async function pushAchievementsToCloud(rows: LocalAchievementUnlock[]): P
     achievement_id: r.id,
     unlocked_at: r.unlockedAt,
     seen_at: r.seenAt,
+    tier_level: r.tierLevel ?? null,
   }))
 
   const { error } = await supabase.from('user_achievements').upsert(payload, {
@@ -27,7 +28,7 @@ export async function pullAchievementsFromCloud(): Promise<void> {
 
   const { data, error } = await supabase
     .from('user_achievements')
-    .select('achievement_id, unlocked_at, seen_at')
+    .select('achievement_id, unlocked_at, seen_at, tier_level')
     .eq('user_id', userData.user.id)
 
   if (error || !data) return

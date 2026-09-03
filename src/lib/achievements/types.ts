@@ -15,8 +15,10 @@ export type AchievementId =
   | 'streak_1'
   | 'streak_4'
   | 'streak_12'
+  | 'streak_26'
   | 'streak_52'
   | 'comeback_stronger'
+  | 'volume_10k'
   | 'first_publish'
   | 'first_like'
   | 'first_import'
@@ -26,16 +28,55 @@ export type AchievementId =
   | 'poly_publisher'
   | 'legend_full_circle'
   | 'legend_quiet_master'
+  | 'legend_grandmaster'
   | 'secret_night'
   | 'secret_precision'
+  | 'cycles_5'
+  | 'custom_sessions_25'
+  | 'pr_master'
+  | 'habit_builder'
+  | 'liked_author'
+  | 'imported_author'
+  | 'community_pillar'
+  | 'custom_creator'
+  | 'secret_dawn'
+  | 'secret_marathon'
+  | 'both_programs'
+
+/** Tier definition for progressive achievements. */
+export type AchievementTier = {
+  /** Numeric threshold that must be met to unlock this tier. */
+  threshold: number
+  /** Rarity for this tier — higher tiers can be rarer. */
+  rarity: AchievementRarity
+  /** Optional glyph override per tier (defaults to def.glyph). */
+  glyph?: string
+}
 
 export type AchievementDef = {
   id: AchievementId
   track: AchievementTrack
+  /** Base rarity — used for non-tiered achievements and as fallback. */
   rarity: AchievementRarity
   isSecret?: boolean
-  /** Glyph key for AchievementTile */
+  /** Glyph key for AchievementTile. */
   glyph: string
+  /** Progressive tiers — when present, the achievement has multiple levels.
+   * Tiers must be sorted ascending by threshold. The highest met tier determines
+   * the displayed rarity and visual treatment. */
+  tiers?: AchievementTier[]
+}
+
+/** Resolved tier info for a met achievement (highest unlocked tier). */
+export type ResolvedTier = {
+  /** 1-based tier index (1 = first tier). 0 = none met. */
+  level: number
+  /** Total number of tiers for this achievement. */
+  maxLevel: number
+  /** Rarity of the highest met tier (or base rarity if no tiers). */
+  rarity: AchievementRarity
+  /** Threshold of the highest met tier. */
+  threshold: number
 }
 
 export type AchievementProgress = {
@@ -60,14 +101,27 @@ export type AchievementSnapshot = {
   customCompletedCount: number
   customHitTargetCount: number
   nightSessionCount: number
+  /** Sessions started 5:00–6:59 (dawn). */
+  dawnSessionCount: number
+  /** Sessions lasting >60 min (completedAt - startedAt). */
+  longSessionCount: number
+  /** Completed builtin pushups sessions (passed). */
+  pushupsSessions: number
+  /** Completed builtin pullups sessions (passed). */
+  pullupsSessions: number
+  /** Number of custom plans created (any status). */
+  customPlansCount: number
   streakWeeks: number
   bestStreakWeeks: number
   maxPushups: number
   maxPullups: number
   hasCycleClosedStrong: boolean
+  cyclesClosedCount: number
   workshopCustom: boolean
   prRepeatMax: number
   comebackStronger: boolean
+  /** All-time total reps across all completed sessions. */
+  totalRepsAllTime: number
   impact: AuthorImpactStats
   /** Earliest unlock hint timestamps by achievement id (ISO) */
   unlockAtHints: Partial<Record<AchievementId, string>>
@@ -77,6 +131,8 @@ export type LocalAchievementUnlock = {
   id: AchievementId
   unlockedAt: string
   seenAt: string | null
+  /** Highest tier level unlocked (1-based). Null/0 for non-tiered achievements. */
+  tierLevel?: number | null
 }
 
 export type EvaluateResult = {

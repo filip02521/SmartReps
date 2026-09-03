@@ -29,6 +29,7 @@ describe('achievement showcase', () => {
       'goal_pushups_100',
       'sessions_100',
       'streak_4',
+      'first_session',
     ])
   })
 
@@ -39,7 +40,7 @@ describe('achievement showcase', () => {
     ]
     expect(
       resolveShowcaseSlots(unlocks, ['streak_1', 'sessions_100', 'first_session']),
-    ).toEqual(['streak_1', 'first_session', null])
+    ).toEqual(['streak_1', 'first_session', null, null])
   })
 
   it('persists manual pins and restores auto with null', () => {

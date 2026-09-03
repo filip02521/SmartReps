@@ -19,6 +19,17 @@ function isNightSession(s: LocalWorkoutSession): boolean {
   return h >= 21 || h < 5
 }
 
+function isDawnSession(s: LocalWorkoutSession): boolean {
+  const h = new Date(s.startedAt).getHours()
+  return h >= 5 && h < 7
+}
+
+function isLongSession(s: LocalWorkoutSession): boolean {
+  if (!s.completedAt) return false
+  const durMs = new Date(s.completedAt).getTime() - new Date(s.startedAt).getTime()
+  return durMs >= 60 * 60 * 1000 // ≥60 min
+}
+
 function detectComeback(sortedAsc: LocalWorkoutSession[], now: Date): boolean {
   if (sortedAsc.length < 5) return false
   for (let i = 1; i < sortedAsc.length; i++) {
@@ -137,6 +148,39 @@ export async function buildAchievementSnapshot(opts?: {
       return s.dayNumber === lastDay
     })
 
+  // Count distinct (cycleId, cycleAttempt) pairs that reached the last day — for cycles_5/10/25
+  const closedCycleKeys = new Set<string>()
+  for (const s of completed) {
+    if (isCustomWorkoutSession(s) || !s.passed) continue
+    const cycle = getCycleById(s.cycleId)
+    if (!cycle?.days.length) continue
+    const lastDay = Math.max(...cycle.days.map((d) => d.dayNumber))
+    if (s.dayNumber === lastDay) {
+      closedCycleKeys.add(`${s.cycleId}:${s.cycleAttempt}`)
+    }
+  }
+  const cyclesClosedCount = closedCycleKeys.size
+
+  // All-time total reps across all completed sessions
+  let totalRepsAllTime = 0
+  // Per-program builtin session counts (passed only)
+  let pushupsSessions = 0
+  let pullupsSessions = 0
+  for (const s of completed) {
+    if (isCustomWorkoutSession(s)) {
+      // Custom sessions: sum exerciseLogs sets
+      for (const log of s.exerciseLogs ?? []) {
+        for (const set of log.sets) {
+          totalRepsAllTime += set.actual.reps ?? 0
+        }
+      }
+    } else {
+      totalRepsAllTime += s.totalReps ?? 0
+      if (s.program === 'pushups') pushupsSessions++
+      if (s.program === 'pullups') pullupsSessions++
+    }
+  }
+
   let workshopCustom = false
   for (const plan of customPlans) {
     const multi = plan.days.some((d) => d.exercises.length >= 2)
@@ -164,14 +208,21 @@ export async function buildAchievementSnapshot(opts?: {
     customCompletedCount: customCompleted.length,
     customHitTargetCount: customHitTarget.length,
     nightSessionCount: completed.filter(isNightSession).length,
+    dawnSessionCount: completed.filter(isDawnSession).length,
+    longSessionCount: completed.filter(isLongSession).length,
+    pushupsSessions,
+    pullupsSessions,
+    customPlansCount: customPlans.length,
     streakWeeks: computeStreakWeeks(completed, now),
     bestStreakWeeks: computeBestStreakWeeks(completed),
     maxPushups,
     maxPullups,
     hasCycleClosedStrong,
+    cyclesClosedCount,
     workshopCustom,
     prRepeatMax: computeBuiltinPrRepeatMax(completed),
     comebackStronger: detectComeback(completedAsc, now),
+    totalRepsAllTime,
     impact,
     unlockAtHints,
   }

@@ -44,6 +44,8 @@ import { trackShareCard } from '@/lib/analytics'
 import { useAppStore } from '@/stores/app-store'
 import { showToast } from '@/stores/toast-store'
 import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
+import { useAchievementUiStore } from '@/stores/achievement-ui-store'
+import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
 
 export default function CustomSessionSummary() {
   const { planId } = useParams<{ planId: string }>()
@@ -67,6 +69,30 @@ export default function CustomSessionSummary() {
   const [offerPlanUpdate, setOfferPlanUpdate] = useState(false)
   const [planUpdateBusy, setPlanUpdateBusy] = useState(false)
   const [planUpdateDone, setPlanUpdateDone] = useState(false)
+  const [newAchievements, setNewAchievements] = useState<
+    import('@/lib/achievements/types').LocalAchievementUnlock[]
+  >([])
+  const achievementQueue = useAchievementUiStore((s) => s.queue)
+  const clearQueue = useAchievementUiStore((s) => s.clearQueue)
+  const setSummaryMode = useAchievementUiStore((s) => s.setSummaryMode)
+
+  // Summary page owns the achievement queue — suppress AchievementHost popups
+  useEffect(() => {
+    setSummaryMode(true)
+    return () => setSummaryMode(false)
+  }, [setSummaryMode])
+
+  // Subscribe to queue changes — handles race condition where evaluation
+  // completes after summary mount. Drain queue into local state when items arrive.
+  useEffect(() => {
+    if (achievementQueue.length === 0) return
+    setNewAchievements((prev) => {
+      const existingIds = new Set(prev.map((r) => r.id))
+      const fresh = achievementQueue.filter((r) => !existingIds.has(r.id))
+      return fresh.length > 0 ? [...prev, ...fresh] : prev
+    })
+    clearQueue()
+  }, [achievementQueue, clearQueue])
 
   useEffect(() => {
     releaseBodyScrollLock()
@@ -311,9 +337,18 @@ export default function CustomSessionSummary() {
           </p>
           {planChanges.length > 0 && (
             <ul className="mt-3 list-disc space-y-1 pl-5 sr-text-body-sm text-[var(--sr-text-primary)]">
-              {planChanges.map((change) => {
+              {planChanges.map((change, idx) => {
+                if (change.kind === 'exercise_swap') {
+                  const fromName = exerciseMap.get(change.fromExerciseId)?.name ?? change.fromExerciseId
+                  const toName = exerciseMap.get(change.toExerciseId)?.name ?? change.toExerciseId
+                  return (
+                    <li key={`swap-${change.fromExerciseId}-${change.toExerciseId}-${idx}`}>
+                      {pl.customSummaryUpdatePlanSwap(fromName, toName)}
+                    </li>
+                  )
+                }
                 const name = exerciseMap.get(change.exerciseId)?.name ?? change.exerciseId
-                const key = `${change.kind}-${change.exerciseId}-${change.from}-${change.to}`
+                const key = `${change.kind}-${change.exerciseId}-${change.from}-${change.to}-${idx}`
                 return (
                   <li key={key}>
                     {change.kind === 'sets'
@@ -437,6 +472,12 @@ export default function CustomSessionSummary() {
           {pl.customSummaryViewProgress}
         </Button>
       </div>
+
+      {newAchievements.length > 0 && (
+        <div className="mt-6">
+          <AchievementSummaryList unlocks={newAchievements} />
+        </div>
+      )}
 
       {showLoginPrompt && (
         <NoticeCard

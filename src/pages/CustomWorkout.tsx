@@ -21,6 +21,7 @@ import {
   createCustomSession,
   customSessionHasProgress,
   finalizeCustomDay,
+  getLastExerciseLogs,
   getPreviousCustomSetResult,
   persistCustomActive,
   reconcileActiveCustomWorkout,
@@ -36,7 +37,9 @@ import {
   captureBaselineRests,
   baselineSetCountForExercise,
   sessionDayIsDirty,
+  sessionHasExerciseSwaps,
   setRestBetweenSetsOnExercise,
+  swapExerciseInSessionDay,
 } from '@/lib/custom-plan-session-patch'
 import { getOrCreateCustomProgress, saveCustomPlan } from '@/lib/custom-plan-service'
 import {
@@ -120,6 +123,8 @@ export default function CustomWorkoutPage() {
   const [loadErrorDayNumber, setLoadErrorDayNumber] = useState<number | null>(null)
   const [missingExerciseId, setMissingExerciseId] = useState<string | null>(null)
   const [replaceOpen, setReplaceOpen] = useState(false)
+  const [swapOpen, setSwapOpen] = useState(false)
+  const [swapConfirm, setSwapConfirm] = useState<ExerciseDefinition | null>(null)
   const [restBlocked, setRestBlocked] = useState(false)
   const [restDaysLeft, setRestDaysLeft] = useState(0)
   const [showStaleConfirm, setShowStaleConfirm] = useState(false)
@@ -938,7 +943,13 @@ export default function CustomWorkoutPage() {
     restTimerJsonOverride?: string | null,
   ) {
     if (finishingRef.current || !sessionRef.current) return
-    const dirty = sessionDayIsDirty(overrideDay, baselineSets, baselineRests)
+    const baselineDay =
+      basePlanRef.current?.days.find((d) => d.dayNumber === overrideDay.dayNumber) ?? null
+    const hasSwaps = baselineDay
+      ? sessionHasExerciseSwaps(overrideDay, baselineDay)
+      : false
+    const dirty =
+      sessionDayIsDirty(overrideDay, baselineSets, baselineRests) || hasSwaps
     const after = useCustomWorkoutStore.getState()
     const restTimerJson =
       restTimerJsonOverride !== undefined
@@ -1072,6 +1083,84 @@ export default function CustomWorkoutPage() {
       store.setPointers(exerciseIndex, Math.max(0, newLen - 1))
     }
     persistDayOverride(overrideDay)
+  }
+
+  function handleSwapExercise(newDef: ExerciseDefinition) {
+    if (finishingRef.current) return
+    const livePlan = planRef.current ?? plan
+    const liveDay =
+      livePlan?.days.find((d) => d.dayNumber === store.dayNumber) ?? livePlan?.days[0]
+    if (!livePlan || !liveDay) return
+    const exerciseIndex = store.currentExerciseIndex
+    const plannedEx = liveDay.exercises[exerciseIndex]
+    if (!plannedEx) return
+    if (plannedEx.exerciseId === newDef.id) {
+      setSwapOpen(false)
+      setSwapConfirm(null)
+      return
+    }
+
+    // If current exercise has logged sets, confirm before zeroing.
+    const currentLog = useCustomWorkoutStore.getState().exerciseLogs[exerciseIndex]
+    if (currentLog && currentLog.sets.length > 0) {
+      setSwapConfirm(newDef)
+      return
+    }
+
+    void applySwap(exerciseIndex, newDef)
+  }
+
+  async function applySwap(exerciseIndex: number, newDef: ExerciseDefinition) {
+    const livePlan = planRef.current ?? plan
+    const liveDay =
+      livePlan?.days.find((d) => d.dayNumber === store.dayNumber) ?? livePlan?.days[0]
+    if (!livePlan || !liveDay) return
+    const plannedEx = liveDay.exercises[exerciseIndex]
+    if (!plannedEx) return
+
+    // Prefill sets/reps/weight from the last session for this exercise in this plan.
+    let historySets: SetLog[] | null = null
+    try {
+      const sets = await getLastExerciseLogs({
+        customPlanId: livePlan.id,
+        exerciseId: newDef.id,
+        excludeSessionId: sessionRef.current?.id,
+      })
+      historySets = sets ?? null
+    } catch {
+      // ignore — fall back to defaults
+    }
+
+    const next = swapExerciseInSessionDay(
+      livePlan,
+      liveDay.dayNumber,
+      exerciseIndex,
+      newDef.id,
+      newDef,
+      historySets,
+    )
+    if (!next) return
+    setPlanLive(next)
+
+    // Reset exercise log for the swapped position.
+    const latest = useCustomWorkoutStore.getState()
+    const newLogs = latest.exerciseLogs.map((log, i) =>
+      i === exerciseIndex
+        ? { exerciseId: newDef.id, order: plannedEx.order, sets: [] as SetLog[] }
+        : log,
+    )
+    useCustomWorkoutStore.setState({
+      exerciseLogs: newLogs,
+      currentSetIndex: 0,
+      failedRetryUsed: false,
+    })
+
+    setFailedIndex(undefined)
+    setSwapOpen(false)
+    setSwapConfirm(null)
+
+    const overrideDay = next.days.find((d) => d.dayNumber === liveDay.dayNumber)
+    if (overrideDay) persistDayOverride(overrideDay)
   }
 
   async function confirmLeave() {
@@ -1351,6 +1440,11 @@ export default function CustomWorkoutPage() {
     !(restTimer && restTimer.mode !== 'idle') &&
     !failedRetryVisible
   const showRestAdjust = day != null && !activeGroup && !failedRetryVisible
+  const canSwapExercise =
+    day != null &&
+    !activeGroup &&
+    !(restTimer && restTimer.mode !== 'idle') &&
+    !failedRetryVisible
 
   return (
     <>
@@ -1476,6 +1570,8 @@ export default function CustomWorkoutPage() {
         onRemoveSet={handleRemoveSet}
         showRestAdjust={showRestAdjust}
         onRestChange={handleRestChange}
+        canSwapExercise={canSwapExercise}
+        onSwapExercise={() => setSwapOpen(true)}
       />
       <ExerciseDetailSheet
         open={detailExercise != null}
@@ -1484,6 +1580,34 @@ export default function CustomWorkoutPage() {
         showProgressLink={false}
         onClose={() => setDetailExercise(null)}
       />
+      <Sheet
+        open={swapOpen}
+        onClose={() => setSwapOpen(false)}
+        title={pl.customWorkoutSwapExercise}
+        className="max-h-[85vh] overflow-y-auto"
+      >
+        <ExerciseLibraryPanel
+          mode="pick"
+          onPick={(ex) => void handleSwapExercise(ex)}
+        />
+        <p className="mt-3 text-xs text-[var(--sr-text-muted)]">
+          {pl.customWorkoutSwapExerciseHint}
+        </p>
+      </Sheet>
+      {swapConfirm && (
+        <ConfirmSheet
+          title={pl.customWorkoutSwapConfirmTitle}
+          message={pl.customWorkoutSwapConfirmBody(exDef?.name ?? '')}
+          confirmLabel={pl.customWorkoutSwapConfirmAction}
+          onConfirm={() => {
+            const idx = store.currentExerciseIndex
+            const target = swapConfirm
+            setSwapConfirm(null)
+            void applySwap(idx, target)
+          }}
+          onCancel={() => setSwapConfirm(null)}
+        />
+      )}
     </>
   )
 }

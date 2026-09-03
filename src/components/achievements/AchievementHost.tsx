@@ -2,15 +2,11 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 import { AchievementUnlockSheet, AchievementBackfillSheet } from './AchievementUnlockSheet'
-import type { AchievementId } from '@/lib/achievements/types'
+import type { LocalAchievementUnlock } from '@/lib/achievements/types'
 
 function shouldDeferUnlockUi(pathname: string): boolean {
-  // Plan: show unlock after summary / cycle celebration — not over active workout chrome.
-  return (
-    pathname.includes('/summary') ||
-    pathname.startsWith('/workout/') ||
-    pathname.startsWith('/setup/cycle/')
-  )
+  // Block popups during active workout and setup — summary pages handle inline.
+  return pathname.startsWith('/workout/') || pathname.startsWith('/setup/cycle/')
 }
 
 /**
@@ -23,21 +19,23 @@ export function AchievementHost() {
   const queue = useAchievementUiStore((s) => s.queue)
   const backfillCount = useAchievementUiStore((s) => s.backfillCount)
   const celebrationBlocked = useAchievementUiStore((s) => s.celebrationBlocked)
+  const summaryMode = useAchievementUiStore((s) => s.summaryMode)
   const shiftQueue = useAchievementUiStore((s) => s.shiftQueue)
   const clearBackfill = useAchievementUiStore((s) => s.clearBackfill)
 
-  const [activeId, setActiveId] = useState<AchievementId | null>(null)
+  const [activeUnlock, setActiveUnlock] = useState<LocalAchievementUnlock | null>(null)
   const deferred = shouldDeferUnlockUi(location.pathname)
-  const blocked = celebrationBlocked || deferred
+  // summaryMode = a summary page owns the queue (inline list), suppress popups everywhere
+  const blocked = celebrationBlocked || deferred || summaryMode
 
   useEffect(() => {
     if (blocked) return
-    if (activeId) return
+    if (activeUnlock) return
     if (backfillCount != null) return
     if (queue.length === 0) return
     const next = shiftQueue()
-    if (next) setActiveId(next)
-  }, [queue, blocked, activeId, backfillCount, shiftQueue])
+    if (next) setActiveUnlock(next)
+  }, [queue, blocked, activeUnlock, backfillCount, shiftQueue])
 
   return (
     <>
@@ -53,8 +51,9 @@ export function AchievementHost() {
       )}
       {!blocked && (
         <AchievementUnlockSheet
-          achievementId={activeId}
-          onDone={() => setActiveId(null)}
+          achievementId={activeUnlock?.id ?? null}
+          unlock={activeUnlock ?? undefined}
+          onDone={() => setActiveUnlock(null)}
         />
       )}
     </>

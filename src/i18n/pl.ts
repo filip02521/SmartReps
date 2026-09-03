@@ -172,7 +172,7 @@ export const pl = {
   previewDayPlan: 'Ćwiczenia dnia',
   previewDayPlanHint: 'Dotknij ćwiczenia, żeby przejść — gdy maszyna jest zajęta.',
   customWorkoutSwitchTo: (name: string) => `Przejdź do: ${name}`,
-  customWorkoutSwitchExerciseMenu: 'Zmień ćwiczenie',
+  customWorkoutSwitchExerciseMenu: 'Przejdź do ćwiczenia',
   helpTechnique: 'Wskazówki techniki',
   negativeCountdown: (sec: number) => `Przygotuj opuszczanie · ${sec}s`,
   negativeBanner: 'Opuszczaj powoli (3–5 s). Liczy się pełna kontrola ruchu.',
@@ -565,6 +565,8 @@ export const pl = {
     `${name}: serie ${from} → ${to}`,
   customSummaryUpdatePlanRest: (name: string, from: number, to: number) =>
     `${name}: przerwa ${from}s → ${to}s`,
+  customSummaryUpdatePlanSwap: (from: string, to: string) =>
+    `Ćwiczenie: ${from} → ${to}`,
   customSummaryUpdatePlanTargetsNote:
     'Cele serii zostaną ustawione według wyników z tego treningu.',
   customSummaryUpdatePlanConfirm: 'Zapisz w planie',
@@ -599,6 +601,12 @@ export const pl = {
   customWorkoutSkipExerciseHint: 'Tylko na ten trening — plan w Plany pozostaje bez zmian.',
   customWorkoutReplaceExercise: 'Zastąp ćwiczenie',
   customWorkoutReplaceExerciseHint: 'Wybierz ćwiczenie z biblioteki — plan zostanie zaktualizowany.',
+  customWorkoutSwapExercise: 'Zamień na inne ćwiczenie',
+  customWorkoutSwapExerciseHint: 'Wybierz ćwiczenie z biblioteki. Plan pozostaje bez zmian — decyzję podejmiesz na koniec treningu.',
+  customWorkoutSwapConfirmTitle: 'Zamienić ćwiczenie?',
+  customWorkoutSwapConfirmBody: (name: string) =>
+    `Masz zalogowane serie dla „${name}”. Zamiana wyzeruje te logi.`,
+  customWorkoutSwapConfirmAction: 'Zamień i wyzeruj',
   customEditBlockedActiveDay: 'Ten dzień jest w trakcie treningu — edytuj inne dni.',
   customHomeMorePlans: (n: number) =>
     n === 1 ? '+1 plan więcej w Plany' : `+${n} plany więcej w Plany`,
@@ -708,6 +716,31 @@ export const pl = {
   progressCycleProgress: (done: number, total: number) =>
     total > 0 ? `Ukończono ${done} z ${total} dni w cyklu` : '',
   progressRecordsEmpty: 'Po treningach i teście max pojawią się tu rekordy.',
+  progressRecordDate: (date: string) => `z ${date}`,
+  progressVolumeTitle: 'Objętość i częstotliwość',
+  progressVolume14d: 'Objętość 14 dni',
+  progressVolumePrev14d: 'Poprzednie 14 dni',
+  progressVolumeTrendUp: (pct: number) => `+${pct}% vs poprzednie 14 dni`,
+  progressVolumeTrendDown: (pct: number) => `−${pct}% vs poprzednie 14 dni`,
+  progressVolumeTrendFlat: 'Stabilnie vs poprzednie 14 dni',
+  progressAvgPerSession: 'Śr. na sesję',
+  progressAvgSessionsPerWeek: 'Śr. na tydzień',
+  progressSessions30d: 'Treningi 30 dni',
+  progressSessionChartTitle: 'Najlepsza seria w treningu',
+  progressSessionChartHint: 'Ostatnia seria max w każdej ukończonej sesji',
+  progressSessionChartTooltip: 'Seria max',
+  progressCycleTrendTitle: 'Trend w cyklu',
+  progressCycleTrendHint: 'Ostatnia seria max: obecna vs poprzednia próba cyklu',
+  progressCycleTrendCurrent: 'Obecna',
+  progressCycleTrendPrevious: 'Poprzednia',
+  progressCycleTrendDelta: (d: number) => (d > 0 ? `+${d}` : String(d)),
+  progressCycleTrendNoPrevious: 'Brak poprzedniej próby cyklu',
+  progressCustomVolumeTitle: 'Objętość własna 14 dni',
+  progressCustomVolumeHint: 'Suma powtórzeń i obciążenia we własnych planach',
+  progressCustomTotalReps14d: 'Powtórzenia 14 dni',
+  progressCustomTotalVolume14d: 'Obciążenie 14 dni',
+  progressCustomAvgPerSession: 'Śr. na sesję',
+  progressCustomSessions30d: 'Treningi 30 dni',
   progressSessionNoSets: 'Brak zapisanych serii w tej sesji.',
   cycleDayPreviewTitle: (day: number) => `${pl.cycleDayPreview} ${day}`,
   progressStatusEmpty: 'Brak sesji — czas na pierwszy trening.',
@@ -1013,6 +1046,33 @@ export const pl = {
   exerciseDetailVolumeShort: (kg: number) => `obj. ${kg} kg`,
   exerciseDetailClose: 'Zamknij',
   exerciseDetailViewProgress: 'Zobacz w Postępach',
+  exerciseDetailPrSessionContext: (plan: string, day: number) => `${plan} · ${pl.planDayLabel(day)}`,
+  exerciseDetailPrTestLabel: 'Test max',
+  exerciseDetailPrHint: (date: string, context: string) => `Rekord z ${date} · ${context}`,
+  exerciseDetailPrHintRepsWeight: (date: string, context: string) =>
+    `Najwięcej powtórzeń: ${date} · ${context}`,
+  exerciseDetailPrHintDuration: (date: string, context: string) =>
+    `Najdłuższa seria: ${date} · ${context}`,
+  exerciseDetailLoadTitle: 'Obciążenie i częstotliwość',
+  exerciseDetailTotalReps: 'Suma powtórzeń',
+  exerciseDetailTotalVolume: 'Suma obciążenia',
+  exerciseDetailTotalVolumeUnit: 'kg',
+  exerciseDetailTotalDuration: 'Suma czasu',
+  exerciseDetailAvgBest: 'Śr. najlepsza seria',
+  exerciseDetailSessions30d: 'Treningi 30 dni',
+  exerciseDetailAvgPerWeek: 'Śr. na tydzień',
+  exerciseDetailAvgPerWeekUnit: (n: number) => `${n}/tydz.`,
+  exerciseDetailLoadChartTitle: 'Obciążenie w czasie',
+  exerciseDetailLoadChartHint: 'Całkowite obciążenie w każdym treningu',
+  exerciseDetailLoadChartVolume: 'kg',
+  exerciseDetailLoadChartReps: 'powt.',
+  exerciseDetailLoadChartDuration: 's',
+  exerciseDetailLoadChartTooltip: 'Obciążenie',
+  exerciseDetailLastSessionTitle: 'Ostatni trening — serie',
+  exerciseDetailLastSessionHint: 'Wynik wobec celu w każdej serii',
+  exerciseDetailTargetShort: 'cel',
+  exerciseDetailActualShort: 'wynik',
+  exerciseDetailSetShort: (n: number) => `S${n}`,
   exerciseListRowMeta: (sessions: number, pr: string) =>
     sessions === 1
       ? `1 trening · PR ${pr}`
@@ -1372,7 +1432,10 @@ export const pl = {
   achievementsShowcasePickTitle: 'Gablotka',
   achievementsShowcasePickHint: (n: number) =>
     `Wybierz do ${n} odznak albo zostaw automatyczny dobór.`,
+  achievementsShowcaseSelectedCount: (selected: number, max: number) =>
+    `${selected} / ${max} wybranych`,
   achievementsShowcaseAuto: 'Automatycznie',
+  achievementsShowcaseAutoBadge: 'AUTO',
   achievementsShowcaseClear: 'Wyczyść',
   achievementsShowcaseSave: 'Zapisz gablotkę',
   achievementsShowcaseNoUnlocks: 'Najpierw zdobądź odznakę — wtedy wybierzesz ją tutaj.',
@@ -1433,4 +1496,57 @@ export const pl = {
   achievement_secret_night_desc: 'Nocne treningi — spokój, gdy inni śpią.',
   achievement_secret_precision_title: 'Dokładność',
   achievement_secret_precision_desc: 'Wiele dni custom domkniętych w celu, nie „jakoś”.',
+
+  // ── Progressive tier copy ──
+  achievementsTierLevel: (level: number, max: number) => `Poziom ${level} z ${max}`,
+  achievementsTierNext: (current: number, next: number) =>
+    `Od ${current} → następny poziom: ${next}`,
+  achievementsTierMaxed: () => `Maksymalny poziom osiągnięty`,
+  achievementsTierUpgradeTitle: 'Nowy poziom odznaki!',
+  achievementsNextTier: 'Następny poziom',
+  achievementsSummaryIcon: '🏆',
+  achievementsSummaryTitle: 'Nowa odznaka!',
+  achievementsSummaryTitleMulti: (n: number) => `${n} nowe odznaki!`,
+  achievementsSummarySubtitle: 'Gratulacje — tak trzymaj!',
+  achievementsSummarySeeAll: 'Zobacz wszystkie odznaki',
+
+  // ── New long-distance achievements ──
+  achievement_streak_26_title: 'Pół roku rytmu',
+  achievement_streak_26_desc: 'Dwadzieścia sześć tygodni serii w rekordzie.',
+  achievement_volume_10k_title: 'Dziesięć tysięcy powtórzeń',
+  achievement_volume_10k_desc: 'Suma wszystkich powtórzeń w historii treningów.',
+  achievement_cycles_5_title: 'Pięć cykli',
+  achievement_cycles_5_desc: 'Pięć domkniętych cykli Strong do końca.',
+  achievement_legend_grandmaster_title: 'Wielki Mistrz',
+  achievement_legend_grandmaster_desc:
+    'Tysiąc sesji i dwa lata serii — absolutny szczyt konsekwencji.',
+
+  // ── Custom sessions volume ──
+  achievement_custom_sessions_25_title: 'Architekt sylwetki',
+  achievement_custom_sessions_25_desc: 'Sesje na własnych planach — konsekwencja w budowaniu ciała.',
+  // ── PR master ──
+  achievement_pr_master_title: 'Mistrz PR',
+  achievement_pr_master_desc: 'Powtarzalne rekordy w tym samym kontekście — siła rośnie.',
+  // ── Habit builder ──
+  achievement_habit_builder_title: 'Budowniczy nawyku',
+  achievement_habit_builder_desc: 'Coraz więcej sesji w 14 dni — nawyk się zakorzenia.',
+  // ── Community impact ──
+  achievement_liked_author_title: 'Lubiany autor',
+  achievement_liked_author_desc: 'Twoje plany zbierają polubienia — społeczność docenia.',
+  achievement_imported_author_title: 'Importowany autor',
+  achievement_imported_author_desc: 'Twoje plany są importowane — realny zasięg.',
+  achievement_community_pillar_title: 'Filar społeczności',
+  achievement_community_pillar_desc: 'Coraz więcej opublikowanych planów — tworzysz społeczność.',
+  // ── Custom plan creator ──
+  achievement_custom_creator_title: 'Twórca planów',
+  achievement_custom_creator_desc: 'Coraz więcej własnych planów — Twoja biblioteka treningowa.',
+  // ── Both programs ──
+  achievement_both_programs_title: 'Wszechstronność',
+  achievement_both_programs_desc: 'Pompki i podciągnięcia — oba programy opanowane.',
+  // ── Secret dawn ──
+  achievement_secret_dawn_title: 'Ranne ptaszko',
+  achievement_secret_dawn_desc: 'Treningi o świcie — gdy światło budzi się z Tobą.',
+  // ── Secret marathon ──
+  achievement_secret_marathon_title: 'Maraton treningowy',
+  achievement_secret_marathon_desc: 'Sesje trwające ponad godzinę — cierpliwość i objętość.',
 } as const

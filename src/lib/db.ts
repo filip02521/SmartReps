@@ -93,6 +93,7 @@ export type LocalAchievementUnlockRow = {
   id: string
   unlockedAt: string
   seenAt: string | null
+  tierLevel?: number | null
 }
 
 class SmartRepsDB extends Dexie {

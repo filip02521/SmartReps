@@ -1,18 +1,16 @@
 import { vibrate } from '@/lib/utils'
 import type { RestTimerState, RestTimerWorkerCallbacks } from '@/lib/rest-timer'
 import { useAppStore } from '@/stores/app-store'
+import {
+  ensureSharedAudioReady,
+  getSharedMasterGain,
+  scheduleTone,
+  type ToneSpec,
+} from '@/lib/audio-context'
 
 type FeedbackOptions = {
   sound?: boolean
   vibration?: boolean
-}
-
-type ToneSpec = {
-  frequency: number
-  startOffset: number
-  duration: number
-  gain: number
-  type?: OscillatorType
 }
 
 /** Soft triangle waves — audible but not harsh in a quiet gym/home. */
@@ -50,8 +48,6 @@ const VIBRATION = {
   amrapEnd: [120, 60, 120] as const,
 } as const
 
-let audioCtx: AudioContext | null = null
-let masterGain: GainNode | null = null
 let unlockPromise: Promise<void> | null = null
 
 function getFeedbackPrefs(overrides?: FeedbackOptions): { sound: boolean; vibration: boolean } {
@@ -62,56 +58,17 @@ function getFeedbackPrefs(overrides?: FeedbackOptions): { sound: boolean; vibrat
   }
 }
 
-function getAudioContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null
-  const Ctx =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-  if (!Ctx) return null
-  if (!audioCtx) audioCtx = new Ctx()
-  return audioCtx
-}
-
-function getMasterGain(ctx: AudioContext): GainNode {
-  if (!masterGain || masterGain.context !== ctx) {
-    masterGain = ctx.createGain()
-    masterGain.gain.value = 0.9
-    masterGain.connect(ctx.destination)
-  }
-  return masterGain
-}
-
-function scheduleTone(ctx: AudioContext, startAt: number, spec: ToneSpec) {
-  const osc = ctx.createOscillator()
-  const gain = ctx.createGain()
-  const begin = startAt + spec.startOffset
-  const end = begin + spec.duration
-
-  osc.type = spec.type ?? 'triangle'
-  osc.frequency.setValueAtTime(spec.frequency, begin)
-
-  gain.gain.setValueAtTime(0.0001, begin)
-  gain.gain.exponentialRampToValueAtTime(Math.max(spec.gain, 0.0002), begin + 0.01)
-  gain.gain.exponentialRampToValueAtTime(0.0001, end)
-
-  osc.connect(gain)
-  gain.connect(getMasterGain(ctx))
-  osc.start(begin)
-  osc.stop(end + 0.04)
-}
-
 async function ensureAudioReady(): Promise<AudioContext | null> {
-  const ctx = getAudioContext()
+  const ctx = await ensureSharedAudioReady()
   if (!ctx) return null
 
   if (!unlockPromise) {
     unlockPromise = (async () => {
       try {
-        if (ctx.state === 'suspended') await ctx.resume()
         const buffer = ctx.createBuffer(1, 1, ctx.sampleRate)
         const source = ctx.createBufferSource()
         source.buffer = buffer
-        source.connect(getMasterGain(ctx))
+        source.connect(getSharedMasterGain(ctx))
         source.start()
         source.stop(ctx.currentTime + 0.01)
       } catch {

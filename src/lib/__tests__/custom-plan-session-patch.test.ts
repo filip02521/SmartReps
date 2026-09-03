@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CustomPlan, ExerciseDefinition, ExerciseLog } from '@/lib/exercise-model'
+import type { CustomPlan, ExerciseDefinition, ExerciseLog, SetLog } from '@/lib/exercise-model'
 import {
   addSetToPlanExercise,
   applyDayOverrideToPlan,
@@ -11,10 +11,12 @@ import {
   captureBaselineSetCounts,
   removeSetFromPlanExercise,
   sessionDayIsDirty,
+  sessionHasExerciseSwaps,
   sessionHasExtraSets,
   sessionSuggestsPlanUpdate,
   setLogToPrescription,
   setRestBetweenSetsOnExercise,
+  swapExerciseInSessionDay,
 } from '@/lib/custom-plan-session-patch'
 
 const plan: CustomPlan = {
@@ -279,5 +281,129 @@ describe('custom-plan-session-patch', () => {
     expect(next.days[0]!.exercises[0]!.sets[0]).toEqual({ reps: { kind: 'fixed', value: 12 } })
     // Unchanged set count → keep original targets (not session actuals).
     expect(next.days[0]!.exercises[1]!.sets).toEqual([{ reps: { kind: 'fixed', value: 8 } }])
+  })
+
+  // ── Exercise swap ──
+
+  const ex2Def: ExerciseDefinition = {
+    id: 'ex2',
+    name: 'Deska',
+    primaryMetric: 'duration_sec',
+    restDefaultSec: 60,
+    archived: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  }
+
+  it('swapExerciseInSessionDay changes exerciseId and resets sets for new metric', () => {
+    const swapped = swapExerciseInSessionDay(plan, 1, 0, 'ex2', ex2Def)
+    expect(swapped).not.toBeNull()
+    const pe = swapped!.days[0]!.exercises[0]!
+    expect(pe.exerciseId).toBe('ex2')
+    expect(pe.sets).toEqual([{ durationSec: { kind: 'min', value: 30 } }])
+    expect(pe.restBetweenSetsSec).toBe(60)
+  })
+
+  it('swapExerciseInSessionDay prefills sets from history when provided', () => {
+    const historySets: SetLog[] = [
+      { setNumber: 1, passed: true, actual: { durationSec: 45 }, prescription: { durationSec: { kind: 'min', value: 30 } } },
+      { setNumber: 2, passed: true, actual: { durationSec: 40 }, prescription: { durationSec: { kind: 'min', value: 30 } } },
+      { setNumber: 3, passed: true, actual: { durationSec: 50 }, prescription: { durationSec: { kind: 'min', value: 30 } } },
+    ]
+    const swapped = swapExerciseInSessionDay(plan, 1, 0, 'ex2', ex2Def, historySets)
+    expect(swapped).not.toBeNull()
+    const pe = swapped!.days[0]!.exercises[0]!
+    expect(pe.exerciseId).toBe('ex2')
+    expect(pe.sets).toHaveLength(3)
+    expect(pe.sets[0]).toEqual({ durationSec: { kind: 'fixed', value: 45 } })
+    expect(pe.sets[2]).toEqual({ durationSec: { kind: 'fixed', value: 50 } })
+  })
+
+  it('swapExerciseInSessionDay is no-op for same exercise', () => {
+    const swapped = swapExerciseInSessionDay(plan, 1, 0, 'ex1', exMap.get('ex1')!)
+    expect(swapped).toBe(plan)
+  })
+
+  it('swapExerciseInSessionDay returns null for grouped exercises', () => {
+    const grouped: CustomPlan = {
+      ...plan,
+      days: [
+        {
+          dayNumber: 1,
+          restAfterDay: 1,
+          groups: [{ id: 'g1', kind: 'superset' }],
+          exercises: [
+            { exerciseId: 'ex1', order: 0, restBetweenSetsSec: 90, sets: [{ reps: { kind: 'fixed', value: 10 } }], groupId: 'g1' },
+            { exerciseId: 'ex2', order: 1, restBetweenSetsSec: 60, sets: [{ reps: { kind: 'fixed', value: 8 } }], groupId: 'g1' },
+          ],
+        },
+      ],
+    }
+    expect(swapExerciseInSessionDay(grouped, 1, 0, 'ex2', ex2Def)).toBeNull()
+  })
+
+  it('sessionHasExerciseSwaps detects swap vs baseline', () => {
+    const swapped = swapExerciseInSessionDay(plan, 1, 0, 'ex2', ex2Def)!
+    expect(sessionHasExerciseSwaps(swapped.days[0]!, plan.days[0]!)).toBe(true)
+    expect(sessionHasExerciseSwaps(plan.days[0]!, plan.days[0]!)).toBe(false)
+  })
+
+  it('buildSessionPlanChanges detects exercise swap from sessionDay', () => {
+    const swapped = swapExerciseInSessionDay(plan, 1, 0, 'ex2', ex2Def)!
+    const changes = buildSessionPlanChanges(plan, 1, [], swapped.days[0]!)
+    expect(changes).toContainEqual({
+      kind: 'exercise_swap',
+      order: 0,
+      fromExerciseId: 'ex1',
+      toExerciseId: 'ex2',
+    })
+  })
+
+  it('buildSessionPlanChanges skips sets/rest changes when exercise was swapped', () => {
+    const swapped = swapExerciseInSessionDay(plan, 1, 0, 'ex2', ex2Def)!
+    // ex1 had 2 sets, ex2 default has 1 set — but sets change should NOT appear.
+    // ex1 rest was 90, ex2 default rest is 60 — but rest change should NOT appear.
+    const changes = buildSessionPlanChanges(plan, 1, [], swapped.days[0]!)
+    expect(changes).toHaveLength(1)
+    expect(changes[0]!.kind).toBe('exercise_swap')
+  })
+
+  it('sessionSuggestsPlanUpdate returns true when exercise was swapped', () => {
+    const swapped = swapExerciseInSessionDay(plan, 1, 0, 'ex2', ex2Def)!
+    expect(sessionSuggestsPlanUpdate(plan, 1, [], swapped.days[0]!)).toBe(true)
+  })
+
+  it('applySessionLogsToPlanDay applies exercise swap from sessionDay', () => {
+    const swapped = swapExerciseInSessionDay(plan, 1, 0, 'ex2', ex2Def)!
+    const map = new Map(exMap)
+    map.set('ex2', ex2Def)
+    const next = applySessionLogsToPlanDay(plan, 1, [], map, swapped.days[0]!)
+    const pe = next.days[0]!.exercises[0]!
+    expect(pe.exerciseId).toBe('ex2')
+    expect(pe.sets).toEqual([{ durationSec: { kind: 'min', value: 30 } }])
+    expect(pe.restBetweenSetsSec).toBe(60)
+  })
+
+  it('applySessionLogsToPlanDay applies swap + logged sets as prescriptions', () => {
+    const swapped = swapExerciseInSessionDay(plan, 1, 0, 'ex2', ex2Def)!
+    const map = new Map(exMap)
+    map.set('ex2', ex2Def)
+    const logs: ExerciseLog[] = [
+      {
+        exerciseId: 'ex2',
+        order: 0,
+        sets: [
+          { setNumber: 1, passed: true, actual: { durationSec: 45 }, prescription: { durationSec: { kind: 'min', value: 30 } } },
+          { setNumber: 2, passed: true, actual: { durationSec: 40 }, prescription: { durationSec: { kind: 'min', value: 30 } } },
+          { setNumber: 3, passed: true, actual: { durationSec: 50 }, prescription: { durationSec: { kind: 'min', value: 30 } } },
+        ],
+      },
+    ]
+    const next = applySessionLogsToPlanDay(plan, 1, logs, map, swapped.days[0]!)
+    const pe = next.days[0]!.exercises[0]!
+    expect(pe.exerciseId).toBe('ex2')
+    expect(pe.sets).toHaveLength(3)
+    expect(pe.sets[0]).toEqual({ durationSec: { kind: 'fixed', value: 45 } })
+    expect(pe.sets[2]).toEqual({ durationSec: { kind: 'fixed', value: 50 } })
   })
 })

@@ -157,6 +157,73 @@ export function sessionDayIsDirty(
   return sessionHasExtraSets(day, baselineSets) || sessionHasRestChanges(day, baselineRests)
 }
 
+/** Default prescriptions for a metric — used when swapping to a new exercise. */
+function defaultSetsForMetric(metric: PrimaryMetric): SetPrescription[] {
+  if (metric === 'duration_sec') return [{ durationSec: { kind: 'min', value: 30 } }]
+  if (metric === 'reps_weight') {
+    return [{ reps: { kind: 'fixed', value: 8 }, weightKg: { kind: 'fixed', value: 20 } }]
+  }
+  return [{ reps: { kind: 'fixed', value: 8 } }]
+}
+
+/**
+ * Swap exercise at a linear (non-group) position — session-only until summary.
+ * Sets are prefilled from `historySets` when available, otherwise defaults for the metric.
+ * Adopts the new exercise's default rest.
+ */
+export function swapExerciseInSessionDay(
+  plan: CustomPlan,
+  dayNumber: number,
+  exerciseIndex: number,
+  newExerciseId: string,
+  newDef: ExerciseDefinition,
+  historySets?: SetLog[] | null,
+): CustomPlan | null {
+  const day = plan.days.find((d) => d.dayNumber === dayNumber)
+  if (!day) return null
+  const planned = day.exercises[exerciseIndex]
+  if (!planned) return null
+  if (getGroupForExercise(day, exerciseIndex)) return null
+  if (planned.exerciseId === newExerciseId) return plan
+
+  const sets =
+    historySets && historySets.length > 0
+      ? historySets.map((s) => setLogToPrescription(s, newDef.primaryMetric))
+      : defaultSetsForMetric(newDef.primaryMetric)
+
+  const nextDay: PlanDay = {
+    ...day,
+    exercises: day.exercises.map((pe, i) =>
+      i === exerciseIndex
+        ? {
+            ...pe,
+            exerciseId: newExerciseId,
+            sets,
+            restBetweenSetsSec: newDef.restDefaultSec,
+          }
+        : pe,
+    ),
+  }
+
+  return {
+    ...plan,
+    days: plan.days.map((d) => (d.dayNumber === dayNumber ? nextDay : d)),
+  }
+}
+
+/** True when any linear exercise's exerciseId differs from the baseline day. */
+export function sessionHasExerciseSwaps(
+  day: PlanDay,
+  baselineDay: PlanDay,
+): boolean {
+  const max = Math.min(day.exercises.length, baselineDay.exercises.length)
+  for (let i = 0; i < max; i++) {
+    if (getGroupForExercise(day, i)) continue
+    if (day.exercises[i]!.exerciseId !== baselineDay.exercises[i]!.exerciseId) return true
+  }
+  return false
+}
+
 /** Update rest between sets for a linear (non-group) exercise — session-only until summary. */
 export function setRestBetweenSetsOnExercise(
   plan: CustomPlan,
@@ -207,8 +274,9 @@ export function setLogToPrescription(set: SetLog, metric: PrimaryMetric): SetPre
 export type SessionPlanChange =
   | { kind: 'sets'; exerciseId: string; from: number; to: number }
   | { kind: 'rest'; exerciseId: string; from: number; to: number }
+  | { kind: 'exercise_swap'; order: number; fromExerciseId: string; toExerciseId: string }
 
-/** Diff vs saved plan: set counts from logs + rest from optional session day snapshot. */
+/** Diff vs saved plan: exercise swaps + set counts from logs + rest from optional session day snapshot. */
 export function buildSessionPlanChanges(
   plan: CustomPlan,
   dayNumber: number,
@@ -221,6 +289,25 @@ export function buildSessionPlanChanges(
   for (let i = 0; i < day.exercises.length; i++) {
     const planned = day.exercises[i]
     if (!planned || getGroupForExercise(day, i)) continue
+
+    // Exercise swap: session day exerciseId differs from saved plan.
+    // When swapped, sets/rest changes are implicit (new defaults) — skip them.
+    let swapped = false
+    if (sessionDay) {
+      const sessionPe = sessionDay.exercises[i]
+      if (sessionPe && sessionPe.exerciseId !== planned.exerciseId) {
+        changes.push({
+          kind: 'exercise_swap',
+          order: planned.order,
+          fromExerciseId: planned.exerciseId,
+          toExerciseId: sessionPe.exerciseId,
+        })
+        swapped = true
+      }
+    }
+
+    if (swapped) continue
+
     const log =
       exerciseLogs.find((l) => l.exerciseId === planned.exerciseId) ?? exerciseLogs[i]
     if (log && log.sets.length !== planned.sets.length) {
@@ -232,9 +319,7 @@ export function buildSessionPlanChanges(
       })
     }
     if (sessionDay) {
-      const sessionPe =
-        sessionDay.exercises.find((e) => e.exerciseId === planned.exerciseId) ??
-        sessionDay.exercises[i]
+      const sessionPe = sessionDay.exercises[i]
       if (sessionPe && sessionPe.restBetweenSetsSec !== planned.restBetweenSetsSec) {
         changes.push({
           kind: 'rest',
@@ -309,6 +394,7 @@ export function markPlanUpdateDeclined(sessionId: string): void {
 
 /**
  * Rewrite the completed day from the session:
+ * - exercise swap → adopt new exerciseId + default sets + rest from sessionDay
  * - set count change on an exercise → targets from that exercise's logs only
  * - rest changes from sessionDay snapshot
  * - rest-only updates do not rewrite set targets
@@ -329,19 +415,33 @@ export function applySessionLogsToPlanDay(
         exercises: day.exercises.map((pe, i) => {
           if (getGroupForExercise(day, i)) return pe
           let next = pe
+
+          // Exercise swap: adopt new exerciseId + sets + rest from session day.
+          const sessionPe = sessionDay?.exercises[i]
+          const isSwapped = sessionPe && sessionPe.exerciseId !== pe.exerciseId
+          if (isSwapped && sessionPe) {
+            next = {
+              ...next,
+              exerciseId: sessionPe.exerciseId,
+              sets: sessionPe.sets,
+              restBetweenSetsSec: sessionPe.restBetweenSetsSec,
+            }
+          }
+
+          // Set count change: rewrite targets from logs (use new exerciseId after swap).
           const log =
-            exerciseLogs.find((l) => l.exerciseId === pe.exerciseId) ?? exerciseLogs[i]
-          if (log && log.sets.length > 0 && log.sets.length !== pe.sets.length) {
-            const def = exerciseMap.get(pe.exerciseId)
+            exerciseLogs.find((l) => l.exerciseId === next.exerciseId) ?? exerciseLogs[i]
+          if (log && log.sets.length > 0 && log.sets.length !== next.sets.length) {
+            const def = exerciseMap.get(next.exerciseId)
             const metric = def?.primaryMetric ?? 'reps'
             next = { ...next, sets: log.sets.map((s) => setLogToPrescription(s, metric)) }
           }
-          if (sessionDay) {
-            const sessionPe =
-              sessionDay.exercises.find((e) => e.exerciseId === pe.exerciseId) ??
-              sessionDay.exercises[i]
-            if (sessionPe && sessionPe.restBetweenSetsSec !== next.restBetweenSetsSec) {
-              next = { ...next, restBetweenSetsSec: sessionPe.restBetweenSetsSec }
+
+          // Rest change (non-swap path — swap already applied rest above).
+          if (!isSwapped && sessionDay) {
+            const restPe = sessionDay.exercises[i]
+            if (restPe && restPe.restBetweenSetsSec !== next.restBetweenSetsSec) {
+              next = { ...next, restBetweenSetsSec: restPe.restBetweenSetsSec }
             }
           }
           return next

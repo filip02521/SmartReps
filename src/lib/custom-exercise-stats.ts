@@ -1,7 +1,7 @@
 import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { db } from '@/lib/db'
-import type { LocalWorkoutSession } from '@/lib/db'
+import type { LocalMaxTest, LocalWorkoutSession } from '@/lib/db'
 import type { ExerciseDefinition, ExerciseLog, PrimaryMetric, SetLog } from '@/lib/exercise-model'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import {
@@ -11,6 +11,7 @@ import {
   resolveBuiltinProgramForExercise,
   type BuiltinLibraryProgram,
 } from '@/lib/builtin-exercise-bridge'
+import { formatPrescriptionTarget, formatSetActualDisplay } from '@/lib/custom-prescription-format'
 import { pl } from '@/i18n/pl'
 
 export type ExerciseChartPoint = {
@@ -30,6 +31,13 @@ export type ExerciseRecentSession = {
   setsTotal: number
 }
 
+export type ExerciseLastSetRow = {
+  setNumber: number
+  actualLabel: string
+  targetLabel: string
+  passed: boolean
+}
+
 export type ExerciseTrend = 'up' | 'down' | 'flat' | null
 
 export type ExerciseDetailStats = {
@@ -44,6 +52,26 @@ export type ExerciseDetailStats = {
   prDurationSec: number | null
   prWeightKg: number | null
   prVolumeKg: number | null
+  /** Date of the session (or builtin max test) that set the primary PR. */
+  prDate: string | null
+  /** Human context for the PR session, e.g. "Plan · Dzień 3" or "Test max". */
+  prSessionLabel: string | null
+  /** All-time sum of reps across every set (reps / reps_weight). */
+  totalRepsAllTime: number
+  /** All-time sum of reps × kg (reps_weight only). */
+  totalVolumeKgAllTime: number | null
+  /** All-time sum of set durations in seconds (duration_sec). */
+  totalDurationSecAllTime: number
+  /** Average best-set value per session — work-capacity indicator. */
+  avgBestPerSession: number | null
+  /** Sessions logged in the last 30 days — recency/frequency. */
+  sessionsLast30d: number
+  /** Average sessions per week over the tracked span. */
+  avgSessionsPerWeek: number | null
+  /** Total load per session — volume (reps_weight), total reps (reps), total time (duration). */
+  loadPerSession: ExerciseChartPoint[]
+  /** Set-by-set breakdown of the most recent session. */
+  lastSessionSets: ExerciseLastSetRow[]
   chartPoints: ExerciseChartPoint[]
   trend: ExerciseTrend
   trendDeltaPct: number | null
@@ -135,6 +163,32 @@ async function loadBuiltinMaxReps(program: BuiltinLibraryProgram): Promise<numbe
   const tests = await db.maxTests.where('program').equals(program).toArray()
   if (tests.length === 0) return null
   return tests.reduce((max, t) => Math.max(max, t.reps), 0)
+}
+
+/** Builtin max test with the highest reps (used to date the PR for reps-based builtins). */
+async function loadBuiltinMaxTest(program: BuiltinLibraryProgram): Promise<LocalMaxTest | null> {
+  const tests = await db.maxTests.where('program').equals(program).toArray()
+  if (tests.length === 0) return null
+  return tests.reduce((best, t) => (t.reps > best.reps ? t : best))
+}
+
+/** Total load for a session — the metric that reflects overall work, not just the peak set. */
+function sessionLoad(log: ExerciseLog, metric: PrimaryMetric): number {
+  if (metric === 'duration_sec') {
+    return log.sets.reduce((sum, set) => sum + (set.actual.durationSec ?? 0), 0)
+  }
+  if (metric === 'reps_weight') {
+    return log.sets.reduce(
+      (sum, set) => sum + (set.actual.reps ?? 0) * (set.actual.weightKg ?? 0),
+      0,
+    )
+  }
+  return log.sets.reduce((sum, set) => sum + (set.actual.reps ?? 0), 0)
+}
+
+function sessionLabel(planName: string, dayNumber: number): string {
+  const plan = planName || pl.planDash
+  return pl.exerciseDetailPrSessionContext(plan, dayNumber)
 }
 
 /** Custom logs for `exerciseId` plus Strong program sessions when the exercise maps. */
@@ -258,7 +312,18 @@ export async function computeExerciseDetailStats(
   let lastSessionAt: string | null = null
   const pr = emptyPr()
 
+  let totalRepsAllTime = 0
+  let totalVolumeKgAllTime = 0
+  let totalDurationSecAllTime = 0
+  let primaryPrValue = 0
+  let prDate: string | null = null
+  let prSessionLabel: string | null = null
+  let sessionsLast30d = 0
+  const now = Date.now()
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000
+
   const chartPoints: ExerciseChartPoint[] = []
+  const loadPerSession: ExerciseChartPoint[] = []
   const recentSessions: ExerciseRecentSession[] = []
   const metric = exercise.primaryMetric
 
@@ -269,10 +334,21 @@ export async function computeExerciseDetailStats(
     const at = session.completedAt ?? session.startedAt
     if (!firstSessionAt || at < firstSessionAt) firstSessionAt = at
     if (!lastSessionAt || at > lastSessionAt) lastSessionAt = at
+    if (now - new Date(at).getTime() <= thirtyDaysMs) sessionsLast30d += 1
+
+    const planName =
+      row.planName ||
+      (session.customPlanId && planNames.get(session.customPlanId)) ||
+      pl.planDash
 
     let sessionPassed = 0
     for (const set of log.sets) {
       setCount += 1
+      if (set.actual.reps != null) totalRepsAllTime += set.actual.reps
+      if (set.actual.durationSec != null) totalDurationSecAllTime += set.actual.durationSec
+      if (metric === 'reps_weight') {
+        totalVolumeKgAllTime += (set.actual.reps ?? 0) * (set.actual.weightKg ?? 0)
+      }
       if (set.passed) {
         passedSetCount += 1
         sessionPassed += 1
@@ -292,15 +368,25 @@ export async function computeExerciseDetailStats(
             ? `${best.actual.weightKg} kg`
             : null,
       })
+      // Track the session that produced the primary peak (used to date the PR).
+      if (value > primaryPrValue) {
+        primaryPrValue = value
+        prDate = at
+        prSessionLabel = sessionLabel(planName, session.dayNumber)
+      }
     }
+
+    loadPerSession.push({
+      date: at,
+      dateLabel: format(new Date(at), 'd MMM', { locale: plLocale }),
+      value: sessionLoad(log, metric),
+      tooltipSecondary: null,
+    })
 
     recentSessions.push({
       sessionId: session.id,
       date: at,
-      planName:
-        row.planName ||
-        (session.customPlanId && planNames.get(session.customPlanId)) ||
-        pl.planDash,
+      planName,
       dayNumber: session.dayNumber,
       summary: best ? formatExerciseSetSummary(metric, best) : '—',
       setsPassed: sessionPassed,
@@ -310,19 +396,61 @@ export async function computeExerciseDetailStats(
 
   const program = resolveBuiltinProgramForExercise(exercise)
   if (program) {
-    const maxReps = await loadBuiltinMaxReps(program)
-    if (maxReps != null && maxReps > 0) {
-      pr.prReps = Math.max(pr.prReps ?? 0, maxReps)
+    const maxTest = await loadBuiltinMaxTest(program)
+    if (maxTest && maxTest.reps > 0) {
+      pr.prReps = Math.max(pr.prReps ?? 0, maxTest.reps)
+      // A builtin max test counts as the reps PR when it exceeds any session set.
+      if (metric === 'reps' && maxTest.reps >= primaryPrValue) {
+        prDate = maxTest.testedAt
+        prSessionLabel = pl.exerciseDetailPrTestLabel
+      }
     }
   }
 
   chartPoints.sort((a, b) => a.date.localeCompare(b.date))
+  loadPerSession.sort((a, b) => a.date.localeCompare(b.date))
   recentSessions.sort((a, b) => b.date.localeCompare(a.date))
 
   const passRatePct =
     setCount > 0 ? Math.round((passedSetCount / setCount) * 100) : null
 
   const { trend, deltaPct } = computeTrend(chartPoints.map((p) => p.value))
+
+  const bestValues = chartPoints.map((p) => p.value)
+  const avgBestPerSession =
+    bestValues.length > 0
+      ? Math.round(bestValues.reduce((a, b) => a + b, 0) / bestValues.length)
+      : null
+
+  let avgSessionsPerWeek: number | null = null
+  if (firstSessionAt && lastSessionAt && lastSessionAt !== firstSessionAt) {
+    const days = Math.max(
+      1,
+      Math.round(
+        (new Date(lastSessionAt).getTime() - new Date(firstSessionAt).getTime()) /
+          (24 * 60 * 60 * 1000),
+      ),
+    )
+    avgSessionsPerWeek = Math.round((sessionCount / (days / 7)) * 10) / 10
+  }
+
+  // Set-by-set breakdown of the most recent session (recentSessions is desc-sorted).
+  const lastRow = recentSessions[0]
+  let lastSessionSets: ExerciseLastSetRow[] = []
+  if (lastRow) {
+    const lastLogRow = rows.find((r) => r.session.id === lastRow.sessionId)
+    if (lastLogRow) {
+      lastSessionSets = lastLogRow.log.sets
+        .slice()
+        .sort((a, b) => a.setNumber - b.setNumber)
+        .map((set) => ({
+          setNumber: set.setNumber,
+          actualLabel: formatSetActualDisplay(set.actual, metric),
+          targetLabel: formatPrescriptionTarget(set.prescription, metric),
+          passed: set.passed,
+        }))
+    }
+  }
 
   return {
     exercise,
@@ -333,6 +461,16 @@ export async function computeExerciseDetailStats(
     firstSessionAt,
     lastSessionAt,
     ...pr,
+    prDate,
+    prSessionLabel,
+    totalRepsAllTime,
+    totalVolumeKgAllTime: metric === 'reps_weight' ? totalVolumeKgAllTime : null,
+    totalDurationSecAllTime,
+    avgBestPerSession,
+    sessionsLast30d,
+    avgSessionsPerWeek,
+    loadPerSession,
+    lastSessionSets,
     chartPoints,
     trend,
     trendDeltaPct: deltaPct,

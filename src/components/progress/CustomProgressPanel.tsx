@@ -153,6 +153,43 @@ export function CustomProgressPanel({
     ).length
   }, [customSessionsAll])
 
+  const customVolume = useMemo(() => {
+    const since14d = subDays(new Date(), 14).getTime()
+    const since30d = new Date().getTime() - 30 * 86400000
+    let totalReps14d = 0
+    let totalVolumeKg14d = 0
+    let totalRepsAll = 0
+    let sessions30d = 0
+    const completed = customSessionsAll.filter((s) => s.status === 'completed')
+    for (const s of completed) {
+      const t = new Date(s.startedAt).getTime()
+      let sessionReps = 0
+      let sessionVol = 0
+      for (const log of s.exerciseLogs ?? []) {
+        for (const set of log.sets) {
+          const reps = set.actual.reps ?? 0
+          const kg = set.actual.weightKg ?? 0
+          sessionReps += reps
+          sessionVol += reps * kg
+        }
+      }
+      totalRepsAll += sessionReps
+      if (t >= since14d) {
+        totalReps14d += sessionReps
+        totalVolumeKg14d += sessionVol
+      }
+      if (t >= since30d) sessions30d++
+    }
+    const avgPerSession =
+      completed.length > 0 ? Math.round(totalRepsAll / completed.length) : null
+    return {
+      totalReps14d,
+      totalVolumeKg14d,
+      avgPerSession,
+      sessions30d,
+    }
+  }, [customSessionsAll])
+
   const trainedExerciseCount = useMemo(
     () => customPrs.filter((p) => p.sessionCount > 0).length,
     [customPrs],
@@ -194,6 +231,37 @@ export function CustomProgressPanel({
                   max: 3,
                 }}
               />
+            </ProgressSection>
+          )}
+
+          {customSessionsAll.length > 0 && (
+            <ProgressSection
+              first={customSessionsAll.length === 0 && customPlans.length === 0}
+              title={pl.progressCustomVolumeTitle}
+              hint={pl.progressCustomVolumeHint}
+            >
+              <div className="grid grid-cols-2 gap-2">
+                <NestedStat
+                  size="md"
+                  overline={pl.progressCustomTotalReps14d}
+                  value={customVolume.totalReps14d}
+                />
+                <NestedStat
+                  size="md"
+                  overline={pl.progressCustomTotalVolume14d}
+                  value={customVolume.totalVolumeKg14d > 0 ? `${customVolume.totalVolumeKg14d} kg` : '—'}
+                />
+                <NestedStat
+                  size="md"
+                  overline={pl.progressCustomAvgPerSession}
+                  value={customVolume.avgPerSession ?? '—'}
+                />
+                <NestedStat
+                  size="md"
+                  overline={pl.progressCustomSessions30d}
+                  value={customVolume.sessions30d}
+                />
+              </div>
             </ProgressSection>
           )}
 

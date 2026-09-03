@@ -1,4 +1,4 @@
-import { ArrowLeft, BarChart2, Minus, MoreVertical, Plus } from 'lucide-react'
+import { ArrowLeft, BarChart2, ListOrdered, Minus, MoreVertical, Plus, Repeat } from 'lucide-react'
 import { useEffect, useState, type RefObject, ReactNode } from 'react'
 import { Check, ChevronRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -911,6 +911,9 @@ export type ActiveCustomWorkoutScreenProps = {
   /** Change restBetweenSetsSec for this exercise (session-only until summary). */
   showRestAdjust?: boolean
   onRestChange?: (sec: number) => void
+  /** Swap current exercise for another from library (session-only until summary). */
+  canSwapExercise?: boolean
+  onSwapExercise?: () => void
 }
 
 export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps) {
@@ -985,6 +988,8 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     onRemoveSet,
     showRestAdjust = false,
     onRestChange,
+    canSwapExercise = false,
+    onSwapExercise,
   } = props
 
   const prescription = planned.sets[setIndex]
@@ -1104,9 +1109,24 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
                 {pl.exerciseDetailOpen}
               </Button>
             )}
-            <Button variant="ghost" fullWidth className="justify-start px-3" onClick={onShowPlan}>
+            <Button variant="ghost" fullWidth className="justify-start gap-2 px-3" onClick={onShowPlan}>
+              <ListOrdered size={18} aria-hidden />
               {dayExercises.length > 1 ? pl.customWorkoutSwitchExerciseMenu : pl.previewDayPlan}
             </Button>
+            {canSwapExercise && onSwapExercise && (
+              <Button
+                variant="ghost"
+                fullWidth
+                className="justify-start gap-2 px-3"
+                onClick={() => {
+                  onCloseMenu()
+                  onSwapExercise()
+                }}
+              >
+                <Repeat size={18} aria-hidden />
+                {pl.customWorkoutSwapExercise}
+              </Button>
+            )}
             {sessionHasProgress && (
               <Button
                 variant="ghost"

@@ -1,4 +1,6 @@
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { format } from 'date-fns'
+import { pl as plLocale } from 'date-fns/locale'
 import { ActivityHeatmap } from '@/components/progress/ActivityHeatmap'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
@@ -10,6 +12,12 @@ import { pl } from '@/i18n/pl'
 import type { HeatmapCell } from '@/lib/export'
 import type { LocalProgramProgress } from '@/lib/db'
 import type { ProgramStats } from '@/lib/stats-engine'
+import type {
+  SessionChartPoint,
+  ProgramRecordsWithDates,
+  ProgramVolumeStats,
+  DayCycleTrend,
+} from '@/lib/stats-engine'
 import type { ActivityInsights } from '@/lib/weekly-recap'
 import { hasAnyProgramRecords } from '@/lib/progress-history'
 import { navigateToTrain } from '@/lib/setup-flow'
@@ -26,6 +34,10 @@ export function OverviewPanel({
   activity,
   hasAnyData,
   records,
+  sessionChart,
+  recordsWithDates,
+  volumeStats,
+  dayCycleTrend,
   navigate,
 }: {
   program: Program
@@ -41,6 +53,10 @@ export function OverviewPanel({
     bestSessionTotal: number | null
     highestCycleName: string | null
   } | null
+  sessionChart: SessionChartPoint[]
+  recordsWithDates: ProgramRecordsWithDates | null
+  volumeStats: ProgramVolumeStats | null
+  dayCycleTrend: DayCycleTrend[]
   navigate: NavigateFunction
 }) {
   const trend = stats?.maxLastSetTrend
@@ -126,6 +142,87 @@ export function OverviewPanel({
         </ProgressSection>
       ) : (
         <>
+          {volumeStats && (volumeStats.volume14d > 0 || (stats?.passedSessionCount ?? 0) > 0) && (
+            <ProgressSection title={pl.progressVolumeTitle}>
+              <div className="grid grid-cols-2 gap-2">
+                <NestedStat
+                  size="md"
+                  overline={pl.progressVolume14d}
+                  value={volumeStats.volume14d}
+                  hint={
+                    volumeStats.volumeChangePct != null
+                      ? volumeStats.volumeChangePct > 0
+                        ? pl.progressVolumeTrendUp(volumeStats.volumeChangePct)
+                        : volumeStats.volumeChangePct < 0
+                          ? pl.progressVolumeTrendDown(Math.abs(volumeStats.volumeChangePct))
+                          : pl.progressVolumeTrendFlat
+                      : volumeStats.volumePrev14d === 0
+                        ? pl.progressVolumePrev14d + ': 0'
+                        : undefined
+                  }
+                />
+                <NestedStat
+                  size="md"
+                  overline={pl.progressAvgPerSession}
+                  value={volumeStats.avgRepsPerSession ?? pl.noValue}
+                />
+                <NestedStat
+                  size="md"
+                  overline={pl.progressAvgSessionsPerWeek}
+                  value={volumeStats.avgSessionsPerWeek ?? pl.noValue}
+                />
+                <NestedStat
+                  size="md"
+                  overline={pl.progressSessions30d}
+                  value={volumeStats.sessionsLast30d}
+                />
+              </div>
+            </ProgressSection>
+          )}
+
+          {sessionChart.length >= 2 && (
+            <ProgressSection
+              title={pl.progressSessionChartTitle}
+              hint={pl.progressSessionChartHint}
+            >
+              <div className="h-40 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] py-3">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={sessionChart}>
+                    <XAxis
+                      dataKey="dateLabel"
+                      tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                      stroke="var(--sr-border-subtle)"
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                      stroke="var(--sr-border-subtle)"
+                      width={28}
+                    />
+                    <Tooltip
+                      contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
+                      formatter={(value, _name, item) => {
+                        const row = item.payload as SessionChartPoint
+                        return [
+                          `${value ?? 0} ${pl.repsUnit} · ${pl.dayLabel(row.dayNumber)}`,
+                          pl.progressSessionChartTooltip,
+                        ]
+                      }}
+                      labelFormatter={(label) => String(label)}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="var(--sr-brand-primary)"
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </ProgressSection>
+          )}
+
           {tests.length > 0 ? (
             <ProgressSection title={pl.chartTestOverTime} hint={pl.progressTestChartHint}>
               <div className="h-40 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] py-3">
@@ -171,24 +268,90 @@ export function OverviewPanel({
             </ProgressSection>
           )}
 
+          {dayCycleTrend.length > 0 && dayCycleTrend.some((d) => d.delta != null) && (
+            <ProgressSection
+              title={pl.progressCycleTrendTitle}
+              hint={pl.progressCycleTrendHint}
+            >
+              <ul className="divide-y divide-[var(--sr-border-subtle)]">
+                {dayCycleTrend.map((d) => (
+                  <li
+                    key={d.dayNumber}
+                    className="flex items-center justify-between gap-3 py-2.5 first:pt-0"
+                  >
+                    <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+                      {pl.dayLabel(d.dayNumber)}
+                    </span>
+                    <div className="flex items-center gap-3 tabular-nums">
+                      <span className="sr-text-body-sm text-[var(--sr-text-muted)]">
+                        {pl.progressCycleTrendPrevious}:{' '}
+                        {d.previous ?? '—'}
+                      </span>
+                      <span className="font-semibold text-[var(--sr-text-primary)]">
+                        {pl.progressCycleTrendCurrent}: {d.current ?? '—'}
+                      </span>
+                      {d.delta != null ? (
+                        <span
+                          className={
+                            d.delta > 0
+                              ? 'text-[var(--sr-success)]'
+                              : d.delta < 0
+                                ? 'text-[var(--sr-error)]'
+                                : 'text-[var(--sr-text-muted)]'
+                          }
+                        >
+                          {pl.progressCycleTrendDelta(d.delta)}
+                        </span>
+                      ) : (
+                        <span className="sr-text-caption text-[var(--sr-text-muted)]">
+                          {pl.progressCycleTrendNoPrevious}
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </ProgressSection>
+          )}
+
           <ProgressSection title={pl.activityHeatmap} hint={pl.progressHeatmapHint}>
             <ActivityHeatmap grid={heatmap} showSummary />
           </ProgressSection>
 
-          {records && (
+          {recordsWithDates && (
             <ProgressSection title={pl.progressRecordsSectionTitle}>
               <div id="progress-records">
-                {hasAnyProgramRecords(records) ? (
+                {records && hasAnyProgramRecords(records) ? (
                   <div className="grid grid-cols-2 gap-2">
                     <NestedStat
                       size="md"
                       overline={pl.recordBestMaxSet}
-                      value={records.bestMaxSet ?? pl.noValue}
+                      value={recordsWithDates.bestMaxSet ?? pl.noValue}
+                      hint={
+                        recordsWithDates.bestMaxSetDate
+                          ? pl.progressRecordDate(
+                              format(new Date(recordsWithDates.bestMaxSetDate), 'd MMM yyyy', {
+                                locale: plLocale,
+                              }),
+                            )
+                          : undefined
+                      }
                     />
                     <NestedStat
                       size="md"
                       overline={pl.recordBestSession}
-                      value={records.bestSessionTotal ?? pl.noValue}
+                      value={recordsWithDates.bestSessionTotal ?? pl.noValue}
+                      hint={
+                        recordsWithDates.bestSessionTotalDate
+                          ? pl.progressRecordDate(
+                              format(
+                                new Date(recordsWithDates.bestSessionTotalDate),
+                                'd MMM yyyy',
+                                { locale: plLocale },
+                              ),
+                            )
+                          : undefined
+                      }
                     />
                     <NestedStat
                       size="md"
@@ -198,7 +361,7 @@ export function OverviewPanel({
                     <NestedStat
                       size="md"
                       overline={pl.recordHighestCycle}
-                      value={records.highestCycleName ?? pl.noValue}
+                      value={recordsWithDates.highestCycleName ?? pl.noValue}
                     />
                   </div>
                 ) : (

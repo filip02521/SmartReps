@@ -4,7 +4,12 @@ import { ShowcasePickerSheet } from '@/components/achievements/ShowcasePickerShe
 import { AchievementDetailSheet } from '@/components/achievements/AchievementDetailSheet'
 import { getAllUnlocks } from '@/lib/achievements/store'
 import { ACHIEVEMENT_BY_ID } from '@/lib/achievements/catalog'
-import type { AchievementId, LocalAchievementUnlock } from '@/lib/achievements/types'
+import { buildAchievementSnapshot, emptyImpact } from '@/lib/achievements/snapshot'
+import type {
+  AchievementId,
+  AchievementSnapshot,
+  LocalAchievementUnlock,
+} from '@/lib/achievements/types'
 import { PageSection } from '@/components/ui/PageSection'
 import { pl } from '@/i18n/pl'
 
@@ -14,12 +19,14 @@ export function ProfileAchievementsSection() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [detailId, setDetailId] = useState<AchievementId | null>(null)
   const [showcaseKey, setShowcaseKey] = useState(0)
+  const [snap, setSnap] = useState<AchievementSnapshot | null>(null)
 
   const reload = useCallback(() => {
     void getAllUnlocks().then((rows) => {
       setUnlocks(rows)
       setLoaded(true)
     })
+    void buildAchievementSnapshot({ impact: emptyImpact() }).then(setSnap).catch(() => undefined)
   }, [])
 
   useEffect(() => {
@@ -51,6 +58,7 @@ export function ProfileAchievementsSection() {
           onClose={() => setDetailId(null)}
           def={detailDef}
           unlock={detailUnlock}
+          snapshot={snap ?? undefined}
         />
       )}
     </PageSection>

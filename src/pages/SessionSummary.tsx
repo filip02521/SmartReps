@@ -24,6 +24,8 @@ import { shareSessionCard } from '@/lib/share-card'
 import { trackShareCard } from '@/lib/analytics'
 import { showToast } from '@/stores/toast-store'
 import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
+import { useAchievementUiStore } from '@/stores/achievement-ui-store'
+import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
 
 export default function SessionSummary() {
   const { program: programParam } = useParams<{ program: Program }>()
@@ -46,6 +48,30 @@ export default function SessionSummary() {
   const [progress, setProgress] = useState<Awaited<ReturnType<typeof getProgramProgress>>>(undefined)
   const [insights, setInsights] = useState<BuiltinSessionInsights | undefined>()
   const [sharing, setSharing] = useState(false)
+  const [newAchievements, setNewAchievements] = useState<
+    import('@/lib/achievements/types').LocalAchievementUnlock[]
+  >([])
+  const achievementQueue = useAchievementUiStore((s) => s.queue)
+  const clearQueue = useAchievementUiStore((s) => s.clearQueue)
+  const setSummaryMode = useAchievementUiStore((s) => s.setSummaryMode)
+
+  // Summary page owns the achievement queue — suppress AchievementHost popups
+  useEffect(() => {
+    setSummaryMode(true)
+    return () => setSummaryMode(false)
+  }, [setSummaryMode])
+
+  // Subscribe to queue changes — handles race condition where evaluation
+  // completes after summary mount. Drain queue into local state when items arrive.
+  useEffect(() => {
+    if (achievementQueue.length === 0) return
+    setNewAchievements((prev) => {
+      const existingIds = new Set(prev.map((r) => r.id))
+      const fresh = achievementQueue.filter((r) => !existingIds.has(r.id))
+      return fresh.length > 0 ? [...prev, ...fresh] : prev
+    })
+    clearQueue()
+  }, [achievementQueue, clearQueue])
 
   const load = async () => {
     setLoading(true)
@@ -300,6 +326,12 @@ export default function SessionSummary() {
             </Button>
           ))}
       </div>
+
+      {newAchievements.length > 0 && (
+        <div className="mt-6">
+          <AchievementSummaryList unlocks={newAchievements} />
+        </div>
+      )}
 
       {showLoginPrompt && (
         <NoticeCard

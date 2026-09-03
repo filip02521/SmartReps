@@ -1,5 +1,6 @@
 import { db, type LocalWorkoutSession } from '@/lib/db'
 import type { CustomPlan, CustomProgramProgress, ExerciseLog, SetLog } from '@/lib/exercise-model'
+import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import { getOrCreateCustomProgress, applyCycleProgression } from '@/lib/custom-plan-service'
 import { previewProgressionDiff } from '@/lib/custom-progression'
 import {
@@ -371,6 +372,39 @@ export async function getPreviousCustomSetActual(params: {
   if (!result) return undefined
   if (result.durationSec != null) return result.durationSec
   return result.reps
+}
+
+/**
+ * All sets from the most recent completed session for the given exercise in a plan.
+ * Used when swapping an exercise mid-workout to prefill sets/reps/weight from history.
+ */
+export async function getLastExerciseLogs(params: {
+  customPlanId: string
+  exerciseId: string
+  excludeSessionId?: string
+}): Promise<SetLog[] | undefined> {
+  const sessions = await db.workoutSessions
+    .where('customPlanId')
+    .equals(params.customPlanId)
+    .toArray()
+  const candidates = sessions
+    .filter(
+      (s) =>
+        isCustomWorkoutSession(s) &&
+        s.customPlanId === params.customPlanId &&
+        s.status === 'completed' &&
+        s.id !== params.excludeSessionId &&
+        s.completedAt,
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime(),
+    )
+  for (const session of candidates) {
+    const log = session.exerciseLogs?.find((l) => l.exerciseId === params.exerciseId)
+    if (log && log.sets.length > 0) return log.sets
+  }
+  return undefined
 }
 
 export async function abandonCustomWorkout(planId: string, sessionId: string) {

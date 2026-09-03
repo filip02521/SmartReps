@@ -1,7 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ACHIEVEMENT_CATALOG } from '@/lib/achievements/catalog'
-import type { AchievementId, AchievementTrack, LocalAchievementUnlock } from '@/lib/achievements/types'
+import type {
+  AchievementId,
+  AchievementSnapshot,
+  AchievementTrack,
+  LocalAchievementUnlock,
+} from '@/lib/achievements/types'
 import { achievementTitle } from '@/lib/achievements/copy'
+import { buildAchievementSnapshot, emptyImpact } from '@/lib/achievements/snapshot'
 import { AchievementTile } from './AchievementTile'
 import { AchievementDetailSheet } from './AchievementDetailSheet'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -25,6 +31,11 @@ export function AchievementGallery({
   const [filter, setFilter] = useState<Filter>('all')
   const [track, setTrack] = useState<AchievementTrack | 'all'>('all')
   const [detailId, setDetailId] = useState<AchievementId | null>(null)
+  const [snap, setSnap] = useState<AchievementSnapshot | null>(null)
+
+  useEffect(() => {
+    void buildAchievementSnapshot({ impact: emptyImpact() }).then(setSnap).catch(() => undefined)
+  }, [])
 
   const byId = useMemo(() => new Map(unlocks.map((u) => [u.id, u])), [unlocks])
 
@@ -132,15 +143,19 @@ export function AchievementGallery({
         />
       ) : (
         <div className="grid grid-cols-3 gap-4 sm:grid-cols-4">
-          {visible.map((def) => (
-            <AchievementTile
-              key={def.id}
-              def={def}
-              unlocked={byId.has(def.id)}
-              highlight={Boolean(byId.get(def.id) && !byId.get(def.id)?.seenAt)}
-              onClick={() => void openDetail(def.id)}
-            />
-          ))}
+          {visible.map((def) => {
+            const unlock = byId.get(def.id)
+            return (
+              <AchievementTile
+                key={def.id}
+                def={def}
+                unlocked={Boolean(unlock)}
+                tierLevel={unlock?.tierLevel}
+                highlight={Boolean(unlock && !unlock?.seenAt)}
+                onClick={() => void openDetail(def.id)}
+              />
+            )
+          })}
         </div>
       )}
 
@@ -149,6 +164,7 @@ export function AchievementGallery({
           open
           def={detailDef}
           unlock={detailUnlock}
+          snapshot={snap ?? undefined}
           progress={
             inProgress.find((p) => p.id === detailDef.id) ??
             undefined

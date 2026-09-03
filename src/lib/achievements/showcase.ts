@@ -1,8 +1,8 @@
-import { ACHIEVEMENT_BY_ID, ACHIEVEMENT_CATALOG } from './catalog'
+import { ACHIEVEMENT_BY_ID, ACHIEVEMENT_CATALOG, resolveDisplayRarity } from './catalog'
 import type { AchievementId, AchievementRarity, LocalAchievementUnlock } from './types'
 
 const STORAGE_KEY = 'achievements_showcase_v1'
-export const SHOWCASE_SLOT_COUNT = 3
+export const SHOWCASE_SLOT_COUNT = 4
 
 const RARITY_RANK: Record<AchievementRarity, number> = {
   legendary: 3,
@@ -63,14 +63,20 @@ export function isShowcaseAutoMode(): boolean {
   return getShowcasePinnedIds() === null
 }
 
-/** Sort unlocked for auto showcase: rarer first, then newest. */
+/** Sort unlocked for auto showcase: rarer first (considering tier rarity), then newest. */
 export function rankUnlocksForShowcase(unlocks: LocalAchievementUnlock[]): LocalAchievementUnlock[] {
   return [...unlocks].sort((a, b) => {
     const da = ACHIEVEMENT_BY_ID[a.id]
     const db = ACHIEVEMENT_BY_ID[b.id]
-    const ra = da ? RARITY_RANK[da.rarity] : 0
-    const rb = db ? RARITY_RANK[db.rarity] : 0
-    if (rb !== ra) return rb - ra
+    // Use display rarity (tier-aware) as base rank
+    const ra = da ? RARITY_RANK[resolveDisplayRarity(da, null, a.tierLevel)] : 0
+    const rb = db ? RARITY_RANK[resolveDisplayRarity(db, null, b.tierLevel)] : 0
+    // Tier level boosts ranking within same rarity
+    const tierBoostA = (a.tierLevel ?? 0) * 0.5
+    const tierBoostB = (b.tierLevel ?? 0) * 0.5
+    const scoreA = ra + tierBoostA
+    const scoreB = rb + tierBoostB
+    if (scoreB !== scoreA) return scoreB - scoreA
     return new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime()
   })
 }

@@ -3,11 +3,17 @@ import type { AchievementId, LocalAchievementUnlock } from './types'
 
 const BACKFILL_KEY = 'achievements_backfill_v1'
 
-function asUnlock(row: { id: string; unlockedAt: string; seenAt: string | null }): LocalAchievementUnlock {
+function asUnlock(row: {
+  id: string
+  unlockedAt: string
+  seenAt: string | null
+  tierLevel?: number | null
+}): LocalAchievementUnlock {
   return {
     id: row.id as AchievementId,
     unlockedAt: row.unlockedAt,
     seenAt: row.seenAt,
+    tierLevel: row.tierLevel ?? null,
   }
 }
 
@@ -26,6 +32,7 @@ export async function putUnlock(row: LocalAchievementUnlock): Promise<void> {
     id: row.id,
     unlockedAt: row.unlockedAt,
     seenAt: row.seenAt,
+    tierLevel: row.tierLevel ?? null,
   })
 }
 
@@ -38,7 +45,7 @@ export async function markUnlockSeen(id: AchievementId, seenAt = new Date().toIS
   void import('./sync')
     .then((m) =>
       m.pushAchievementsToCloud([
-        { id: id, unlockedAt: next.unlockedAt, seenAt: next.seenAt },
+        { id: id, unlockedAt: next.unlockedAt, seenAt: next.seenAt, tierLevel: next.tierLevel ?? null },
       ]),
     )
     .catch(() => undefined)
@@ -78,7 +85,12 @@ export function setBackfillFlag(): void {
 
 /** Merge remote unlocks (keep earliest unlock, latest seen). */
 export async function mergeRemoteUnlocks(
-  remote: { achievement_id: string; unlocked_at: string; seen_at: string | null }[],
+  remote: {
+    achievement_id: string
+    unlocked_at: string
+    seen_at: string | null
+    tier_level?: number | null
+  }[],
 ): Promise<void> {
   for (const r of remote) {
     const id = r.achievement_id as AchievementId
@@ -88,6 +100,7 @@ export async function mergeRemoteUnlocks(
         id,
         unlockedAt: r.unlocked_at,
         seenAt: r.seen_at,
+        tierLevel: r.tier_level ?? null,
       })
       continue
     }
@@ -99,6 +112,10 @@ export async function mergeRemoteUnlocks(
     if (r.seen_at && (!seenAt || new Date(r.seen_at).getTime() > new Date(seenAt).getTime())) {
       seenAt = r.seen_at
     }
-    await db.achievementUnlocks.put({ id, unlockedAt, seenAt })
+    // Keep the highest tier level between local and remote
+    const localTier = local.tierLevel ?? 0
+    const remoteTier = r.tier_level ?? 0
+    const tierLevel = Math.max(localTier, remoteTier) || null
+    await db.achievementUnlocks.put({ id, unlockedAt, seenAt, tierLevel })
   }
 }
