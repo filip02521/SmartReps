@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { TrendIndicator } from '@/components/ui/TrendIndicator'
 import { ProgramAccentCard } from '@/components/ui/ProgramAccentCard'
+import { ProgramIcon } from '@/components/ui/ProgramIcon'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { CycleDayRail } from '@/components/ui/CycleDayRail'
 import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
+import { BuiltinWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
 import { ErrorBanner, FeedbackBanner } from '@/components/ux/Feedback'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
@@ -56,6 +58,7 @@ export function ProgramHomeCard({
   const [showStaleRestSheet, setShowStaleRestSheet] = useState(false)
   const [pendingSetup, setPendingSetup] = useState<'level' | 'retest' | null>(null)
   const [busy, setBusy] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
 
   const { program, bucket, progress, stats, resume, available, daysLeft } = model
   const isPaused = progress?.status === 'paused'
@@ -95,10 +98,23 @@ export function ProgramHomeCard({
     return (
       <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
         <div className="flex items-start justify-between gap-3">
-          <p className="font-semibold text-[var(--sr-text-primary)]">{model.label}</p>
+          <div className="flex items-center gap-2.5">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
+              style={{
+                background: program === 'pushups'
+                  ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
+                  : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
+              }}
+              aria-hidden
+            >
+              <ProgramIcon program={program} size={22} />
+            </div>
+            <p className="font-semibold text-[var(--sr-text-primary)]">{model.label}</p>
+          </div>
           <Badge variant="info">{pl.notConfigured}</Badge>
         </div>
-        <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.notConfiguredHint}</p>
+        <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">{pl.notConfiguredHint}</p>
         <Button
           className="mt-5"
           size="touch"
@@ -123,17 +139,30 @@ export function ProgramHomeCard({
   return (
     <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="sr-text-h2 text-[var(--sr-text-primary)]" title={model.label}>
-            {model.label}
-          </h2>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge variant={displayBadge.variant}>{displayBadge.label}</Badge>
-            {model.cycleNameShort && (
-              <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-                {model.cycleNameShort}
-              </span>
-            )}
+        <div className="flex min-w-0 flex-1 items-start gap-2.5">
+          <div
+            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
+            style={{
+              background: program === 'pushups'
+                ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
+                : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
+            }}
+            aria-hidden
+          >
+            <ProgramIcon program={program} size={22} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="sr-text-h2 text-[var(--sr-text-primary)]" title={model.label}>
+              {model.label}
+            </h2>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge variant={displayBadge.variant}>{displayBadge.label}</Badge>
+              {model.cycleNameShort && (
+                <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+                  {model.cycleNameShort}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <button
@@ -247,6 +276,25 @@ export function ProgramHomeCard({
             </p>
           </div>
 
+          {/* Progress bar */}
+          <div
+            className="mb-3 h-1.5 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
+            role="progressbar"
+            aria-valuenow={pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div
+              className="h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none"
+              style={{
+                width: `${pct}%`,
+                background: program === 'pushups'
+                  ? 'var(--sr-pushups-accent)'
+                  : 'var(--sr-pullups-accent)',
+              }}
+            />
+          </div>
+
           <CycleDayRail
             totalDays={cycle.days.length}
             days={cycle.days.map((d) => ({
@@ -317,7 +365,7 @@ export function ProgramHomeCard({
         }
         if (bucket === 'ready' && model.currentDaySets && model.setsTargetTotal != null) {
           return (
-            <div className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-3">
+            <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
               <div className="mb-2.5 flex items-baseline justify-between gap-2">
                 <p className="sr-text-overline text-[var(--sr-text-muted)]">{pl.homeTodaySession}</p>
                 <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
@@ -350,7 +398,7 @@ export function ProgramHomeCard({
             value={stats.nextWorkoutLabel}
           />
           {(stats.lastTotalReps !== null || stats.maxLastSetTrend.delta !== null) && (
-            <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
+            <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
               {stats.lastTotalReps !== null && (
                 <span>
                   {pl.totalRepsLastSession(stats.lastTotalReps)}
@@ -436,7 +484,7 @@ export function ProgramHomeCard({
       })()}
 
       {/* CTA */}
-      <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-4">
+      <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-5">
         {hasResume && resume && (
           <div className="flex flex-col gap-2">
             <Button
@@ -565,13 +613,7 @@ export function ProgramHomeCard({
               <Button
                 size="touch"
                 fullWidth
-                onClick={() => {
-                  navigate(
-                    trainDespiteRest || !available
-                      ? `/workout/${program}?force=1`
-                      : `/workout/${program}`,
-                  )
-                }}
+                onClick={() => setShowPreview(true)}
               >
                 {pl.startDay(progress.currentDay)}
               </Button>
@@ -676,6 +718,28 @@ export function ProgramHomeCard({
             }
           }}
           onCancel={() => setPendingSetup(null)}
+        />
+      )}
+
+      {showPreview && cycle && progress && model.currentDaySets && (
+        <BuiltinWorkoutPreviewSheet
+          open
+          onClose={() => setShowPreview(false)}
+          programLabel={model.label}
+          dayNumber={progress.currentDay}
+          cycleName={model.cycleNameShort}
+          sets={model.currentDaySets}
+          restBetweenSetsSec={
+            cycle.days.find((d) => d.dayNumber === progress.currentDay)?.restBetweenSetsSec ?? 90
+          }
+          onStart={() => {
+            setShowPreview(false)
+            navigate(
+              trainDespiteRest || !available
+                ? `/workout/${program}?force=1`
+                : `/workout/${program}`,
+            )
+          }}
         />
       )}
     </ProgramAccentCard>

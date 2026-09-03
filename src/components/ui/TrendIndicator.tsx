@@ -1,3 +1,4 @@
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function TrendIndicator({
@@ -8,13 +9,32 @@ export function TrendIndicator({
   className?: string
 }) {
   if (delta === null) {
-    return <span className={cn('text-[var(--sr-text-muted)]', className)}>—</span>
+    return (
+      <span className={cn('inline-flex items-center text-[var(--sr-text-muted)]', className)}>
+        <Minus size={14} strokeWidth={2.5} />
+      </span>
+    )
   }
   if (delta > 0) {
-    return <span className={cn('text-[var(--sr-success)]', className)}>↑ +{delta}</span>
+    return (
+      <span className={cn('inline-flex items-center gap-0.5 text-[var(--sr-success)]', className)}>
+        <TrendingUp size={14} strokeWidth={2.5} />
+        <span className="tabular-nums">+{delta}</span>
+      </span>
+    )
   }
   if (delta < 0) {
-    return <span className={cn('text-[var(--sr-error)]', className)}>↓ {delta}</span>
+    return (
+      <span className={cn('inline-flex items-center gap-0.5 text-[var(--sr-error)]', className)}>
+        <TrendingDown size={14} strokeWidth={2.5} />
+        <span className="tabular-nums">{delta}</span>
+      </span>
+    )
   }
-  return <span className={cn('text-[var(--sr-text-muted)]', className)}>→ 0</span>
+  return (
+    <span className={cn('inline-flex items-center text-[var(--sr-text-muted)]', className)}>
+      <Minus size={14} strokeWidth={2.5} />
+      <span className="tabular-nums">0</span>
+    </span>
+  )
 }

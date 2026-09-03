@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Trophy } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import type { SessionHighlight } from '@/lib/session-summary-insights'
 import { cn } from '@/lib/utils'
@@ -27,7 +28,7 @@ export function SummaryInsightBadge({
   )
 }
 
-/** Session/exercise-level PR cards only — no aggregate “N rekordów” chips. */
+/** Session/exercise-level PR cards only — no aggregate "N rekordów" chips. */
 export function SessionSummaryHighlights({
   highlights,
 }: {
@@ -44,9 +45,17 @@ export function SessionSummaryHighlights({
         {prHighlights.map((item) => (
           <li
             key={item.id}
-            className="flex items-center justify-between gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/35 bg-[var(--sr-brand-primary-muted)] px-3 py-2.5"
+            className="flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/35 bg-[var(--sr-brand-primary-muted)] px-3.5 py-3"
           >
-            <span className="text-sm font-medium text-[var(--sr-text-primary)]">{item.label}</span>
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] bg-[var(--sr-brand-primary)]/20"
+              aria-hidden
+            >
+              <Trophy size={16} strokeWidth={2.25} className="text-[var(--sr-brand-primary)]" />
+            </span>
+            <span className="min-w-0 flex-1 text-sm font-medium text-[var(--sr-text-primary)]">
+              {item.label}
+            </span>
             <span className="shrink-0 text-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
               {item.value}
             </span>

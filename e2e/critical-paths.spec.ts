@@ -285,6 +285,11 @@ test.describe('SmartReps routing critical paths', () => {
       timeout: 15_000,
     })
     await page.getByRole('button', { name: /Rozpocznij Dzień 1/ }).click()
+    // Preview sheet opens first — click "Rozpocznij trening" to start.
+    await expect(page.getByRole('heading', { name: 'Podgląd treningu' })).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.getByRole('button', { name: 'Rozpocznij trening' }).click()
     await expect(page).toHaveURL(/\/workout\/pullups/, { timeout: 20_000 })
     await expect(page.getByRole('button', { name: 'Zrobione' })).toBeVisible({ timeout: 15_000 })
   })

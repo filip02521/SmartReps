@@ -47,7 +47,7 @@ export function CycleDayPicker({
             aria-current={isCurrent ? 'step' : undefined}
             aria-label={`${pl.dayOfTotal(d.dayNumber, totalDays)} — ${dayStatusAria(d.status)}`}
             className={cn(
-              'flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] border text-center transition-colors',
+              'flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] border text-center transition-all active:scale-95 hover:border-[var(--sr-border-strong)]',
               FOCUS_RING,
               selected &&
                 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] ring-2 ring-[var(--sr-brand-primary)]/30',

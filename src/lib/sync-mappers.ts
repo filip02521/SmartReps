@@ -68,6 +68,13 @@ export type RemoteMaxTestRow = {
   was_manual_override: boolean
 }
 
+export type RemoteBodyWeightRow = {
+  id: string
+  weight_kg: number
+  measured_at: string
+  note: string | null
+}
+
 export type RemoteProgressRow = {
   program: string
   cycle_id: string

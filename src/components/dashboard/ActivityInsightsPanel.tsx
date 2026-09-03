@@ -1,3 +1,4 @@
+import { TrendingUp, TrendingDown, Minus, Sparkles } from 'lucide-react'
 import type { ActivityInsights } from '@/lib/weekly-recap'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
@@ -20,50 +21,98 @@ function badgeAccessibleLabel(insights: ActivityInsights): string {
   return pl.homeRepsBadgeDown(Math.abs(repsChangePct))
 }
 
-function PctBadge({
+type TrendKind = 'up' | 'down' | 'same' | 'new'
+
+function resolveTrend(insights: ActivityInsights): TrendKind {
+  const { reps14d, repsPrev14d, repsChangePct } = insights
+  if (repsPrev14d === 0 && reps14d > 0) return 'new'
+  if (repsChangePct === null || repsChangePct === 0) return 'same'
+  return repsChangePct > 0 ? 'up' : 'down'
+}
+
+const trendChrome: Record<
+  TrendKind,
+  { icon: typeof TrendingUp; accent: string; muted: string; ring: string }
+> = {
+  up: {
+    icon: TrendingUp,
+    accent: 'var(--sr-success)',
+    muted: 'color-mix(in srgb, var(--sr-success) 15%, transparent)',
+    ring: 'var(--sr-success)',
+  },
+  down: {
+    icon: TrendingDown,
+    accent: 'var(--sr-error)',
+    muted: 'color-mix(in srgb, var(--sr-error) 15%, transparent)',
+    ring: 'var(--sr-error)',
+  },
+  same: {
+    icon: Minus,
+    accent: 'var(--sr-text-muted)',
+    muted: 'color-mix(in srgb, var(--sr-text-muted) 12%, transparent)',
+    ring: 'var(--sr-border-subtle)',
+  },
+  new: {
+    icon: Sparkles,
+    accent: 'var(--sr-brand-primary)',
+    muted: 'color-mix(in srgb, var(--sr-brand-primary) 15%, transparent)',
+    ring: 'var(--sr-brand-primary)',
+  },
+}
+
+function TrendBadge({
+  trend,
   pct,
-  risingNew,
   label,
 }: {
+  trend: TrendKind
   pct: number | null
-  risingNew?: boolean
   label: string
 }) {
-  if (risingNew) {
+  const chrome = trendChrome[trend]
+  const Icon = chrome.icon
+
+  if (trend === 'new') {
     return (
       <span
-        className="flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--sr-success)_18%,transparent)] px-1 text-sm font-bold text-[var(--sr-success)]"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+        style={{ background: chrome.muted, color: chrome.accent }}
         aria-label={label}
       >
-        ↑
+        <Icon size={20} strokeWidth={2.25} />
       </span>
     )
   }
-  if (pct === null || pct === 0) {
+
+  if (trend === 'same') {
     return (
       <span
-        className="flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-base)] px-1 text-sm font-bold text-[var(--sr-text-muted)]"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]"
+        style={{ color: chrome.accent }}
         aria-label={label}
       >
-        →
+        <Icon size={20} strokeWidth={2.25} />
       </span>
     )
   }
-  const up = pct > 0
-  const compact = Math.abs(pct) >= 100
+
+  const compact = pct !== null && Math.abs(pct) >= 100
   return (
     <span
       className={cn(
-        'flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full px-1 font-bold tabular-nums',
-        compact ? 'text-xs' : 'text-sm',
-        up
-          ? 'bg-[color-mix(in_srgb,var(--sr-success)_18%,transparent)] text-[var(--sr-success)]'
-          : 'bg-[color-mix(in_srgb,var(--sr-error)_18%,transparent)] text-[var(--sr-error)]',
+        'flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-full font-bold tabular-nums',
+        compact ? 'text-[10px]' : 'text-xs',
       )}
+      style={{ background: chrome.muted, color: chrome.accent }}
       aria-label={label}
     >
-      {up ? '+' : '−'}
-      {Math.abs(pct)}%
+      <Icon size={14} strokeWidth={2.5} />
+      {pct !== null && (
+        <span className="leading-none">
+          {trend === 'up' ? '+' : '−'}
+          {Math.abs(pct)}%
+        </span>
+      )}
     </span>
   )
 }
@@ -77,6 +126,7 @@ export function ActivityInsightsPanel({
   ariaLabel?: string
 }) {
   const headline = repsHeadline(insights)
+  const trend = resolveTrend(insights)
   const recordNote =
     insights.bestStreakWeeks > insights.streakWeeks && insights.bestStreakWeeks > 0
       ? pl.homeBestStreakRecord(insights.bestStreakWeeks)
@@ -90,32 +140,42 @@ export function ActivityInsightsPanel({
 
   if (!headline && !recordNote) return null
 
+  const chrome = trendChrome[trend]
+
   return (
     <div
-      className="mt-3 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-3 py-2.5"
+      className="mt-3 overflow-hidden rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)]"
       aria-label={ariaLabel}
     >
-      {headline && (
-        <div className="flex items-start gap-3">
-          <PctBadge
-            pct={insights.repsChangePct}
-            risingNew={insights.repsPrev14d === 0 && insights.reps14d > 0}
-            label={badgeAccessibleLabel(insights)}
-          />
-          <div className="min-w-0 space-y-0.5">
-            <p className="sr-text-body-sm leading-snug text-[var(--sr-text-primary)]">{headline}</p>
-            {earlierLine && (
-              <p className="sr-text-body-sm tabular-nums text-[var(--sr-text-muted)]">{earlierLine}</p>
-            )}
-            {recordNote && (
-              <p className="sr-text-caption text-[var(--sr-text-muted)]">{recordNote}</p>
-            )}
+      <div
+        className="px-3.5 py-3"
+        style={{
+          backgroundImage: `linear-gradient(135deg, ${chrome.muted} 0%, var(--sr-bg-elevated) 60%)`,
+        }}
+      >
+        {headline && (
+          <div className="flex items-center gap-3">
+            <TrendBadge
+              trend={trend}
+              pct={insights.repsChangePct}
+              label={badgeAccessibleLabel(insights)}
+            />
+            <div className="min-w-0 space-y-0.5">
+              <p className="sr-text-body-sm font-medium leading-snug text-[var(--sr-text-primary)]">
+                {headline}
+              </p>
+              {earlierLine && (
+                <p className="sr-text-caption tabular-nums text-[var(--sr-text-muted)]">
+                  {earlierLine}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-      {!headline && recordNote && (
-        <p className="sr-text-caption text-[var(--sr-text-muted)]">{recordNote}</p>
-      )}
+        )}
+        {recordNote && (
+          <p className="mt-1.5 sr-text-caption text-[var(--sr-text-muted)]">{recordNote}</p>
+        )}
+      </div>
     </div>
   )
 }

@@ -275,7 +275,7 @@ export function ExerciseDetailSheet({
 
               <ProgressSection title={pl.exerciseDetailChartTitle} hint={pl.exerciseDetailChartHint}>
                 {stats.chartPoints.length >= 2 ? (
-                  <div className="h-44 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] py-3">
+                  <div className="h-44 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3 pl-1">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={stats.chartPoints}>
                         <XAxis
@@ -306,8 +306,8 @@ export function ExerciseDetailSheet({
                           type="monotone"
                           dataKey="value"
                           stroke="var(--sr-brand-primary)"
-                          strokeWidth={2}
-                          dot={{ r: 3 }}
+                          strokeWidth={2.5}
+                          dot={{ r: 3, fill: 'var(--sr-brand-primary)' }}
                           activeDot={{ r: 5 }}
                         />
                       </LineChart>
@@ -332,7 +332,7 @@ export function ExerciseDetailSheet({
                   title={pl.exerciseDetailLoadChartTitle}
                   hint={pl.exerciseDetailLoadChartHint}
                 >
-                  <div className="h-44 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] py-3">
+                  <div className="h-44 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3 pl-1">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={stats.loadPerSession}>
                         <XAxis
@@ -353,6 +353,7 @@ export function ExerciseDetailSheet({
                             pl.exerciseDetailLoadChartTooltip,
                           ]}
                           labelFormatter={(label) => String(label)}
+                          cursor={{ fill: 'var(--sr-brand-primary-muted)' }}
                         />
                         <Bar dataKey="value" fill="var(--sr-brand-primary)" radius={4} />
                       </BarChart>

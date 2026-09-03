@@ -26,29 +26,30 @@ export function CycleDayRail({
     >
       {days.map((d) => {
         const isCurrent = d.status === 'current'
+        const isCompleted = d.status === 'completed'
         return (
           <div
             key={d.dayNumber}
             role="listitem"
             aria-current={isCurrent ? 'step' : undefined}
             aria-label={`${pl.dayOfTotal(d.dayNumber, totalDays)} — ${
-              d.status === 'completed'
+              isCompleted
                 ? pl.cycleDayStatusCompleted
-                : d.status === 'current'
+                : isCurrent
                   ? pl.cycleDayStatusCurrent
                   : pl.cycleDayStatusFuture
             }`}
             className={cn(
-              'flex-1 rounded-full motion-reduce:transition-none',
-              isCurrent ? 'h-3 transition-[height] duration-200' : 'h-2.5',
+              'flex-1 rounded-full transition-all duration-200 motion-reduce:transition-none',
+              isCurrent ? 'h-3.5' : 'h-2.5',
+              isCurrent && 'shadow-[0_0_8px_var(--sr-brand-primary-muted)]',
             )}
             style={{
-              background:
-                d.status === 'completed'
-                  ? 'var(--sr-success)'
-                  : d.status === 'current'
-                    ? 'var(--sr-brand-primary)'
-                    : 'var(--sr-bg-surface)',
+              background: isCompleted
+                ? 'var(--sr-success)'
+                : isCurrent
+                  ? 'var(--sr-brand-primary)'
+                  : 'var(--sr-bg-surface)',
             }}
           />
         )

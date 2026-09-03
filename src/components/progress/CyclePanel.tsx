@@ -91,7 +91,7 @@ export function CyclePanel({
 
       {maxPerDay.length > 0 && (
         <ProgressSection title={pl.maxSetPerDay} hint={pl.progressMaxSetChartHint}>
-          <div className="h-36 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] py-3">
+          <div className="h-36 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={maxPerDay}>
                 <XAxis
@@ -109,6 +109,7 @@ export function CyclePanel({
                   contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
                   formatter={(value) => [value ?? 0, pl.repsUnit]}
                   labelFormatter={(label) => String(label)}
+                  cursor={{ fill: 'var(--sr-brand-primary-muted)' }}
                 />
                 <Bar dataKey="maxActual" fill="var(--sr-brand-primary)" radius={4} />
               </BarChart>

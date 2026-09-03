@@ -1,10 +1,10 @@
 import { db, type BodyWeightEntry } from '@/lib/db'
+import { enqueueSync } from '@/lib/sync'
 
 /**
  * Body weight tracking service.
- * Stores entries locally in IndexedDB (offline-first).
- * Cloud sync is not yet wired — entries stay on-device until a Supabase
- * migration + pull mapping is added.
+ * Stores entries locally in IndexedDB (offline-first) and enqueues
+ * cloud sync via the same pull/push flow as other entities.
  */
 
 export async function listBodyWeightEntries(): Promise<BodyWeightEntry[]> {
@@ -20,11 +20,16 @@ export async function addBodyWeightEntry(weightKg: number, note?: string): Promi
     note: note?.trim() || undefined,
   }
   await db.bodyWeight.add(entry)
+  await enqueueSync('body_weight_entries', 'insert', entry)
   return entry
 }
 
 export async function deleteBodyWeightEntry(id: string): Promise<void> {
+  const entry = await db.bodyWeight.get(id)
   await db.bodyWeight.delete(id)
+  if (entry) {
+    await enqueueSync('body_weight_entries', 'delete', entry)
+  }
 }
 
 export async function getLatestBodyWeight(): Promise<BodyWeightEntry | undefined> {

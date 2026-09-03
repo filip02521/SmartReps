@@ -1,9 +1,10 @@
-import { db, type LocalMaxTest, type LocalProgramProgress, type LocalWorkoutSession, type ActiveWorkoutState } from './db'
+import { db, type LocalMaxTest, type LocalProgramProgress, type LocalWorkoutSession, type ActiveWorkoutState, type BodyWeightEntry } from './db'
 import { isSupabaseConfigured, supabase } from './supabase/client'
 import {
   mapRemoteSetRow,
   type RemoteActiveRow,
   type RemoteMaxTestRow,
+  type RemoteBodyWeightRow,
   type RemoteProgressRow,
   type RemoteSessionRow,
 } from './sync-mappers'
@@ -395,6 +396,22 @@ async function upsertMaxTest(userId: string, row: LocalMaxTest) {
   if (error) throw error
 }
 
+function mapBodyWeightRow(userId: string, row: BodyWeightEntry) {
+  return {
+    user_id: userId,
+    weight_kg: row.weightKg,
+    measured_at: row.measuredAt,
+    note: row.note ?? null,
+  }
+}
+
+async function upsertBodyWeight(userId: string, row: BodyWeightEntry) {
+  const { error } = await supabase.from('body_weight_entries').upsert(mapBodyWeightRow(userId, row), {
+    onConflict: 'user_id,measured_at',
+  })
+  if (error) throw error
+}
+
 async function processQueueItem(userId: string, table: string, action: SyncAction, payload: unknown) {
   switch (table) {
     case 'program_progress':
@@ -414,6 +431,20 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
       break
     case 'max_tests':
       if (action !== 'delete') await upsertMaxTest(userId, payload as LocalMaxTest)
+      break
+    case 'body_weight_entries':
+      if (action === 'delete') {
+        const { error } = await supabase
+          .from('body_weight_entries')
+          .delete()
+          .eq('user_id', userId)
+          .eq('measured_at', (payload as BodyWeightEntry).measuredAt)
+        if (error) throw error
+      } else {
+        const queued = payload as BodyWeightEntry
+        const local = await db.bodyWeight.get(queued.id)
+        await upsertBodyWeight(userId, local ?? queued)
+      }
       break
     case 'active_workout':
       if (action === 'delete') {
@@ -561,6 +592,16 @@ export async function syncAllLocalData(): Promise<SyncResult> {
       } catch (err) {
         errors++
         console.warn('[sync] max_test failed', test.program, err)
+      }
+    }
+
+    const bodyWeights = await db.bodyWeight.toArray()
+    for (const bw of bodyWeights) {
+      try {
+        await upsertBodyWeight(userId, bw)
+      } catch (err) {
+        errors++
+        console.warn('[sync] body_weight failed', bw.id, err)
       }
     }
 
@@ -725,6 +766,22 @@ async function mergeMaxTestRemote(remote: RemoteMaxTestRow) {
   })
 }
 
+async function mergeBodyWeightRemote(remote: RemoteBodyWeightRow) {
+  const existing = await db.bodyWeight
+    .where('measuredAt')
+    .equals(remote.measured_at)
+    .first()
+
+  if (existing) return
+
+  await db.bodyWeight.add({
+    id: remote.id,
+    weightKg: remote.weight_kg,
+    measuredAt: remote.measured_at,
+    note: remote.note ?? undefined,
+  })
+}
+
 async function mergeEnabledProgramsLegacyFallback(remoteProgress: RemoteProgressRow[]) {
   const programs = remoteProgress
     .map((row) => row.program as Program)
@@ -790,6 +847,17 @@ export async function pullRemoteData(): Promise<SyncResult> {
 
     for (const remote of remoteTests ?? []) {
       await mergeMaxTestRemote(remote as RemoteMaxTestRow)
+    }
+
+    const { data: remoteBodyWeight, error: bodyWeightError } = await supabase
+      .from('body_weight_entries')
+      .select('*')
+      .eq('user_id', userId)
+      .order('measured_at', { ascending: true })
+    if (bodyWeightError) throw bodyWeightError
+
+    for (const remote of remoteBodyWeight ?? []) {
+      await mergeBodyWeightRemote(remote as RemoteBodyWeightRow)
     }
 
     const { pullCustomEntities } = await import('@/lib/custom-sync')

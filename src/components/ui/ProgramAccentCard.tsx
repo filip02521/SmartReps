@@ -22,7 +22,7 @@ export function ProgramAccentCard({
   return (
     <Card
       {...props}
-      className={cn('relative overflow-hidden border-l-4', className)}
+      className={cn('relative overflow-hidden border-l-4 transition-colors hover:border-l-[var(--sr-border-strong)]', className)}
       style={
         {
           ...style,

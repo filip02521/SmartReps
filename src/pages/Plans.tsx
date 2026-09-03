@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronRight, Dumbbell, MoreHorizontal } from 'lucide-react'
+import { ProgramIcon } from '@/components/ui/ProgramIcon'
 import { allCycles } from '@/data/plans'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { PageSection } from '@/components/ui/PageSection'
@@ -335,31 +336,65 @@ export default function PlansPage() {
                 const progress = customProgress[plan.id]
                 const paused = progress?.status === 'paused'
                 const canTrain = plan.status === 'active' && (!paused || customResume[plan.id])
+                const isActive = plan.status === 'active'
                 return (
                   <li
                     key={plan.id}
-                    className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-4"
+                    className={cn(
+                      'relative overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)]',
+                      'bg-[var(--sr-bg-elevated)] p-4 transition-colors hover:border-[var(--sr-border-strong)]',
+                    )}
+                    style={
+                      isActive
+                        ? {
+                            backgroundImage:
+                              'linear-gradient(135deg, var(--sr-brand-primary-muted) 0%, var(--sr-bg-elevated) 50%)',
+                          }
+                        : undefined
+                    }
                   >
+                    {isActive && (
+                      <div
+                        className="absolute inset-y-0 left-0 w-1 bg-[var(--sr-brand-primary)]"
+                        aria-hidden
+                      />
+                    )}
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-[var(--sr-text-primary)]">
-                          {plan.name.trim() || pl.planDash}
-                        </p>
-                        <p className="text-sm text-[var(--sr-text-muted)]">
-                          {pl.planDaysCount(plan.days.length)}
-                          {totalEx > 0 ? ` · ${pl.planTotalExercises(totalEx)}` : ''}
-                        </p>
-                        {names ? (
-                          <p className="mt-1 truncate text-sm text-[var(--sr-text-secondary)]">
-                            {names}
+                      <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                        <div
+                          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
+                          style={{
+                            background: isActive
+                              ? 'var(--sr-brand-primary-muted)'
+                              : 'var(--sr-bg-surface)',
+                            color: isActive
+                              ? 'var(--sr-brand-primary)'
+                              : 'var(--sr-text-muted)',
+                          }}
+                          aria-hidden
+                        >
+                          <Dumbbell size={18} strokeWidth={2.25} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-[var(--sr-text-primary)]">
+                            {plan.name.trim() || pl.planDash}
                           </p>
-                        ) : null}
+                          <p className="text-sm text-[var(--sr-text-muted)]">
+                            {pl.planDaysCount(plan.days.length)}
+                            {totalEx > 0 ? ` · ${pl.planTotalExercises(totalEx)}` : ''}
+                          </p>
+                          {names ? (
+                            <p className="mt-1 truncate text-sm text-[var(--sr-text-secondary)]">
+                              {names}
+                            </p>
+                          ) : null}
+                        </div>
                       </div>
-                      <Badge variant={plan.status === 'active' ? 'success' : 'default'}>
-                        {plan.status === 'active' ? pl.planStatusActive : pl.planStatusDraft}
+                      <Badge variant={isActive ? 'success' : 'default'}>
+                        {isActive ? pl.planStatusActive : pl.planStatusDraft}
                       </Badge>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       {canTrain ? (
                         <Button
                           type="button"
@@ -388,7 +423,7 @@ export default function PlansPage() {
                       <Button
                         type="button"
                         size="md"
-                        variant={plan.status === 'active' ? 'secondary' : 'primary'}
+                        variant={isActive ? 'secondary' : 'primary'}
                         onClick={() => void openEditor(plan.id)}
                       >
                         {pl.editPlan}
@@ -397,9 +432,11 @@ export default function PlansPage() {
                         type="button"
                         size="sm"
                         variant="ghost"
+                        className="ml-auto"
+                        aria-label={pl.planMoreActions}
                         onClick={() => setMorePlan(plan)}
                       >
-                        {pl.planMoreActions}
+                        <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </div>
                   </li>
@@ -611,37 +648,58 @@ function CycleList({
           <div key={cycle.id} ref={isHighlighted ? highlightRef : undefined}>
             <ProgramAccentCard
               program={program}
-              className={cn('p-4', isHighlighted && 'ring-2 ring-[var(--sr-brand-primary)]')}
+              className={cn(
+                'p-4 transition-colors hover:border-[var(--sr-border-strong)]',
+                isHighlighted && 'ring-2 ring-[var(--sr-brand-primary)]',
+              )}
             >
               <button
                 type="button"
                 className={cn(
-                  'flex min-h-12 w-full items-center justify-between gap-3 text-left',
+                  'flex min-h-12 w-full items-center justify-between gap-3 text-left transition-colors',
                   FOCUS_RING,
                 )}
                 aria-expanded={open}
                 aria-controls={panelId}
                 onClick={() => setOpenId(open ? null : cycle.id)}
               >
-                <span className="min-w-0">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="block sr-text-h3 text-[var(--sr-text-primary)]">
-                      {cycle.nameShort}
-                    </span>
-                    {isCurrent && <Badge variant="success">{pl.plansYourCycle}</Badge>}
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)]"
+                    style={{
+                      background: program === 'pushups'
+                        ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
+                        : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
+                    }}
+                    aria-hidden
+                  >
+                    <ProgramIcon program={program} size={18} />
                   </span>
-                  <span className="mt-0.5 block sr-text-body-sm text-[var(--sr-text-secondary)]">
-                    {pl.plansDayCount(cycle.days.length)}
-                    {peakDay.total > 0 && (
-                      <>
-                        {' · '}
-                        {pl.plansPeakDay(peakDay.day.dayNumber, peakDay.total)}
-                      </>
-                    )}
+                  <span className="min-w-0">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="block sr-text-h3 text-[var(--sr-text-primary)]">
+                        {cycle.nameShort}
+                      </span>
+                      {isCurrent && <Badge variant="success">{pl.plansYourCycle}</Badge>}
+                    </span>
+                    <span className="mt-0.5 block sr-text-body-sm text-[var(--sr-text-secondary)]">
+                      {pl.plansDayCount(cycle.days.length)}
+                      {peakDay.total > 0 && (
+                        <>
+                          {' · '}
+                          {pl.plansPeakDay(peakDay.day.dayNumber, peakDay.total)}
+                        </>
+                      )}
+                    </span>
                   </span>
                 </span>
-                <span className="shrink-0 text-[var(--sr-text-muted)]">
-                  {open ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                <span
+                  className={cn(
+                    'shrink-0 text-[var(--sr-text-muted)] transition-transform duration-200',
+                    open && 'rotate-90',
+                  )}
+                >
+                  <ChevronRight size={20} />
                 </span>
               </button>
               {open && (

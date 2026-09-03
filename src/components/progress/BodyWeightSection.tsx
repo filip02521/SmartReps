@@ -121,22 +121,23 @@ export function BodyWeightSection() {
 
       {/* Chart */}
       {chartData.length >= 2 && (
-        <div className="mt-4 h-36 w-full rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] py-2">
+        <div className="mt-4 h-36 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-2 pl-3">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 8, bottom: 0, left: -16 }}>
+            <LineChart data={chartData} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
               <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }} axisLine={false} tickLine={false} />
-              <YAxis domain={['dataMin - 1', 'dataMax + 1']} tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }} axisLine={false} tickLine={false} width={40} />
+              <YAxis domain={['dataMin - 1', 'dataMax + 1']} tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }} axisLine={false} tickLine={false} width={44} />
               <Tooltip
                 contentStyle={{
                   background: 'var(--sr-bg-surface)',
                   border: '1px solid var(--sr-border-subtle)',
                   borderRadius: 'var(--sr-radius-sm)',
                   fontSize: '12px',
+                  boxShadow: 'var(--sr-shadow-card)',
                 }}
                 labelStyle={{ color: 'var(--sr-text-secondary)' }}
                 formatter={(v) => [`${v} ${weightUnitLabel(weightUnit)}`, pl.bodyWeightTitle]}
               />
-              <Line type="monotone" dataKey="weight" stroke="var(--sr-brand-primary)" strokeWidth={2} dot={{ r: 3, fill: 'var(--sr-brand-primary)' }} />
+              <Line type="monotone" dataKey="weight" stroke="var(--sr-brand-primary)" strokeWidth={2.5} dot={{ r: 3, fill: 'var(--sr-brand-primary)' }} activeDot={{ r: 5 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -163,7 +164,7 @@ export function BodyWeightSection() {
               )}
               <button
                 type="button"
-                className={`min-h-9 min-w-9 shrink-0 rounded-[var(--sr-radius-sm)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-error)] active:scale-95 ${FOCUS_RING}`}
+                className={`flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-error)] active:scale-95 ${FOCUS_RING}`}
                 onClick={() => void handleDelete(e.id)}
                 aria-label={pl.bodyWeightDelete}
               >

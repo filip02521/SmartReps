@@ -21,14 +21,22 @@ export function EmptyState({
   secondaryAction?: { label: string; onClick: () => void }
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-      {icon && <div className="text-[var(--sr-brand-primary)]">{icon}</div>}
-      <h3 className="text-lg font-semibold text-[var(--sr-text-primary)]">{title}</h3>
-      {description && (
-        <p className="max-w-xs text-sm text-[var(--sr-text-secondary)]">{description}</p>
+    <div className="flex flex-col items-center justify-center gap-5 py-14 text-center">
+      {icon && (
+        <div className="text-[var(--sr-brand-primary)] opacity-80" aria-hidden>
+          {icon}
+        </div>
       )}
+      <div className="space-y-2">
+        <h3 className="text-lg font-semibold text-[var(--sr-text-primary)]">{title}</h3>
+        {description && (
+          <p className="max-w-xs text-sm leading-relaxed text-[var(--sr-text-secondary)]">
+            {description}
+          </p>
+        )}
+      </div>
       {(action || secondaryAction) && (
-        <div className="flex w-full max-w-xs flex-col gap-2">
+        <div className="mt-1 flex w-full max-w-xs flex-col gap-2">
           {action && <Button onClick={action.onClick}>{action.label}</Button>}
           {secondaryAction && (
             <Button variant="secondary" onClick={secondaryAction.onClick}>

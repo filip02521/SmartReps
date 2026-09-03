@@ -19,7 +19,7 @@ export function SetTargetsRow({
         <li
           key={i}
           className={cn(
-            'flex min-w-[2.5rem] flex-col items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]',
+            'flex min-w-[2.5rem] flex-col items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] transition-colors hover:border-[var(--sr-border-strong)]',
             size === 'sm' ? 'px-2 py-1.5' : 'px-2.5 py-2',
           )}
         >

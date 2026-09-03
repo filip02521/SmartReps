@@ -30,12 +30,12 @@ export function MetricStrip({
         {items.map((m, i) => (
           <div
             key={i}
-            className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-2 py-3 text-center"
+            className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-2 py-3 text-center transition-colors hover:border-[var(--sr-border-strong)]"
           >
             <p className="text-xl font-bold tabular-nums leading-none text-[var(--sr-text-primary)]">
               {m.value}
             </p>
-            <p className="mt-1.5 sr-text-caption leading-snug text-[var(--sr-text-secondary)]">
+            <p className="mt-2 sr-text-caption leading-snug text-[var(--sr-text-secondary)]">
               {m.label}
             </p>
             {m.hint && (
@@ -61,7 +61,10 @@ export function MetricStrip({
             aria-valuemax={goal.max}
           >
             <div
-              className="h-full rounded-full bg-[var(--sr-brand-primary)] transition-[width] duration-300 motion-reduce:transition-none"
+              className={cn(
+                'h-full rounded-full bg-[var(--sr-brand-primary)] transition-[width] duration-500 motion-reduce:transition-none',
+                frac >= 1 && 'bg-[var(--sr-success)]',
+              )}
               style={{ width: `${frac * 100}%` }}
             />
           </div>

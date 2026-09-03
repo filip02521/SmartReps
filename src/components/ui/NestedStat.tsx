@@ -22,7 +22,7 @@ export function NestedStat({
   return (
     <div
       className={cn(
-        'rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)]',
+        'rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] transition-colors hover:border-[var(--sr-border-strong)]',
         size === 'lg' ? 'px-4 py-3.5' : 'px-3 py-2.5',
         highlight && 'ring-1 ring-[var(--sr-brand-primary)]',
         className,

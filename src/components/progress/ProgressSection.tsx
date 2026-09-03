@@ -18,18 +18,18 @@ export function ProgressSection({
   return (
     <section
       className={cn(
-        'border-t border-[var(--sr-border-subtle)] pt-5',
-        first ? 'border-t-0 pt-0' : 'mt-5',
+        'border-t border-[var(--sr-border-subtle)] pt-6',
+        first ? 'border-t-0 pt-0' : 'mt-6',
         className,
       )}
     >
       {title && <p className="sr-text-overline text-[var(--sr-text-muted)]">{title}</p>}
       {hint && (
-        <p className={cn('sr-text-body-sm text-[var(--sr-text-secondary)]', title ? 'mt-0.5' : '')}>
+        <p className={cn('sr-text-body-sm text-[var(--sr-text-secondary)]', title ? 'mt-1' : '')}>
           {hint}
         </p>
       )}
-      <div className={cn(title || hint ? 'mt-3' : '')}>{children}</div>
+      <div className={cn(title || hint ? 'mt-3.5' : '')}>{children}</div>
     </section>
   )
 }

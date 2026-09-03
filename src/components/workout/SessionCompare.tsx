@@ -82,10 +82,10 @@ export function SessionCompare({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left sr-text-overline text-[var(--sr-text-muted)]">
-              <th className="pb-2.5 font-semibold">{pl.setColumn}</th>
-              <th className="pb-2.5 font-semibold">{pl.targetColumn}</th>
-              <th className="pb-2.5 font-semibold">{pl.youColumn}</th>
-              <th className="pb-2.5 font-semibold">{pl.prevColumn}</th>
+              <th className="pb-3 font-semibold">{pl.setColumn}</th>
+              <th className="pb-3 font-semibold">{pl.targetColumn}</th>
+              <th className="pb-3 font-semibold">{pl.youColumn}</th>
+              <th className="pb-3 font-semibold">{pl.prevColumn}</th>
             </tr>
           </thead>
           <tbody>
@@ -97,18 +97,17 @@ export function SessionCompare({
               return (
                 <tr
                   key={r.setNumber}
-                  className={
-                    idx % 2 === 0
-                      ? 'border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]/40'
-                      : 'border-t border-[var(--sr-border-subtle)]'
-                  }
+                  className={cn(
+                    'border-t border-[var(--sr-border-subtle)] transition-colors hover:bg-[var(--sr-bg-surface)]/60',
+                    idx % 2 === 0 && 'bg-[var(--sr-bg-surface)]/30',
+                  )}
                 >
-                  <td className="py-2.5 font-medium text-[var(--sr-text-secondary)]">{r.setNumber}</td>
-                  <td className="py-2.5 tabular-nums text-[var(--sr-text-secondary)]">
+                  <td className="py-3 font-medium text-[var(--sr-text-secondary)]">{r.setNumber}</td>
+                  <td className="py-3 tabular-nums text-[var(--sr-text-secondary)]">
                     {formatSetTarget(r.target)}
                   </td>
                   <td
-                    className={`py-2.5 text-base font-semibold tabular-nums ${
+                    className={`py-3 text-base font-semibold tabular-nums ${
                       r.passed ? 'text-[var(--sr-text-primary)]' : 'text-[var(--sr-error)]'
                     }`}
                   >
@@ -122,7 +121,7 @@ export function SessionCompare({
                       )}
                     </span>
                   </td>
-                  <td className="py-2.5 tabular-nums text-[var(--sr-text-muted)]">
+                  <td className="py-3 tabular-nums text-[var(--sr-text-muted)]">
                     {prev ? (
                       <span className="inline-flex items-center gap-1">
                         {prev.actual}

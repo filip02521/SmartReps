@@ -89,6 +89,7 @@ import { useKeepScreenAwake } from '@/hooks/useKeepScreenAwake'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { useAppStore } from '@/stores/app-store'
 import { useCustomWorkoutStore } from '@/stores/custom-workout-store'
+import { takePendingDayOverride } from '@/lib/pending-day-override'
 
 function parseRestTimerJson(json: string | null): RestTimerState | null {
   const reconciled = reconcileRestTimerJson(json)
@@ -259,8 +260,10 @@ export default function CustomWorkoutPage() {
       dayNumber: number,
       cycleAttempt: number,
       generation: number,
+      dayOverride?: CustomPlan['days'][0] | null,
     ) => {
-      if (dayPlan.exercises.length === 0) {
+      const effectiveDay = dayOverride ?? dayPlan
+      if (effectiveDay.exercises.length === 0) {
         setLoadError(pl.customWorkoutMissingDay)
         setLoadErrorKind('empty_day')
         setLoadErrorDayNumber(dayNumber)
@@ -276,11 +279,11 @@ export default function CustomWorkoutPage() {
 
       sessionRef.current = session
       setSessionStartedAt(session.startedAt)
-      sessionPlanDirtyRef.current = false
+      sessionPlanDirtyRef.current = !!dayOverride
       basePlanRef.current = p
-      setBaselineSets(captureBaselineSetCounts(dayPlan))
-      setBaselineRests(captureBaselineRests(dayPlan))
-      const initialLogs = dayPlan.exercises.map((e) => ({
+      setBaselineSets(captureBaselineSetCounts(effectiveDay))
+      setBaselineRests(captureBaselineRests(effectiveDay))
+      const initialLogs = effectiveDay.exercises.map((e) => ({
         exerciseId: e.exerciseId,
         order: e.order,
         sets: [] as SetLog[],
@@ -290,10 +293,19 @@ export default function CustomWorkoutPage() {
         customPlanId: planId!,
         dayNumber,
         cycleAttempt,
-        exerciseCount: dayPlan.exercises.length,
+        exerciseCount: effectiveDay.exercises.length,
       })
       useCustomWorkoutStore.setState({ exerciseLogs: initialLogs })
-      setPlanLive(p)
+      // Apply pending override to the live plan so the workout screen shows edited sets/rest.
+      if (dayOverride) {
+        const patchedPlan: CustomPlan = {
+          ...p,
+          days: p.days.map((d) => (d.dayNumber === dayNumber ? dayOverride : d)),
+        }
+        setPlanLive(patchedPlan)
+      } else {
+        setPlanLive(p)
+      }
       setLoadError(null)
       setLoadErrorKind(null)
       if (!hasSeenWorkoutHint) {
@@ -301,6 +313,19 @@ export default function CustomWorkoutPage() {
         setSettings({ hasSeenWorkoutHint: true })
       }
       setLoading(false)
+
+      // Persist the override as dayOverrideJson so it survives resume.
+      if (dayOverride) {
+        await persistCustomActive(session, {
+          currentExerciseIndex: 0,
+          currentSetIndex: 0,
+          exerciseLogs: initialLogs,
+          restTimerJson: null,
+          dayOverrideJson: JSON.stringify(dayOverride),
+        }).catch(() => {
+          setSaveError(pl.errorSaveSet)
+        })
+      }
     },
     [planId, hasSeenWorkoutHint, setSettings, setPlanLive],
   )
@@ -483,7 +508,8 @@ export default function CustomWorkoutPage() {
 
       const cycleAttempt =
         progress.status === 'cycle_complete' ? progress.cycleAttempt + 1 : progress.cycleAttempt
-      await startNewSession(p, dayPlan, dayNumber, cycleAttempt, generation)
+      const pendingOverride = planId ? takePendingDayOverride(planId) : null
+      await startNewSession(p, dayPlan, dayNumber, cycleAttempt, generation, pendingOverride)
     },
     [planId, forceStart, navigate, hasSeenWorkoutHint, setSettings, startNewSession, setPlanLive],
   )

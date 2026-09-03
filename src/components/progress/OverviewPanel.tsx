@@ -196,7 +196,7 @@ export function OverviewPanel({
               title={pl.progressSessionChartTitle}
               hint={pl.progressSessionChartHint}
             >
-              <div className="h-40 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] py-3">
+              <div className="h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={sessionChart}>
                     <XAxis
@@ -225,8 +225,9 @@ export function OverviewPanel({
                       type="monotone"
                       dataKey="value"
                       stroke="var(--sr-brand-primary)"
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
+                      strokeWidth={2.5}
+                      dot={{ r: 3, fill: 'var(--sr-brand-primary)' }}
+                      activeDot={{ r: 5 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -236,7 +237,7 @@ export function OverviewPanel({
 
           {tests.length > 0 ? (
             <ProgressSection title={pl.chartTestOverTime} hint={pl.progressTestChartHint}>
-              <div className="h-40 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] py-3">
+              <div className="h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={tests}>
                     <XAxis
@@ -259,8 +260,9 @@ export function OverviewPanel({
                       type="monotone"
                       dataKey="reps"
                       stroke="var(--sr-brand-primary)"
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
+                      strokeWidth={2.5}
+                      dot={{ r: 3, fill: 'var(--sr-brand-primary)' }}
+                      activeDot={{ r: 5 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>

@@ -15,11 +15,13 @@ export function SplashScreen() {
         <div className="sr-logo-breathe">
           <LogoMark size={88} />
         </div>
-        <p className="mt-5 sr-text-h2 sr-gradient-text">SmartReps</p>
+        <p className="mt-6 sr-text-h2 sr-gradient-text tracking-tight">SmartReps</p>
+        <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
+          {pl.splashTagline}
+        </p>
         <div className="mt-8">
-          <BrandLoader size={44} />
+          <BrandLoader size={40} />
         </div>
-        <p className="mt-4 sr-text-caption text-[var(--sr-text-muted)]">{pl.loading}</p>
       </div>
     </div>
   )

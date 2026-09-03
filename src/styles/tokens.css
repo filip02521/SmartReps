@@ -3,6 +3,7 @@
   --sr-brand-primary-hover: #818cf8;
   --sr-brand-primary-muted: rgba(99, 102, 241, 0.15);
   --sr-brand-secondary: #22d3ee;
+  --sr-brand-secondary-muted: rgba(34, 211, 238, 0.12);
   --sr-brand-gradient: linear-gradient(135deg, #6366f1, #22d3ee);
 
   --sr-bg-base: #09090b;
@@ -43,6 +44,7 @@
 
   --sr-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--sr-border-subtle);
   --sr-shadow-glow: 0 0 24px var(--sr-brand-primary-muted);
+  --sr-shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--sr-border-subtle);
   --sr-spacing-touch: 56px;
 
   --sr-font: 'Plus Jakarta Sans', system-ui, sans-serif;

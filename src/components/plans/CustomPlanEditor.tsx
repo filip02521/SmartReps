@@ -424,12 +424,15 @@ export function CustomPlanEditor({
               {plan.days.map((d, i) => (
                 <li
                   key={d.dayNumber}
-                  className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] p-3"
+                  className={cn(
+                    'rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 transition-colors hover:border-[var(--sr-border-strong)]',
+                    isDayLocked(d.dayNumber) && 'border-l-4 border-l-[var(--sr-warning)]',
+                  )}
                 >
                   <div className="flex items-start gap-2">
                     <button
                       type="button"
-                      className={cn('min-h-11 min-w-0 flex-1 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-[0.99]', FOCUS_RING)}
+                      className={cn('min-h-11 min-w-0 flex-1 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-[0.99]', FOCUS_RING)}
                       onClick={() => {
                         if (isDayLocked(d.dayNumber)) {
                           showToast(pl.customEditBlockedActiveDay, 'error')
@@ -448,6 +451,11 @@ export function CustomPlanEditor({
                       {d.exercises.length > 0 && (
                         <p className="mt-1 truncate text-sm text-[var(--sr-text-secondary)]">
                           {dayExerciseNames(d, exercises)}
+                        </p>
+                      )}
+                      {d.exercises.length === 0 && (
+                        <p className="mt-1 text-sm text-[var(--sr-text-muted)] italic">
+                          {pl.planDayEmpty}
                         </p>
                       )}
                     </button>
@@ -811,12 +819,15 @@ export function CustomPlanEditor({
                 return (
                   <li
                     key={`${pe.exerciseId}-${i}`}
-                    className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] p-2"
+                    className={cn(
+                      'rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-2 transition-colors hover:border-[var(--sr-border-strong)]',
+                      groupLabel && 'border-l-4 border-l-[var(--sr-brand-primary)]',
+                    )}
                   >
                     <div className="flex items-start gap-1">
                       <button
                         type="button"
-                        className={cn('min-h-11 min-w-0 flex-1 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-[0.99]', FOCUS_RING)}
+                        className={cn('min-h-11 min-w-0 flex-1 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-[0.99]', FOCUS_RING)}
                         onClick={() => {
                           if (!guardDayEdit(view.dayIndex)) return
                           setView({
@@ -832,8 +843,8 @@ export function CustomPlanEditor({
                             · {pl.planSetsShort(pe.sets.length)}
                           </span>
                           {groupLabel ? (
-                            <span className="ml-1 text-xs font-normal text-[var(--sr-brand-primary)]">
-                              · {groupLabel}
+                            <span className="ml-1 rounded-[var(--sr-radius-sm)] bg-[var(--sr-brand-primary-muted)] px-1.5 py-0.5 text-xs font-medium text-[var(--sr-brand-primary)]">
+                              {groupLabel}
                             </span>
                           ) : null}
                         </p>

@@ -41,22 +41,42 @@
       html[data-theme='light'] #sr-boot-splash .mark { border-color: #6366f1; color: #6366f1; }
       #sr-boot-splash {
         position: fixed; inset: 0; z-index: 9999;
-        display: flex; align-items: center; justify-content: center;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 12px;
         background: #09090b;
-        transition: opacity 0.25s ease;
+        transition: opacity 0.3s ease;
       }
       #sr-boot-splash[data-hide="1"] { opacity: 0; pointer-events: none; }
       #sr-boot-splash .mark {
         width: 56px; height: 56px; border-radius: 50%;
-        border: 3px dashed #6366f1;
+        border: 2.5px solid #6366f1;
         display: flex; align-items: center; justify-content: center;
         color: #6366f1;
-        font: 700 22px 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        font: 800 22px 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        animation: sr-boot-breathe 2.4s ease-in-out infinite;
+        box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.3), 0 0 20px rgba(99, 102, 241, 0.15);
+      }
+      #sr-boot-splash .wordmark {
+        font: 700 18px 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        letter-spacing: -0.02em;
+        color: #fafafa;
+      }
+      #sr-boot-splash .wordmark .accent {
+        background: linear-gradient(135deg, #6366f1, #22d3ee);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      @keyframes sr-boot-breathe {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.03); opacity: 0.95; }
       }
     </style>
   </head>
   <body>
-    <div id="sr-boot-splash" aria-hidden="true"><div class="mark">R</div></div>
+    <div id="sr-boot-splash" aria-hidden="true">
+      <div class="mark">R</div>
+      <div class="wordmark">Smart<span class="accent">Reps</span></div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
