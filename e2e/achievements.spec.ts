@@ -64,7 +64,7 @@ async function waitForDexie(page: Page) {
 
 async function seedProgressAndSession(page: Page) {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible({
+  await expect(page.getByText('Zacznij trening', { exact: true })).toBeVisible({
     timeout: 20_000,
   })
   await waitForDexie(page)

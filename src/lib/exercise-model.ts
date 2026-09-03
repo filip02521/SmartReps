@@ -107,7 +107,32 @@ export type ExerciseDefinition = {
   archived: boolean
   createdAt: string
   updatedAt: string
+  /** Optional muscle group tag for substitution suggestions. */
+  muscleGroup?: MuscleGroup
 }
+
+export type MuscleGroup =
+  | 'chest'
+  | 'back'
+  | 'shoulders'
+  | 'arms'
+  | 'legs'
+  | 'core'
+  | 'full_body'
+  | 'cardio'
+  | 'other'
+
+export const MUSCLE_GROUPS: MuscleGroup[] = [
+  'chest',
+  'back',
+  'shoulders',
+  'arms',
+  'legs',
+  'core',
+  'full_body',
+  'cardio',
+  'other',
+]
 
 export type CustomProgramStatus = 'active' | 'rest' | 'cycle_complete' | 'paused'
 

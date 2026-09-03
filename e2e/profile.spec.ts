@@ -106,7 +106,11 @@ async function seedLoggedInProfile(page: Page) {
     localStorage.setItem(authKey, JSON.stringify(session))
   }, AUTH_STORAGE_KEY)
   await page.goto('/profile')
-  await expect(page.getByRole('heading', { name: 'Profil' })).toBeVisible({ timeout: 20_000 })
+  // When logged in, the profile heading shows the email, not "Profil".
+  await expect(page.getByRole('heading', { name: 'test@example.com' })).toBeVisible({ timeout: 20_000 })
+  // Open settings sheet to access logout and data actions.
+  await page.getByRole('button', { name: 'Ustawienia' }).click()
+  await expect(page.getByRole('heading', { name: 'Ustawienia', exact: true })).toBeVisible({ timeout: 10_000 })
   await expect(page.getByRole('button', { name: 'Wyloguj' })).toBeVisible({ timeout: 15_000 })
 }
 
@@ -116,16 +120,22 @@ async function openProfile(page: Page) {
   await expect(page.getByRole('heading', { name: 'Profil' })).toBeVisible({ timeout: 20_000 })
 }
 
+async function openSettingsSheet(page: Page) {
+  await openProfile(page)
+  await page.getByRole('button', { name: 'Ustawienia' }).click()
+  await expect(page.getByRole('heading', { name: 'Ustawienia', exact: true })).toBeVisible({ timeout: 10_000 })
+}
+
 test.describe('Profile data actions', () => {
   test('clear local data navigates to onboarding', async ({ page }) => {
-    await openProfile(page)
+    await openSettingsSheet(page)
     await page.getByRole('button', { name: 'Wyczyść lokalne dane' }).click()
     await page.getByRole('button', { name: 'Potwierdź' }).click()
     await expect(page).toHaveURL(/\/setup\/onboarding/, { timeout: 15_000 })
   })
 
   test('export buttons visible in data section', async ({ page }) => {
-    await openProfile(page)
+    await openSettingsSheet(page)
     await expect(page.getByRole('button', { name: 'Eksport CSV wszystkich programów' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Eksport backupu (JSON)' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Import backupu' })).toBeVisible()
@@ -143,7 +153,7 @@ test.describe('Profile data actions', () => {
   })
 
   test('import sheet opens from data section', async ({ page }) => {
-    await openProfile(page)
+    await openSettingsSheet(page)
     await page.getByRole('button', { name: 'Import backupu' }).click()
     await expect(page.getByRole('heading', { name: 'Import backupu' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Importuj sesje (CSV)' })).toBeVisible()

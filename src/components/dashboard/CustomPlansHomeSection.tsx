@@ -159,8 +159,8 @@ export function CustomPlansHomeSection({
         </div>
       )}
       {embedded && (
-        <div className="mb-2 flex items-baseline justify-between gap-2">
-          <p className="sr-text-body-sm font-medium text-[var(--sr-text-secondary)]">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="sr-text-overline text-[var(--sr-text-muted)]">
             {pl.homeCustomPlans}
           </p>
           <Button type="button" size="sm" variant="ghost" onClick={() => navigate('/plans?tab=mine')}>

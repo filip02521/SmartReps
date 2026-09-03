@@ -119,6 +119,7 @@ type RemoteActiveCustomWorkout = {
   day_override_json?: unknown
   amrap_end_at?: number | null
   amrap_group_id?: string | null
+  display_started_at?: string | null
   updated_at: string
 }
 
@@ -175,7 +176,7 @@ function mapActiveCustomRestTimer(remote: RemoteActiveCustomWorkout): string | n
 
 export async function upsertActiveCustomWorkout(userId: string, row: ActiveCustomWorkoutState) {
   const timerFields = parseRestTimerForRemote(row.restTimerJson)
-  // Schema (013+015): rest_timer_json, day_override_json, amrap_* — do NOT send rest_started_at.
+  // Schema (013+015+021): rest_timer_json, day_override_json, amrap_*, display_started_at — do NOT send rest_started_at.
   const { error } = await supabase.from('active_custom_workout_state').upsert(
     {
       user_id: userId,
@@ -188,6 +189,7 @@ export async function upsertActiveCustomWorkout(userId: string, row: ActiveCusto
       day_override_json: parseJsonbField(row.dayOverrideJson ?? null),
       amrap_end_at: row.amrapEndAt ?? null,
       amrap_group_id: row.amrapGroupId ?? null,
+      display_started_at: row.displayStartedAt ?? null,
       updated_at: row.updatedAt,
     },
     { onConflict: 'user_id,custom_plan_id' },
@@ -235,6 +237,7 @@ async function mergeActiveCustomRemote(userId: string, remote: RemoteActiveCusto
     dayOverrideJson: remoteDayOverride,
     amrapEndAt: remote.amrap_end_at ?? null,
     amrapGroupId: remote.amrap_group_id ?? null,
+    displayStartedAt: remote.display_started_at ?? null,
     updatedAt: remote.updated_at,
   }
 

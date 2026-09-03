@@ -99,6 +99,6 @@ test.describe('Login page (basic)', () => {
     await page.goto('/setup/login')
     await page.getByRole('button', { name: 'Pomiń — trenuję bez konta' }).click()
     await expect(page).toHaveURL('/', { timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible()
+    await expect(page.getByText('Zacznij trening', { exact: true })).toBeVisible()
   })
 })

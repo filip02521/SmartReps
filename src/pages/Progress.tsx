@@ -6,7 +6,6 @@ import { OverviewPanel } from '@/components/progress/OverviewPanel'
 import { CyclePanel } from '@/components/progress/CyclePanel'
 import { HistoryPanel } from '@/components/progress/HistoryPanel'
 import { CustomProgressPanel } from '@/components/progress/CustomProgressPanel'
-import { buildActivityHeatmap } from '@/lib/export'
 import {
   isCustomProgressHistorySession,
   isProgressHistorySession,
@@ -154,7 +153,6 @@ export default function ProgressPage() {
   const [historyDateFilter, setHistoryDateFilter] = useState<HistoryDateFilter>('all')
   const [historyLimit, setHistoryLimit] = useState(HISTORY_PAGE_SIZE)
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [heatmap, setHeatmap] = useState<Awaited<ReturnType<typeof buildActivityHeatmap>>>([])
   const [selectedSession, setSelectedSession] = useState<LocalWorkoutSession | null>(null)
   const [cyclePreviewDay, setCyclePreviewDay] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -235,7 +233,6 @@ export default function ProgressPage() {
         setSessionChart(await getMaxSetPerSession(program))
         setRecordsWithDates(await getProgramRecordsWithDates(program))
         setVolumeStats(await getProgramVolumeStats(program))
-        setHeatmap(await buildActivityHeatmap(program))
         setCustomPrs(await computeCustomExercisePrs())
         const customHistory = (await db.workoutSessions.toArray())
           .filter(isCustomProgressHistorySession)
@@ -592,14 +589,12 @@ export default function ProgressPage() {
           stats={stats}
           progress={progress}
           tests={tests}
-          heatmap={heatmap}
           activity={activityInsights}
           hasAnyData={hasAnyData}
-          records={records}
           sessionChart={sessionChart}
-          recordsWithDates={recordsWithDates}
           volumeStats={volumeStats}
           dayCycleTrend={dayCycleTrend}
+          allSessions={[...sessions, ...customSessionsAll]}
           navigate={navigate}
         />
       )}
@@ -671,6 +666,7 @@ export default function ProgressPage() {
           onClearFilters={clearFilters}
           onLoadMore={() => setHistoryLimit((n) => n + HISTORY_PAGE_SIZE)}
           onSelectSession={setSelectedSession}
+          allSessions={[...sessions, ...customSessionsAll]}
           navigate={navigate}
         />
       )}
@@ -682,6 +678,8 @@ export default function ProgressPage() {
           progress={progress}
           stats={stats}
           maxPerDay={maxPerDay}
+          records={records}
+          recordsWithDates={recordsWithDates}
           cyclePreviewDay={cyclePreviewDay}
           onSelectDay={handleCycleDayTap}
           navigate={navigate}

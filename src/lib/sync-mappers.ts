@@ -44,6 +44,7 @@ export type RemoteSessionRow = {
   exercise_logs_json?: unknown
   session_day_patch_json?: unknown
   progression_diff_json?: unknown
+  notes?: string | null
   set_results?: RemoteSetRow[]
 }
 
@@ -54,6 +55,8 @@ export type RemoteActiveRow = {
   set_results_json: SetResultDraft[]
   rest_started_at: string | null
   rest_timer_json?: RestTimerState | string | null
+  display_started_at?: string | null
+  failed_retry_used?: boolean | null
   updated_at: string
 }
 

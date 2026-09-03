@@ -54,7 +54,7 @@ export function HomeStatusHeader({ summary }: { summary: Summary }) {
 
 export function HomeActivitySection({ summary }: { summary: Summary }) {
   return (
-    <section className="mt-6 mb-5" aria-label={pl.homeActivityTitle}>
+    <section aria-label={pl.homeActivityTitle}>
       <HomeSection title={pl.homeActivityTitle}>
         <MetricStrip
           metrics={[

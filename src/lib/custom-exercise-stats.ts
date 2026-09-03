@@ -12,6 +12,7 @@ import {
   type BuiltinLibraryProgram,
 } from '@/lib/builtin-exercise-bridge'
 import { formatPrescriptionTarget, formatSetActualDisplay } from '@/lib/custom-prescription-format'
+import { kgToDisplay, weightUnitLabel } from '@/lib/weight-units'
 import { pl } from '@/i18n/pl'
 
 export type ExerciseChartPoint = {
@@ -102,6 +103,7 @@ function sessionVolumeKg(log: ExerciseLog): number {
 export function formatExerciseSetSummary(
   metric: PrimaryMetric,
   set: SetLog,
+  weightUnit: 'kg' | 'lb' = 'kg',
 ): string {
   if (metric === 'duration_sec') {
     return `${set.actual.durationSec ?? 0}s`
@@ -109,7 +111,9 @@ export function formatExerciseSetSummary(
   if (metric === 'reps_weight') {
     const reps = set.actual.reps ?? 0
     const w = set.actual.weightKg
-    return w != null ? `${reps} × ${w} kg` : `${reps} ${pl.repsUnit}`
+    return w != null
+      ? `${reps} × ${kgToDisplay(w, weightUnit)} ${weightUnitLabel(weightUnit)}`
+      : `${reps} ${pl.repsUnit}`
   }
   return `${set.actual.reps ?? 0} ${pl.repsUnit}`
 }
@@ -299,6 +303,7 @@ export async function computeExerciseListSummaries(
 
 export async function computeExerciseDetailStats(
   exercise: ExerciseDefinition,
+  weightUnit: 'kg' | 'lb' = 'kg',
 ): Promise<ExerciseDetailStats> {
   const sessions = await db.workoutSessions.toArray()
   const planNames = new Map(
@@ -365,7 +370,7 @@ export async function computeExerciseDetailStats(
         value,
         tooltipSecondary:
           metric === 'reps_weight' && best.actual.weightKg != null
-            ? `${best.actual.weightKg} kg`
+            ? `${kgToDisplay(best.actual.weightKg, weightUnit)} ${weightUnitLabel(weightUnit)}`
             : null,
       })
       // Track the session that produced the primary peak (used to date the PR).
@@ -445,8 +450,8 @@ export async function computeExerciseDetailStats(
         .sort((a, b) => a.setNumber - b.setNumber)
         .map((set) => ({
           setNumber: set.setNumber,
-          actualLabel: formatSetActualDisplay(set.actual, metric),
-          targetLabel: formatPrescriptionTarget(set.prescription, metric),
+          actualLabel: formatSetActualDisplay(set.actual, metric, weightUnit),
+          targetLabel: formatPrescriptionTarget(set.prescription, metric, weightUnit),
           passed: set.passed,
         }))
     }
@@ -483,6 +488,7 @@ export function exercisePrDisplay(
     ExerciseDetailStats,
     'exercise' | 'prReps' | 'prDurationSec' | 'prWeightKg' | 'prVolumeKg'
   >,
+  weightUnit: 'kg' | 'lb' = 'kg',
 ): string {
   const m = stats.exercise.primaryMetric
   if (m === 'duration_sec' && stats.prDurationSec != null) {
@@ -491,7 +497,10 @@ export function exercisePrDisplay(
   if (m === 'reps_weight') {
     const parts: string[] = []
     if (stats.prReps != null) parts.push(`${stats.prReps} ${pl.repsUnit}`)
-    if (stats.prWeightKg != null) parts.push(`${stats.prWeightKg} kg`)
+    if (stats.prWeightKg != null) {
+      const disp = kgToDisplay(stats.prWeightKg, weightUnit)
+      parts.push(`${disp} ${weightUnitLabel(weightUnit)}`)
+    }
     if (stats.prVolumeKg != null && stats.prVolumeKg > 0) {
       parts.push(pl.exerciseDetailVolumeShort(Math.round(stats.prVolumeKg)))
     }

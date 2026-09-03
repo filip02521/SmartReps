@@ -13,7 +13,7 @@ import { ProgressRing } from '@/components/ui/ProgressRing'
 import { NumericDraftInput } from '@/components/ui/NumericDraftInput'
 import { PreviousResultBadge } from '@/components/workout/PreviousResultBadge'
 import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
-import { Z_REST_EXPANDED, Z_CELEBRATION } from '@/lib/ui-chrome'
+import { Z_REST_EXPANDED, Z_CELEBRATION, FOCUS_RING } from '@/lib/ui-chrome'
 
 export function WorkoutFailRetryRow({
   onRetry,
@@ -346,6 +346,7 @@ export function RestTimerExpanded({
   onAdd30,
   onSkip,
   onCollapse,
+  onSetRest,
 }: {
   remainingSec: number
   totalSec: number
@@ -354,6 +355,7 @@ export function RestTimerExpanded({
   onAdd30: () => void
   onSkip: () => void
   onCollapse: () => void
+  onSetRest?: (sec: number) => void
 }) {
   const [showSkipConfirm, setShowSkipConfirm] = useState(false)
   const trapRef = useFocusTrap(true)
@@ -398,6 +400,21 @@ export function RestTimerExpanded({
         <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd30}>{pl.add30s}</Button>
         <Button variant="ghost" size="sm" className="min-h-11" onClick={() => setShowSkipConfirm(true)}>{pl.skipRest}</Button>
       </div>
+      {onSetRest && (
+        <div className="mt-3 flex flex-wrap justify-center gap-2 px-4">
+          {[30, 60, 90, 120].map((sec) => (
+            <button
+              key={sec}
+              type="button"
+              aria-label={pl.restPresetAria(sec)}
+              className={`min-h-9 rounded-full border border-[var(--sr-border-subtle)] px-3 text-xs font-medium text-[var(--sr-text-secondary)] ${FOCUS_RING}`}
+              onClick={() => onSetRest(sec)}
+            >
+              {sec}s
+            </button>
+          ))}
+        </div>
+      )}
       {showSkipConfirm && (
         <ConfirmSheet
           title={pl.skipRest}

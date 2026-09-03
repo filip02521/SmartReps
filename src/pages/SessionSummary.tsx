@@ -26,6 +26,7 @@ import { showToast } from '@/stores/toast-store'
 import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
 import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
+import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
 
 export default function SessionSummary() {
   const { program: programParam } = useParams<{ program: Program }>()
@@ -326,6 +327,8 @@ export default function SessionSummary() {
             </Button>
           ))}
       </div>
+
+      {current?.id && <SessionNoteCard sessionId={current.id} />}
 
       {newAchievements.length > 0 && (
         <div className="mt-6">

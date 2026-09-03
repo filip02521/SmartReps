@@ -37,6 +37,7 @@ export async function initProgramProgress(
     updatedAt: new Date().toISOString(),
   }
   await db.programProgress.add(progress)
+  await enqueueSync('program_progress', 'insert', progress)
   return progress
 }
 
@@ -176,6 +177,7 @@ export async function saveActiveWorkout(program: Program, state: {
   setResults: unknown[]
   restTimerJson: string | null
   failedRetryUsed?: boolean
+  displayStartedAt?: string | null
 }) {
   // Never resurrect an active row after cancel/finish — late persist races must no-op.
   const session = await db.workoutSessions.get(state.sessionId)
@@ -190,6 +192,7 @@ export async function saveActiveWorkout(program: Program, state: {
     setResults: state.setResults as import('@/lib/progress-engine').SetResultDraft[],
     restTimerJson: state.restTimerJson,
     failedRetryUsed: state.failedRetryUsed,
+    displayStartedAt: state.displayStartedAt ?? null,
     updatedAt: new Date().toISOString(),
   }
   await db.activeWorkout.put(row)
@@ -240,4 +243,34 @@ export async function setProgramPaused(program: Program, paused: boolean) {
       status: available ? 'active' : 'rest',
     })
   }
+}
+
+/**
+ * Skip the current rest period — make the workout available immediately.
+ * Used when the user wants to train today despite a scheduled rest day.
+ */
+export async function skipRestDay(program: Program) {
+  const progress = await getProgramProgress(program)
+  if (!progress) return
+  await updateProgramProgress(program, {
+    status: 'active',
+    nextWorkoutAfter: null,
+  })
+}
+
+/**
+ * Skip rest for a custom plan — same concept as builtin skipRestDay.
+ */
+export async function skipCustomRestDay(customPlanId: string) {
+  const { db } = await import('@/lib/db')
+  const prog = await db.customProgramProgress.where('customPlanId').equals(customPlanId).first()
+  if (!prog) return
+  const updated = {
+    ...prog,
+    status: 'active' as const,
+    nextWorkoutAfter: null,
+    updatedAt: new Date().toISOString(),
+  }
+  await db.customProgramProgress.put(updated)
+  await enqueueSync('custom_program_progress', 'update', updated)
 }

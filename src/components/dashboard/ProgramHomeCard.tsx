@@ -11,6 +11,7 @@ import { CycleDayRail } from '@/components/ui/CycleDayRail'
 import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { ErrorBanner, FeedbackBanner } from '@/components/ux/Feedback'
+import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
 import {
   getStatusLabel,
@@ -185,6 +186,24 @@ export function ProgramHomeCard({
           >
             {pl.menuHistory}
           </Button>
+          {bucket === 'resting' && !hasResume && (
+            <Button
+              variant="ghost"
+              fullWidth
+              className="justify-start px-3"
+              onClick={() => {
+                setShowMenu(false)
+                void (async () => {
+                  const { skipRestDay } = await import('@/lib/program-service')
+                  await skipRestDay(program)
+                  onReload()
+                  showToast(pl.restDaySkipped, 'success')
+                })()
+              }}
+            >
+              {pl.menuSkipRest}
+            </Button>
+          )}
           <Button
             variant="ghost"
             fullWidth

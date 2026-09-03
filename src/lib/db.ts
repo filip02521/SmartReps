@@ -40,6 +40,8 @@ export type LocalWorkoutSession = {
   progressionDiffJson?: string
   /** Session PlanDay snapshot when sets/rest were edited mid-workout (offer save on summary). */
   sessionDayPatchJson?: string | null
+  /** Optional user note attached to the session (e.g. "bolał łokieć", "zwiększyć ciężar"). */
+  note?: string
 }
 
 export type ActiveWorkoutState = {
@@ -49,6 +51,8 @@ export type ActiveWorkoutState = {
   setResults: SetResultDraft[]
   restTimerJson: string | null
   failedRetryUsed?: boolean
+  /** Display-only startedAt (shifted by pause duration on resume) for the live clock. */
+  displayStartedAt?: string | null
   updatedAt: string
 }
 
@@ -64,6 +68,8 @@ export type ActiveCustomWorkoutState = {
   amrapGroupId?: string | null
   /** Session-only PlanDay JSON (e.g. extra sets) — not written to custom_plans until summary confirm. */
   dayOverrideJson?: string | null
+  /** Display-only startedAt (shifted by pause duration on resume) for the live clock. */
+  displayStartedAt?: string | null
   updatedAt: string
 }
 
@@ -89,6 +95,13 @@ export type LocalExercise = ExerciseDefinition
 export type LocalCustomPlan = CustomPlan
 export type LocalCustomProgramProgress = CustomProgramProgress
 
+export type BodyWeightEntry = {
+  id: string
+  weightKg: number
+  measuredAt: string
+  note?: string
+}
+
 export type LocalAchievementUnlockRow = {
   id: string
   unlockedAt: string
@@ -107,6 +120,7 @@ class SmartRepsDB extends Dexie {
   customPlans!: EntityTable<LocalCustomPlan, 'id'>
   customProgramProgress!: EntityTable<LocalCustomProgramProgress, 'id'>
   achievementUnlocks!: EntityTable<LocalAchievementUnlockRow, 'id'>
+  bodyWeight!: EntityTable<BodyWeightEntry, 'id'>
 
   constructor() {
     super('SmartRepsDB')
@@ -184,6 +198,21 @@ class SmartRepsDB extends Dexie {
       customPlans: 'id, status, updatedAt',
       customProgramProgress: '++id, &customPlanId, updatedAt',
       achievementUnlocks: 'id, unlockedAt',
+    })
+
+    // v6: body weight tracking
+    this.version(6).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, startedAt, [program+status], customPlanId',
+      activeWorkout: 'program',
+      activeCustomWorkout: 'customPlanId',
+      syncQueue: '++id, createdAt',
+      maxTests: '++id, program, testedAt, &[program+testedAt]',
+      exercises: 'id, updatedAt, archived',
+      customPlans: 'id, status, updatedAt',
+      customProgramProgress: '++id, &customPlanId, updatedAt',
+      achievementUnlocks: 'id, unlockedAt',
+      bodyWeight: 'id, measuredAt',
     })
   }
 }

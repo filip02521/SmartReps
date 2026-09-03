@@ -10,6 +10,7 @@ import {
   WorkoutFailRetryRow,
 } from '@/components/workout/WorkoutComponents'
 import { CustomPreviousResultHint } from '@/components/workout/CustomPreviousResultHint'
+import { WarmupPanel } from '@/components/workout/WarmupPanel'
 import { RestSecChips } from '@/components/plans/RestSecChips'
 import { SessionElapsedLabel } from '@/components/workout/SessionElapsedLabel'
 import { pl } from '@/i18n/pl'
@@ -44,6 +45,7 @@ import { metricTargetDisplayValue } from '@/lib/plan-resolver'
 import type { RestTimerState } from '@/lib/rest-timer'
 import { Z_REST_PILL, FOCUS_RING } from '@/lib/ui-chrome'
 import { cn } from '@/lib/utils'
+import { kgToDisplay, displayToKg, weightUnitLabel } from '@/lib/weight-units'
 import { NumericDraftInput } from '@/components/ui/NumericDraftInput'
 
 const WORKOUT_STEPPER_BTN =
@@ -187,6 +189,7 @@ function CustomSetRow({
   editable,
   isExtra,
   onClick,
+  weightUnit = 'kg',
 }: {
   setNumber: number
   prescription: SetPrescription
@@ -196,11 +199,12 @@ function CustomSetRow({
   editable?: boolean
   isExtra?: boolean
   onClick?: () => void
+  weightUnit?: 'kg' | 'lb'
 }) {
   const canPress = Boolean(onClick) && (state !== 'done' || editable)
-  const targetLabel = formatPrescriptionTarget(prescription, metric)
+  const targetLabel = formatPrescriptionTarget(prescription, metric, weightUnit)
   const actualLabel =
-    result != null ? formatSetActualDisplay(result.actual, metric) : null
+    result != null ? formatSetActualDisplay(result.actual, metric, weightUnit) : null
 
   return (
     <button
@@ -271,6 +275,7 @@ function CustomSetChecklist({
   failedIndex,
   baselineSetCount,
   onEditLastSet,
+  weightUnit = 'kg',
 }: {
   sets: SetPrescription[]
   metric: PrimaryMetric
@@ -280,6 +285,7 @@ function CustomSetChecklist({
   /** Sets at/after this 0-based index are session extras (index >= baseline). */
   baselineSetCount?: number
   onEditLastSet?: () => void
+  weightUnit?: 'kg' | 'lb'
 }) {
   const baseline = baselineSetCount ?? sets.length
   const lastLoggedSetNumber =
@@ -310,6 +316,7 @@ function CustomSetChecklist({
             editable={editable}
             isExtra={i >= baseline}
             onClick={editable ? onEditLastSet : undefined}
+            weightUnit={weightUnit}
           />
         )
       })}
@@ -626,6 +633,7 @@ function CustomMetricCounter({
   timerRunning,
   onToggleTimer,
   previousResult,
+  weightUnit,
 }: {
   prescription: SetPrescription
   metric: PrimaryMetric
@@ -644,6 +652,7 @@ function CustomMetricCounter({
   onWeightChange: (v: number | '') => void
   timerRunning: boolean
   onToggleTimer: () => void
+  weightUnit: 'kg' | 'lb'
 }) {
   const isDuration = metric === 'duration_sec'
   const primaryTarget = getPrimaryMetricTarget(prescription, metric)
@@ -651,22 +660,25 @@ function CustomMetricCounter({
   const isMax = isMaxPrescription(prescription, metric)
   const isMin = isMinPrescription(prescription, metric)
   const targetReps = primaryTarget ? metricTargetDisplayValue(primaryTarget) : 0
-  const targetWeight =
+  const targetWeightKg =
     metric === 'reps_weight' && prescription.weightKg
       ? metricTargetDisplayValue(prescription.weightKg)
       : null
+  const targetWeight = targetWeightKg != null ? kgToDisplay(targetWeightKg, weightUnit) : null
   const maxValue = isExact ? targetReps : 9999
   const step = 1
-  const weightValue = weightKg === '' ? 0 : Number(weightKg)
-  const weightStep = 2.5
+  const weightValueKg = weightKg === '' ? 0 : Number(weightKg)
+  const weightValue = kgToDisplay(weightValueKg, weightUnit)
+  const weightStep = weightUnit === 'lb' ? 5 : 2.5
   const showWeightTargetHint =
-    targetWeight != null && weightValue > 0 && weightValue !== targetWeight
+    targetWeight != null && weightValue > 0 && Math.abs(weightValue - targetWeight) > 0.05
   const isRepsWeight = metric === 'reps_weight'
+  const unitLabel = weightUnitLabel(weightUnit)
 
   return (
     <div className={cn('flex flex-col items-center gap-4 py-4', disabled && 'opacity-60')}>
       <p className="px-2 text-center sr-text-overline text-[var(--sr-text-muted)]">
-        {formatPrescriptionSetLabel(prescription, metric, exerciseName)}
+        {formatPrescriptionSetLabel(prescription, metric, exerciseName, weightUnit)}
       </p>
       {isExact && (
         <p className="text-center text-sm text-[var(--sr-text-secondary)]">
@@ -752,21 +764,21 @@ function CustomMetricCounter({
                 label={pl.customWorkoutWeightKg}
                 value={weightValue}
                 mode="decimal"
-                unit={pl.customWorkoutWeightShort}
+                unit={unitLabel}
                 disabled={disabled}
                 decreaseLabel={pl.customWorkoutLessWeight}
                 increaseLabel={pl.customWorkoutMoreWeight}
                 decreaseDisabled={disabled || weightValue <= 0}
                 increaseDisabled={disabled}
-                onDecrease={() => onWeightChange(Math.max(0, weightValue - weightStep))}
-                onIncrease={() => onWeightChange(weightValue + weightStep)}
-                onCommit={(n) => onWeightChange(Math.max(0, n))}
+                onDecrease={() => onWeightChange(displayToKg(Math.max(0, weightValue - weightStep), weightUnit))}
+                onIncrease={() => onWeightChange(displayToKg(weightValue + weightStep, weightUnit))}
+                onCommit={(n) => onWeightChange(displayToKg(Math.max(0, n), weightUnit))}
               />
             </div>
           </div>
           {showWeightTargetHint && (
             <p className="mt-3 border-t border-[var(--sr-border-subtle)] pt-3 text-center text-xs text-[var(--sr-text-muted)]">
-              {pl.customWorkoutTargetWeight(targetWeight!)}
+              {pl.customWorkoutTargetWeight(targetWeight!, unitLabel)}
             </p>
           )}
         </WorkoutControlSurface>
@@ -874,6 +886,7 @@ export type ActiveCustomWorkoutScreenProps = {
   weightKg: number | ''
   timerRunning: boolean
   canEditPreviousSet?: boolean
+  weightUnit: 'kg' | 'lb'
   onBack: () => void
   onToggleMenu: () => void
   onShowPlan: () => void
@@ -889,6 +902,7 @@ export type ActiveCustomWorkoutScreenProps = {
   onExpandTimer: () => void
   onAddRest15: () => void
   onAddRest30: () => void
+  onSetRest?: (sec: number) => void
   onSkipRest: () => void
   onCollapseTimer: () => void
   onConfirmCancel: () => void
@@ -954,6 +968,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     weightKg,
     timerRunning,
     canEditPreviousSet = false,
+    weightUnit = 'kg',
     onBack,
     onToggleMenu,
     onShowPlan,
@@ -969,6 +984,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     onExpandTimer,
     onAddRest15,
     onAddRest30,
+    onSetRest,
     onSkipRest,
     onCollapseTimer,
     onConfirmCancel,
@@ -1198,6 +1214,14 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             planned.sets.length,
           )}
         </p>
+        {setIndex === 0 && exerciseDef.primaryMetric !== 'duration_sec' && (
+          <WarmupPanel
+            metric={exerciseDef.primaryMetric}
+            targetReps={prescription.reps ? metricTargetDisplayValue(prescription.reps) : 0}
+            targetWeight={prescription.weightKg?.kind === 'fixed' ? prescription.weightKg.value : undefined}
+            weightUnit={weightUnit}
+          />
+        )}
         {prescription && (
           <CustomMetricCounter
             prescription={prescription}
@@ -1217,6 +1241,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             onWeightChange={onWeightChange}
             timerRunning={timerRunning}
             onToggleTimer={onToggleTimer}
+            weightUnit={weightUnit}
           />
         )}
         {canEditPreviousSet && onEditPreviousSet && (
@@ -1314,6 +1339,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           failedIndex={failedIndex}
           baselineSetCount={baselineSetCount}
           onEditLastSet={canEditPreviousSet ? onEditPreviousSet : undefined}
+          weightUnit={weightUnit}
         />
       </div>
 
@@ -1339,6 +1365,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           nextLabel={nextLabel}
           onAdd15={onAddRest15}
           onAdd30={onAddRest30}
+          onSetRest={onSetRest}
           onSkip={onSkipRest}
           onCollapse={onCollapseTimer}
         />

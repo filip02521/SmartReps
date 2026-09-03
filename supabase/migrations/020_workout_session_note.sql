@@ -1,0 +1,4 @@
+-- workout_sessions.notes already exists from 001_initial_schema.
+-- This migration is a no-op placeholder (the column was originally named 'notes',
+-- and the sync layer maps local 'note' to remote 'notes').
+-- No schema change needed.

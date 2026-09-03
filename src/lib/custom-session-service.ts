@@ -140,6 +140,7 @@ export async function persistCustomActive(
     amrapEndAt?: number | null
     amrapGroupId?: string | null
     dayOverrideJson?: string | null
+    displayStartedAt?: string | null
   },
 ) {
   if (!session.customPlanId) return
@@ -193,6 +194,7 @@ export async function persistCustomActive(
     amrapEndAt: state.amrapEndAt ?? null,
     amrapGroupId: state.amrapGroupId ?? null,
     dayOverrideJson,
+    displayStartedAt: state.displayStartedAt ?? existing?.displayStartedAt ?? null,
     updatedAt: new Date().toISOString(),
   })
   const activeRow = await db.activeCustomWorkout.get(session.customPlanId)

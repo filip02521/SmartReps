@@ -20,6 +20,7 @@ export function ProfilePreferences({
   workoutReminders,
   reminderHour,
   displayName,
+  weightUnit,
   pushDescription,
   remindersDenied,
   pushDisabled,
@@ -34,6 +35,7 @@ export function ProfilePreferences({
   onLocalRemindersChange,
   onReminderHourChange,
   onDisplayNameSave,
+  onWeightUnitChange,
 }: {
   theme: Theme
   highContrast: boolean
@@ -44,6 +46,7 @@ export function ProfilePreferences({
   workoutReminders: boolean
   reminderHour: number
   displayName: string
+  weightUnit: 'kg' | 'lb'
   pushDescription: string
   remindersDenied: boolean
   pushDisabled: boolean
@@ -58,6 +61,7 @@ export function ProfilePreferences({
   onLocalRemindersChange: (on: boolean) => void
   onReminderHourChange: (hour: number) => void
   onDisplayNameSave: (name: string) => void | Promise<void>
+  onWeightUnitChange: (unit: 'kg' | 'lb') => void
 }) {
   const [nameDraft, setNameDraft] = useState(displayName)
   useEffect(() => {
@@ -102,6 +106,19 @@ export function ProfilePreferences({
       </PageSection>
 
       <PageSection title={pl.trainingSettings} className={SECTION}>
+        <div className="mb-3">
+          <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
+            {pl.weightUnitLabel}
+          </p>
+          <SegmentedControl
+            options={[
+              { value: 'kg' as const, label: pl.weightUnitKg },
+              { value: 'lb' as const, label: pl.weightUnitLb },
+            ]}
+            value={weightUnit}
+            onChange={onWeightUnitChange}
+          />
+        </div>
         <div className="flex flex-col gap-1">
           <CheckboxField
             id="timer-sound"

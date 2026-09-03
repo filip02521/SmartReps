@@ -16,6 +16,8 @@ import { ExerciseSparkline } from '@/components/plans/ExerciseSparkline'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
+import { useAppStore } from '@/stores/app-store'
+import { kgToDisplay, weightUnitLabel } from '@/lib/weight-units'
 import type { ExercisePr } from '@/lib/custom-stats'
 import type { ExerciseTrend } from '@/lib/custom-exercise-stats'
 import type { CustomPlan, CustomProgramProgress } from '@/lib/exercise-model'
@@ -37,12 +39,12 @@ function trendDotClass(trend: ExerciseTrend): string | null {
   return null
 }
 
-function formatExercisePrLine(pr: ExercisePr): string {
+function formatExercisePrLine(pr: ExercisePr, weightUnit: 'kg' | 'lb' = 'kg'): string {
   return (
     [
       pr.maxReps != null ? `${pr.maxReps} ${pl.repsUnit}` : null,
       pr.maxDurationSec != null ? `${pr.maxDurationSec}${pl.durationUnitShort}` : null,
-      pr.maxWeightKg != null ? `${pr.maxWeightKg} ${pl.weightUnit}` : null,
+      pr.maxWeightKg != null ? `${kgToDisplay(pr.maxWeightKg, weightUnit)} ${weightUnitLabel(weightUnit)}` : null,
     ]
       .filter(Boolean)
       .join(' · ') || pl.noValue
@@ -126,6 +128,7 @@ export function CustomProgressPanel({
   customSessionsAll: LocalWorkoutSession[]
   navigate: NavigateFunction
 }) {
+  const weightUnit = useAppStore((s) => s.settings.weightUnit)
   const [previewDay, setPreviewDay] = useState<number | null>(null)
   const [userPickedDay, setUserPickedDay] = useState(false)
 
@@ -249,7 +252,7 @@ export function CustomProgressPanel({
                 <NestedStat
                   size="md"
                   overline={pl.progressCustomTotalVolume14d}
-                  value={customVolume.totalVolumeKg14d > 0 ? `${customVolume.totalVolumeKg14d} kg` : '—'}
+                  value={customVolume.totalVolumeKg14d > 0 ? `${kgToDisplay(customVolume.totalVolumeKg14d, weightUnit)} ${weightUnitLabel(weightUnit)}` : '—'}
                 />
                 <NestedStat
                   size="md"
@@ -431,7 +434,7 @@ export function CustomProgressPanel({
                           )}
                         </div>
                         <p className="mt-1 text-sm font-medium tabular-nums text-[var(--sr-text-primary)]">
-                          {formatExercisePrLine(pr)}
+                          {formatExercisePrLine(pr, weightUnit)}
                         </p>
                         <p className="mt-0.5 sr-text-caption text-[var(--sr-text-muted)]">
                           {[

@@ -1,0 +1,42 @@
+import { db, type BodyWeightEntry } from '@/lib/db'
+
+/**
+ * Body weight tracking service.
+ * Stores entries locally in IndexedDB (offline-first).
+ * Cloud sync is not yet wired — entries stay on-device until a Supabase
+ * migration + pull mapping is added.
+ */
+
+export async function listBodyWeightEntries(): Promise<BodyWeightEntry[]> {
+  const rows = await db.bodyWeight.toArray()
+  return rows.sort((a, b) => new Date(b.measuredAt).getTime() - new Date(a.measuredAt).getTime())
+}
+
+export async function addBodyWeightEntry(weightKg: number, note?: string): Promise<BodyWeightEntry> {
+  const entry: BodyWeightEntry = {
+    id: crypto.randomUUID(),
+    weightKg,
+    measuredAt: new Date().toISOString(),
+    note: note?.trim() || undefined,
+  }
+  await db.bodyWeight.add(entry)
+  return entry
+}
+
+export async function deleteBodyWeightEntry(id: string): Promise<void> {
+  await db.bodyWeight.delete(id)
+}
+
+export async function getLatestBodyWeight(): Promise<BodyWeightEntry | undefined> {
+  const entries = await listBodyWeightEntries()
+  return entries[0]
+}
+
+/**
+ * Get body weight trend for the last N entries.
+ * Returns entries in chronological order (oldest first).
+ */
+export async function getBodyWeightTrend(limit = 30): Promise<BodyWeightEntry[]> {
+  const entries = await listBodyWeightEntries()
+  return entries.slice(0, limit).reverse()
+}

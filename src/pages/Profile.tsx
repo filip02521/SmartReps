@@ -15,6 +15,7 @@ import { ProgramSettingsCard } from '@/components/profile/ProgramSettingsCard'
 import { ImportBackupSheet } from '@/components/profile/ImportBackupSheet'
 import { SettingsSheet } from '@/components/profile/SettingsSheet'
 import { ProfileStats } from '@/components/profile/ProfileStats'
+import { BodyWeightSection } from '@/components/progress/BodyWeightSection'
 import { runAuthenticatedSync } from '@/lib/auth-sync'
 import { signOutUser } from '@/lib/auth-lifecycle'
 import { pl } from '@/i18n/pl'
@@ -328,6 +329,8 @@ export default function ProfilePage() {
       {/* Stats summary */}
       <ProfileStats />
 
+      <BodyWeightSection />
+
       {/* Achievements */}
       <ProfileAchievementsSection />
 
@@ -482,7 +485,8 @@ export default function ProfilePage() {
         <p className="mt-4 text-xs text-[var(--sr-text-muted)]">{pl.appVersion(appVersion)}</p>
       </PageSection>
 
-      {/* Settings sheet */}
+      {/* Settings sheet — mounted only when needed */}
+      {showSettings && (
       <SettingsSheet
         open={showSettings}
         onClose={() => setShowSettings(false)}
@@ -516,6 +520,7 @@ export default function ProfilePage() {
         onTimerSoundChange={(checked) => setSettings({ timerSound: checked })}
         onTimerVibrationChange={(checked) => setSettings({ timerVibration: checked })}
         onKeepScreenOnChange={(checked) => setSettings({ keepScreenOn: checked })}
+        onWeightUnitChange={(unit) => setSettings({ weightUnit: unit })}
         onDisplayNameSave={async (name) => {
           if (!name) {
             showToast(pl.communityPublishNeedName, 'error')
@@ -588,6 +593,7 @@ export default function ProfilePage() {
           setShowDeleteConfirm(true)
         }}
       />
+      )}
 
       {customMenuPlan && (
         <Sheet open onClose={() => setCustomMenuPlanId(null)} title={customMenuPlan.name} showClose>

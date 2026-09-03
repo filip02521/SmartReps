@@ -104,13 +104,34 @@ export function emptyImpact(): AuthorImpactStats {
   }
 }
 
+// In-memory cache: avoid duplicate full-table scans within the same page load.
+// TTL is short so stale data doesn't persist across navigations.
+let snapshotCache: { promise: Promise<AchievementSnapshot>; ts: number } | null = null
+const SNAPSHOT_CACHE_TTL_MS = 5000
+
 export async function buildAchievementSnapshot(opts?: {
   now?: Date
   impact?: AuthorImpactStats
+  /** Bypass cache — use after workouts or data imports. */
+  force?: boolean
 }): Promise<AchievementSnapshot> {
   const now = opts?.now ?? new Date()
   const impact = opts?.impact ?? emptyImpact()
 
+  // Serve from cache when no explicit `now`/`force` is provided AND impact is empty/default.
+  // Callers passing real impact data (Progress, community) bypass the cache.
+  const impactIsEmpty =
+    !opts?.impact ||
+    (opts.impact.likeTotal === 0 &&
+      opts.impact.importTotal === 0 &&
+      opts.impact.trainedTotal === 0 &&
+      opts.impact.publishedCount === 0)
+  const useCache = !opts?.now && !opts?.force && impactIsEmpty && snapshotCache
+  if (useCache && Date.now() - snapshotCache!.ts < SNAPSHOT_CACHE_TTL_MS) {
+    return snapshotCache!.promise
+  }
+
+  const promise = (async () => {
   const [allSessions, maxTests, progressRows, customPlans] = await Promise.all([
     db.workoutSessions.toArray(),
     db.maxTests.toArray(),
@@ -226,4 +247,10 @@ export async function buildAchievementSnapshot(opts?: {
     impact,
     unlockAtHints,
   }
+  })()
+
+  if (!opts?.now && !opts?.force && impactIsEmpty) {
+    snapshotCache = { promise, ts: Date.now() }
+  }
+  return promise
 }

@@ -31,6 +31,7 @@ type SettingsSheetProps = {
   onLocalRemindersChange: (on: boolean) => void
   onReminderHourChange: (hour: number) => void
   onDisplayNameSave: (name: string) => void | Promise<void>
+  onWeightUnitChange: (unit: 'kg' | 'lb') => void
   // Data
   showDeleteAccount: boolean
   onImport: () => void
@@ -64,6 +65,7 @@ export function SettingsSheet({
   onLocalRemindersChange,
   onReminderHourChange,
   onDisplayNameSave,
+  onWeightUnitChange,
   showDeleteAccount,
   onImport,
   onExportJson,
@@ -99,6 +101,7 @@ export function SettingsSheet({
           workoutReminders={settings.workoutReminders}
           reminderHour={settings.reminderHour}
           displayName={settings.displayName ?? ''}
+          weightUnit={settings.weightUnit}
           pushDescription={pushDescription}
           remindersDenied={remindersDenied}
           pushDisabled={pushDisabled}
@@ -113,6 +116,7 @@ export function SettingsSheet({
           onLocalRemindersChange={onLocalRemindersChange}
           onReminderHourChange={onReminderHourChange}
           onDisplayNameSave={onDisplayNameSave}
+          onWeightUnitChange={onWeightUnitChange}
         />
 
         {/* Data management */}

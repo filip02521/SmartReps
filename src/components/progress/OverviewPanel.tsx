@@ -1,25 +1,21 @@
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
-import { ActivityHeatmap } from '@/components/progress/ActivityHeatmap'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
 import { LogoMark } from '@/components/brand/Logo'
 import { EmptyState } from '@/components/ux/Feedback'
 import { MetricStrip } from '@/components/ui/MetricStrip'
 import { NestedStat } from '@/components/ui/NestedStat'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { useMemo, useState } from 'react'
 import { pl } from '@/i18n/pl'
-import type { HeatmapCell } from '@/lib/export'
-import type { LocalProgramProgress } from '@/lib/db'
+import type { LocalProgramProgress, LocalWorkoutSession } from '@/lib/db'
 import type { ProgramStats } from '@/lib/stats-engine'
 import type {
   SessionChartPoint,
-  ProgramRecordsWithDates,
   ProgramVolumeStats,
   DayCycleTrend,
 } from '@/lib/stats-engine'
 import type { ActivityInsights } from '@/lib/weekly-recap'
-import { hasAnyProgramRecords } from '@/lib/progress-history'
 import { navigateToTrain } from '@/lib/setup-flow'
 import type { Program } from '@/data/plans/types'
 import type { NavigateFunction } from 'react-router-dom'
@@ -30,33 +26,24 @@ export function OverviewPanel({
   stats,
   progress,
   tests,
-  heatmap,
   activity,
   hasAnyData,
-  records,
   sessionChart,
-  recordsWithDates,
   volumeStats,
   dayCycleTrend,
+  allSessions,
   navigate,
 }: {
   program: Program
   stats: ProgramStats | null
   progress: LocalProgramProgress | undefined
   tests: { date: string; dateLabel: string; reps: number }[]
-  heatmap: HeatmapCell[][]
   activity: ActivityInsights | null
   hasAnyData: boolean
-  records: {
-    bestTest: number | null
-    bestMaxSet: number | null
-    bestSessionTotal: number | null
-    highestCycleName: string | null
-  } | null
   sessionChart: SessionChartPoint[]
-  recordsWithDates: ProgramRecordsWithDates | null
   volumeStats: ProgramVolumeStats | null
   dayCycleTrend: DayCycleTrend[]
+  allSessions: LocalWorkoutSession[]
   navigate: NavigateFunction
 }) {
   const trend = stats?.maxLastSetTrend
@@ -68,16 +55,40 @@ export function OverviewPanel({
     trend.current > 0 &&
     previousLastSet != null
 
+  const [rangeDays, setRangeDays] = useState<14 | 30 | 90 | 365>(14)
+  const [nowMs] = useState(() => Date.now())
+  const rangeStats = useMemo(() => {
+    const cutoff = nowMs - rangeDays * 86400000
+    const inRange = allSessions.filter(
+      (s) => s.status === 'completed' && new Date(s.startedAt).getTime() >= cutoff,
+    )
+    const sessions = inRange.length
+    const totalReps = inRange.reduce((sum, s) => sum + (s.totalReps ?? 0), 0)
+    return { sessions, totalReps }
+  }, [allSessions, rangeDays, nowMs])
+
   return (
     <>
       {stats && hasAnyData && (
         <ProgressSection first title={pl.progressSummaryTitle}>
+          <div className="mb-3">
+            <SegmentedControl
+              value={String(rangeDays)}
+              onChange={(v) => setRangeDays(Number(v) as 14 | 30 | 90 | 365)}
+              options={[
+                { value: '14' as const, label: pl.range14d },
+                { value: '30' as const, label: pl.range30d },
+                { value: '90' as const, label: pl.range90d },
+                { value: '365' as const, label: pl.rangeYear },
+              ]}
+            />
+          </div>
           <MetricStrip
             metrics={[
               {
-                value: activity?.sessions14d ?? 0,
-                label: pl.homeSessions14d,
-                hint: pl.homeSessions14dHint,
+                value: rangeStats.sessions,
+                label: pl.rangeSessions,
+                hint: pl.rangeDaysLabel(rangeDays),
               },
               {
                 value: stats.streakWeeks,
@@ -85,9 +96,9 @@ export function OverviewPanel({
                 hint: pl.streakWeeksHint,
               },
               {
-                value: activity?.reps14d ?? 0,
-                label: pl.homeReps14d,
-                hint: pl.homeReps14dHint,
+                value: rangeStats.totalReps,
+                label: pl.rangeTotalReps,
+                hint: pl.rangeDaysLabel(rangeDays),
               },
             ]}
             goal={{
@@ -314,69 +325,6 @@ export function OverviewPanel({
             </ProgressSection>
           )}
 
-          <ProgressSection title={pl.activityHeatmap} hint={pl.progressHeatmapHint}>
-            <ActivityHeatmap grid={heatmap} showSummary />
-          </ProgressSection>
-
-          {recordsWithDates && (
-            <ProgressSection title={pl.progressRecordsSectionTitle}>
-              <div id="progress-records">
-                {records && hasAnyProgramRecords(records) ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <NestedStat
-                      size="md"
-                      overline={pl.recordBestMaxSet}
-                      value={recordsWithDates.bestMaxSet ?? pl.noValue}
-                      hint={
-                        recordsWithDates.bestMaxSetDate
-                          ? pl.progressRecordDate(
-                              format(new Date(recordsWithDates.bestMaxSetDate), 'd MMM yyyy', {
-                                locale: plLocale,
-                              }),
-                            )
-                          : undefined
-                      }
-                    />
-                    <NestedStat
-                      size="md"
-                      overline={pl.recordBestSession}
-                      value={recordsWithDates.bestSessionTotal ?? pl.noValue}
-                      hint={
-                        recordsWithDates.bestSessionTotalDate
-                          ? pl.progressRecordDate(
-                              format(
-                                new Date(recordsWithDates.bestSessionTotalDate),
-                                'd MMM yyyy',
-                                { locale: plLocale },
-                              ),
-                            )
-                          : undefined
-                      }
-                    />
-                    <NestedStat
-                      size="md"
-                      overline={pl.totalRepsLabel}
-                      value={stats?.totalRepsAllTime ?? pl.noValue}
-                    />
-                    <NestedStat
-                      size="md"
-                      overline={pl.recordHighestCycle}
-                      value={recordsWithDates.highestCycleName ?? pl.noValue}
-                    />
-                  </div>
-                ) : (
-                  <EmptyState
-                    icon={<LogoMark size={40} />}
-                    title={pl.progressRecordsEmpty}
-                    action={{
-                      label: pl.startFirstWorkout,
-                      onClick: () => void navigateToTrain(navigate, program),
-                    }}
-                  />
-                )}
-              </div>
-            </ProgressSection>
-          )}
         </>
       )}
     </>

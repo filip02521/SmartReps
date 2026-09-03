@@ -1,0 +1,214 @@
+import { useEffect, useState } from 'react'
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { format } from 'date-fns'
+import { pl as plLocale } from 'date-fns/locale'
+import { Plus, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { PageSection } from '@/components/ui/PageSection'
+import { Sheet } from '@/components/ui/Sheet'
+import { SkeletonCard } from '@/components/ux/Feedback'
+import { FOCUS_RING } from '@/lib/ui-chrome'
+import { pl } from '@/i18n/pl'
+import { showToast } from '@/stores/toast-store'
+import {
+  listBodyWeightEntries,
+  addBodyWeightEntry,
+  deleteBodyWeightEntry,
+} from '@/lib/body-weight'
+import type { BodyWeightEntry } from '@/lib/db'
+import { useAppStore } from '@/stores/app-store'
+import { kgToDisplay, displayToKg, weightUnitLabel } from '@/lib/weight-units'
+
+export function BodyWeightSection() {
+  const [entries, setEntries] = useState<BodyWeightEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showAdd, setShowAdd] = useState(false)
+  const [weightInput, setWeightInput] = useState('')
+  const [noteInput, setNoteInput] = useState('')
+  const weightUnit = useAppStore((s) => s.settings.weightUnit)
+
+  useEffect(() => {
+    void load()
+  }, [])
+
+  async function load() {
+    const data = await listBodyWeightEntries()
+    setEntries(data)
+    setLoading(false)
+  }
+
+  async function handleAdd() {
+    const value = Number(weightInput)
+    if (!value || value <= 0) {
+      showToast(pl.bodyWeightInvalid, 'error')
+      return
+    }
+    const kg = displayToKg(value, weightUnit)
+    if (kg < 20 || kg > 300) {
+      showToast(pl.bodyWeightOutOfRange, 'error')
+      return
+    }
+    await addBodyWeightEntry(kg, noteInput)
+    setShowAdd(false)
+    setWeightInput('')
+    setNoteInput('')
+    await load()
+    showToast(pl.bodyWeightSaved, 'success')
+  }
+
+  async function handleDelete(id: string) {
+    await deleteBodyWeightEntry(id)
+    await load()
+  }
+
+  const chartData = entries
+    .slice(0, 30)
+    .reverse()
+    .map((e) => ({
+      date: format(new Date(e.measuredAt), 'MM.dd'),
+      weight: kgToDisplay(e.weightKg, weightUnit),
+      label: format(new Date(e.measuredAt), 'd MMM yyyy', { locale: plLocale }),
+    }))
+
+  const latest = entries[0]
+  const previous = entries[1]
+  const delta =
+    latest && previous
+      ? Math.round((kgToDisplay(latest.weightKg, weightUnit) - kgToDisplay(previous.weightKg, weightUnit)) * 10) / 10
+      : null
+
+  if (loading) {
+    return (
+      <PageSection title={pl.bodyWeightTitle}>
+        <SkeletonCard className="min-h-[6rem]" />
+      </PageSection>
+    )
+  }
+
+  return (
+    <PageSection
+      title={pl.bodyWeightTitle}
+      hint={
+        entries.length === 1
+          ? pl.bodyWeightAddMoreForTrend
+          : undefined
+      }
+    >
+      {/* Latest value + add button */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          {latest ? (
+            <p className="text-2xl font-bold tabular-nums text-[var(--sr-text-primary)]">
+              {kgToDisplay(latest.weightKg, weightUnit)}
+              <span className="ml-1 text-sm font-medium text-[var(--sr-text-muted)]">
+                {weightUnitLabel(weightUnit)}
+              </span>
+              {delta != null && delta !== 0 && (
+                <span className="ml-2 text-sm font-medium text-[var(--sr-text-muted)]">
+                  {delta > 0 ? '+' : ''}{delta}
+                </span>
+              )}
+            </p>
+          ) : (
+            <p className="sr-text-body-sm text-[var(--sr-text-muted)]">{pl.bodyWeightEmpty}</p>
+          )}
+        </div>
+        <Button size="sm" className="min-h-11 shrink-0" onClick={() => setShowAdd(true)}>
+          <Plus size={16} className="mr-1" aria-hidden />
+          {pl.bodyWeightAdd}
+        </Button>
+      </div>
+
+      {/* Chart */}
+      {chartData.length >= 2 && (
+        <div className="mt-4 h-36 w-full rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] py-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 5, right: 8, bottom: 0, left: -16 }}>
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }} axisLine={false} tickLine={false} />
+              <YAxis domain={['dataMin - 1', 'dataMax + 1']} tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }} axisLine={false} tickLine={false} width={40} />
+              <Tooltip
+                contentStyle={{
+                  background: 'var(--sr-bg-surface)',
+                  border: '1px solid var(--sr-border-subtle)',
+                  borderRadius: 'var(--sr-radius-sm)',
+                  fontSize: '12px',
+                }}
+                labelStyle={{ color: 'var(--sr-text-secondary)' }}
+                formatter={(v) => [`${v} ${weightUnitLabel(weightUnit)}`, pl.bodyWeightTitle]}
+              />
+              <Line type="monotone" dataKey="weight" stroke="var(--sr-brand-primary)" strokeWidth={2} dot={{ r: 3, fill: 'var(--sr-brand-primary)' }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Entry list */}
+      {entries.length > 0 && (
+        <ul className="mt-4 divide-y divide-[var(--sr-border-subtle)]">
+          {entries.slice(0, 5).map((e) => (
+            <li key={e.id} className="flex items-center gap-3 py-2.5 sr-text-body-sm">
+              <span className="flex-1 font-medium tabular-nums text-[var(--sr-text-primary)]">
+                {kgToDisplay(e.weightKg, weightUnit)}
+                <span className="ml-1 text-xs font-normal text-[var(--sr-text-muted)]">
+                  {weightUnitLabel(weightUnit)}
+                </span>
+              </span>
+              <span className="text-xs text-[var(--sr-text-muted)]">
+                {format(new Date(e.measuredAt), 'd MMM yyyy', { locale: plLocale })}
+              </span>
+              {e.note && (
+                <span className="max-w-24 truncate text-xs text-[var(--sr-text-secondary)]">
+                  {e.note}
+                </span>
+              )}
+              <button
+                type="button"
+                className={`min-h-9 min-w-9 shrink-0 rounded text-[var(--sr-text-muted)] transition-colors hover:text-[var(--sr-error)] ${FOCUS_RING}`}
+                onClick={() => void handleDelete(e.id)}
+                aria-label={pl.bodyWeightDelete}
+              >
+                <Trash2 size={14} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Sheet open={showAdd} onClose={() => setShowAdd(false)} title={pl.bodyWeightAddTitle}>
+        <div className="flex flex-col gap-4 pb-4">
+          <div>
+            <label htmlFor="bw-value" className="block text-sm font-medium text-[var(--sr-text-secondary)]">
+              {pl.bodyWeightLabel} ({weightUnitLabel(weightUnit)})
+            </label>
+            <input
+              id="bw-value"
+              type="number"
+              inputMode="decimal"
+              step="0.1"
+              value={weightInput}
+              onChange={(e) => setWeightInput(e.target.value)}
+              placeholder={weightUnit === 'kg' ? '75.0' : '165.0'}
+              className={`mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-base text-[var(--sr-text-primary)] ${FOCUS_RING}`}
+            />
+          </div>
+          <div>
+            <label htmlFor="bw-note" className="block text-sm font-medium text-[var(--sr-text-secondary)]">
+              {pl.sessionNoteLabel}
+            </label>
+            <input
+              id="bw-note"
+              type="text"
+              value={noteInput}
+              onChange={(e) => setNoteInput(e.target.value.slice(0, 100))}
+              placeholder={pl.bodyWeightNotePlaceholder}
+              className={`mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-base text-[var(--sr-text-primary)] ${FOCUS_RING}`}
+            />
+          </div>
+          <Button size="touch" fullWidth onClick={() => void handleAdd()}>
+            {pl.bodyWeightSave}
+          </Button>
+        </div>
+      </Sheet>
+    </PageSection>
+  )
+}

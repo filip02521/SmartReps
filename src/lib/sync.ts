@@ -86,6 +86,7 @@ function mapSessionRow(userId: string, row: LocalWorkoutSession) {
     exercise_logs_json: row.exerciseLogs ?? null,
     session_day_patch_json: parseJsonbField(row.sessionDayPatchJson),
     progression_diff_json: parseJsonbField(row.progressionDiffJson),
+    notes: row.note ?? null,
   }
 }
 
@@ -373,6 +374,8 @@ async function upsertActiveWorkout(userId: string, row: ActiveWorkoutState) {
       set_results_json: row.setResults,
       rest_started_at: timerFields.rest_started_at,
       rest_timer_json: timerFields.rest_timer_json,
+      display_started_at: row.displayStartedAt ?? null,
+      failed_retry_used: row.failedRetryUsed ?? null,
       updated_at: row.updatedAt,
     },
     { onConflict: 'user_id,program' },
@@ -646,6 +649,7 @@ async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
       remote.progression_diff_json !== undefined
         ? (jsonbToLocalString(remote.progression_diff_json) ?? undefined)
         : local?.progressionDiffJson,
+    note: remote.notes ?? local?.note,
   }
 
   await db.workoutSessions.put(mapped)
@@ -691,6 +695,8 @@ async function mergeActiveRemote(userId: string, remote: RemoteActiveRow) {
     currentSetIndex: remote.current_set - 1,
     setResults: remote.set_results_json ?? [],
     restTimerJson: mapActiveRestTimer(remote),
+    displayStartedAt: remote.display_started_at ?? null,
+    failedRetryUsed: remote.failed_retry_used ?? undefined,
     updatedAt: remote.updated_at,
   }
 

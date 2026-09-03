@@ -62,6 +62,7 @@ export type ActiveWorkoutScreenProps = {
   onExpandTimer: () => void
   onAddRest15: () => void
   onAddRest30: () => void
+  onSetRest?: (sec: number) => void
   onSkipRest: () => void
   onCollapseTimer: () => void
   onConfirmCancel: () => void
@@ -112,6 +113,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     onExpandTimer,
     onAddRest15,
     onAddRest30,
+    onSetRest,
     onSkipRest,
     onCollapseTimer,
     onConfirmCancel,
@@ -284,6 +286,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           nextLabel={nextLabel}
           onAdd15={onAddRest15}
           onAdd30={onAddRest30}
+          onSetRest={onSetRest}
           onSkip={onSkipRest}
           onCollapse={onCollapseTimer}
         />

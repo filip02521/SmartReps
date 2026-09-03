@@ -46,6 +46,7 @@ import { showToast } from '@/stores/toast-store'
 import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
 import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
+import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
 
 export default function CustomSessionSummary() {
   const { planId } = useParams<{ planId: string }>()
@@ -54,6 +55,7 @@ export default function CustomSessionSummary() {
   const sessionId = searchParams.get('session')
   const hasSeenLoginCloudPrompt = useAppStore((s) => s.hasSeenLoginCloudPrompt)
   const setHasSeenLoginCloudPrompt = useAppStore((s) => s.setHasSeenLoginCloudPrompt)
+  const weightUnit = useAppStore((s) => s.settings.weightUnit)
   const loginPromptTrackedRef = useRef(false)
 
   const [loading, setLoading] = useState(true)
@@ -408,6 +410,7 @@ export default function CustomSessionSummary() {
           previous={previous}
           exerciseMap={exerciseMap}
           insights={insights}
+          weightUnit={weightUnit}
         />
       </div>
 
@@ -472,6 +475,8 @@ export default function CustomSessionSummary() {
           {pl.customSummaryViewProgress}
         </Button>
       </div>
+
+      {session?.id && <SessionNoteCard sessionId={session.id} />}
 
       {newAchievements.length > 0 && (
         <div className="mt-6">

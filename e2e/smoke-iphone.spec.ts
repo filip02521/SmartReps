@@ -100,7 +100,7 @@ test.describe('iPhone SE smoke', () => {
     await seedOnboardedWithProgress(page)
     await page.goto('/')
     await expect(page.getByRole('img', { name: 'SmartReps' })).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible({
+    await expect(page.getByText('Zacznij trening', { exact: true })).toBeVisible({
       timeout: 15_000,
     })
     await expect(page.getByRole('navigation', { name: 'Główna nawigacja' })).toBeVisible()
@@ -116,7 +116,7 @@ test.describe('iPhone SE smoke', () => {
   test('bottom sheets are not clipped by tab bar (program menu)', async ({ page }) => {
     await seedOnboardedWithProgress(page)
     await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Zacznij trening' })).toBeVisible({
+    await expect(page.getByText('Zacznij trening', { exact: true })).toBeVisible({
       timeout: 20_000,
     })
 
@@ -143,6 +143,7 @@ test.describe('iPhone SE smoke', () => {
 
   test('profile import sheet is not clipped by tab bar', async ({ page }) => {
     await seedOnboardedWithProgress(page)
+    await page.getByRole('button', { name: 'Ustawienia' }).click()
     await page.getByRole('button', { name: 'Import backupu' }).click()
     const csvAction = page.getByRole('button', { name: 'Importuj sesje (CSV)' })
     await expect(csvAction).toBeVisible({ timeout: 10_000 })

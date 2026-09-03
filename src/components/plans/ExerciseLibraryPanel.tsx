@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Dumbbell } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -6,9 +7,12 @@ import { EmptyState } from '@/components/ux/Feedback'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { ExerciseDetailSheet } from '@/components/plans/ExerciseDetailSheet'
 import { ExerciseLibraryRow } from '@/components/plans/ExerciseLibraryRow'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 import { RestSecChips } from '@/components/plans/RestSecChips'
 import { pl } from '@/i18n/pl'
-import type { ExerciseDefinition, PrimaryMetric } from '@/lib/exercise-model'
+import type { ExerciseDefinition, PrimaryMetric, MuscleGroup } from '@/lib/exercise-model'
+import { MUSCLE_GROUPS } from '@/lib/exercise-model'
+import { muscleGroupLabel } from '@/lib/exercise-substitution'
 import {
   archiveExercise,
   countPlansUsingExercise,
@@ -38,9 +42,12 @@ export function ExerciseLibraryPanel({
   const [name, setName] = useState('')
   const [metric, setMetric] = useState<PrimaryMetric>('reps')
   const [rest, setRest] = useState(90)
+  const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | ''>('')
   const [usedIn, setUsedIn] = useState(0)
   const [archiveConfirm, setArchiveConfirm] = useState(false)
   const [detailExercise, setDetailExercise] = useState<ExerciseDefinition | null>(null)
+  const [search, setSearch] = useState('')
+  const [metricFilter, setMetricFilter] = useState<PrimaryMetric | 'all'>('all')
 
   async function reload() {
     const list = await listExercises()
@@ -68,6 +75,7 @@ export function ExerciseLibraryPanel({
     setName('')
     setMetric('reps')
     setRest(90)
+    setMuscleGroup('')
     setUsedIn(0)
   }
 
@@ -77,6 +85,7 @@ export function ExerciseLibraryPanel({
     setName(ex.name)
     setMetric(ex.primaryMetric)
     setRest(ex.restDefaultSec)
+    setMuscleGroup(ex.muscleGroup ?? '')
     setUsedIn(await countPlansUsingExercise(ex.id))
   }
 
@@ -93,6 +102,7 @@ export function ExerciseLibraryPanel({
         name,
         primaryMetric: metric,
         restDefaultSec: rest,
+        muscleGroup: muscleGroup || undefined,
       })
       showToast(pl.saveExercise, 'success')
       setEditing(null)
@@ -129,6 +139,15 @@ export function ExerciseLibraryPanel({
 
   const formOpen = creating || editing
 
+  const filteredExercises = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return exercises.filter((ex) => {
+      if (metricFilter !== 'all' && ex.primaryMetric !== metricFilter) return false
+      if (q && !ex.name.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [exercises, search, metricFilter])
+
   return (
     <>
       {!formOpen && (
@@ -151,27 +170,58 @@ export function ExerciseLibraryPanel({
           </div>
 
           {exercises.length === 0 ? (
-            <>
-              <EmptyState title={pl.exerciseLibraryEmpty} />
-              <p className="text-center text-xs text-[var(--sr-text-muted)]">
-                {pl.exerciseTemplatesTitle}
-              </p>
-            </>
+            <EmptyState
+              icon={<Dumbbell size={40} strokeWidth={1.5} className="text-[var(--sr-text-muted)]" />}
+              title={pl.exerciseLibraryEmpty}
+              description={pl.exerciseLibraryEmptyHint}
+              action={{
+                label: pl.addExercise,
+                onClick: startCreate,
+              }}
+              secondaryAction={{
+                label: pl.exerciseStarterPack,
+                onClick: () => void handleSeed(),
+              }}
+            />
           ) : (
-            <ul className="flex flex-col gap-2">
-              {exercises.map((ex) => (
-                <li key={ex.id}>
-                  <ExerciseLibraryRow
-                    exercise={ex}
-                    summary={summaries.get(ex.id)}
-                    mode={mode}
-                    onOpenDetail={() => setDetailExercise(ex)}
-                    onPick={mode === 'pick' && onPick ? () => onPick(ex) : undefined}
-                    onEdit={mode === 'manage' ? () => void startEdit(ex) : undefined}
-                  />
-                </li>
-              ))}
-            </ul>
+            <>
+              <TextField
+                id="exercise-search"
+                placeholder={pl.exerciseSearchPlaceholder}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                inputClassName="py-2.5"
+                aria-label={pl.exerciseSearchPlaceholder}
+              />
+              <SegmentedControl
+                value={metricFilter}
+                onChange={(v) => setMetricFilter(v as PrimaryMetric | 'all')}
+                options={[
+                  { value: 'all' as const, label: pl.exerciseFilterAll },
+                  { value: 'reps' as const, label: pl.exerciseMetricReps },
+                  { value: 'duration_sec' as const, label: pl.exerciseMetricDuration },
+                  { value: 'reps_weight' as const, label: pl.exerciseMetricRepsWeight },
+                ]}
+              />
+              {filteredExercises.length === 0 ? (
+                <EmptyState title={pl.exerciseSearchNoResults} />
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {filteredExercises.map((ex) => (
+                    <li key={ex.id}>
+                      <ExerciseLibraryRow
+                        exercise={ex}
+                        summary={summaries.get(ex.id)}
+                        mode={mode}
+                        onOpenDetail={() => setDetailExercise(ex)}
+                        onPick={mode === 'pick' && onPick ? () => onPick(ex) : undefined}
+                        onEdit={mode === 'manage' ? () => void startEdit(ex) : undefined}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </div>
       )}
@@ -202,6 +252,22 @@ export function ExerciseLibraryPanel({
           {metricLocked && (
             <p className="text-sm text-[var(--sr-text-muted)]">{pl.exerciseMetricLockedHint}</p>
           )}
+          <div>
+            <p className="mb-1 text-sm font-medium text-[var(--sr-text-secondary)]">
+              {pl.exerciseMuscleGroup}
+            </p>
+            <p className="mb-2 text-xs text-[var(--sr-text-muted)]">{pl.exerciseMuscleGroupHint}</p>
+            <select
+              value={muscleGroup}
+              onChange={(e) => setMuscleGroup(e.target.value as MuscleGroup | '')}
+              className={`w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-base text-[var(--sr-text-primary)] ${FOCUS_RING}`}
+            >
+              <option value="">—</option>
+              {MUSCLE_GROUPS.map((g) => (
+                <option key={g} value={g}>{muscleGroupLabel(g)}</option>
+              ))}
+            </select>
+          </div>
           <RestSecChips
             id="ex-rest"
             label={pl.exerciseRestDefault}

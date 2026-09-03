@@ -5,6 +5,7 @@ import type {
   SetPrescription,
 } from '@/lib/exercise-model'
 import { metricTargetDisplayValue } from '@/lib/plan-resolver'
+import { kgToDisplay, weightUnitLabel } from '@/lib/weight-units'
 import { pl } from '@/i18n/pl'
 
 export function formatMetricTarget(target: MetricTarget): string {
@@ -35,6 +36,7 @@ export function formatMetricTargetCompact(target: MetricTarget): string {
 export function formatPrescriptionTarget(
   prescription: SetPrescription,
   metric: PrimaryMetric,
+  weightUnit: 'kg' | 'lb' = 'kg',
 ): string {
   if (metric === 'duration_sec' && prescription.durationSec) {
     return `${formatMetricTarget(prescription.durationSec)}s`
@@ -42,7 +44,8 @@ export function formatPrescriptionTarget(
   if (prescription.reps) {
     const reps = formatMetricTarget(prescription.reps)
     if (metric === 'reps_weight' && prescription.weightKg) {
-      return `${reps} · ${formatMetricTarget(prescription.weightKg)}kg`
+      const kg = metricTargetDisplayValue(prescription.weightKg)
+      return `${reps} · ${kgToDisplay(kg, weightUnit)}${weightUnitLabel(weightUnit)}`
     }
     return reps
   }
@@ -57,6 +60,7 @@ export function formatPrescriptionSetLabel(
   prescription: SetPrescription,
   metric: PrimaryMetric,
   exerciseName: string,
+  weightUnit: 'kg' | 'lb' = 'kg',
 ): string {
   if (metric === 'duration_sec' && prescription.durationSec) {
     const n = metricTargetDisplayValue(prescription.durationSec)
@@ -68,9 +72,11 @@ export function formatPrescriptionSetLabel(
       const kg = prescription.weightKg
         ? metricTargetDisplayValue(prescription.weightKg)
         : null
-      return kg != null
-        ? pl.customSetLabelRepsWeight(n, kg, exerciseName)
-        : pl.customSetLabelReps(n, exerciseName)
+      if (kg != null) {
+        const disp = kgToDisplay(kg, weightUnit)
+        return pl.customSetLabelRepsWeight(n, disp, weightUnitLabel(weightUnit), exerciseName)
+      }
+      return pl.customSetLabelReps(n, exerciseName)
     }
     return pl.customSetLabelReps(n, exerciseName)
   }
@@ -80,13 +86,17 @@ export function formatPrescriptionSetLabel(
 export function formatSetActualDisplay(
   actual: SetActual,
   metric: PrimaryMetric,
+  weightUnit: 'kg' | 'lb' = 'kg',
 ): string {
   if (metric === 'duration_sec') {
     return `${actual.durationSec ?? 0}s`
   }
   if (metric === 'reps_weight') {
     const reps = actual.reps ?? 0
-    if (actual.weightKg != null) return `${reps} · ${actual.weightKg}kg`
+    if (actual.weightKg != null) {
+      const disp = kgToDisplay(actual.weightKg, weightUnit)
+      return `${reps} · ${disp}${weightUnitLabel(weightUnit)}`
+    }
     return String(reps)
   }
   return String(actual.reps ?? 0)

@@ -155,17 +155,19 @@ export default function Dashboard() {
       )}
 
       {loading && !home ? (
-        <>
-          <div className="mb-5 space-y-3" aria-busy aria-label={pl.loading}>
-            <SkeletonCard className="min-h-[3.5rem]" />
-            <SkeletonCard className="min-h-[20rem]" />
-          </div>
-        </>
+        <div className="space-y-4" aria-busy aria-label={pl.loading}>
+          <SkeletonCard className="min-h-[5rem]" />
+          <SkeletonCard className="min-h-[7rem]" />
+          <SkeletonCard className="min-h-[18rem]" />
+        </div>
       ) : home ? (
         <>
           <HomeStatusHeader summary={home.summary} />
 
-          <div className={showAttention ? 'mb-4' : undefined}>
+          {/* Quick activity stats — visible immediately under today's status */}
+          <HomeActivitySection summary={home.summary} />
+
+          <div className={showAttention ? 'mt-4' : undefined}>
             <InstallCoach demotePrimary onVisibilityChange={onInstallVisibility} />
 
             {showTip && home.tip && (
@@ -208,12 +210,11 @@ export default function Dashboard() {
               }}
             />
           ) : (
-            <section aria-label={pl.homeStartTraining}>
-              <h2 className="sr-text-h2 text-[var(--sr-text-primary)]">{pl.homeStartTraining}</h2>
-              <p className="mt-1 mb-4 sr-text-body-sm text-[var(--sr-text-secondary)]">
-                {pl.homeChooseTrainingHint}
+            <section aria-label={pl.homeStartTraining} className="mt-6">
+              <p className="sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.homeStartTraining}
               </p>
-              <div className="flex flex-col gap-5">
+              <div className="mt-3 flex flex-col gap-3">
                 <CustomPlansHomeSection embedded />
                 {home.cards.map((card) => (
                   <ProgramHomeCard
@@ -244,8 +245,6 @@ export default function Dashboard() {
           )}
 
           <CommunityHomeTeaser />
-
-          <HomeActivitySection summary={home.summary} />
         </>
       ) : null}
     </div>

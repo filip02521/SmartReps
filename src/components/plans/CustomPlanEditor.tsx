@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, ChevronUp, Trash2, ArrowLeft } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, ArrowLeft, Copy, Dumbbell } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { TextField, CheckboxField } from '@/components/ui/TextField'
@@ -10,7 +10,7 @@ import { CustomSetChips } from '@/components/plans/CustomSetChips'
 import { CustomSetPrescriptionEditor } from '@/components/plans/CustomSetPrescriptionEditor'
 import { RestSecChips, SetsCountStepper } from '@/components/plans/RestSecChips'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
-import { FeedbackBanner } from '@/components/ux/Feedback'
+import { FeedbackBanner, EmptyState } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import type {
   CustomPlan,
@@ -383,18 +383,26 @@ export function CustomPlanEditor({
             {activeDay != null && (
               <FeedbackBanner variant="warning" message={pl.customEditBlockedActiveDay} />
             )}
-            <TextField
-              id="plan-name"
-              label={pl.planName}
-              value={plan.name}
-              onChange={(e) => updatePlan({ ...plan, name: e.target.value })}
-            />
-            <TextField
-              id="plan-desc"
-              label={pl.planDescription}
-              value={plan.description}
-              onChange={(e) => updatePlan({ ...plan, description: e.target.value })}
-            />
+
+            <div>
+              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.planSectionInfo}
+              </p>
+              <div className="flex flex-col gap-3">
+                <TextField
+                  id="plan-name"
+                  label={pl.planName}
+                  value={plan.name}
+                  onChange={(e) => updatePlan({ ...plan, name: e.target.value })}
+                />
+                <TextField
+                  id="plan-desc"
+                  label={pl.planDescription}
+                  value={plan.description}
+                  onChange={(e) => updatePlan({ ...plan, description: e.target.value })}
+                />
+              </div>
+            </div>
 
             {validationErrors.length > 0 && (
               <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/40 bg-[var(--sr-warning)]/10 p-3">
@@ -407,6 +415,10 @@ export function CustomPlanEditor({
               </div>
             )}
 
+            <div>
+              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.planSectionDays}
+              </p>
             <ul className="flex flex-col gap-2">
               {plan.days.map((d, i) => (
                 <li
@@ -438,6 +450,38 @@ export function CustomPlanEditor({
                         </p>
                       )}
                     </button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="min-h-11 min-w-11"
+                      disabled={i === 0 || isDayLocked(d.dayNumber)}
+                      aria-label={pl.planMoveDayUp}
+                      onClick={() => {
+                        if (!guardDayEdit(i)) return
+                        const list = plan.days.map((x) => ({ ...x }))
+                        ;[list[i - 1], list[i]] = [list[i]!, list[i - 1]!]
+                        updatePlan({ ...plan, days: renumberDays(list) })
+                      }}
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="min-h-11 min-w-11"
+                      disabled={i === plan.days.length - 1 || isDayLocked(d.dayNumber)}
+                      aria-label={pl.planMoveDayDown}
+                      onClick={() => {
+                        if (!guardDayEdit(i)) return
+                        const list = plan.days.map((x) => ({ ...x }))
+                        ;[list[i], list[i + 1]] = [list[i + 1]!, list[i]!]
+                        updatePlan({ ...plan, days: renumberDays(list) })
+                      }}
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
                     <Button
                       type="button"
                       size="sm"
@@ -483,6 +527,7 @@ export function CustomPlanEditor({
             <Button
               type="button"
               variant="secondary"
+              className="mt-3"
               onClick={() => {
                 const nextNum = Math.max(0, ...plan.days.map((x) => x.dayNumber)) + 1
                 updatePlan({
@@ -496,7 +541,13 @@ export function CustomPlanEditor({
             >
               {pl.planAddDay}
             </Button>
+            </div>
 
+            <div>
+              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.planSectionProgression}
+              </p>
+              <div className="flex flex-col gap-3">
             <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] p-3">
               <CheckboxField
                 id="prog-enable"
@@ -666,10 +717,10 @@ export function CustomPlanEditor({
                 </div>
               )}
             </div>
+              </div>
+            </div>
 
-            <Button type="button" variant="secondary" fullWidth onClick={() => void handleSaveDraft()}>
-              {pl.planSaveDraft}
-            </Button>
+            <div className="sticky bottom-0 -mx-4 mt-2 flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-4 py-3">
             <Button type="button" size="touch" fullWidth onClick={() => void handleActivate()}>
               {plan.status === 'active'
                 ? pl.planSaveActive
@@ -677,6 +728,10 @@ export function CustomPlanEditor({
                   ? pl.communityActivateHint
                   : pl.planPublish}
             </Button>
+            <Button type="button" variant="ghost" fullWidth onClick={() => void handleSaveDraft()}>
+              {pl.planSaveDraft}
+            </Button>
+            </div>
           </div>
         )}
 
@@ -717,6 +772,24 @@ export function CustomPlanEditor({
               />
             </div>
 
+            {day.exercises.length === 0 ? (
+              <EmptyState
+                icon={<Dumbbell size={40} strokeWidth={1.5} className="text-[var(--sr-text-muted)]" />}
+                title={pl.planDayEmptyTitle}
+                description={pl.planDayEmptyHint}
+                action={
+                  !isDayLocked(day.dayNumber)
+                    ? {
+                        label: pl.planAddExercise,
+                        onClick: () => {
+                          if (!guardDayEdit(view.dayIndex)) return
+                          setView({ screen: 'pick', dayIndex: view.dayIndex })
+                        },
+                      }
+                    : undefined
+                }
+              />
+            ) : (
             <ul className="flex flex-col gap-2">
               {day.exercises.map((pe, i) => {
                 const def = exercises.find((e) => e.id === pe.exerciseId)
@@ -809,6 +882,26 @@ export function CustomPlanEditor({
                         }}
                       >
                         <ChevronDown className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="min-h-11 min-w-11"
+                        aria-label={pl.planDuplicateExercise}
+                        disabled={isDayLocked(day.dayNumber)}
+                        onClick={() => {
+                          if (!guardDayEdit(view.dayIndex)) return
+                          const copy = { ...pe, sets: pe.sets.map((s) => ({ ...s })), order: i + 1 }
+                          const list = [...day.exercises]
+                          list.splice(i + 1, 0, copy)
+                          const ordered = list.map((x, idx) => ({ ...x, order: idx }))
+                          const days = [...plan.days]
+                          days[view.dayIndex] = { ...day, exercises: ordered }
+                          updatePlan({ ...plan, days })
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
                       </Button>
                       <Button
                         type="button"
@@ -954,7 +1047,9 @@ export function CustomPlanEditor({
                 )
               })}
             </ul>
+            )}
 
+            {day.exercises.length > 0 && (
             <Button
               type="button"
               variant="secondary"
@@ -966,6 +1061,7 @@ export function CustomPlanEditor({
             >
               {pl.planAddExercise}
             </Button>
+            )}
           </div>
         )}
 

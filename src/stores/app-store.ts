@@ -30,6 +30,8 @@ export type UserSettings = {
   onboardingComplete: boolean
   /** Public author name for community catalog (synced to profiles.display_name). */
   displayName?: string
+  /** Weight unit preference: 'kg' (default) or 'lb'. Backend always stores kg. */
+  weightUnit: 'kg' | 'lb'
 }
 
 export type PendingTest = {
@@ -135,6 +137,7 @@ export const defaultSettings: UserSettings = {
   pushNotifications: false,
   reminderHour: 18,
   keepScreenOn: true,
+  weightUnit: 'kg',
   healthDisclaimerAccepted: false,
   hasSeenWorkoutHint: false,
   enabledPrograms: ['pushups'],

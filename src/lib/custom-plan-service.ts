@@ -2,6 +2,7 @@ import { db, type LocalWorkoutSession } from '@/lib/db'
 import type {
   CustomPlan,
   ExerciseDefinition,
+  MuscleGroup,
   PlanDay,
   PrimaryMetric,
 } from '@/lib/exercise-model'
@@ -78,6 +79,7 @@ export async function saveExercise(
     primaryMetric: PrimaryMetric
     restDefaultSec: number
     archived?: boolean
+    muscleGroup?: MuscleGroup
   },
 ): Promise<ExerciseDefinition> {
   const now = new Date().toISOString()
@@ -100,6 +102,7 @@ export async function saveExercise(
     primaryMetric: input.primaryMetric,
     restDefaultSec: input.restDefaultSec,
     archived: input.archived ?? existing?.archived ?? false,
+    muscleGroup: input.muscleGroup ?? existing?.muscleGroup,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   }

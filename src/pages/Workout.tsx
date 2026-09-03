@@ -62,6 +62,9 @@ export default function WorkoutPage() {
 
   const [progress, setProgress] = useState<Awaited<ReturnType<typeof getProgramProgress>>>(undefined)
   const [sessionMeta, setSessionMeta] = useState<LocalWorkoutSession | null>(null)
+  /** Display-only startedAt — shifted forward by pause duration on resume so the live clock
+   *  doesn't count time spent away from the workout. DB `startedAt` stays original. */
+  const [displayStartedAt, setDisplayStartedAt] = useState<string | null>(null)
   const [actual, setActual] = useState(0)
   const [showHint, setShowHint] = useState(false)
   const [failedIndex, setFailedIndex] = useState<number | undefined>()
@@ -252,6 +255,17 @@ export default function WorkoutPage() {
           return
         }
         session = existing
+        // Shift the display clock forward by the time spent away from the workout
+        // so the live elapsed timer doesn't count the pause.
+        const lastActiveMs = new Date(active.updatedAt).getTime()
+        const pauseMs = Number.isFinite(lastActiveMs) ? Math.max(0, Date.now() - lastActiveMs) : 0
+        const prevDisplay = active.displayStartedAt
+          ? new Date(active.displayStartedAt).getTime()
+          : new Date(existing.startedAt).getTime()
+        const nextDisplay = Number.isFinite(prevDisplay)
+          ? new Date(prevDisplay + pauseMs).toISOString()
+          : existing.startedAt
+        setDisplayStartedAt(nextDisplay)
       } else {
         await cleanupEmptyInProgressSessions(program)
 
@@ -266,6 +280,7 @@ export default function WorkoutPage() {
           startedAt: new Date().toISOString(),
           setResults: [],
         }
+        setDisplayStartedAt(session.startedAt)
         workout.startSession({
           sessionId,
           program,
@@ -331,6 +346,7 @@ export default function WorkoutPage() {
       setResults: snapshot.setResults,
       restTimerJson: snapshot.restTimerJson,
       failedRetryUsed: snapshot.failedRetryUsed,
+      displayStartedAt: displayStartedAt,
     })
     if (
       epoch !== sessionEpochRef.current ||
@@ -341,7 +357,7 @@ export default function WorkoutPage() {
         await clearActiveWorkout(program)
       }
     }
-  }, [program, sessionMeta])
+  }, [program, sessionMeta, displayStartedAt])
 
   useEffect(() => {
     if (!restTimer || restTimer.mode === 'idle') {
@@ -659,7 +675,7 @@ export default function WorkoutPage() {
       checklistRef={checklistRef}
       showTechniqueLink={program === 'pushups'}
       sessionHasProgress={hasSessionProgress}
-      sessionStartedAt={sessionMeta?.startedAt}
+      sessionStartedAt={displayStartedAt}
       onBack={() => {
         if (!hasSessionProgress) {
           discardEphemeralSession()
@@ -720,6 +736,10 @@ export default function WorkoutPage() {
       onAddRest30={() => {
         const t = useWorkoutStore.getState().restTimer
         if (t) mutateRestTimer(addRestTime(t, 30))
+      }}
+      onSetRest={(sec) => {
+        const t = useWorkoutStore.getState().restTimer
+        if (t) mutateRestTimer({ ...t, totalSec: sec, remainingSec: sec, startedAt: Date.now() })
       }}
       onSkipRest={() => {
         mutateRestTimer(skipRest())

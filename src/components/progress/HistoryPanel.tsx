@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { ProgressSection } from '@/components/progress/ProgressSection'
+import { ActivityCalendar } from '@/components/progress/ActivityCalendar'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Card'
 import { LogoMark } from '@/components/brand/Logo'
@@ -32,6 +33,7 @@ export function HistoryPanel({
   onClearFilters,
   onLoadMore,
   onSelectSession,
+  allSessions,
   navigate,
 }: {
   program: Program
@@ -48,10 +50,18 @@ export function HistoryPanel({
   onClearFilters: () => void
   onLoadMore: () => void
   onSelectSession: (s: LocalWorkoutSession) => void
+  allSessions: LocalWorkoutSession[]
   navigate: NavigateFunction
 }) {
   return (
-    <ProgressSection first>
+    <>
+    {allSessions.length > 0 && (
+      <ProgressSection first title={pl.calendarTitle} hint={pl.calendarHint}>
+        <ActivityCalendar sessions={allSessions} />
+      </ProgressSection>
+    )}
+
+    <ProgressSection first={allSessions.length === 0}>
       <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
@@ -191,5 +201,6 @@ export function HistoryPanel({
         </>
       )}
     </ProgressSection>
+    </>
   )
 }

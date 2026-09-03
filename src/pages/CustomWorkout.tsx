@@ -12,6 +12,8 @@ import { pl } from '@/i18n/pl'
 import { db } from '@/lib/db'
 import type { CustomPlan, ExerciseDefinition, SetActual, SetLog } from '@/lib/exercise-model'
 import { validateSetLog } from '@/lib/exercise-model'
+import { suggestSubstitutes } from '@/lib/exercise-substitution'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 import {
   formatPrescriptionSetLabel,
 } from '@/lib/custom-prescription-format'
@@ -110,6 +112,7 @@ export default function CustomWorkoutPage() {
   const keepScreenOn = useAppStore((s) => s.settings.keepScreenOn)
   const hasSeenWorkoutHint = useAppStore((s) => s.settings.hasSeenWorkoutHint)
   const setSettings = useAppStore((s) => s.setSettings)
+  const weightUnit = useAppStore((s) => s.settings.weightUnit)
 
   const store = useCustomWorkoutStore()
   const [plan, setPlan] = useState<CustomPlan | null>(null)
@@ -160,6 +163,9 @@ export default function CustomWorkoutPage() {
   const staleConfirmedRef = useRef(false)
   const checklistRef = useRef<HTMLDivElement>(null)
   const amrapEndFiredRef = useRef(false)
+  /** Blocks the prescription-reset effect for one iteration after editing a previous set,
+   *  so the restored actual values aren't immediately overwritten by target defaults. */
+  const skipNextResetRef = useRef(false)
 
   const day = useMemo(() => {
     if (!plan) return null
@@ -177,6 +183,11 @@ export default function CustomWorkoutPage() {
 
   const planned = day?.exercises[store.currentExerciseIndex]
   const exDef = planned ? exercises.get(planned.exerciseId) : undefined
+  const allExerciseDefs = useMemo(() => Array.from(exercises.values()), [exercises])
+  const swapSuggestions = useMemo(() => {
+    if (!exDef) return []
+    return suggestSubstitutes(allExerciseDefs, exDef.id, 5)
+  }, [exDef, allExerciseDefs])
   const displaySetIndex =
     day && planned
       ? getPrescriptionSetIndex(day, store.currentExerciseIndex, store.currentSetIndex)
@@ -236,9 +247,10 @@ export default function CustomWorkoutPage() {
       restTimerJson: latest.restTimer ? JSON.stringify(latest.restTimer) : null,
       amrapEndAt: latest.amrapEndAt,
       amrapGroupId: latest.amrapGroupId,
+      displayStartedAt: sessionStartedAt,
     })
     if (epoch !== sessionEpochRef.current) return
-  }, [])
+  }, [sessionStartedAt])
 
   const startNewSession = useCallback(
     async (
@@ -411,7 +423,17 @@ export default function CustomWorkoutPage() {
           )
 
           sessionRef.current = session
-          setSessionStartedAt(session.startedAt)
+          // Shift the display clock forward by the time spent away from the workout
+          // so the live elapsed timer doesn't count the pause.
+          const lastActiveMs = new Date(active.updatedAt).getTime()
+          const pauseMs = Number.isFinite(lastActiveMs) ? Math.max(0, Date.now() - lastActiveMs) : 0
+          const prevDisplay = active.displayStartedAt
+            ? new Date(active.displayStartedAt).getTime()
+            : new Date(session.startedAt).getTime()
+          const nextDisplay = Number.isFinite(prevDisplay)
+            ? new Date(prevDisplay + pauseMs).toISOString()
+            : session.startedAt
+          setSessionStartedAt(nextDisplay)
           useCustomWorkoutStore.getState().resumeSession({
             sessionId: session.id,
             customPlanId: planId,
@@ -546,6 +568,10 @@ export default function CustomWorkoutPage() {
 
   useEffect(() => {
     if (!prescription || !exDef || !plan || !planned) return
+    if (skipNextResetRef.current) {
+      skipNextResetRef.current = false
+      return
+    }
     setTimerRunning(false)
     setFailedIndex(undefined)
     if (exDef.primaryMetric === 'duration_sec' && prescription.durationSec) {
@@ -1197,6 +1223,7 @@ export default function CustomWorkoutPage() {
     const removed = store.undoLastSet()
     if (!removed) return
     setFailedIndex(undefined)
+    skipNextResetRef.current = true
     if (exDef?.primaryMetric === 'duration_sec') {
       setActualSec(removed.actual.durationSec ?? 0)
     } else {
@@ -1247,6 +1274,17 @@ export default function CustomWorkoutPage() {
       ...current,
       totalSec: current.totalSec + sec,
       remainingSec: current.remainingSec + sec,
+    })
+  }
+
+  function setRest(sec: number) {
+    const current = useCustomWorkoutStore.getState().restTimer
+    if (!current || current.mode === 'idle') return
+    mutateRestTimer({
+      ...current,
+      totalSec: sec,
+      remainingSec: sec,
+      startedAt: Date.now(),
     })
   }
 
@@ -1490,6 +1528,7 @@ export default function CustomWorkoutPage() {
         weightKg={weightKg}
         timerRunning={timerRunning}
         canEditPreviousSet={canEditPreviousSet}
+        weightUnit={weightUnit}
         onBack={() => {
           if (!sessionHasProgress) {
             discardEphemeralSession()
@@ -1546,6 +1585,7 @@ export default function CustomWorkoutPage() {
         }}
         onAddRest15={() => addRest(15)}
         onAddRest30={() => addRest(30)}
+        onSetRest={(sec) => setRest(sec)}
         onSkipRest={() => mutateRestTimer(skipRest())}
         onCollapseTimer={() => {
           if (restTimer) mutateRestTimer({ ...restTimer, mode: 'pill' })
@@ -1586,13 +1626,35 @@ export default function CustomWorkoutPage() {
         title={pl.customWorkoutSwapExercise}
         className="max-h-[85vh] overflow-y-auto"
       >
+        <p className="mb-3 text-xs text-[var(--sr-text-muted)]">
+          {pl.customWorkoutSwapExerciseHint}
+        </p>
+        {exDef && swapSuggestions.length > 0 && (
+          <div className="mb-4">
+            <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+              {pl.exerciseSwapSuggestions}
+            </p>
+            <p className="mb-2 text-xs text-[var(--sr-text-muted)]">
+              {pl.exerciseSwapSuggestionsHint}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {swapSuggestions.map((ex) => (
+                <button
+                  key={ex.id}
+                  type="button"
+                  className={`min-h-9 rounded-full border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary)]/10 px-3 text-sm font-medium text-[var(--sr-brand-primary)] ${FOCUS_RING}`}
+                  onClick={() => void handleSwapExercise(ex)}
+                >
+                  {ex.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <ExerciseLibraryPanel
           mode="pick"
           onPick={(ex) => void handleSwapExercise(ex)}
         />
-        <p className="mt-3 text-xs text-[var(--sr-text-muted)]">
-          {pl.customWorkoutSwapExerciseHint}
-        </p>
       </Sheet>
       {swapConfirm && (
         <ConfirmSheet

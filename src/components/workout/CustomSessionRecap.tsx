@@ -37,6 +37,7 @@ type RecapProps = {
   previous?: LocalWorkoutSession
   exerciseMap: Map<string, ExerciseDefinition>
   insights?: CustomSessionInsights
+  weightUnit?: 'kg' | 'lb'
 }
 
 function findPreviousSet(
@@ -56,7 +57,7 @@ function primaryMetricValue(
   return set.actual.reps ?? 0
 }
 
-export function CustomSessionRecap({ current, previous, exerciseMap, insights }: RecapProps) {
+export function CustomSessionRecap({ current, previous, exerciseMap, insights, weightUnit = 'kg' }: RecapProps) {
   const logs = current.exerciseLogs ?? []
   const totalReps = customSessionTotalReps(current)
   const totalDurationSec = customSessionTotalDurationSec(current)
@@ -160,7 +161,7 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights }:
                         {set.setNumber}
                       </td>
                       <td className="py-2 tabular-nums text-[var(--sr-text-secondary)]">
-                        {formatPrescriptionTarget(set.prescription, metric)}
+                        {formatPrescriptionTarget(set.prescription, metric, weightUnit)}
                       </td>
                       <td
                         className={`py-2 text-base font-semibold tabular-nums ${
@@ -173,7 +174,7 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights }:
                           className="inline-flex flex-wrap items-center gap-1.5"
                           aria-label={ariaLabel ?? undefined}
                         >
-                          {formatSetActualDisplay(set.actual, metric)}
+                          {formatSetActualDisplay(set.actual, metric, weightUnit)}
                           {badge && setInsight?.kind === 'pr' && (
                             <SummaryInsightBadge tone="pr">{badge}</SummaryInsightBadge>
                           )}
@@ -188,7 +189,7 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights }:
                       <td className="hidden py-2 tabular-nums text-[var(--sr-text-muted)] sm:table-cell">
                         {prevSet ? (
                           <span className="inline-flex items-center gap-1">
-                            {formatSetActualDisplay(prevSet.actual, metric)}
+                            {formatSetActualDisplay(prevSet.actual, metric, weightUnit)}
                             <TrendIndicator delta={diff} />
                           </span>
                         ) : (
@@ -214,9 +215,9 @@ type DiffEntry = {
   after: SetPrescription[]
 }
 
-function formatSetsLine(sets: SetPrescription[], metric: PrimaryMetric): string {
+function formatSetsLine(sets: SetPrescription[], metric: PrimaryMetric, weightUnit: 'kg' | 'lb' = 'kg'): string {
   if (sets.length === 0) return '—'
-  return sets.map((s) => formatPrescriptionTarget(s, metric)).join(' · ')
+  return sets.map((s) => formatPrescriptionTarget(s, metric, weightUnit)).join(' · ')
 }
 
 function findExerciseMeta(

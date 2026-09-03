@@ -15,8 +15,8 @@ export function ProfileStats() {
   const [snap, setSnap] = useState<AchievementSnapshot | null>(null)
   const [loaded, setLoaded] = useState(false)
 
-  const load = () => {
-    void buildAchievementSnapshot({ impact: emptyImpact() })
+  const load = (force = false) => {
+    void buildAchievementSnapshot({ impact: emptyImpact(), force })
       .then((s) => {
         setSnap(s)
         setLoaded(true)
@@ -28,7 +28,7 @@ export function ProfileStats() {
     load()
     // Refresh when page becomes visible (user returns from workout)
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') load()
+      if (document.visibilityState === 'visible') load(true)
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
