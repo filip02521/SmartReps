@@ -284,6 +284,8 @@ export const pl = {
   loginOtpPlaceholder: '000000',
   loginOtpHint: '6-cyfrowy kod z wiadomości od SmartReps (SR@ontime.mikran.pl).',
   loginVerifyCode: 'Zaloguj się kodem',
+  loginVerifying: 'Weryfikacja...',
+  loginSending: 'Wysyłanie...',
   loginOtpInvalid: 'Nieprawidłowy lub wygasły kod. Sprawdź e-mail i spróbuj ponownie.',
   loginResendCode: 'Wyślij kod ponownie',
   loginResendWait: (seconds: number) => `Wyślij ponownie za ${seconds} s`,

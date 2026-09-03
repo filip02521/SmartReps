@@ -749,10 +749,12 @@ async function mergeActiveRemote(userId: string, remote: RemoteActiveRow) {
 }
 
 async function mergeMaxTestRemote(remote: RemoteMaxTestRow) {
+  // Normalize to epoch ms — Postgres timestamp format differs from local ISO.
+  const remoteMs = new Date(remote.tested_at).getTime()
   const existing = await db.maxTests
     .where('program')
     .equals(remote.program as Program)
-    .filter((t) => t.testedAt === remote.tested_at)
+    .filter((t) => new Date(t.testedAt).getTime() === remoteMs)
     .first()
 
   if (existing) return
@@ -760,24 +762,26 @@ async function mergeMaxTestRemote(remote: RemoteMaxTestRow) {
   await db.maxTests.add({
     program: remote.program as Program,
     reps: remote.reps,
-    testedAt: remote.tested_at,
+    testedAt: new Date(remoteMs).toISOString(),
     selectedCycleId: remote.selected_cycle_id,
     wasManualOverride: remote.was_manual_override,
   })
 }
 
 async function mergeBodyWeightRemote(remote: RemoteBodyWeightRow) {
-  const existing = await db.bodyWeight
-    .where('measuredAt')
-    .equals(remote.measured_at)
-    .first()
+  // Normalize both sides to epoch ms — Postgres returns "2026-09-03 16:52:29.877+00"
+  // while local stores ISO "2026-09-03T16:52:29.877Z". String comparison fails.
+  const remoteMs = new Date(remote.measured_at).getTime()
+  const all = await db.bodyWeight.toArray()
+  const existing = all.find((e) => new Date(e.measuredAt).getTime() === remoteMs)
 
   if (existing) return
 
+  // Store as ISO 8601 to keep local format consistent.
   await db.bodyWeight.add({
     id: remote.id,
     weightKg: remote.weight_kg,
-    measuredAt: remote.measured_at,
+    measuredAt: new Date(remoteMs).toISOString(),
     note: remote.note ?? undefined,
   })
 }

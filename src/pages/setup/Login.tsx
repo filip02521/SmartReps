@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { MailCheck, Loader2, Mail } from 'lucide-react'
 import { LogoFull } from '@/components/brand/Logo'
 import { Button } from '@/components/ui/Button'
 import { SetupStepper } from '@/components/setup/SetupStepper'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { TextField } from '@/components/ui/TextField'
+import { OtpInput } from '@/components/ui/OtpInput'
 import { PageLoader } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { isSafeReturnPath, resolvePostAuthNavigation } from '@/lib/post-auth-navigation'
@@ -318,36 +320,52 @@ export default function Login() {
 
       {sent ? (
         <div className="mt-2 space-y-4">
-          <p className="text-[var(--sr-success)]">{pl.loginSentCode}</p>
-          <p className="text-sm text-[var(--sr-text-secondary)]">
-            {pl.loginSentTo(email.trim())}
-          </p>
-
-          <div>
-            <TextField
-              id="login-otp"
-              label={pl.loginOtpLabel}
-              hint={pl.loginOtpHint}
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={OTP_LENGTH}
-              placeholder={pl.loginOtpPlaceholder}
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, OTP_LENGTH))}
-              inputClassName="text-center text-2xl tracking-[0.35em]"
-            />
+          {/* Success banner — code sent */}
+          <div className="flex items-start gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)] p-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-success)]/15 text-[var(--sr-success)]" aria-hidden>
+              <MailCheck size={20} strokeWidth={2.25} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-[var(--sr-text-primary)]">{pl.loginSentCode}</p>
+              <p className="mt-0.5 text-sm text-[var(--sr-text-secondary)]">
+                {pl.loginSentTo(email.trim())}
+              </p>
+            </div>
           </div>
 
+          {/* OTP input — 6 separate boxes */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[var(--sr-text-secondary)]">
+              {pl.loginOtpLabel}
+            </label>
+            <OtpInput
+              length={OTP_LENGTH}
+              value={otpCode}
+              onChange={(code) => setOtpCode(code)}
+              disabled={loading}
+              autoFocus
+            />
+            <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{pl.loginOtpHint}</p>
+          </div>
+
+          {/* Verify button with loading spinner */}
           <Button
             className="mt-2"
             fullWidth
             disabled={loading || otpCode.length !== OTP_LENGTH}
             onClick={() => void verifyCode()}
           >
-            {pl.loginVerifyCode}
+            {loading ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Loader2 size={18} className="animate-spin" aria-hidden />
+                {pl.loginVerifying}
+              </span>
+            ) : (
+              pl.loginVerifyCode
+            )}
           </Button>
 
+          {/* Resend button */}
           <Button
             variant="secondary"
             fullWidth
@@ -357,6 +375,7 @@ export default function Login() {
             {resendIn > 0 ? pl.loginResendWait(resendIn) : pl.loginResendCode}
           </Button>
 
+          {/* Hint — PWA vs browser */}
           {standalone ? (
             <p className="rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] p-3 text-sm text-[var(--sr-text-secondary)]">
               {pl.loginPwaCodeHint}
@@ -383,7 +402,17 @@ export default function Login() {
             onChange={(e) => setEmail(e.target.value)}
           />
           <Button className="mt-4" fullWidth disabled={loading || !email.trim()} onClick={() => void sendOtp()}>
-            {pl.loginSendCode}
+            {loading ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Loader2 size={18} className="animate-spin" aria-hidden />
+                {pl.loginSending}
+              </span>
+            ) : (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Mail size={18} aria-hidden />
+                {pl.loginSendCode}
+              </span>
+            )}
           </Button>
         </>
       )}
