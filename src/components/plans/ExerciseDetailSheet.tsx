@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/Card'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { EmptyState, SkeletonCard } from '@/components/ux/Feedback'
-import { ExerciseSparkline } from '@/components/plans/ExerciseSparkline'
 import { LogoMark } from '@/components/brand/Logo'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
 import {
@@ -147,15 +146,6 @@ export function ExerciseDetailSheet({
             />
           ) : (
             <>
-              {stats.chartPoints.length > 0 && (
-                <div className="flex items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3">
-                  <ExerciseSparkline
-                    values={stats.chartPoints.map((p) => p.value)}
-                    className="h-12 w-full max-w-[12rem]"
-                  />
-                </div>
-              )}
-
               <div className="grid grid-cols-2 gap-2">
                 <NestedStat
                   size="md"

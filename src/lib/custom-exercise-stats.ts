@@ -174,6 +174,13 @@ export function collectExerciseSessionLogs(
     }
   }
 
+  // Chronological order so list sparklines match the detail chart (Dexie toArray is not date-ordered).
+  out.sort((a, b) => {
+    const aAt = a.session.completedAt ?? a.session.startedAt
+    const bAt = b.session.completedAt ?? b.session.startedAt
+    return aAt.localeCompare(bAt)
+  })
+
   return out
 }
 

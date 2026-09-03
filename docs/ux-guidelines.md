@@ -122,6 +122,7 @@ Query: ?tab=mine|programs|library ; legacy ?library=1 → library
 ```
 [PageHeader: Profil]
 [Konto — AccountHero: badge · sync · 1 CTA · FAQ · Wyloguj ghost]
+[Odznaki — gablotka 3 sloty (auto najmocniejsze / ręczne) · Wybierz · Wszystkie → Postępy]
 [Programy — karty Strong kompakt + ⋮ · dodaj dashed · własne wiersze]
 [Wygląd]
 [Ustawienia treningu]

@@ -84,4 +84,52 @@ describe('computeCustomExercisePrs', () => {
     expect(prs[0]!.trend).toBe('up')
     expect(prs[0]!.maxReps).toBe(10)
   })
+
+  it('orders sparkline chronologically even when sessions are out of order', async () => {
+    const exId = 'ex-order'
+    const now = new Date().toISOString()
+    exercises.push({
+      id: exId,
+      name: 'Dip',
+      primaryMetric: 'reps',
+      restDefaultSec: 60,
+      archived: false,
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    const makeSession = (id: string, dayOffset: number, reps: number): LocalWorkoutSession => ({
+      id,
+      program: 'custom',
+      customPlanId: 'plan-1',
+      cycleId: 'custom:plan-1',
+      cycleAttempt: 1,
+      dayNumber: 1,
+      status: 'completed',
+      passed: true,
+      startedAt: new Date(Date.now() - dayOffset * 86400000).toISOString(),
+      completedAt: new Date(Date.now() - dayOffset * 86400000).toISOString(),
+      setResults: [],
+      exerciseLogs: [
+        {
+          exerciseId: exId,
+          order: 0,
+          sets: [
+            {
+              setNumber: 1,
+              actual: { reps },
+              passed: true,
+              prescription: { reps: { kind: 'fixed', value: reps } },
+            },
+          ],
+        },
+      ],
+    })
+
+    // Newest first in Dexie-like storage order — sparkline must still be oldest→newest.
+    sessions.push(makeSession('s-new', 1, 12), makeSession('s-old', 10, 6), makeSession('s-mid', 5, 9))
+
+    const prs = await computeCustomExercisePrs()
+    expect(prs[0]!.sparkline).toEqual([6, 9, 12])
+  })
 })

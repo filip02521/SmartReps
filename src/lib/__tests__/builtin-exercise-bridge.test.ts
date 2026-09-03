@@ -117,8 +117,8 @@ describe('builtin-exercise-bridge', () => {
 
     const rows = collectExerciseSessionLogs(sessions, pompki)
     expect(rows).toHaveLength(2)
-    expect(rows.some((r) => r.planName === builtinProgramLabel('pushups'))).toBe(true)
-    expect(rows.some((r) => r.session.id === 'custom-1')).toBe(true)
+    expect(rows.map((r) => r.session.id)).toEqual(['s1', 'custom-1'])
+    expect(rows[0]!.planName).toBe(builtinProgramLabel('pushups'))
 
     expect(collectExerciseSessionLogs(sessions, squats)).toHaveLength(0)
   })
