@@ -27,6 +27,12 @@ function tipMeta(kind: TipKind): { tone: NoticeTone; title: string; icon: ReactN
       return { tone: 'success', title: pl.homeTipTitleHabitMet, icon: <CheckCircle2 size={20} strokeWidth={2.25} /> }
     case 'habit_zero':
       return { tone: 'neutral', title: pl.homeTipTitleHabitZero, icon: <Lightbulb size={20} strokeWidth={2.25} /> }
+    case 'achievement':
+      return {
+        tone: 'brand',
+        title: pl.achievementsHomeTipTitle,
+        icon: noticeIcon('brand'),
+      }
     default:
       return { tone: 'info', title: pl.homeTipTitleDefault, icon: noticeIcon('info') }
   }

@@ -304,6 +304,33 @@ export async function finalizeCustomDay(params: {
   }
   track('day_completed')
   void schedulePostWorkoutSync()
+
+  // Community: first train on imported plan
+  if (plan.communityPublicationId) {
+    const prior = await db.workoutSessions
+      .where('customPlanId')
+      .equals(plan.id)
+      .filter((s) => s.id !== session.id && s.status === 'completed')
+      .count()
+    if (prior === 0) {
+      try {
+        const { recordCommunityTrained } = await import('@/lib/achievements/community-impact')
+        const res = await recordCommunityTrained(plan.communityPublicationId)
+        if (res.counted) {
+          track('community_trained', { counted: true })
+          const importMs = new Date(plan.createdAt).getTime()
+          if (Number.isFinite(importMs) && Date.now() - importMs <= 48 * 60 * 60 * 1000) {
+            track('community_import_trained_48h')
+          }
+        }
+      } catch (err) {
+        console.warn('[community] record_trained failed', err)
+      }
+    }
+  }
+
+  const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+  scheduleAchievementCheck()
   return { passed: true, hitTargets }
 }
 

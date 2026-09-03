@@ -35,6 +35,8 @@
 
 Treść → tab / RestTimerPill (`z-40`) → RestTimerExpanded (`z-50`) → Sheet (`z-55`) → CycleCelebration (`z-70`) → Offline (`z-80`) → Toast (`z-90`).  
 Toast nad pillem gdy `restTimer.mode === 'pill'`. Offline bar tylko top.
+Achievement unlock / backfill Sheet czeka aż CycleCelebration się zamknie (`celebrationBlocked`)
+i nie nachodzi na ekran summary / aktywny workout (defer do wyjścia z `/workout/*` i `/summary`).
 
 ## Konwencje shell
 
@@ -82,9 +84,14 @@ Bez auto Max Test; drugi program nie w setupQueue.
 ## Wireframe — Postępy
 
 ```
-[PageHeader: N sesji w programie]
-[program compact — jeśli 2+][tabs: Przegląd · Historia · Cykl · Własne?]
-URL: ?tab=overview|history|cycle|custom ; ?view=exercises|plan|history ; ?program=
+[PageHeader: kontekst sekcji — sesje programu / własne / X z Y odznak]
+[Primary stretch: Programy | Własne? | Odznaki]   ← max 3, równa szerokość
+  Programy → [program compact jeśli 2+] + [Przegląd · Historia · Cykl]
+  Własne → [Przegląd · Historia]
+    Przegląd: MetricStrip + aktywny plan (mapa dni, następny trening, Trenuj) + rekordy
+    Historia: karty sesji + filtry
+  Odznaki → galeria (bez przełącznika programu)
+URL: ?tab=overview|history|cycle|custom|achievements ; ?view=… ; ?program= tylko przy Programach
 ?tab=records → overview + #progress-records (replace)
 [ProgressSection — flow, bez cieni Card]
   Przegląd: MetricStrip (treningi 14d · streak · powt. 14d) + trend „wcześniej”
@@ -92,7 +99,10 @@ URL: ?tab=overview|history|cycle|custom ; ?view=exercises|plan|history ; ?progra
     + LineChart + heatmap 12 tyg. (Pn–Nd, bez drugiej mapy) + Rekordy
   Historia: filtry + lista + Sheet → „Pełne podsumowanie”
   Cykl: CycleDayPicker + BarChart max-set + CTA highlight plan
-  Własne: Ćwiczenia | Plan | Historia (compact); tab tylko przy planach/sesjach custom
+  Własne: Przegląd | Historia; sekcja tylko przy planach/sesjach custom (mapa planu w Przeglądzie)
+  Odznaki: galeria (filtry track + Zdobyte|Wszystkie) + „W toku” max 2 z paskiem postępu;
+  detail Sheet (track = kropka-overline, nie kolor ramki); unlock Sheet @ Z_SHEET
+  (po CycleCelebration; nie na /workout/* ani /summary); rarity ring przez gradient border (nie border-image)
 ```
 
 ## Wireframe — Plany

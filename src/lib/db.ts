@@ -89,6 +89,12 @@ export type LocalExercise = ExerciseDefinition
 export type LocalCustomPlan = CustomPlan
 export type LocalCustomProgramProgress = CustomProgramProgress
 
+export type LocalAchievementUnlockRow = {
+  id: string
+  unlockedAt: string
+  seenAt: string | null
+}
+
 class SmartRepsDB extends Dexie {
   programProgress!: EntityTable<LocalProgramProgress, 'id'>
   workoutSessions!: EntityTable<LocalWorkoutSession, 'id'>
@@ -99,6 +105,7 @@ class SmartRepsDB extends Dexie {
   exercises!: EntityTable<LocalExercise, 'id'>
   customPlans!: EntityTable<LocalCustomPlan, 'id'>
   customProgramProgress!: EntityTable<LocalCustomProgramProgress, 'id'>
+  achievementUnlocks!: EntityTable<LocalAchievementUnlockRow, 'id'>
 
   constructor() {
     super('SmartRepsDB')
@@ -162,6 +169,20 @@ class SmartRepsDB extends Dexie {
       exercises: 'id, updatedAt, archived',
       customPlans: 'id, status, updatedAt',
       customProgramProgress: '++id, &customPlanId, updatedAt',
+    })
+
+    // v5: achievement unlocks (offline-first badges)
+    this.version(5).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, startedAt, [program+status], customPlanId',
+      activeWorkout: 'program',
+      activeCustomWorkout: 'customPlanId',
+      syncQueue: '++id, createdAt',
+      maxTests: '++id, program, testedAt, &[program+testedAt]',
+      exercises: 'id, updatedAt, archived',
+      customPlans: 'id, status, updatedAt',
+      customProgramProgress: '++id, &customPlanId, updatedAt',
+      achievementUnlocks: 'id, unlockedAt',
     })
   }
 }

@@ -15,6 +15,7 @@ import { getProgramProgress } from '@/lib/program-service'
 import { isWorkoutAvailable, daysUntilWorkout } from '@/lib/progress-engine'
 import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import type { Program } from '@/data/plans/types'
+import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 
 export default function ProgramStart() {
   const { program: programParam } = useParams<{ program: Program }>()
@@ -62,6 +63,13 @@ export default function ProgramStart() {
       cancelled = true
     }
   }, [program])
+
+  useEffect(() => {
+    const { setCelebrationBlocked } = useAchievementUiStore.getState()
+    const blocked = !dismissedCelebration && Boolean(pendingStart?.celebration)
+    setCelebrationBlocked(blocked)
+    return () => setCelebrationBlocked(false)
+  }, [dismissedCelebration, pendingStart?.celebration])
 
   if (!hydrated || !pendingStart || pendingStart.program !== program) {
     return (

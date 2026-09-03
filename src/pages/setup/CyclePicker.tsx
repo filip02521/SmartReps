@@ -249,6 +249,9 @@ export default function CyclePicker() {
         await enqueueSync('max_tests', 'insert', { ...testRecord, id: testId })
       }
 
+      const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+      scheduleAchievementCheck()
+
       advancingRef.current = true
       setPendingStart({
         program,

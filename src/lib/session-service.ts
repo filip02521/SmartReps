@@ -164,6 +164,8 @@ export async function finalizeSuccessfulDay(
     }
     markFirstWorkoutAndTrack(true, session.id)
     void schedulePostWorkoutSync()
+    const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+    scheduleAchievementCheck()
     return
   }
 
@@ -182,6 +184,8 @@ export async function finalizeSuccessfulDay(
   finalizedProgressKeys.add(key)
   markFirstWorkoutAndTrack(true, session.id)
   void schedulePostWorkoutSync()
+  const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+  scheduleAchievementCheck()
 }
 
 export async function finalizeFailedDay(

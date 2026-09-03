@@ -114,6 +114,34 @@ html[data-offline='1'] .safe-header {
   100% { transform: translateY(120px) scale(0.3); opacity: 0; }
 }
 
+@keyframes sr-ach-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--sr-brand-primary) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+
+.sr-ach-pulse {
+  animation: sr-ach-pulse 600ms ease-out 1;
+}
+
+@keyframes sr-ach-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.sr-ach-in {
+  animation: sr-ach-in 280ms ease-out;
+}
+
 @keyframes sr-loader-rotate {
   to { transform: rotate(360deg); }
 }

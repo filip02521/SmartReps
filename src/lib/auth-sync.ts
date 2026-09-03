@@ -285,6 +285,14 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
       useAppStore.getState().setLastSyncFailureReason(null)
       await completeOnboardingIfSynced()
       track('sync_ok')
+      try {
+        const { pullAchievementsFromCloud } = await import('@/lib/achievements/sync')
+        const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+        await pullAchievementsFromCloud()
+        scheduleAchievementCheck()
+      } catch {
+        /* best-effort */
+      }
     } else {
       if (reason) useAppStore.getState().setLastSyncFailureReason(reason)
       track('sync_failed', { errors: finalResult.errors, reason: reason ?? 'unknown' })

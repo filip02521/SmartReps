@@ -105,11 +105,26 @@ export async function getProgramStats(
   }
 }
 
-export function getWeekKey(d: Date): string {
-  return `${d.getFullYear()}-W${getWeekNumber(d)}`
+/** Local Monday 00:00 — shared with heatmap (Pn–Nd) and best-streak. */
+export function startOfLocalWeek(d: Date): Date {
+  const cursor = new Date(d)
+  cursor.setHours(0, 0, 0, 0)
+  const day = cursor.getDay()
+  const toMonday = day === 0 ? -6 : 1 - day
+  cursor.setDate(cursor.getDate() + toMonday)
+  return cursor
 }
 
-export function computeStreakWeeks(passedSessions: LocalWorkoutSession[]): number {
+/** Stable week key = local Monday date (YYYY-MM-DD). */
+export function getWeekKey(d: Date): string {
+  const mon = startOfLocalWeek(d)
+  const y = mon.getFullYear()
+  const m = String(mon.getMonth() + 1).padStart(2, '0')
+  const day = String(mon.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+export function computeStreakWeeks(passedSessions: LocalWorkoutSession[], now = new Date()): number {
   if (!passedSessions.length) return 0
 
   const weeksWithTraining = new Set<string>()
@@ -118,8 +133,7 @@ export function computeStreakWeeks(passedSessions: LocalWorkoutSession[]): numbe
   }
 
   let streak = 0
-  const cursor = new Date()
-  cursor.setHours(0, 0, 0, 0)
+  const cursor = startOfLocalWeek(now)
 
   for (let i = 0; i < 104; i++) {
     const key = getWeekKey(cursor)
@@ -132,13 +146,6 @@ export function computeStreakWeeks(passedSessions: LocalWorkoutSession[]): numbe
   }
 
   return streak
-}
-
-function getWeekNumber(d: Date): number {
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
-  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
-  return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
 }
 
 export async function getProgramRecords(program: Program): Promise<{

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { dismissAchievementUi } from './helpers/achievements'
 
 async function seedOnboarded(page: import('@playwright/test').Page) {
   await page.addInitScript(() => {
@@ -679,6 +680,7 @@ test.describe('custom plans smoke', () => {
     )
 
     await page.goto('/progress?tab=custom&view=history')
+    await dismissAchievementUi(page)
     await expect(page.getByText('E2E history plan')).toBeVisible({ timeout: 15_000 })
     await page.getByText('E2E history plan').click()
     await expect(page.getByText('Dzień niezaliczony')).toBeVisible({ timeout: 15_000 })

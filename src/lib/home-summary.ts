@@ -56,6 +56,7 @@ export type TipKind =
   | 'login_backup'
   | 'habit_zero'
   | 'habit_met'
+  | 'achievement'
 
 export type HomeTipModel = {
   id: string
@@ -75,6 +76,7 @@ export type PickTipOpts = {
   enabledProgramCount: number
   showLoginBackup?: boolean
   dismissedHabitMetTip?: boolean
+  unseenAchievements?: number
 }
 
 export type TipSuppression = {
@@ -419,6 +421,22 @@ export function pickTip(
     }
   }
 
+  const unseenAch = opts?.unseenAchievements ?? 0
+  if (unseenAch > 0 && !dismissed.has('achievement-unseen')) {
+    return {
+      id: 'achievement-unseen',
+      kind: 'achievement',
+      title:
+        unseenAch === 1
+          ? pl.achievementsHomeTipTitle
+          : pl.achievementsHomeTipTitleMany(unseenAch),
+      message: pl.achievementsHomeTipBody,
+      dismissible: true,
+      actionLabel: pl.achievementsHomeTipCta,
+      navigateTo: '/progress?tab=achievements',
+    }
+  }
+
   if (sessions14d === 0 && !dismissed.has('habit-zero')) {
     const active = cards.find(activeTrainable)
     if (active) {
@@ -631,6 +649,9 @@ export async function loadHomeDashboard(
       enabledProgramCount: enabledPrograms.length,
       showLoginBackup: opts?.showLoginBackup,
       dismissedHabitMetTip: opts?.dismissedHabitMetTip,
+      unseenAchievements: await import('@/lib/achievements/store').then((m) =>
+        m.countUnseenUnlocks(),
+      ),
     },
   )
 

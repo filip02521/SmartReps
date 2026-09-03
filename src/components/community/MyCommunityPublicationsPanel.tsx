@@ -4,12 +4,20 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { EmptyState, ErrorBanner, FeedbackBanner, SkeletonCard } from '@/components/ux/Feedback'
 import { CommunityPlanCard } from '@/components/community/CommunityPlanCard'
+import { CommunityImpactStrip } from '@/components/achievements/CommunityImpactStrip'
 import { pl } from '@/i18n/pl'
 import { useOnline } from '@/hooks/useOnline'
 import {
   listMyCommunityPublications,
   type CommunityPublicationRow,
 } from '@/lib/community-api'
+import { fetchAuthorImpact } from '@/lib/achievements/community-impact'
+import { emptyImpact } from '@/lib/achievements/snapshot'
+import type { AuthorImpactStats, AchievementId } from '@/lib/achievements/types'
+import { buildAchievementSnapshot } from '@/lib/achievements/snapshot'
+import { pickInProgress } from '@/lib/achievements/evaluate'
+import { getAllUnlocks } from '@/lib/achievements/store'
+import { scheduleAchievementCheck } from '@/lib/achievements/schedule'
 
 const MY_CACHE_KEY = 'smartreps-community-my-pubs'
 
@@ -38,6 +46,12 @@ export function MyCommunityPublicationsPanel() {
   const [rows, setRows] = useState<CommunityPublicationRow[]>(() => readMyCache())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [impact, setImpact] = useState<AuthorImpactStats>(emptyImpact())
+  const [nextAch, setNextAch] = useState<{
+    id: AchievementId
+    current: number
+    target: number
+  } | null>(null)
 
   const load = useCallback(async () => {
     if (!online) {
@@ -51,6 +65,15 @@ export function MyCommunityPublicationsPanel() {
       const data = await listMyCommunityPublications()
       setRows(data)
       writeMyCache(data)
+      scheduleAchievementCheck()
+      const imp = await fetchAuthorImpact()
+      setImpact(imp)
+      const snap = await buildAchievementSnapshot({ impact: imp })
+      const unlocks = await getAllUnlocks()
+      const next = pickInProgress(snap, new Set(unlocks.map((u) => u.id)), 1, {
+        track: 'catalog',
+      })[0] ?? null
+      setNextAch(next)
     } catch {
       const cached = readMyCache()
       if (cached.length === 0) setError(pl.communityLoadError)
@@ -82,6 +105,10 @@ export function MyCommunityPublicationsPanel() {
       </Button>
 
       <h2 className="sr-text-h3 text-[var(--sr-text-primary)]">{pl.communityMyPublications}</h2>
+
+      {!loading && (impact.likeTotal > 0 || impact.importTotal > 0 || impact.trainedTotal > 0 || rows.length > 0) && (
+        <CommunityImpactStrip impact={impact} nextAchievement={nextAch} />
+      )}
 
       {!online && rows.length > 0 && (
         <FeedbackBanner variant="info" message={pl.communityCachedOffline} />

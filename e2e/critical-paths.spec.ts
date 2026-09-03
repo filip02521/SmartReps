@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { dismissAchievementUi } from './helpers/achievements'
 
 async function dismissRestOverlay(page: Page) {
   const dialog = page.getByRole('dialog', { name: 'Przerwa' })
@@ -350,6 +351,7 @@ test.describe('SmartReps routing critical paths', () => {
 
     await page.getByRole('button', { name: 'Wróć do SmartReps' }).click()
     await expect(page).toHaveURL('/', { timeout: 15_000 })
+    await dismissAchievementUi(page)
     await expect(page.locator('[data-tabs="1"]')).toBeVisible()
     await expect
       .poll(async () => page.evaluate(() => document.body.style.overflow))

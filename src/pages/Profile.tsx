@@ -11,6 +11,7 @@ import { Sheet } from '@/components/ui/Sheet'
 import { SkeletonCard } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { AccountHero } from '@/components/profile/AccountHero'
+import { ProfileAchievementsSection } from '@/components/achievements/ProfileAchievementsSection'
 import { ProgramSettingsCard } from '@/components/profile/ProgramSettingsCard'
 import { ProfilePreferences } from '@/components/profile/ProfilePreferences'
 import { ProfileDataSection } from '@/components/profile/ProfileDataSection'
@@ -317,6 +318,8 @@ export default function ProfilePage() {
           onLogout={() => setShowLogoutConfirm(true)}
         />
       </PageSection>
+
+      <ProfileAchievementsSection />
 
       <PageSection title={pl.programs} className={SECTION}>
         {showProgramsLoading ? (

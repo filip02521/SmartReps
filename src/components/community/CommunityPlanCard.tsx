@@ -52,6 +52,9 @@ export function CommunityPlanCard({
               <p className="font-semibold text-[var(--sr-text-primary)]">{row.title}</p>
               <div className="flex flex-wrap gap-1">
                 {isOwn ? <Badge variant="default">{pl.communityYourPlan}</Badge> : null}
+                {row.trained_count > 0 ? (
+                  <Badge variant="success">{pl.communityTrainedBadge}</Badge>
+                ) : null}
                 {showStatus ? (
                   <Badge variant={row.status === 'published' ? 'success' : 'default'}>
                     {row.status === 'published'

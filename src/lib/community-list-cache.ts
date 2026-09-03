@@ -69,7 +69,7 @@ export function findCommunityPublicationInListCaches(
 /** Keep list counts/order in sync after like/import without waiting for TTL. */
 export function patchCommunityPublicationInCaches(
   publicationId: string,
-  patch: Partial<Pick<CommunityPublicationRow, 'like_count' | 'import_count' | 'status'>>,
+  patch: Partial<Pick<CommunityPublicationRow, 'like_count' | 'import_count' | 'trained_count' | 'status'>>,
 ): void {
   for (const [k, entry] of cache.entries()) {
     const idx = entry.rows.findIndex((r) => r.id === publicationId)

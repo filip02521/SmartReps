@@ -23,6 +23,7 @@ import PrivacyPage from '@/pages/legal/Privacy'
 import TermsPage from '@/pages/legal/Terms'
 import { ToastHost } from '@/components/ux/Toast'
 import { AccountSwitchGate } from '@/components/ux/AccountSwitchGate'
+import { AchievementHost } from '@/components/achievements/AchievementHost'
 
 const ProgressPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Progress')))
 const PlansPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Plans')))
@@ -51,6 +52,7 @@ export default function App() {
       <ToastHost />
       <AuthBridge />
       <AccountSwitchGate />
+      <AchievementHost />
       <GlobalOfflineBar />
       <Routes>
         <Route path="/privacy" element={<PrivacyPage />} />

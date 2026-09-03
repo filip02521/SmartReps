@@ -18,6 +18,7 @@ export type CommunityPublicationRow = {
   author_display_name: string
   like_count: number
   import_count: number
+  trained_count: number
   content_version: number
   status: CommunityPublicationStatus
   published_at: string | null
@@ -49,6 +50,7 @@ function mapRow(row: Record<string, unknown>): CommunityPublicationRow {
     author_display_name: String(row.author_display_name),
     like_count: Number(row.like_count ?? 0),
     import_count: Number(row.import_count ?? 0),
+    trained_count: Number(row.trained_count ?? 0),
     content_version: Number(row.content_version ?? 1),
     status: row.status as CommunityPublicationStatus,
     published_at: (row.published_at as string | null) ?? null,
@@ -58,7 +60,7 @@ function mapRow(row: Record<string, unknown>): CommunityPublicationRow {
 }
 
 const LIST_SELECT =
-  'id, author_id, source_custom_plan_id, slug, title, description, tags, snapshot_json, author_display_name, like_count, import_count, content_version, status, published_at, first_published_at, updated_at'
+  'id, author_id, source_custom_plan_id, slug, title, description, tags, snapshot_json, author_display_name, like_count, import_count, trained_count, content_version, status, published_at, first_published_at, updated_at'
 
 export async function listCommunityPublications(opts: {
   sort: CommunitySort
@@ -159,7 +161,9 @@ export async function publishCommunityPlan(args: {
     p_author_display_name: args.authorDisplayName,
   })
   if (error) throw error
-  return mapRow(data as Record<string, unknown>)
+  const row = mapRow(data as Record<string, unknown>)
+  void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
+  return row
 }
 
 export async function unpublishCommunityPlan(publicationId: string): Promise<CommunityPublicationRow> {
