@@ -3,7 +3,6 @@ import { Plus } from 'lucide-react'
 import {
   ACHIEVEMENT_BY_ID,
   resolveDisplayRarity,
-  resolveDisplayGlyph,
 } from '@/lib/achievements/catalog'
 import {
   SHOWCASE_SLOT_COUNT,
@@ -16,12 +15,11 @@ import {
   achievementTitle,
   achievementRarityLabel,
 } from '@/lib/achievements/copy'
-import { GLYPHS } from './AchievementTile'
+import { AchievementTile } from './AchievementTile'
 import { Button } from '@/components/ui/Button'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
-import { HelpCircle } from 'lucide-react'
 
 export function ProfileAchievementCase({
   unlocks,
@@ -77,35 +75,45 @@ export function ProfileAchievementCase({
                 const unlock = id ? unlocks.find((u) => u.id === id) : undefined
                 const tierLevel = unlock?.tierLevel ?? null
                 const rarity = def ? resolveDisplayRarity(def, null, tierLevel) : null
-                const glyph = def ? resolveDisplayGlyph(def, tierLevel) : null
-                const Icon = glyph ? (GLYPHS[glyph] ?? HelpCircle) : HelpCircle
                 const hasTiers = Boolean(def?.tiers && def.tiers.length > 0)
                 const maxTier = def?.tiers?.length ?? 0
 
                 return (
                   <li key={i} className="sr-ach-case__slot">
                     {def ? (
-                      <button
-                        type="button"
+                      <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => onOpenDetail(def.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            onOpenDetail(def.id)
+                          }
+                        }}
                         className={cn(FOCUS_RING, 'sr-ach-case__item')}
                         aria-label={achievementTitle(def.id)}
                       >
-                        <span className="sr-ach-case__icon-wrap">
-                          <Icon size={22} strokeWidth={1.75} className="text-[var(--sr-text-primary)]" aria-hidden />
-                        </span>
+                        <AchievementTile
+                          def={def}
+                          unlocked
+                          tierLevel={tierLevel}
+                          size="sm"
+                          showCaption={false}
+                          onClick={() => onOpenDetail(def.id)}
+                        />
                         <span className="sr-ach-case__label">
                           {achievementTitle(def.id)}
                         </span>
                         <span className="sr-ach-case__rarity">
-                          {achievementRarityLabel(rarity!)}
+                          {rarity ? achievementRarityLabel(rarity) : ''}
                         </span>
                         {hasTiers && tierLevel ? (
                           <span className="sr-ach-case__tier">
                             {pl.achievementsTierLevel(tierLevel, maxTier)}
                           </span>
                         ) : null}
-                      </button>
+                      </div>
                     ) : (
                       <button
                         type="button"

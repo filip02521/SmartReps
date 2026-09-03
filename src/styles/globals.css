@@ -114,6 +114,8 @@ html[data-offline='1'] .safe-header {
   100% { transform: translateY(120px) scale(0.3); opacity: 0; }
 }
 
+/* ── Achievement tile visuals ── */
+
 @keyframes sr-ach-pulse {
   0% {
     box-shadow: 0 0 0 0 color-mix(in srgb, var(--sr-brand-primary) 45%, transparent);
@@ -127,20 +129,155 @@ html[data-offline='1'] .safe-header {
   animation: sr-ach-pulse 600ms ease-out 1;
 }
 
-/* Diamond tier — subtle continuous shimmer for the highest achievement level */
-@keyframes sr-ach-diamond-shimmer {
-  0%, 100% { box-shadow: 0 0 24px var(--sr-brand-primary-muted); }
-  50% { box-shadow: 0 0 32px color-mix(in srgb, var(--sr-brand-primary) 40%, transparent); }
+/* ── Tier rings (outer gradient border) ── */
+
+/* Common — neutral */
+/* (no class needed — uses bg-[var(--sr-border-subtle)] inline) */
+
+/* Rare — subtle brand-tinted solid ring */
+.sr-ach-ring-rare {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--sr-brand-primary) 40%, var(--sr-border-strong)),
+    color-mix(in srgb, var(--sr-brand-primary) 25%, var(--sr-border-subtle))
+  );
 }
 
-.sr-ach-diamond {
-  animation: sr-ach-diamond-shimmer 3s ease-in-out infinite;
+/* Bronze tier — warm subtle ring */
+.sr-ach-ring-bronze {
+  background: linear-gradient(
+    135deg,
+    #b87333,
+    color-mix(in srgb, #b87333 50%, var(--sr-border-subtle))
+  );
 }
 
+/* Silver tier — cool metallic ring */
+.sr-ach-ring-silver {
+  background: linear-gradient(
+    135deg,
+    #c0c8d4,
+    color-mix(in srgb, #c0c8d4 50%, var(--sr-border-subtle))
+  );
+}
+
+/* Gold tier — warm gold gradient ring */
+.sr-ach-ring-gold {
+  background: linear-gradient(
+    135deg,
+    #f59e0b,
+    #fbbf24
+  );
+}
+
+/* Legendary (non-tiered) — brand gradient ring */
+.sr-ach-ring-legendary {
+  background: var(--sr-brand-gradient);
+}
+
+/* Diamond tier — animated rotating gradient ring */
+@property --sr-diamond-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.sr-ach-ring-diamond {
+  background: conic-gradient(
+    from var(--sr-diamond-angle),
+    var(--sr-brand-primary),
+    var(--sr-brand-secondary),
+    #a78bfa,
+    var(--sr-brand-primary)
+  );
+}
+
+/* ── Glow shadows ── */
+
+.sr-ach-glow-rare {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--sr-brand-primary) 20%, transparent);
+}
+
+.sr-ach-glow-silver {
+  box-shadow: 0 0 14px color-mix(in srgb, #c0c8d4 30%, transparent);
+}
+
+.sr-ach-glow-gold {
+  box-shadow: 0 0 18px color-mix(in srgb, #f59e0b 35%, transparent);
+}
+
+.sr-ach-glow-legendary {
+  box-shadow: var(--sr-shadow-glow);
+}
+
+.sr-ach-glow-diamond {
+  box-shadow:
+    0 0 20px color-mix(in srgb, var(--sr-brand-primary) 40%, transparent),
+    0 0 40px color-mix(in srgb, var(--sr-brand-secondary) 20%, transparent);
+}
+
+/* ── Animations ── */
+
+/* Legendary — slow subtle glow breathing */
+@keyframes sr-ach-anim-legendary {
+  0%, 100% {
+    box-shadow: 0 0 20px color-mix(in srgb, var(--sr-brand-primary) 25%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 28px color-mix(in srgb, var(--sr-brand-primary) 40%, transparent);
+  }
+}
+
+.sr-ach-anim-legendary {
+  animation: sr-ach-anim-legendary 3.5s ease-in-out infinite;
+}
+
+/* Gold tier — gentle warm pulse */
+@keyframes sr-ach-anim-gold {
+  0%, 100% {
+    box-shadow: 0 0 14px color-mix(in srgb, #f59e0b 25%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 22px color-mix(in srgb, #f59e0b 40%, transparent);
+  }
+}
+
+.sr-ach-anim-gold {
+  animation: sr-ach-anim-gold 3s ease-in-out infinite;
+}
+
+/* Diamond tier — rotating gradient + shimmer glow */
+@keyframes sr-ach-anim-diamond-rotate {
+  to { --sr-diamond-angle: 360deg; }
+}
+
+@keyframes sr-ach-anim-diamond-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 20px color-mix(in srgb, var(--sr-brand-primary) 35%, transparent),
+      0 0 36px color-mix(in srgb, var(--sr-brand-secondary) 15%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 28px color-mix(in srgb, var(--sr-brand-primary) 50%, transparent),
+      0 0 52px color-mix(in srgb, var(--sr-brand-secondary) 25%, transparent);
+  }
+}
+
+.sr-ach-anim-diamond {
+  animation:
+    sr-ach-anim-diamond-rotate 4s linear infinite,
+    sr-ach-anim-diamond-glow 3s ease-in-out infinite;
+}
+
+/* Reduced motion — disable all looping animations */
 @media (prefers-reduced-motion: reduce) {
-  .sr-ach-diamond { animation: none; }
-  .sr-ach-pulse { animation: none; }
-  .sr-ach-in { animation: none; }
+  .sr-ach-anim-legendary,
+  .sr-ach-anim-gold,
+  .sr-ach-anim-diamond,
+  .sr-ach-pulse {
+    animation: none;
+  }
 }
 
 @keyframes sr-ach-in {
@@ -238,7 +375,7 @@ html[data-offline='1'] .safe-header {
   }
 }
 
-/* Each item: fixed structure — icon (fixed) + label (1 line) + rarity (1 line) + tier (optional) */
+/* Each item: fixed structure — tile (fixed) + label (1 line) + rarity (1 line) + tier (optional) */
 .sr-ach-case__item {
   display: flex;
   width: 100%;
@@ -250,6 +387,7 @@ html[data-offline='1'] .safe-header {
   border: none;
   cursor: pointer;
   text-align: center;
+  border-radius: var(--sr-radius-md);
 }
 
 .sr-ach-case__icon-wrap {
