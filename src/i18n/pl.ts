@@ -189,6 +189,8 @@ export const pl = {
   previewDayPlanHint: 'Dotknij ćwiczenia, żeby przejść — gdy maszyna jest zajęta.',
   previewWorkoutTitle: 'Podgląd treningu',
   previewStartWorkout: 'Rozpocznij trening',
+  previewChooseDay: 'Wybierz dzień',
+  previewCurrentDay: 'Bieżący',
   previewSetsLabel: 'Serie',
   previewCustomSummary: (exercises: number, sets: number) => {
     const exLabel = exercises === 1 ? '1 ćwiczenie' : `${exercises} ćwiczeń`

@@ -10,9 +10,10 @@ import { FOCUS_RING } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
 import { formatPrescriptionTarget } from '@/lib/custom-prescription-format'
 import { getGroupForExercise } from '@/lib/custom-workout-nav'
-import { setPendingDayOverride } from '@/lib/pending-day-override'
+import { setPendingDayOverride, setPendingDayNumber } from '@/lib/pending-day-override'
 import type { SetTarget } from '@/data/plans/types'
 import type {
+  CustomPlan,
   ExerciseDefinition,
   ExerciseGroup,
   PlanDay,
@@ -133,6 +134,7 @@ export function CustomWorkoutPreviewSheet({
   dayNumber,
   originalDay,
   exercises,
+  plan,
   onStart,
 }: {
   open: boolean
@@ -142,17 +144,32 @@ export function CustomWorkoutPreviewSheet({
   dayNumber: number
   originalDay: PlanDay
   exercises: Map<string, ExerciseDefinition>
+  plan?: CustomPlan
   onStart: () => void
 }) {
   const weightUnit = useAppStore((s) => s.settings.weightUnit)
+  const [selectedDayNumber, setSelectedDayNumber] = useState(dayNumber)
   const [editedDay, setEditedDay] = useState<PlanDay>(() => cloneDay(originalDay))
 
-  // Reset edits when sheet reopens with a new original day.
+  // Reset edits and selection when sheet reopens.
   useEffect(() => {
-    if (open) setEditedDay(cloneDay(originalDay))
-  }, [open, originalDay])
+    if (open) {
+      setEditedDay(cloneDay(originalDay))
+      setSelectedDayNumber(dayNumber)
+    }
+  }, [open, originalDay, dayNumber])
+
+  // When user picks a different day, swap the edited day to that plan day.
+  useEffect(() => {
+    if (!open || !plan) return
+    if (selectedDayNumber === dayNumber) return
+    const newDay = plan.days.find((d) => d.dayNumber === selectedDayNumber)
+    if (newDay) setEditedDay(cloneDay(newDay))
+  }, [selectedDayNumber, plan, open, dayNumber])
 
   const dirty = !daysEqual(originalDay, editedDay)
+  const availableDays = plan?.days.map((d) => d.dayNumber).sort((a, b) => a - b) ?? [dayNumber]
+  const dayChanged = selectedDayNumber !== dayNumber
 
   function handleAddSet(exerciseIndex: number) {
     const pe = editedDay.exercises[exerciseIndex]
@@ -198,6 +215,9 @@ export function CustomWorkoutPreviewSheet({
   }
 
   function handleStart() {
+    if (dayChanged) {
+      setPendingDayNumber(planId, selectedDayNumber)
+    }
     if (dirty) {
       setPendingDayOverride(planId, editedDay)
     }
@@ -214,10 +234,41 @@ export function CustomWorkoutPreviewSheet({
       className="max-w-md"
     >
       <div className="flex flex-col gap-4 pb-4">
+        {/* Day selector — only if plan has multiple days */}
+        {availableDays.length > 1 && (
+          <div>
+            <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+              {pl.previewChooseDay}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {availableDays.map((dn) => (
+                <button
+                  key={dn}
+                  type="button"
+                  onClick={() => setSelectedDayNumber(dn)}
+                  className={cn(
+                    'min-h-9 rounded-[var(--sr-radius-sm)] border px-3 py-1.5 text-sm font-medium tabular-nums transition-colors active:scale-95',
+                    FOCUS_RING,
+                    dn === selectedDayNumber
+                      ? 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)]'
+                      : 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-secondary)] hover:border-[var(--sr-border-strong)]',
+                  )}
+                  aria-pressed={dn === selectedDayNumber}
+                >
+                  {pl.planDayLabel(dn)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-4 py-3">
           <p className="sr-text-overline text-[var(--sr-text-muted)]">
-            {pl.planDayLabel(dayNumber)}
+            {pl.planDayLabel(selectedDayNumber)}
+            {dayChanged && (
+              <span className="ml-1.5 text-[var(--sr-brand-primary)]">· {pl.previewCurrentDay}</span>
+            )}
           </p>
           <p className="mt-1 sr-text-h3 text-[var(--sr-text-primary)]">{planName}</p>
           <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">

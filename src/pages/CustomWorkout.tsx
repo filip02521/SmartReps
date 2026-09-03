@@ -90,7 +90,7 @@ import { useKeepScreenAwake } from '@/hooks/useKeepScreenAwake'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { useAppStore } from '@/stores/app-store'
 import { useCustomWorkoutStore } from '@/stores/custom-workout-store'
-import { takePendingDayOverride } from '@/lib/pending-day-override'
+import { takePendingDayOverride, takePendingDayNumber } from '@/lib/pending-day-override'
 
 function parseRestTimerJson(json: string | null): RestTimerState | null {
   const reconciled = reconcileRestTimerJson(json)
@@ -338,6 +338,7 @@ export default function CustomWorkoutPage() {
       // Consume any pending preview override early — before early returns —
       // so a stale override isn't applied on a later navigation to this plan.
       const pendingOverride = takePendingDayOverride(planId)
+      const pendingDayNumberOverride = takePendingDayNumber(planId)
       setLoadError(null)
       setLoadErrorKind(null)
       setLoadErrorDayNumber(null)
@@ -490,7 +491,8 @@ export default function CustomWorkoutPage() {
         await abandonCustomWorkout(planId, active.sessionId)
       }
 
-      const dayNumber = progress.status === 'cycle_complete' ? 1 : progress.currentDay
+      const progressDayNumber = progress.status === 'cycle_complete' ? 1 : progress.currentDay
+      const dayNumber = pendingDayNumberOverride ?? progressDayNumber
       const dayPlan = p.days.find((d) => d.dayNumber === dayNumber) ?? p.days[0]
       if (!dayPlan || dayPlan.exercises.length === 0) {
         setLoadError(pl.customWorkoutMissingDay)

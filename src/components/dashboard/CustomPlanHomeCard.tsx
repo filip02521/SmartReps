@@ -155,6 +155,7 @@ export function CustomPlanHomeCard({
           dayNumber={preview.dayNumber}
           originalDay={preview.day}
           exercises={preview.exercises}
+          plan={preview.plan}
           onStart={handleStart}
         />
       )}
