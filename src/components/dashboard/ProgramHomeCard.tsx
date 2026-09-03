@@ -23,6 +23,8 @@ import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import { getCycleDayStatus } from '@/lib/cycle-progress'
 import { getCycleById } from '@/data/plans'
 import { useAppStore } from '@/stores/app-store'
+import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 import type { ProgramCardModel, TipSuppression } from '@/lib/home-summary'
 
 function toneToBadge(
@@ -139,7 +141,10 @@ export function ProgramHomeCard({
           aria-label={pl.menuProgram}
           aria-haspopup="dialog"
           aria-expanded={showMenu}
-          className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] hover:bg-[var(--sr-bg-surface)]"
+          className={cn(
+            'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+            FOCUS_RING,
+          )}
           onClick={() => setShowMenu(true)}
         >
           <MoreVertical size={20} />

@@ -316,7 +316,7 @@ export function CustomProgressPanel({
               />
 
               <Button
-                className="mt-3"
+                className="mt-4"
                 size="touch"
                 fullWidth
                 onClick={() => navigate(`/workout/custom/${customCyclePlan.id}`)}

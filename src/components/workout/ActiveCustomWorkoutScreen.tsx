@@ -49,7 +49,7 @@ import { kgToDisplay, displayToKg, weightUnitLabel } from '@/lib/weight-units'
 import { NumericDraftInput } from '@/components/ui/NumericDraftInput'
 
 const WORKOUT_STEPPER_BTN =
-  'flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-primary)] disabled:opacity-40'
+  'flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-primary)] transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-95 disabled:opacity-40 disabled:active:scale-100'
 
 function WorkoutStepperButton({
   ariaLabel,
@@ -347,8 +347,8 @@ function CustomSetCountStepper({
       <button
         type="button"
         className={cn(
-          'flex w-9 items-center justify-center text-[var(--sr-text-secondary)]',
-          'disabled:opacity-40',
+          'flex w-9 items-center justify-center text-[var(--sr-text-secondary)] transition-colors hover:text-[var(--sr-text-primary)] active:scale-90',
+          'disabled:opacity-40 disabled:active:scale-100',
           FOCUS_RING,
         )}
         disabled={!canRemove || !onRemove}
@@ -363,8 +363,8 @@ function CustomSetCountStepper({
       <button
         type="button"
         className={cn(
-          'flex w-9 items-center justify-center text-[var(--sr-text-secondary)]',
-          'disabled:opacity-40',
+          'flex w-9 items-center justify-center text-[var(--sr-text-secondary)] transition-colors hover:text-[var(--sr-text-primary)] active:scale-90',
+          'disabled:opacity-40 disabled:active:scale-100',
           FOCUS_RING,
         )}
         disabled={!canAdd || !onAdd}
@@ -1062,7 +1062,10 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
         <button
           type="button"
           onClick={onBack}
-          className="flex min-h-11 min-w-11 items-center justify-center text-[var(--sr-text-secondary)]"
+          className={cn(
+            'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+            FOCUS_RING,
+          )}
           aria-label={pl.back}
         >
           <ArrowLeft size={22} />
@@ -1072,7 +1075,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             <button
               type="button"
               onClick={onExerciseStats}
-              className="mx-auto flex max-w-full min-h-11 items-center justify-center gap-1.5 rounded-[var(--sr-radius-sm)] px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
+              className="mx-auto flex max-w-full min-h-11 items-center justify-center gap-1.5 rounded-[var(--sr-radius-sm)] px-2 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
               aria-label={pl.exerciseDetailOpenFor(exerciseDef.name)}
             >
               <span className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
@@ -1102,7 +1105,10 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           aria-label={pl.menuWorkout}
           aria-expanded={showMenu}
           onClick={onToggleMenu}
-          className="flex min-h-11 min-w-11 items-center justify-center text-[var(--sr-text-secondary)]"
+          className={cn(
+            'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+            FOCUS_RING,
+          )}
         >
           <MoreVertical size={20} />
         </button>
@@ -1191,7 +1197,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
       {showHint && (
         <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary-muted)] px-3 py-2 text-sm">
           {pl.customWorkoutHint}
-          <button type="button" className="ml-2 min-h-11 underline" onClick={onDismissHint}>
+          <button type="button" className="ml-2 min-h-11 underline underline-offset-2 transition-colors hover:text-[var(--sr-text-primary)] active:scale-95" onClick={onDismissHint}>
             {pl.ok}
           </button>
         </div>

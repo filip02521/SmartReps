@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { PageSection } from '@/components/ui/PageSection'
-import { CheckboxField, TextField } from '@/components/ui/TextField'
+import { TextField } from '@/components/ui/TextField'
+import { SwitchRow } from '@/components/ui/Switch'
 import { Button } from '@/components/ui/Button'
 import { pl } from '@/i18n/pl'
 import type { UserSettings } from '@/stores/app-store'
@@ -96,7 +97,7 @@ export function ProfilePreferences({
           value={theme}
           onChange={onThemeChange}
         />
-        <CheckboxField
+        <SwitchRow
           id="high-contrast"
           className="mt-4"
           label={pl.highContrast}
@@ -119,24 +120,23 @@ export function ProfilePreferences({
             onChange={onWeightUnitChange}
           />
         </div>
-        <div className="flex flex-col gap-1">
-          <CheckboxField
+        <div className="flex flex-col">
+          <SwitchRow
             id="timer-sound"
             label={pl.timerSound}
             description={pl.timerSoundHint}
             checked={timerSound}
             onChange={onTimerSoundChange}
           />
-          <CheckboxField
+          <SwitchRow
             id="timer-vibration"
             label={pl.timerVibration}
             description={pl.timerVibrationHint}
             checked={timerVibration}
             onChange={onTimerVibrationChange}
           />
-          <CheckboxField
+          <SwitchRow
             id="keep-screen-on"
-            className="mt-2"
             label={pl.keepScreenOn}
             description={pl.keepScreenOnHint}
             checked={keepScreenOn}
@@ -146,8 +146,8 @@ export function ProfilePreferences({
       </PageSection>
 
       <PageSection title={pl.remindersSection} className={SECTION}>
-        <div className="flex flex-col gap-1">
-          <CheckboxField
+        <div className="flex flex-col">
+          <SwitchRow
             id="push-notifications"
             label={pl.pushNotifications}
             description={pushDescription}
@@ -155,9 +155,8 @@ export function ProfilePreferences({
             disabled={pushDisabled}
             onChange={onPushChange}
           />
-          <CheckboxField
+          <SwitchRow
             id="workout-reminders"
-            className="mt-2"
             label={pl.workoutReminders}
             description={pl.workoutRemindersHint}
             checked={workoutReminders && !pushNotifications}

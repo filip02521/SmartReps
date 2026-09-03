@@ -250,7 +250,7 @@ export function AchievementTile({
       aria-label={title}
       className={cn(
         FOCUS_RING,
-        'flex flex-col items-center gap-1.5 rounded-[var(--sr-radius-md)] text-center',
+        'flex flex-col items-center gap-1.5 rounded-[var(--sr-radius-md)] text-center transition-transform active:scale-95',
         onClick && 'cursor-pointer',
       )}
     >

@@ -53,7 +53,7 @@ export function ExerciseLibraryRow({
       <button
         type="button"
         className={cn(
-          'flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-[var(--sr-radius-sm)] text-left',
+          'flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-[0.99]',
           FOCUS_RING,
         )}
         onClick={() => {
@@ -89,7 +89,7 @@ export function ExerciseLibraryRow({
           aria-label={pl.editExercise}
           className={cn(
             'flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)]',
-            'text-[var(--sr-text-secondary)] hover:bg-[var(--sr-bg-elevated)]',
+            'text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-elevated)] hover:text-[var(--sr-text-primary)] active:scale-95',
             FOCUS_RING,
           )}
           onClick={(e) => {

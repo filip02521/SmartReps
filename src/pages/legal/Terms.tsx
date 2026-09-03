@@ -39,7 +39,7 @@ export default function TermsPage() {
         </p>
       </div>
       <p className="mt-8 text-sm">
-        <Link to="/privacy" className="font-medium text-[var(--sr-brand-primary)]">
+        <Link to="/privacy" className="font-medium text-[var(--sr-brand-primary)] underline-offset-4 hover:underline">
           {pl.privacyLink}
         </Link>
       </p>

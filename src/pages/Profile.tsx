@@ -5,7 +5,7 @@ import { useAppStore } from '@/stores/app-store'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { PageSection } from '@/components/ui/PageSection'
-import { CheckboxField } from '@/components/ui/TextField'
+import { Switch } from '@/components/ui/Switch'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { Sheet } from '@/components/ui/Sheet'
 import { SkeletonCard } from '@/components/ux/Feedback'
@@ -317,7 +317,7 @@ export default function ProfilePage() {
             onClick={() => setShowSettings(true)}
             className={cn(
               FOCUS_RING,
-              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] hover:bg-[var(--sr-bg-surface)]',
+              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
             )}
             aria-label={pl.settingsTitle}
           >
@@ -401,38 +401,46 @@ export default function ProfilePage() {
                     return (
                       <div
                         key={plan.id}
-                        className="flex items-start gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2.5"
+                        className="flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2.5"
                       >
                         <div className="min-w-0 flex-1">
-                          <CheckboxField
-                            id={`custom-plan-${plan.id}`}
-                            label={plan.name}
-                            description={
-                              plan.paused
-                                ? pl.planPaused
-                                : onTraining
-                                  ? pl.profileCustomOnTraining
-                                  : undefined
-                            }
-                            checked={onTraining}
-                            onChange={(checked) => {
-                              const current = settings.customPlansFilterExplicit
-                                ? [...settings.enabledCustomPlanIds]
-                                : customActivePlans.map((p) => p.id)
-                              const next = checked
-                                ? Array.from(new Set([...current, plan.id]))
-                                : current.filter((id) => id !== plan.id)
-                              setSettings({
-                                customPlansFilterExplicit: true,
-                                enabledCustomPlanIds: next,
-                              })
-                            }}
-                          />
+                          <label
+                            htmlFor={`custom-plan-${plan.id}`}
+                            className="block cursor-pointer text-sm font-medium text-[var(--sr-text-primary)]"
+                          >
+                            {plan.name}
+                          </label>
+                          {plan.paused ? (
+                            <span className="mt-0.5 block text-xs text-[var(--sr-text-muted)]">
+                              {pl.planPaused}
+                            </span>
+                          ) : onTraining ? (
+                            <span className="mt-0.5 block text-xs text-[var(--sr-text-muted)]">
+                              {pl.profileCustomOnTraining}
+                            </span>
+                          ) : null}
                         </div>
+                        <Switch
+                          id={`custom-plan-${plan.id}`}
+                          checked={onTraining}
+                          onChange={(checked) => {
+                            const current = settings.customPlansFilterExplicit
+                              ? [...settings.enabledCustomPlanIds]
+                              : customActivePlans.map((p) => p.id)
+                            const next = checked
+                              ? Array.from(new Set([...current, plan.id]))
+                              : current.filter((id) => id !== plan.id)
+                            setSettings({
+                              customPlansFilterExplicit: true,
+                              enabledCustomPlanIds: next,
+                            })
+                          }}
+                          aria-label={plan.name}
+                        />
                         <button
                           type="button"
                           className={cn(
-                            'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] hover:bg-[var(--sr-bg-elevated)]',
+                            'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-elevated)] hover:text-[var(--sr-text-primary)] active:scale-95',
                             FOCUS_RING,
                           )}
                           aria-label={pl.menuProgram}
@@ -453,10 +461,10 @@ export default function ProfilePage() {
       {/* About */}
       <PageSection title={pl.about} className="mt-8">
         <div className="flex flex-col gap-2 text-sm">
-          <Link to="/privacy" className="text-[var(--sr-brand-primary)]">
+          <Link to="/privacy" className="text-[var(--sr-brand-primary)] underline-offset-4 hover:underline">
             {pl.privacyLink}
           </Link>
-          <Link to="/terms" className="text-[var(--sr-brand-primary)]">
+          <Link to="/terms" className="text-[var(--sr-brand-primary)] underline-offset-4 hover:underline">
             {pl.termsLink}
           </Link>
         </div>

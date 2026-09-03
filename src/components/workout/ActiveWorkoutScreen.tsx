@@ -5,6 +5,8 @@ import type { SetTarget } from '@/data/plans/types'
 import type { SetResultDraft } from '@/lib/progress-engine'
 import type { RestTimerState } from '@/lib/rest-timer'
 import { pl } from '@/i18n/pl'
+import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 import { getTargetReps } from '@/lib/progress-engine'
 import {
   RepCounter,
@@ -143,7 +145,10 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         <button
           type="button"
           onClick={onBack}
-          className="flex min-h-11 min-w-11 items-center justify-center text-[var(--sr-text-secondary)]"
+          className={cn(
+            'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+            FOCUS_RING,
+          )}
           aria-label={pl.back}
         >
           <ArrowLeft size={22} />
@@ -161,7 +166,10 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           aria-label={pl.menuWorkout}
           aria-expanded={showMenu}
           onClick={onToggleMenu}
-          className="flex min-h-11 min-w-11 items-center justify-center text-[var(--sr-text-secondary)]"
+          className={cn(
+            'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+            FOCUS_RING,
+          )}
         >
           <MoreVertical size={20} />
         </button>
@@ -211,7 +219,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
       {showHint && (
         <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary-muted)] px-3 py-2 text-sm">
           {pl.workoutHint}
-          <button type="button" className="ml-2 min-h-11 underline" onClick={onDismissHint}>{pl.ok}</button>
+          <button type="button" className="ml-2 min-h-11 underline underline-offset-2 transition-colors hover:text-[var(--sr-text-primary)] active:scale-95" onClick={onDismissHint}>{pl.ok}</button>
         </div>
       )}
 

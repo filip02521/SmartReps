@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { pl } from '@/i18n/pl'
+import { FOCUS_RING } from '@/lib/ui-chrome'
+import { cn } from '@/lib/utils'
 
 export function PageHeader({
   title,
@@ -19,7 +21,10 @@ export function PageHeader({
         <button
           type="button"
           onClick={onBack}
-          className="mt-0.5 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] hover:bg-[var(--sr-bg-surface)]"
+          className={cn(
+            'mt-0.5 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+            FOCUS_RING,
+          )}
           aria-label={pl.back}
         >
           <ArrowLeft size={22} />

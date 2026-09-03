@@ -43,7 +43,7 @@ export function CustomPlanHomeCard({
         type="button"
         size="touch"
         fullWidth
-        className="mt-4"
+        className="mt-5"
         onClick={() => {
           if (model.ctaAction === 'unpause') {
             void setCustomPlanPaused(model.planId, false).then(() => onUpdated?.())

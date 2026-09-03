@@ -42,7 +42,7 @@ export function SegmentedControl<T extends string>({
           aria-selected={value === opt.value}
           disabled={disabled}
           className={cn(
-            'rounded-[var(--sr-radius-full)] font-medium transition-colors',
+            'rounded-[var(--sr-radius-full)] font-medium transition-all duration-150 active:scale-[0.97]',
             FOCUS_RING,
             stretch && 'min-w-0 flex-1',
             size === 'compact'
@@ -50,7 +50,7 @@ export function SegmentedControl<T extends string>({
               : 'min-h-11 px-4 py-2.5 text-sm',
             value === opt.value
               ? 'bg-[var(--sr-brand-primary-muted)] font-semibold text-[var(--sr-brand-primary)]'
-              : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)]',
+              : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)] hover:text-[var(--sr-text-secondary)]',
           )}
           onClick={() => onChange(opt.value)}
         >

@@ -475,7 +475,7 @@ export function ExerciseStatsIconButton({
       aria-label={label}
       className={cn(
         'flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)]',
-        'text-[var(--sr-brand-primary)] hover:bg-[var(--sr-brand-primary-muted)]',
+        'text-[var(--sr-brand-primary)] transition-colors hover:bg-[var(--sr-brand-primary-muted)] active:scale-95',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]',
       )}
       onClick={(e) => {

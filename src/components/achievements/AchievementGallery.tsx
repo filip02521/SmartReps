@@ -86,10 +86,10 @@ export function AchievementGallery({
             aria-pressed={track === value}
             className={cn(
               FOCUS_RING,
-              'min-h-9 rounded-[var(--sr-radius-md)] border px-3 py-1.5 sr-text-caption',
+              'min-h-9 rounded-[var(--sr-radius-md)] border px-3 py-1.5 sr-text-caption transition-colors active:scale-95',
               track === value
                 ? 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-text-primary)]'
-                : 'border-[var(--sr-border-subtle)] text-[var(--sr-text-secondary)]',
+                : 'border-[var(--sr-border-subtle)] text-[var(--sr-text-secondary)] hover:border-[var(--sr-border-strong)] hover:text-[var(--sr-text-primary)]',
             )}
           >
             {label}
@@ -105,7 +105,7 @@ export function AchievementGallery({
               <li key={p.id}>
                 <button
                   type="button"
-                  className={cn(FOCUS_RING, 'flex w-full flex-col gap-1.5 rounded-[var(--sr-radius-sm)] text-left')}
+                  className={cn(FOCUS_RING, 'flex w-full flex-col gap-1.5 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-[0.99]')}
                   onClick={() => void openDetail(p.id)}
                 >
                   <span className="flex items-center justify-between gap-2">

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronDown, ChevronUp, Trash2, ArrowLeft, Copy, Dumbbell } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
-import { TextField, CheckboxField } from '@/components/ui/TextField'
+import { TextField } from '@/components/ui/TextField'
+import { SwitchRow } from '@/components/ui/Switch'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { ExerciseLibraryPanel } from '@/components/plans/ExerciseLibraryPanel'
 import { CustomSetChips } from '@/components/plans/CustomSetChips'
@@ -428,7 +429,7 @@ export function CustomPlanEditor({
                   <div className="flex items-start gap-2">
                     <button
                       type="button"
-                      className={cn('min-h-11 min-w-0 flex-1 text-left', FOCUS_RING)}
+                      className={cn('min-h-11 min-w-0 flex-1 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-[0.99]', FOCUS_RING)}
                       onClick={() => {
                         if (isDayLocked(d.dayNumber)) {
                           showToast(pl.customEditBlockedActiveDay, 'error')
@@ -549,7 +550,7 @@ export function CustomPlanEditor({
               </p>
               <div className="flex flex-col gap-3">
             <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] p-3">
-              <CheckboxField
+              <SwitchRow
                 id="prog-enable"
                 label={pl.progressionEnable}
                 description={pl.progressionHint}
@@ -615,7 +616,7 @@ export function CustomPlanEditor({
                       })
                     }
                   />
-                  <CheckboxField
+                  <SwitchRow
                     id="prog-after-cycle"
                     label={pl.progressionAfterCycle}
                     checked={plan.progression.afterCycleComplete ?? true}
@@ -639,7 +640,7 @@ export function CustomPlanEditor({
             </div>
 
             <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] p-3">
-              <CheckboxField
+              <SwitchRow
                 id="deload-enable"
                 label={pl.deloadEnable}
                 description={pl.deloadHint}
@@ -815,7 +816,7 @@ export function CustomPlanEditor({
                     <div className="flex items-start gap-1">
                       <button
                         type="button"
-                        className={cn('min-h-11 min-w-0 flex-1 text-left', FOCUS_RING)}
+                        className={cn('min-h-11 min-w-0 flex-1 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-[0.99]', FOCUS_RING)}
                         onClick={() => {
                           if (!guardDayEdit(view.dayIndex)) return
                           setView({
@@ -1133,7 +1134,7 @@ export function CustomPlanEditor({
             />
 
             <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] p-3">
-              <CheckboxField
+              <SwitchRow
                 id="ex-prog-enable"
                 label={pl.progressionPerExercise}
                 description={pl.progressionPerExerciseHint}

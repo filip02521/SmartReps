@@ -119,7 +119,7 @@ export function ProfileAchievementCase({
                         type="button"
                         className={cn(
                           FOCUS_RING,
-                          'sr-ach-case__item sr-ach-case__item--empty',
+                          'sr-ach-case__item sr-ach-case__item--empty transition-transform active:scale-95',
                           unlockedCount === 0 && 'pointer-events-none opacity-50',
                         )}
                         onClick={unlockedCount > 0 ? onEditShowcase : undefined}

@@ -89,7 +89,7 @@ export function ProgramSettingsCard({
         <button
           type="button"
           className={cn(
-            'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] hover:bg-[var(--sr-bg-elevated)]',
+            'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-elevated)] hover:text-[var(--sr-text-primary)] active:scale-95',
             FOCUS_RING,
           )}
           aria-label={pl.menuProgram}

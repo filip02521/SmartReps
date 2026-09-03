@@ -44,12 +44,12 @@ export function RestSecChips({
 
   const chipClass = (active: boolean) =>
     cn(
-      'rounded-[var(--sr-radius-sm)] border font-medium',
+      'rounded-[var(--sr-radius-sm)] border font-medium transition-colors active:scale-95',
       FOCUS_RING,
       compact ? 'min-h-9 shrink-0 px-2.5 text-xs' : 'min-h-11 px-3 text-sm',
       active
         ? 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-text-primary)]'
-        : 'border-[var(--sr-border-subtle)] text-[var(--sr-text-secondary)]',
+        : 'border-[var(--sr-border-subtle)] text-[var(--sr-text-secondary)] hover:border-[var(--sr-border-strong)] hover:text-[var(--sr-text-primary)]',
     )
 
   return (

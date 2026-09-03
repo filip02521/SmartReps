@@ -126,7 +126,7 @@ export function SessionNoteCard({ sessionId }: { sessionId: string }) {
           }}
           aria-label={note ? pl.sessionNoteEdit : pl.sessionNoteInMenu}
         >
-          <Pencil size={16} className="mr-1" aria-hidden />
+          <Pencil size={16} aria-hidden />
           {note ? pl.sessionNoteEdit : pl.sessionNoteInMenu}
         </Button>
       </div>

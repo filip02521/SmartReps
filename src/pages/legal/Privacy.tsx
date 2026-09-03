@@ -49,7 +49,7 @@ export default function PrivacyPage() {
         <p>Kontakt w sprawach prywatności: poprzez issues w repozytorium SmartReps na GitHubie.</p>
       </div>
       <p className="mt-8 text-sm">
-        <Link to="/terms" className="font-medium text-[var(--sr-brand-primary)]">
+        <Link to="/terms" className="font-medium text-[var(--sr-brand-primary)] underline-offset-4 hover:underline">
           {pl.termsLink}
         </Link>
       </p>

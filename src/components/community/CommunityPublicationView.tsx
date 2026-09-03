@@ -426,7 +426,7 @@ export function CommunityPublicationView({ slug, onBack }: Props) {
             className="flex-1"
             onClick={() => void handleShare()}
           >
-            <Share2 className="mr-1.5 size-4" aria-hidden />
+            <Share2 className="size-4" aria-hidden />
             {pl.communityShare}
           </Button>
         </div>
@@ -463,7 +463,7 @@ export function CommunityPublicationView({ slug, onBack }: Props) {
             disabled={!online}
             onClick={() => setReportOpen(true)}
           >
-            <Flag className="mr-1.5 size-3.5" aria-hidden />
+            <Flag className="size-3.5" aria-hidden />
             {pl.communityReport}
           </Button>
         )}

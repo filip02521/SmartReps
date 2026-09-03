@@ -38,7 +38,7 @@ export function AppLayout() {
         aria-label={pl.mainNav}
         aria-hidden={hideTabs}
       >
-        <div className="mx-auto flex max-w-lg justify-around px-1 py-1">
+        <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 py-1">
           {tabs.map(({ to, label, icon: Icon }) => {
             const active = location.pathname === to
             return (
@@ -48,18 +48,20 @@ export function AppLayout() {
                 tabIndex={hideTabs ? -1 : undefined}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-xs font-medium',
+                  'relative flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[var(--sr-radius-sm)] px-1 py-1.5 text-xs font-medium transition-colors duration-150 active:scale-[0.97]',
                   FOCUS_RING,
-                  active ? 'text-[var(--sr-brand-primary)]' : 'text-[var(--sr-text-muted)]',
+                  active
+                    ? 'text-[var(--sr-brand-primary)]'
+                    : 'text-[var(--sr-text-muted)] hover:text-[var(--sr-text-secondary)]',
                 )}
               >
                 {active && (
                   <span
-                    className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-[var(--sr-brand-primary)]"
+                    className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-[var(--sr-brand-primary)]"
                     aria-hidden
                   />
                 )}
-                <Icon size={22} strokeWidth={active ? 2.5 : 2} />
+                <Icon size={22} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
                 <span className="max-w-full truncate">{label}</span>
               </Link>
             )

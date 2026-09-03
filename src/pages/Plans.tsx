@@ -363,7 +363,7 @@ export default function PlansPage() {
                       {canTrain ? (
                         <Button
                           type="button"
-                          size="sm"
+                          size="md"
                           onClick={() => navigate(`/workout/custom/${plan.id}`)}
                         >
                           {customResume[plan.id]
@@ -377,7 +377,7 @@ export default function PlansPage() {
                       ) : paused ? (
                         <Button
                           type="button"
-                          size="sm"
+                          size="md"
                           onClick={() =>
                             void setCustomPlanPaused(plan.id, false).then(() => reloadCustom())
                           }
@@ -387,7 +387,7 @@ export default function PlansPage() {
                       ) : null}
                       <Button
                         type="button"
-                        size="sm"
+                        size="md"
                         variant={plan.status === 'active' ? 'secondary' : 'primary'}
                         onClick={() => void openEditor(plan.id)}
                       >

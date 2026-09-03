@@ -140,7 +140,7 @@ export function RepCounter({
           type="button"
           aria-label={pl.lessReps}
           disabled={disabled}
-          className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] disabled:opacity-50"
+          className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-95 disabled:opacity-50 disabled:active:scale-100"
           onClick={() => onActualChange(Math.max(0, actual - 1))}
         >
           <Minus size={24} />
@@ -163,7 +163,7 @@ export function RepCounter({
           type="button"
           aria-label={pl.moreReps}
           disabled={disabled || actual >= maxReps}
-          className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] disabled:opacity-50"
+          className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-95 disabled:opacity-50 disabled:active:scale-100"
           onClick={() => onActualChange(Math.min(maxReps, actual + 1))}
         >
           <Plus size={24} />
@@ -321,7 +321,7 @@ export function RestTimerPill({
         type="button"
         onClick={onExpand}
         aria-live="polite"
-        className="flex min-h-12 flex-1 items-center justify-between rounded-[var(--sr-radius-full)] bg-[var(--sr-brand-primary-muted)] px-5 py-3"
+        className="flex min-h-12 flex-1 items-center justify-between rounded-[var(--sr-radius-full)] bg-[var(--sr-brand-primary-muted)] px-5 py-3 transition-colors active:scale-[0.98]"
       >
         <span className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.restLabel}</span>
         <span className="tabular-nums text-2xl font-bold text-[var(--sr-text-primary)]">
@@ -376,7 +376,7 @@ export function RestTimerExpanded({
       >
       <button
         type="button"
-        className="absolute right-4 top-4 min-h-11 min-w-11 rounded-[var(--sr-radius-md)] px-3 text-sm text-[var(--sr-text-secondary)]"
+        className="absolute right-4 top-4 min-h-11 min-w-11 rounded-[var(--sr-radius-md)] px-3 text-sm text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95"
         onClick={onCollapse}
       >
         {pl.collapseTimer}
@@ -407,7 +407,7 @@ export function RestTimerExpanded({
               key={sec}
               type="button"
               aria-label={pl.restPresetAria(sec)}
-              className={`min-h-9 rounded-full border border-[var(--sr-border-subtle)] px-3 text-xs font-medium text-[var(--sr-text-secondary)] ${FOCUS_RING}`}
+              className={`min-h-9 rounded-full border border-[var(--sr-border-subtle)] px-3 text-xs font-medium text-[var(--sr-text-secondary)] transition-colors hover:border-[var(--sr-border-strong)] hover:text-[var(--sr-text-primary)] active:scale-95 ${FOCUS_RING}`}
               onClick={() => onSetRest(sec)}
             >
               {sec}s

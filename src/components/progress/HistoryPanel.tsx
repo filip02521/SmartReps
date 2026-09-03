@@ -14,6 +14,7 @@ import { getCycleById } from '@/data/plans'
 import { exportSessionsCsv, downloadCsv } from '@/lib/export'
 import { showToast } from '@/stores/toast-store'
 import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 import type { Program } from '@/data/plans/types'
 import type { LocalWorkoutSession } from '@/lib/db'
 import type { NavigateFunction } from 'react-router-dom'
@@ -149,8 +150,9 @@ export function HistoryPanel({
                   type="button"
                   className={cn(
                     'flex w-full min-h-11 items-center gap-3 py-3 text-left',
-                    'rounded-[var(--sr-radius-md)] transition-colors',
+                    'rounded-[var(--sr-radius-md)] transition-colors active:scale-[0.99]',
                     'hover:bg-[var(--sr-bg-surface)] active:bg-[var(--sr-bg-surface)]',
+                    FOCUS_RING,
                   )}
                   onClick={() => onSelectSession(s)}
                 >
