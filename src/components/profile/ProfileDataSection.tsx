@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/Button'
 import { PageSection } from '@/components/ui/PageSection'
 import { pl } from '@/i18n/pl'
 
-const SECTION = 'mt-8'
+const SECTION = 'mt-5'
 
 export function ProfileDataSection({
   showDeleteAccount,

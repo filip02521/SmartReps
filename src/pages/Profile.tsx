@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MoreVertical } from 'lucide-react'
+import { Settings, MoreVertical } from 'lucide-react'
 import { useAppStore } from '@/stores/app-store'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -10,12 +10,11 @@ import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { Sheet } from '@/components/ui/Sheet'
 import { SkeletonCard } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
-import { AccountHero } from '@/components/profile/AccountHero'
 import { ProfileAchievementsSection } from '@/components/achievements/ProfileAchievementsSection'
 import { ProgramSettingsCard } from '@/components/profile/ProgramSettingsCard'
-import { ProfilePreferences } from '@/components/profile/ProfilePreferences'
-import { ProfileDataSection } from '@/components/profile/ProfileDataSection'
 import { ImportBackupSheet } from '@/components/profile/ImportBackupSheet'
+import { SettingsSheet } from '@/components/profile/SettingsSheet'
+import { ProfileStats } from '@/components/profile/ProfileStats'
 import { runAuthenticatedSync } from '@/lib/auth-sync'
 import { signOutUser } from '@/lib/auth-lifecycle'
 import { pl } from '@/i18n/pl'
@@ -47,7 +46,6 @@ import type { LocalProgramProgress } from '@/lib/db'
 import type { Program } from '@/data/plans/types'
 
 const appVersion = import.meta.env.VITE_APP_VERSION ?? '1.0.0'
-const SECTION = 'mt-8'
 
 function applyTheme(theme: 'system' | 'dark' | 'light') {
   if (theme === 'system') {
@@ -78,6 +76,7 @@ export default function ProfilePage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deletingAccount, setDeletingAccount] = useState(false)
   const [showImportSheet, setShowImportSheet] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [customMenuPlanId, setCustomMenuPlanId] = useState<string | null>(null)
   const [progressByProgram, setProgressByProgram] = useState<Partial<Record<Program, LocalProgramProgress>>>({})
   const [programsReady, setProgramsReady] = useState(false)
@@ -137,7 +136,6 @@ export default function ProfilePage() {
     })
 
     return () => subscription.unsubscribe()
-    // reloadMeta reads settings.enabledPrograms; theme/contrast/programs drive this effect
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.theme, settings.highContrast, settings.enabledPrograms])
 
@@ -304,24 +302,37 @@ export default function ProfilePage() {
 
   const customMenuPlan = customActivePlans.find((p) => p.id === customMenuPlanId) ?? null
 
+  const displayName = settings.displayName ?? ''
+  const profileTitle = displayName || email || pl.navProfile
+
   return (
     <div className={TAB_PAGE_SHELL}>
-      <PageHeader title={pl.navProfile} />
+      <PageHeader
+        title={profileTitle}
+        subtitle={email && displayName ? email : undefined}
+        action={
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            className={cn(
+              FOCUS_RING,
+              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] hover:bg-[var(--sr-bg-surface)]',
+            )}
+            aria-label={pl.settingsTitle}
+          >
+            <Settings size={22} />
+          </button>
+        }
+      />
 
-      <PageSection title={pl.account}>
-        <AccountHero
-          syncing={syncing}
-          online={online}
-          showLogout={isSupabaseConfigured && !!email}
-          onSyncNow={handleSyncNow}
-          onLogin={() => navigate('/setup/login', { state: { returnTo: '/profile' } })}
-          onLogout={() => setShowLogoutConfirm(true)}
-        />
-      </PageSection>
+      {/* Stats summary */}
+      <ProfileStats />
 
+      {/* Achievements */}
       <ProfileAchievementsSection />
 
-      <PageSection title={pl.programs} className={SECTION}>
+      {/* Programs */}
+      <PageSection title={pl.programs} className="mt-8">
         {showProgramsLoading ? (
           <div className="flex flex-col gap-4" aria-busy aria-label={pl.profileProgramsLoading}>
             <SkeletonCard className="min-h-[7rem]" />
@@ -436,16 +447,52 @@ export default function ProfilePage() {
         )}
       </PageSection>
 
-      <ProfilePreferences
-        theme={settings.theme}
-        highContrast={settings.highContrast}
-        timerSound={settings.timerSound}
-        timerVibration={settings.timerVibration}
-        keepScreenOn={settings.keepScreenOn}
-        pushNotifications={settings.pushNotifications}
-        workoutReminders={settings.workoutReminders}
-        reminderHour={settings.reminderHour}
-        displayName={settings.displayName ?? ''}
+      {/* About */}
+      <PageSection title={pl.about} className="mt-8">
+        <div className="flex flex-col gap-2 text-sm">
+          <Link to="/privacy" className="text-[var(--sr-brand-primary)]">
+            {pl.privacyLink}
+          </Link>
+          <Link to="/terms" className="text-[var(--sr-brand-primary)]">
+            {pl.termsLink}
+          </Link>
+        </div>
+        <p className="mt-4 text-sm leading-relaxed text-[var(--sr-text-secondary)]">
+          {pl.healthDisclaimer}
+        </p>
+        <p className="mt-3 text-xs text-[var(--sr-text-muted)]">
+          <a
+            href="https://100pompek.pl"
+            className="text-[var(--sr-brand-primary)]"
+            target="_blank"
+            rel="noreferrer"
+          >
+            100pompek.pl
+          </a>
+          {' · '}
+          <a
+            href="https://podciaganie.pl"
+            className="text-[var(--sr-brand-primary)]"
+            target="_blank"
+            rel="noreferrer"
+          >
+            podciaganie.pl
+          </a>
+        </p>
+        <p className="mt-4 text-xs text-[var(--sr-text-muted)]">{pl.appVersion(appVersion)}</p>
+      </PageSection>
+
+      {/* Settings sheet */}
+      <SettingsSheet
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        syncing={syncing}
+        online={online}
+        showLogout={isSupabaseConfigured && !!email}
+        onSyncNow={handleSyncNow}
+        onLogin={() => navigate('/setup/login', { state: { returnTo: '/profile' } })}
+        onLogout={() => setShowLogoutConfirm(true)}
+        settings={settings}
         pushDescription={pushDescription}
         remindersDenied={remindersDenied}
         pushDisabled={
@@ -531,9 +578,6 @@ export default function ProfilePage() {
             scheduleDailyReminder(hour, 0)
           }
         }}
-      />
-
-      <ProfileDataSection
         showDeleteAccount={isSupabaseConfigured && !!email}
         onImport={() => setShowImportSheet(true)}
         onExportJson={() => void exportJsonBackup()}
@@ -544,40 +588,6 @@ export default function ProfilePage() {
           setShowDeleteConfirm(true)
         }}
       />
-
-      <PageSection title={pl.about} className={SECTION}>
-        <div className="flex flex-col gap-2 text-sm">
-          <Link to="/privacy" className="text-[var(--sr-brand-primary)]">
-            {pl.privacyLink}
-          </Link>
-          <Link to="/terms" className="text-[var(--sr-brand-primary)]">
-            {pl.termsLink}
-          </Link>
-        </div>
-        <p className="mt-4 text-sm leading-relaxed text-[var(--sr-text-secondary)]">
-          {pl.healthDisclaimer}
-        </p>
-        <p className="mt-3 text-xs text-[var(--sr-text-muted)]">
-          <a
-            href="https://100pompek.pl"
-            className="text-[var(--sr-brand-primary)]"
-            target="_blank"
-            rel="noreferrer"
-          >
-            100pompek.pl
-          </a>
-          {' · '}
-          <a
-            href="https://podciaganie.pl"
-            className="text-[var(--sr-brand-primary)]"
-            target="_blank"
-            rel="noreferrer"
-          >
-            podciaganie.pl
-          </a>
-        </p>
-        <p className="mt-4 text-xs text-[var(--sr-text-muted)]">{pl.appVersion(appVersion)}</p>
-      </PageSection>
 
       {customMenuPlan && (
         <Sheet open onClose={() => setCustomMenuPlanId(null)} title={customMenuPlan.name} showClose>

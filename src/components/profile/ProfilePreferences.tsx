@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { pl } from '@/i18n/pl'
 import type { UserSettings } from '@/stores/app-store'
 
-const SECTION = 'mt-8'
+const SECTION = 'mt-5'
 
 type Theme = UserSettings['theme']
 

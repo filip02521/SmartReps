@@ -922,6 +922,15 @@ export const pl = {
   about: 'O aplikacji',
   logout: 'Wyloguj',
   account: 'Konto',
+  settingsTitle: 'Ustawienia',
+  profileStatsSessions: 'Sesje',
+  profileStatsStreak: 'Seria',
+  profileStatsStreakWeeks: (n: number) => `${n} tyg.`,
+  profileStatsReps: 'Powtórzenia',
+  profileStatsRepsValue: (n: number) =>
+    n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n),
+  profileStatsBestStreak: 'Najlepsza seria',
+  profileStatsEmpty: '—',
   notLoggedIn: 'Nie jesteś zalogowany — dane tylko na tym urządzeniu',
 
   // Nav
