@@ -140,7 +140,10 @@ export function RepCounter({
           type="button"
           aria-label={pl.lessReps}
           disabled={disabled}
-          className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+          className={cn(
+            'flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] transition-all hover:border-[var(--sr-border-strong)] hover:bg-[var(--sr-bg-elevated)] active:scale-95 disabled:opacity-50 disabled:active:scale-100',
+            FOCUS_RING,
+          )}
           onClick={() => onActualChange(Math.max(0, actual - 1))}
         >
           <Minus size={24} />
@@ -163,7 +166,10 @@ export function RepCounter({
           type="button"
           aria-label={pl.moreReps}
           disabled={disabled || actual >= maxReps}
-          className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+          className={cn(
+            'flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] transition-all hover:border-[var(--sr-border-strong)] hover:bg-[var(--sr-bg-elevated)] active:scale-95 disabled:opacity-50 disabled:active:scale-100',
+            FOCUS_RING,
+          )}
           onClick={() => onActualChange(Math.min(maxReps, actual + 1))}
         >
           <Plus size={24} />
@@ -209,11 +215,12 @@ export function SetRow({
           : undefined
       }
       className={cn(
-        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] px-4 py-3.5 text-left transition-colors',
-        state === 'active' && 'border-2 border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]',
-        state === 'done' && 'bg-[var(--sr-success-muted)]',
-        state === 'failed' && 'bg-[var(--sr-error-muted)]',
-        state === 'pending' && 'bg-[var(--sr-bg-surface)]',
+        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] border px-4 py-3.5 text-left transition-all active:scale-[0.99]',
+        FOCUS_RING,
+        state === 'active' && 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] ring-2 ring-[var(--sr-brand-primary)]/30',
+        state === 'done' && 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
+        state === 'failed' && 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]',
+        state === 'pending' && 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] hover:border-[var(--sr-border-strong)]',
         editable && 'ring-1 ring-[var(--sr-brand-primary)]/40',
       )}
     >
@@ -242,7 +249,9 @@ export function SetRow({
           ? editable
             ? `${actual} / ${formatSetTarget(target)} · ${pl.editShort}`
             : `${actual} / ${formatSetTarget(target)}`
-          : formatSetTarget(target)}
+          : state === 'failed' && actual !== undefined
+            ? `${actual} / ${formatSetTarget(target)}`
+            : formatSetTarget(target)}
       </span>
     </button>
   )
@@ -292,7 +301,7 @@ export function SetChecklist({
 
 export function NegativeBanner() {
   return (
-    <div className="sticky top-0 z-10 rounded-[var(--sr-radius-md)] border border-[var(--sr-pullups-accent)] bg-[rgba(167,139,250,0.15)] px-4 py-2 text-sm text-[var(--sr-pullups-accent)]">
+    <div className="sticky top-0 z-10 mx-4 mb-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-pullups-accent)]/40 bg-[var(--sr-pullups-accent)]/10 px-4 py-2.5 text-sm font-medium text-[var(--sr-pullups-accent)]">
       {pl.negativeBanner}
     </div>
   )
@@ -321,7 +330,10 @@ export function RestTimerPill({
         type="button"
         onClick={onExpand}
         aria-live="polite"
-        className="flex min-h-12 flex-1 items-center justify-between rounded-[var(--sr-radius-full)] bg-[var(--sr-brand-primary-muted)] px-5 py-3 transition-colors active:scale-[0.98]"
+        className={cn(
+          'flex min-h-12 flex-1 items-center justify-between rounded-[var(--sr-radius-full)] bg-[var(--sr-brand-primary-muted)] px-5 py-3 transition-all hover:bg-[var(--sr-brand-primary-muted)] hover:brightness-110 active:scale-[0.98]',
+          FOCUS_RING,
+        )}
       >
         <span className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.restLabel}</span>
         <span className="tabular-nums text-2xl font-bold text-[var(--sr-text-primary)]">
@@ -407,7 +419,10 @@ export function RestTimerExpanded({
               key={sec}
               type="button"
               aria-label={pl.restPresetAria(sec)}
-              className={`min-h-9 rounded-full border border-[var(--sr-border-subtle)] px-3 text-xs font-medium text-[var(--sr-text-secondary)] transition-colors hover:border-[var(--sr-border-strong)] hover:text-[var(--sr-text-primary)] active:scale-95 ${FOCUS_RING}`}
+              className={cn(
+                'flex min-h-9 items-center rounded-full border border-[var(--sr-border-subtle)] px-3 text-xs font-medium text-[var(--sr-text-secondary)] transition-all hover:border-[var(--sr-border-strong)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+                FOCUS_RING,
+              )}
               onClick={() => onSetRest(sec)}
             >
               {sec}s

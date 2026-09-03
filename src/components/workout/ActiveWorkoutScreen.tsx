@@ -141,7 +141,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col safe-top safe-bottom">
-      <header className="flex shrink-0 items-center justify-between px-2 py-2">
+      <header className="flex shrink-0 items-center justify-between gap-1 px-2 py-2.5">
         <button
           type="button"
           onClick={onBack}
@@ -211,7 +211,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         </Sheet>
       )}
 
-      {cycleVariant === 'negative' && <div className="px-4"><NegativeBanner /></div>}
+      {cycleVariant === 'negative' && <NegativeBanner />}
       {preparingNegative && (
         <NegativeCountdown seconds={negativeCountdown!} />
       )}

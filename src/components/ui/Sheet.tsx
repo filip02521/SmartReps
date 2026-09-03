@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { pl } from '@/i18n/pl'
@@ -62,18 +63,18 @@ export function Sheet({
       >
         {(title || showClose) && (
           <div className="mb-4 flex items-center justify-between gap-3">
-            {title ? <h3 className="font-semibold">{title}</h3> : <span />}
+            {title ? <h3 className="font-semibold text-[var(--sr-text-primary)]">{title}</h3> : <span />}
             {showClose && (
               <button
                 type="button"
                 onClick={onClose}
                 className={cn(
-                  'min-h-11 min-w-11 text-sm text-[var(--sr-text-muted)]',
+                  'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
                   FOCUS_RING,
                 )}
                 aria-label={pl.close}
               >
-                {pl.close}
+                <X size={20} />
               </button>
             )}
           </div>

@@ -220,12 +220,12 @@ function CustomSetRow({
             : undefined
       }
       className={cn(
-        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] px-4 py-3.5 text-left transition-colors',
+        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] border px-4 py-3.5 text-left transition-all active:scale-[0.99]',
         state === 'active' &&
-          'border-2 border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]',
-        state === 'done' && 'bg-[var(--sr-success-muted)]',
-        state === 'failed' && 'bg-[var(--sr-error-muted)]',
-        state === 'pending' && 'bg-[var(--sr-bg-surface)]',
+          'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] ring-2 ring-[var(--sr-brand-primary)]/30',
+        state === 'done' && 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
+        state === 'failed' && 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]',
+        state === 'pending' && 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] hover:border-[var(--sr-border-strong)]',
         editable && 'ring-1 ring-[var(--sr-brand-primary)]/40',
       )}
     >
@@ -261,7 +261,9 @@ function CustomSetRow({
           ? editable
             ? `${actualLabel} / ${targetLabel} · ${pl.editShort}`
             : `${actualLabel} / ${targetLabel}`
-          : targetLabel}
+          : state === 'failed' && actualLabel != null
+            ? `${actualLabel} / ${targetLabel}`
+            : targetLabel}
       </span>
     </button>
   )
@@ -928,6 +930,8 @@ export type ActiveCustomWorkoutScreenProps = {
   /** Swap current exercise for another from library (session-only until summary). */
   canSwapExercise?: boolean
   onSwapExercise?: () => void
+  /** Add a new exercise to the end of the session day (session-only until summary). */
+  onAddExercise?: () => void
 }
 
 export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps) {
@@ -1006,6 +1010,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     onRestChange,
     canSwapExercise = false,
     onSwapExercise,
+    onAddExercise,
   } = props
 
   const prescription = planned.sets[setIndex]
@@ -1147,6 +1152,20 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
               >
                 <Repeat size={18} aria-hidden />
                 {pl.customWorkoutSwapExercise}
+              </Button>
+            )}
+            {onAddExercise && (
+              <Button
+                variant="ghost"
+                fullWidth
+                className="justify-start gap-2 px-3"
+                onClick={() => {
+                  onCloseMenu()
+                  onAddExercise()
+                }}
+              >
+                <Plus size={18} aria-hidden />
+                {pl.customWorkoutAddExercise}
               </Button>
             )}
             {sessionHasProgress && (

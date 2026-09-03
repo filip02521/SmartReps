@@ -18,6 +18,7 @@ export default defineConfig({
         'brand/favicon-32.png',
         'brand/favicon-48.png',
         'brand/app-icon.svg',
+        'brand/app-icon-maskable.svg',
         'brand/logo-mark.svg',
         'brand/apple-touch-icon.png',
         'brand/notification-icon.png',

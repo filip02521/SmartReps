@@ -42,6 +42,7 @@ import {
   sessionHasExerciseSwaps,
   setRestBetweenSetsOnExercise,
   swapExerciseInSessionDay,
+  addExerciseToSessionDay,
 } from '@/lib/custom-plan-session-patch'
 import { getOrCreateCustomProgress, saveCustomPlan } from '@/lib/custom-plan-service'
 import {
@@ -129,6 +130,7 @@ export default function CustomWorkoutPage() {
   const [replaceOpen, setReplaceOpen] = useState(false)
   const [swapOpen, setSwapOpen] = useState(false)
   const [swapConfirm, setSwapConfirm] = useState<ExerciseDefinition | null>(null)
+  const [addExerciseOpen, setAddExerciseOpen] = useState(false)
   const [restBlocked, setRestBlocked] = useState(false)
   const [restDaysLeft, setRestDaysLeft] = useState(0)
   const [showStaleConfirm, setShowStaleConfirm] = useState(false)
@@ -333,6 +335,9 @@ export default function CustomWorkoutPage() {
   const initWorkout = useCallback(
     async (generation: number) => {
       if (!planId) return
+      // Consume any pending preview override early — before early returns —
+      // so a stale override isn't applied on a later navigation to this plan.
+      const pendingOverride = takePendingDayOverride(planId)
       setLoadError(null)
       setLoadErrorKind(null)
       setLoadErrorDayNumber(null)
@@ -508,7 +513,6 @@ export default function CustomWorkoutPage() {
 
       const cycleAttempt =
         progress.status === 'cycle_complete' ? progress.cycleAttempt + 1 : progress.cycleAttempt
-      const pendingOverride = planId ? takePendingDayOverride(planId) : null
       await startNewSession(p, dayPlan, dayNumber, cycleAttempt, generation, pendingOverride)
     },
     [planId, forceStart, navigate, hasSeenWorkoutHint, setSettings, startNewSession, setPlanLive],
@@ -947,14 +951,9 @@ export default function CustomWorkoutPage() {
 
     try {
       if (!passed) {
+        // Custom workouts: accept below-target set and continue immediately —
+        // no retry prompt, just start the rest timer and move on.
         onSetFailedFeedback({ sound: timerSound, vibration: timerVibration })
-        setFailedIndex(store.currentSetIndex)
-        if (!store.failedRetryUsed) {
-          store.setFailedRetryUsed(true)
-          finishingRef.current = false
-          return
-        }
-        // Second confirm: keep below-target set and continue the day.
         await acceptSetAndContinue(result)
         return
       }
@@ -1210,6 +1209,54 @@ export default function CustomWorkoutPage() {
     setFailedIndex(undefined)
     setSwapOpen(false)
     setSwapConfirm(null)
+
+    const overrideDay = next.days.find((d) => d.dayNumber === liveDay.dayNumber)
+    if (overrideDay) persistDayOverride(overrideDay)
+  }
+
+  async function handleAddExercise(newDef: ExerciseDefinition) {
+    const livePlan = planRef.current ?? plan
+    const liveDay =
+      livePlan?.days.find((d) => d.dayNumber === store.dayNumber) ?? livePlan?.days[0]
+    if (!livePlan || !liveDay) return
+
+    // Prefill sets/reps/weight from the last session for this exercise in this plan.
+    let historySets: SetLog[] | null = null
+    try {
+      const sets = await getLastExerciseLogs({
+        customPlanId: livePlan.id,
+        exerciseId: newDef.id,
+        excludeSessionId: sessionRef.current?.id,
+      })
+      historySets = sets ?? null
+    } catch {
+      // ignore — fall back to defaults
+    }
+
+    const next = addExerciseToSessionDay(
+      livePlan,
+      liveDay.dayNumber,
+      newDef.id,
+      newDef,
+      historySets,
+    )
+    if (!next) return
+    setPlanLive(next)
+
+    // Append an empty log entry for the new exercise.
+    const latest = useCustomWorkoutStore.getState()
+    const nextOrder = liveDay.exercises.length > 0
+      ? Math.max(...liveDay.exercises.map((e) => e.order)) + 1
+      : 0
+    const newLogs = [
+      ...latest.exerciseLogs,
+      { exerciseId: newDef.id, order: nextOrder, sets: [] as SetLog[] },
+    ]
+    useCustomWorkoutStore.setState({
+      exerciseLogs: newLogs,
+    })
+
+    setAddExerciseOpen(false)
 
     const overrideDay = next.days.find((d) => d.dayNumber === liveDay.dayNumber)
     if (overrideDay) persistDayOverride(overrideDay)
@@ -1638,6 +1685,7 @@ export default function CustomWorkoutPage() {
         onRestChange={handleRestChange}
         canSwapExercise={canSwapExercise}
         onSwapExercise={() => setSwapOpen(true)}
+        onAddExercise={() => setAddExerciseOpen(true)}
       />
       <ExerciseDetailSheet
         open={detailExercise != null}
@@ -1696,6 +1744,20 @@ export default function CustomWorkoutPage() {
           onCancel={() => setSwapConfirm(null)}
         />
       )}
+      <Sheet
+        open={addExerciseOpen}
+        onClose={() => setAddExerciseOpen(false)}
+        title={pl.customWorkoutAddExercise}
+        className="max-h-[85vh] overflow-y-auto"
+      >
+        <p className="mb-3 text-xs text-[var(--sr-text-muted)]">
+          {pl.customWorkoutAddExerciseHint}
+        </p>
+        <ExerciseLibraryPanel
+          mode="pick"
+          onPick={(ex) => void handleAddExercise(ex)}
+        />
+      </Sheet>
     </>
   )
 }

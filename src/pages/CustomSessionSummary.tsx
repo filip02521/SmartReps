@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { CheckCircle2, XCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -155,7 +157,7 @@ export default function CustomSessionSummary() {
           const suggests =
             !!plan &&
             !isPlanUpdateDeclined(s.id) &&
-            sessionSuggestsPlanUpdate(plan, s.dayNumber, s.exerciseLogs ?? [], sessionDay)
+            sessionSuggestsPlanUpdate(plan, s.dayNumber, s.exerciseLogs ?? [], sessionDay, map)
           setOfferPlanUpdate(suggests)
           setPlanUpdateDone(false)
           setInsights(
@@ -298,9 +300,10 @@ export default function CustomSessionSummary() {
           session.dayNumber,
           session.exerciseLogs ?? [],
           sessionDayPatch,
+          exerciseMap,
         )
       : []
-  const planChangeHasSets = planChanges.some((c) => c.kind === 'sets')
+  const planChangeHasSets = planChanges.some((c) => c.kind === 'sets' || c.kind === 'target_values')
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
@@ -312,6 +315,37 @@ export default function CustomSessionSummary() {
             : pl.dayLabel(session.dayNumber)
         }
       />
+
+      {/* Hero status banner */}
+      <div
+        className={cn(
+          'mb-6 flex items-center gap-3 rounded-[var(--sr-radius-lg)] border p-4',
+          failed
+            ? 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]'
+            : 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
+        )}
+      >
+        <span
+          className={cn(
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]',
+            failed
+              ? 'bg-[var(--sr-error)]/15 text-[var(--sr-error)]'
+              : 'bg-[var(--sr-success)]/15 text-[var(--sr-success)]',
+          )}
+          aria-hidden
+        >
+          {failed ? <XCircle size={24} strokeWidth={2.25} /> : <CheckCircle2 size={24} strokeWidth={2.25} />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-[var(--sr-text-primary)]">
+            {failed ? pl.summaryHeroFail : pl.summaryHeroSuccess}
+          </p>
+          <p className="mt-0.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
+            {planName ?? pl.dayLabel(session.dayNumber)}
+            {` · ${pl.attemptShort(session.cycleAttempt)}`}
+          </p>
+        </div>
+      </div>
 
       {!failed && progress?.nextWorkoutAfter && progress.status === 'rest' && (
         <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">
@@ -346,6 +380,35 @@ export default function CustomSessionSummary() {
                   return (
                     <li key={`swap-${change.fromExerciseId}-${change.toExerciseId}-${idx}`}>
                       {pl.customSummaryUpdatePlanSwap(fromName, toName)}
+                    </li>
+                  )
+                }
+                if (change.kind === 'exercise_added') {
+                  const name = exerciseMap.get(change.exerciseId)?.name ?? change.exerciseId
+                  return (
+                    <li key={`added-${change.exerciseId}-${idx}`}>
+                      {pl.customSummaryUpdatePlanAdded(name)}
+                    </li>
+                  )
+                }
+                if (change.kind === 'target_values') {
+                  const name = exerciseMap.get(change.exerciseId)?.name ?? change.exerciseId
+                  const summary = change.changes.map((c) => {
+                    const segments: string[] = []
+                    if (c.fromReps != null && c.toReps != null) {
+                      segments.push(pl.customSummaryValueReps(c.fromReps, c.toReps))
+                    }
+                    if (c.fromWeightKg != null && c.toWeightKg != null) {
+                      segments.push(pl.customSummaryValueWeight(c.fromWeightKg, c.toWeightKg))
+                    }
+                    if (c.fromDurationSec != null && c.toDurationSec != null) {
+                      segments.push(pl.customSummaryValueDuration(c.fromDurationSec, c.toDurationSec))
+                    }
+                    return pl.customSummaryValueSet(c.setNumber, segments.join(', '))
+                  }).join(' · ')
+                  return (
+                    <li key={`target-${change.exerciseId}-${idx}`}>
+                      {pl.customSummaryUpdatePlanValues(name, summary)}
                     </li>
                   )
                 }
@@ -405,6 +468,9 @@ export default function CustomSessionSummary() {
       )}
 
       <div className="mt-6">
+        <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+          {pl.summarySectionStats}
+        </h2>
         <CustomSessionRecap
           current={session}
           previous={previous}
@@ -414,11 +480,56 @@ export default function CustomSessionSummary() {
         />
       </div>
 
-      <p className="mt-3 text-center sr-text-body-sm text-[var(--sr-text-secondary)]">
-        {pl.attemptShort(session.cycleAttempt)}
-      </p>
+      {session?.id && (
+        <div className="mt-6">
+          <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+            {pl.summarySectionNotes}
+          </h2>
+          <SessionNoteCard sessionId={session.id} />
+        </div>
+      )}
 
-      <div className="mt-6 flex flex-col gap-2">
+      {newAchievements.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+            {pl.summarySectionAchievements}
+          </h2>
+          <AchievementSummaryList unlocks={newAchievements} />
+        </div>
+      )}
+
+      {showLoginPrompt && (
+        <NoticeCard
+          className="mt-6"
+          tone="brand"
+          icon={<LogIn size={20} strokeWidth={2.25} />}
+          title={pl.standaloneLoginCoachTitle}
+          message={pl.summaryLoginBackup}
+          actionLabel={pl.standaloneLoginCoachCta}
+          onAction={() => {
+            dismissLoginPrompt()
+            track('login_cloud_prompt_clicked')
+            if (resolvedPlanId && planName) {
+              useAppStore.getState().setPendingCustomStart({
+                customPlanId: resolvedPlanId,
+                planName,
+                navigateToWorkout: session?.passed !== false,
+              })
+            }
+            navigate('/setup/login', {
+              state: {
+                returnTo: `/workout/custom/${resolvedPlanId}/summary?session=${sessionId}`,
+              },
+            })
+          }}
+          dismissLabel={pl.standaloneLoginCoachDismiss}
+          onDismiss={dismissLoginPrompt}
+          stackActions
+        />
+      )}
+
+      {/* Action buttons — at the bottom */}
+      <div className="mt-8 flex flex-col gap-2">
         {failed && resolvedPlanId ? (
           <Button
             size="touch"
@@ -475,44 +586,6 @@ export default function CustomSessionSummary() {
           {pl.customSummaryViewProgress}
         </Button>
       </div>
-
-      {session?.id && <SessionNoteCard sessionId={session.id} />}
-
-      {newAchievements.length > 0 && (
-        <div className="mt-6">
-          <AchievementSummaryList unlocks={newAchievements} />
-        </div>
-      )}
-
-      {showLoginPrompt && (
-        <NoticeCard
-          className="mt-6"
-          tone="brand"
-          icon={<LogIn size={20} strokeWidth={2.25} />}
-          title={pl.standaloneLoginCoachTitle}
-          message={pl.summaryLoginBackup}
-          actionLabel={pl.standaloneLoginCoachCta}
-          onAction={() => {
-            dismissLoginPrompt()
-            track('login_cloud_prompt_clicked')
-            if (resolvedPlanId && planName) {
-              useAppStore.getState().setPendingCustomStart({
-                customPlanId: resolvedPlanId,
-                planName,
-                navigateToWorkout: session?.passed !== false,
-              })
-            }
-            navigate('/setup/login', {
-              state: {
-                returnTo: `/workout/custom/${resolvedPlanId}/summary?session=${sessionId}`,
-              },
-            })
-          }}
-          dismissLabel={pl.standaloneLoginCoachDismiss}
-          onDismiss={dismissLoginPrompt}
-          stackActions
-        />
-      )}
     </div>
   )
 }

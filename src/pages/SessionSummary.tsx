@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { CheckCircle2, XCircle, Trophy, AlertTriangle, CalendarClock } from 'lucide-react'
 import { pl } from '@/i18n/pl'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -222,11 +224,51 @@ export default function SessionSummary() {
         }`}
       />
 
+      {/* Hero status banner */}
+      <div
+        className={cn(
+          'mb-6 flex items-center gap-3 rounded-[var(--sr-radius-lg)] border p-4',
+          failed
+            ? 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]'
+            : 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
+        )}
+      >
+        <span
+          className={cn(
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]',
+            failed
+              ? 'bg-[var(--sr-error)]/15 text-[var(--sr-error)]'
+              : 'bg-[var(--sr-success)]/15 text-[var(--sr-success)]',
+          )}
+          aria-hidden
+        >
+          {failed ? <XCircle size={24} strokeWidth={2.25} /> : <CheckCircle2 size={24} strokeWidth={2.25} />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-[var(--sr-text-primary)]">
+            {failed ? pl.summaryHeroFail : pl.summaryHeroSuccess}
+          </p>
+          <p className="mt-0.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
+            {program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram}
+            {cycle ? ` · ${cycle.nameShort}` : ''}
+            {` · ${pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}`}
+          </p>
+        </div>
+      </div>
+
+      {/* Cycle complete card with icon */}
       {!failed && progress?.status === 'test_pending' && (
-        <Card className="mt-4 border border-[var(--sr-brand-primary)]">
-          <p className="font-semibold">{pl.cycleComplete}</p>
-          <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.cycleCompleteHint}</p>
-          <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecCycleDone}</p>
+        <Card className="mb-6 border border-[var(--sr-brand-primary)]/40 bg-[var(--sr-brand-primary-muted)]">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)]/15 text-[var(--sr-brand-primary)]" aria-hidden>
+              <Trophy size={20} strokeWidth={2.25} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-[var(--sr-text-primary)]">{pl.cycleComplete}</p>
+              <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.cycleCompleteHint}</p>
+              <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecCycleDone}</p>
+            </div>
+          </div>
           <div className="mt-4 flex flex-col gap-2">
             <Button size="touch" fullWidth onClick={() => navigate(`/setup/test/${program}?retest=1`)}>
               {pl.retestNow}
@@ -246,23 +288,41 @@ export default function SessionSummary() {
         </Card>
       )}
 
-      {!failed && progress && progress.status !== 'test_pending' && !progress.nextWorkoutAfter && (
-        <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecSuccess}</p>
+      {/* Rest recommendation — styled info card */}
+      {!failed && progress && progress.status !== 'test_pending' && progress.nextWorkoutAfter && (
+        <div className="mb-6 flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3">
+          <CalendarClock size={18} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
+          <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+            {pl.nextWorkoutIn(daysLeft)}
+          </p>
+        </div>
       )}
 
+      {/* Failed info card with icon */}
       {failed && (
-        <Card className="mt-4 border border-[var(--sr-error)]">
-          <p className="text-sm text-[var(--sr-error)]">
-            {pl.dayFailedRestart(progress?.cycleAttempt ?? 1)}
-          </p>
-          <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecFail}</p>
-          <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">
-            {pl.restPrimaryLabel(pl.restIn(daysLeft))}
-          </p>
+        <Card className="mb-6 border border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-error)]/15 text-[var(--sr-error)]" aria-hidden>
+              <AlertTriangle size={20} strokeWidth={2.25} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-[var(--sr-error)]">
+                {pl.dayFailedRestart(progress?.cycleAttempt ?? 1)}
+              </p>
+              <p className="mt-1.5 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecFail}</p>
+              <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">
+                {pl.restPrimaryLabel(pl.restIn(daysLeft))}
+              </p>
+            </div>
+          </div>
         </Card>
       )}
 
+      {/* Stats section */}
       <div className="mt-6">
+        <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+          {pl.summarySectionStats}
+        </h2>
         <SessionCompare
           rows={rows}
           previousRows={previous?.setResults}
@@ -274,14 +334,50 @@ export default function SessionSummary() {
         />
       </div>
 
-      {cycle && (
-        <p className="mt-3 text-center sr-text-body-sm text-[var(--sr-text-secondary)]">
-          {cycle.nameShort} ·{' '}
-          {pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}
-        </p>
+      {/* Notes section */}
+      {current?.id && (
+        <div className="mt-6">
+          <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+            {pl.summarySectionNotes}
+          </h2>
+          <SessionNoteCard sessionId={current.id} />
+        </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-2">
+      {/* Achievements section */}
+      {newAchievements.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+            {pl.summarySectionAchievements}
+          </h2>
+          <AchievementSummaryList unlocks={newAchievements} />
+        </div>
+      )}
+
+      {/* Login prompt */}
+      {showLoginPrompt && (
+        <NoticeCard
+          className="mt-6"
+          tone="brand"
+          icon={<LogIn size={20} strokeWidth={2.25} />}
+          title={pl.standaloneLoginCoachTitle}
+          message={pl.summaryLoginBackup}
+          actionLabel={pl.standaloneLoginCoachCta}
+          onAction={() => {
+            dismissLoginPrompt()
+            track('login_cloud_prompt_clicked')
+            navigate('/setup/login', {
+              state: { returnTo: `/workout/${program}/summary?session=${sessionId}` },
+            })
+          }}
+          dismissLabel={pl.standaloneLoginCoachDismiss}
+          onDismiss={dismissLoginPrompt}
+          stackActions
+        />
+      )}
+
+      {/* Action buttons — at the bottom */}
+      <div className="mt-8 flex flex-col gap-2">
         <Button size="touch" fullWidth onClick={() => navigate('/', { replace: true })}>
           {pl.backHome}
         </Button>
@@ -327,35 +423,6 @@ export default function SessionSummary() {
             </Button>
           ))}
       </div>
-
-      {current?.id && <SessionNoteCard sessionId={current.id} />}
-
-      {newAchievements.length > 0 && (
-        <div className="mt-6">
-          <AchievementSummaryList unlocks={newAchievements} />
-        </div>
-      )}
-
-      {showLoginPrompt && (
-        <NoticeCard
-          className="mt-6"
-          tone="brand"
-          icon={<LogIn size={20} strokeWidth={2.25} />}
-          title={pl.standaloneLoginCoachTitle}
-          message={pl.summaryLoginBackup}
-          actionLabel={pl.standaloneLoginCoachCta}
-          onAction={() => {
-            dismissLoginPrompt()
-            track('login_cloud_prompt_clicked')
-            navigate('/setup/login', {
-              state: { returnTo: `/workout/${program}/summary?session=${sessionId}` },
-            })
-          }}
-          dismissLabel={pl.standaloneLoginCoachDismiss}
-          onDismiss={dismissLoginPrompt}
-          stackActions
-        />
-      )}
     </div>
   )
 }

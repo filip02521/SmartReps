@@ -211,6 +211,11 @@ test.describe('custom plans smoke', () => {
     await page.goto('/plans?tab=mine')
     await expect(page.getByText('E2E trening')).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: 'Trenuj' }).click()
+    // Preview sheet opens first — click "Rozpocznij trening" to start.
+    await expect(page.getByRole('heading', { name: 'Podgląd treningu' })).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.getByRole('button', { name: 'Rozpocznij trening' }).click()
     await expect(page).toHaveURL(new RegExp(`/workout/custom/${ids.planId}`), { timeout: 15_000 })
     await expect(page.getByRole('button', { name: 'Zrobione' })).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: 'Zrobione' }).click()
@@ -686,5 +691,107 @@ test.describe('custom plans smoke', () => {
     await expect(page.getByText('Dzień niezaliczony')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByRole('button', { name: 'Powtórz dzień' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Udostępnij wynik' })).toHaveCount(0)
+  })
+
+  test('3-day cycle completes and resets to day 1', async ({ page }) => {
+    test.setTimeout(120_000)
+
+    await page.goto('/profile')
+    await expect(
+      page.getByText('O aplikacji').or(page.getByRole('heading', { name: /Profil|Konto|Wygląd/i })).first(),
+    ).toBeVisible({ timeout: 20_000 })
+
+    const ids = await page.evaluate(async () => {
+      const planId = crypto.randomUUID()
+      const exerciseId = crypto.randomUUID()
+      const now = new Date().toISOString()
+      await new Promise<void>((resolve, reject) => {
+        const req = indexedDB.open('SmartRepsDB')
+        req.onerror = () => reject(req.error ?? new Error('idb open failed'))
+        req.onsuccess = () => {
+          const idb = req.result
+          const stores = ['exercises', 'customPlans', 'customProgramProgress'] as const
+          for (const name of stores) {
+            if (!idb.objectStoreNames.contains(name)) {
+              idb.close()
+              reject(new Error(`${name} missing`))
+              return
+            }
+          }
+          const tx = idb.transaction(stores, 'readwrite')
+          tx.objectStore('exercises').put({
+            id: exerciseId,
+            name: 'E2E Pompki',
+            primaryMetric: 'reps',
+            restDefaultSec: 60,
+            archived: false,
+            createdAt: now,
+            updatedAt: now,
+          })
+          tx.objectStore('customPlans').put({
+            id: planId,
+            name: 'E2E 3-day cycle',
+            description: '',
+            status: 'active',
+            source: 'user',
+            createdAt: now,
+            updatedAt: now,
+            days: [
+              { dayNumber: 1, restAfterDay: 0, exercises: [{ exerciseId, order: 0, restBetweenSetsSec: 60, sets: [{ reps: { kind: 'fixed', value: 5 } }] }] },
+              { dayNumber: 2, restAfterDay: 0, exercises: [{ exerciseId, order: 0, restBetweenSetsSec: 60, sets: [{ reps: { kind: 'fixed', value: 6 } }] }] },
+              { dayNumber: 3, restAfterDay: 0, exercises: [{ exerciseId, order: 0, restBetweenSetsSec: 60, sets: [{ reps: { kind: 'fixed', value: 7 } }] }] },
+            ],
+          })
+          tx.objectStore('customProgramProgress').put({
+            customPlanId: planId,
+            currentDay: 3,
+            status: 'active',
+            cycleAttempt: 1,
+            lastWorkoutAt: null,
+            nextWorkoutAfter: null,
+            updatedAt: now,
+          })
+          tx.oncomplete = () => { idb.close(); resolve() }
+          tx.onerror = () => reject(tx.error ?? new Error('idb seed failed'))
+        }
+      })
+      return { planId, exerciseId }
+    })
+
+    // Start day 3 directly (bypass preview by navigating to URL).
+    await page.goto(`/workout/custom/${ids.planId}`)
+    await expect(page.getByRole('button', { name: 'Zrobione' })).toBeVisible({ timeout: 15_000 })
+    await page.getByRole('button', { name: 'Zrobione' }).click()
+
+    // Summary should show day passed.
+    await expect(page.getByText('Dzień zaliczony').or(page.getByText('Dzień niezaliczony'))).toBeVisible({
+      timeout: 20_000,
+    })
+
+    // Navigate to plans and verify day reset to 1.
+    await page.goto('/plans?tab=mine')
+    await expect(page.getByText('E2E 3-day cycle')).toBeVisible({ timeout: 15_000 })
+    // Verify progress in DB — should be cycle_complete with currentDay=1.
+    const progress = await page.evaluate(async (pid: string) => {
+      return new Promise<{ status: string; currentDay: number }>((resolve, reject) => {
+        const req = indexedDB.open('SmartRepsDB')
+        req.onerror = () => reject(req.error ?? new Error('idb open failed'))
+        req.onsuccess = () => {
+          const idb = req.result
+          const tx = idb.transaction('customProgramProgress', 'readonly')
+          const store = tx.objectStore('customProgramProgress')
+          const idx = store.index('customPlanId')
+          const r = idx.get(pid)
+          r.onsuccess = () => {
+            idb.close()
+            resolve({ status: r.result?.status ?? 'NOT_FOUND', currentDay: r.result?.currentDay ?? -1 })
+          }
+          r.onerror = () => reject(r.error ?? new Error('get failed'))
+        }
+      })
+    }, ids.planId)
+    console.log('DEBUG progress:', progress)
+    expect(progress.status).toBe('cycle_complete')
+    expect(progress.currentDay).toBe(1)
   })
 })

@@ -1,13 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <rect width="32" height="32" rx="7" fill="#09090B"/>
-  <circle cx="16" cy="16" r="13.5" stroke="url(#g)" stroke-width="2" stroke-linecap="round"/>
-  <path d="M 16 3 A 13 13 0 0 1 29 16" stroke="#22D3EE" stroke-width="1.2" stroke-linecap="round" opacity="0.5" fill="none"/>
-  <text x="16" y="21" text-anchor="middle" fill="url(#g)" font-size="13" font-weight="800" font-family="Plus Jakarta Sans, system-ui, sans-serif">R</text>
   <defs>
     <linearGradient id="g" x1="3" y1="3" x2="29" y2="29" gradientUnits="userSpaceOnUse">
       <stop stop-color="#6366F1"/>
       <stop offset="0.5" stop-color="#6366F1"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
+    <filter id="fg" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="0.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
+  <rect width="32" height="32" rx="7" fill="#09090B"/>
+  <circle cx="16" cy="16" r="14" stroke="url(#g)" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M 16 2.5 A 13.5 13.5 0 0 1 29 16" stroke="#22D3EE" stroke-width="1.3" stroke-linecap="round" opacity="0.5" fill="none"/>
+  <text x="16" y="21.5" text-anchor="middle" fill="url(#g)" font-size="14" font-weight="800" font-family="Plus Jakarta Sans, system-ui, sans-serif" filter="url(#fg)">R</text>
 </svg>

@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 28" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 32" fill="none">
   <defs>
-    <linearGradient id="wg" x1="58" y1="0" x2="160" y2="28" gradientUnits="userSpaceOnUse">
+    <linearGradient id="sr-lw-grad" x1="0" y1="4" x2="120" y2="28" gradientUnits="userSpaceOnUse">
       <stop stop-color="#6366F1"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
   </defs>
-  <text x="0" y="21" fill="#FAFAFA" font-size="18" font-family="Plus Jakarta Sans, system-ui, sans-serif">Smart</text>
-  <text x="58" y="21" fill="url(#wg)" font-size="18" font-weight="700" font-family="Plus Jakarta Sans, system-ui, sans-serif">Reps</text>
+  <text x="0" y="24" font-size="20" font-weight="700" font-family="Plus Jakarta Sans, system-ui, sans-serif" fill="#FAFAFA">Smart</text>
+  <text x="60" y="24" font-size="20" font-weight="700" font-family="Plus Jakarta Sans, system-ui, sans-serif" fill="url(#sr-lw-grad)">Reps</text>
 </svg>

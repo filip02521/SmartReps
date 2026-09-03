@@ -5,7 +5,7 @@ import {
   SessionSummaryHighlights,
   SummaryInsightBadge,
 } from '@/components/workout/SessionSummaryHighlights'
-import { formatSetTarget } from '@/lib/progress-engine'
+import { formatSetTarget, getTargetReps } from '@/lib/progress-engine'
 import {
   formatBuiltinSetInsightBadge,
   type BuiltinSessionInsights,
@@ -38,6 +38,18 @@ export function SessionCompare({
       : null
   const wallClockSec =
     startedAt != null ? sessionCompletedWallClockSec(startedAt, completedAt) : 0
+
+  // Professional metrics: best set, avg reps, target achievement, failed sets
+  const passedRows = rows.filter((r) => r.passed)
+  const failedCount = rows.length - passedRows.length
+  const bestSet = passedRows.length > 0 ? Math.max(...passedRows.map((r) => r.actual)) : 0
+  const avgReps =
+    passedRows.length > 0
+      ? Math.round((passedRows.reduce((s, r) => s + r.actual, 0) / passedRows.length) * 10) / 10
+      : 0
+  const totalTarget = rows.reduce((s, r) => s + getTargetReps(r.target), 0)
+  const achievementPct =
+    totalTarget > 0 ? Math.min(999, Math.round((totalReps / totalTarget) * 100)) : 0
 
   return (
     <>
@@ -78,13 +90,45 @@ export function SessionCompare({
         />
       </div>
 
+      {/* Professional metrics row — best set, avg reps/set, target achievement */}
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <NestedStat
+          size="md"
+          overline={pl.summaryBestSet}
+          value={bestSet}
+          hint={pl.repsUnit}
+        />
+        <NestedStat
+          size="md"
+          overline={pl.summaryAvgReps}
+          value={avgReps}
+          hint={pl.repsUnit}
+        />
+        <NestedStat
+          size="md"
+          overline={pl.summaryTargetAchievement}
+          value={`${achievementPct}%`}
+          hint={achievementPct >= 100 ? pl.summaryTargetAchieved : undefined}
+        />
+      </div>
+
+      {failedCount > 0 && (
+        <p className="mb-4 sr-text-body-sm text-[var(--sr-error)]">
+          {pl.summaryFailedSets(failedCount)}
+        </p>
+      )}
+
+      <h3 className="mb-2 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+        {pl.summarySectionSets}
+      </h3>
+
       <Card className="overflow-x-auto p-4">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left sr-text-overline text-[var(--sr-text-muted)]">
               <th className="pb-3 font-semibold">{pl.setColumn}</th>
               <th className="pb-3 font-semibold">{pl.targetColumn}</th>
-              <th className="pb-3 font-semibold">{pl.youColumn}</th>
+              <th className="pb-3 font-semibold text-[var(--sr-text-primary)]">{pl.youColumn}</th>
               <th className="pb-3 font-semibold">{pl.prevColumn}</th>
             </tr>
           </thead>

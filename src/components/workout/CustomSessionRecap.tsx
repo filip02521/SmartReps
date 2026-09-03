@@ -19,6 +19,8 @@ import {
   customSessionTotalDurationSec,
   customSessionTotalReps,
 } from '@/lib/custom-session-comparison'
+import { sessionTotalSets } from '@/lib/custom-session-stats'
+import { kgToDisplay, weightUnitLabel } from '@/lib/weight-units'
 import {
   customSetInsightAria,
   formatCustomSetInsightBadge,
@@ -69,6 +71,24 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
   const showWall = wallClockSec > 0
   const showSetTime = totalDurationSec > 0
   const statCount = 2 + (showWall ? 1 : 0) + (showSetTime ? 1 : 0)
+
+  // Professional metrics: total volume, exercise count, total sets, avg volume
+  const exerciseCount = logs.length
+  const allSets = logs.length > 0 ? sessionTotalSets(current) : 0
+  let totalVolumeKg = 0
+  let hasWeights = false
+  for (const log of logs) {
+    for (const set of log.sets) {
+      const reps = set.actual.reps ?? 0
+      const kg = set.actual.weightKg ?? 0
+      if (kg > 0) {
+        hasWeights = true
+        totalVolumeKg += reps * kg
+      }
+    }
+  }
+  const avgVolumePerSet = total > 0 && hasWeights ? Math.round(totalVolumeKg / total) : 0
+  const totalVolumeDisplay = hasWeights ? kgToDisplay(totalVolumeKg, weightUnit) : 0
 
   return (
     <>
@@ -122,12 +142,49 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
         />
       </div>
 
+      {/* Professional metrics row — exercise count, total sets, volume */}
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <NestedStat
+          size="md"
+          overline={pl.summaryExerciseCount}
+          value={exerciseCount}
+        />
+        <NestedStat
+          size="md"
+          overline={pl.summaryTotalSets}
+          value={allSets}
+        />
+        {hasWeights ? (
+          <NestedStat
+            size="md"
+            overline={pl.summaryTotalVolume}
+            value={totalVolumeDisplay}
+            hint={weightUnitLabel(weightUnit)}
+          />
+        ) : null}
+      </div>
+
+      {hasWeights && avgVolumePerSet > 0 && (
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          <NestedStat
+            size="md"
+            overline={pl.summaryAvgVolume}
+            value={kgToDisplay(avgVolumePerSet, weightUnit)}
+            hint={weightUnitLabel(weightUnit)}
+          />
+        </div>
+      )}
+
+      <h3 className="mb-2 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+        {pl.summarySectionSets}
+      </h3>
+
       {logs.map((log) => {
         const def = exerciseMap.get(log.exerciseId)
         const metric: PrimaryMetric = def?.primaryMetric ?? 'reps'
         const name = def?.name ?? pl.planDash
         return (
-          <Card key={`${log.exerciseId}-${log.order}`} className="mb-3 overflow-x-auto p-4">
+          <Card key={`${log.exerciseId}-${log.order}`} className="mb-3 overflow-x-auto p-4 transition-colors hover:border-[var(--sr-border-strong)]">
             <p className="mb-3 font-semibold text-[var(--sr-text-primary)]">{name}</p>
             <table className="w-full text-sm">
               <thead>

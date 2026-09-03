@@ -190,9 +190,20 @@ export const pl = {
   previewWorkoutTitle: 'Podgląd treningu',
   previewStartWorkout: 'Rozpocznij trening',
   previewSetsLabel: 'Serie',
-  previewCustomSummary: (exercises: number, sets: number) =>
-    exercises === 1 ? `1 ćwiczenie · ${sets} ${sets === 1 ? 'seria' : 'serie'}` : `${exercises} ćwiczenia · ${sets} ${sets === 1 ? 'seria' : 'serie'}`,
-  previewRounds: (n: number) => `${n} rund`,
+  previewCustomSummary: (exercises: number, sets: number) => {
+    const exLabel = exercises === 1 ? '1 ćwiczenie' : `${exercises} ćwiczeń`
+    const mod10 = sets % 10
+    const mod100 = sets % 100
+    const setsLabel =
+      sets === 1
+        ? '1 seria'
+        : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+          ? `${sets} serie`
+          : `${sets} serii`
+    return `${exLabel} · ${setsLabel}`
+  },
+  previewRounds: (n: number) =>
+    n === 1 ? '1 runda' : n >= 2 && n <= 4 ? `${n} rundy` : `${n} rund`,
   previewAddSet: 'Dodaj serię',
   previewRemoveSet: 'Usuń serię',
   previewEdited: 'zmieniono',
@@ -439,6 +450,12 @@ export const pl = {
   // Summary
   dayComplete: (n: number) => `Dzień ${n} ukończony`,
   dayFailed: 'Dzień nieudany',
+  summarySectionStats: 'Wyniki',
+  summarySectionSets: 'Serie',
+  summarySectionNotes: 'Notatka',
+  summarySectionAchievements: 'Osiągnięcia',
+  summaryHeroSuccess: 'Trening zaliczony',
+  summaryHeroFail: 'Spróbuj ponownie',
   cycleComplete: 'Cykl ukończony!',
   cycleCompleteHint: 'Po przerwie wykonaj test max, aby wybrać kolejny poziom.',
   goalAchieved: 'Cel osiągnięty!',
@@ -595,6 +612,18 @@ export const pl = {
     `${name}: przerwa ${from}s → ${to}s`,
   customSummaryUpdatePlanSwap: (from: string, to: string) =>
     `Ćwiczenie: ${from} → ${to}`,
+  customSummaryUpdatePlanAdded: (name: string) =>
+    `Dodano ćwiczenie: ${name}`,
+  customSummaryUpdatePlanValues: (name: string, summary: string) =>
+    `${name}: ${summary}`,
+  customSummaryValueSet: (setNumber: number, detail: string) =>
+    `S${setNumber}: ${detail}`,
+  customSummaryValueReps: (from: number, to: number) =>
+    `${from} → ${to} powt.`,
+  customSummaryValueWeight: (from: number, to: number) =>
+    `${from} → ${to} kg`,
+  customSummaryValueDuration: (from: number, to: number) =>
+    `${from}s → ${to}s`,
   customSummaryUpdatePlanTargetsNote:
     'Cele serii zostaną ustawione według wyników z tego treningu.',
   customSummaryUpdatePlanConfirm: 'Zapisz w planie',
@@ -631,6 +660,8 @@ export const pl = {
   customWorkoutReplaceExerciseHint: 'Wybierz ćwiczenie z biblioteki — plan zostanie zaktualizowany.',
   customWorkoutSwapExercise: 'Zamień na inne ćwiczenie',
   customWorkoutSwapExerciseHint: 'Wybierz ćwiczenie z biblioteki. Plan pozostaje bez zmian — decyzję podejmiesz na koniec treningu.',
+  customWorkoutAddExercise: 'Dodaj ćwiczenie',
+  customWorkoutAddExerciseHint: 'Dodaj ćwiczenie na koniec treningu. Tylko na tę sesję — o zapisie do planu zdecydujesz po treningu.',
   customWorkoutSwapConfirmTitle: 'Zamienić ćwiczenie?',
   customWorkoutSwapConfirmBody: (name: string) =>
     `Masz zalogowane serie dla „${name}”. Zamiana wyzeruje te logi.`,
@@ -1025,6 +1056,16 @@ export const pl = {
   formatSetExactShort: (reps: number) => `=${reps}`,
   summarySetsPassed: 'zaliczone serie',
   summaryUnchanged: 'bez zmian',
+  summaryBestSet: 'Najlepsza seria',
+  summaryAvgReps: 'Śr. na serię',
+  summaryTargetAchievement: 'Realizacja celu',
+  summaryTargetAchieved: 'cel zrealizowany',
+  summaryFailedSets: (n: number) =>
+    n === 1 ? '1 niezaliczona seria' : `${n} niezaliczone serie`,
+  summaryTotalVolume: 'Objętość',
+  summaryExerciseCount: 'Ćwiczenia',
+  summaryTotalSets: 'Serie łącznie',
+  summaryAvgVolume: 'Śr. objętość/serię',
   summaryHighlightsTitle: 'Postęp w tym treningu',
   summaryHighlightsPrCount: (n: number) =>
     n === 1 ? '1 rekord' : n < 5 ? `${n} rekordy` : `${n} rekordów`,

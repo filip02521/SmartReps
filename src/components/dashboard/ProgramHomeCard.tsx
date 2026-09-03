@@ -613,7 +613,18 @@ export function ProgramHomeCard({
               <Button
                 size="touch"
                 fullWidth
-                onClick={() => setShowPreview(true)}
+                onClick={() => {
+                  if (!model.currentDaySets || !cycle) {
+                    // Fallback: no preview data — start directly.
+                    navigate(
+                      trainDespiteRest || !available
+                        ? `/workout/${program}?force=1`
+                        : `/workout/${program}`,
+                    )
+                    return
+                  }
+                  setShowPreview(true)
+                }}
               >
                 {pl.startDay(progress.currentDay)}
               </Button>

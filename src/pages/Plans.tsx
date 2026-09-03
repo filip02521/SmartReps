@@ -16,6 +16,7 @@ import { LogoMark } from '@/components/brand/Logo'
 import { ExerciseLibraryPanel } from '@/components/plans/ExerciseLibraryPanel'
 import { CustomPlanEditor } from '@/components/plans/CustomPlanEditor'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
+import { CustomWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
 import { getTargetReps } from '@/lib/progress-engine'
 import { db } from '@/lib/db'
 import { pl } from '@/i18n/pl'
@@ -28,6 +29,7 @@ import { showToast } from '@/stores/toast-store'
 import {
   deleteCustomPlan,
   duplicateCustomPlan,
+  getOrCreateCustomProgress,
   hasActiveCustomWorkout,
   importCustomPlanFromJson,
   listCustomPlans,
@@ -35,6 +37,7 @@ import {
   setCustomPlanPaused,
 } from '@/lib/custom-plan-service'
 import { getActiveCustomWorkoutDay } from '@/lib/custom-plan-edit-lock'
+import { getCustomPlanDisplayDay } from '@/lib/custom-plan-home-summary'
 import { downloadCustomPlanJson } from '@/lib/export-backup'
 import { getCustomPlanResumeInfo, type CustomPlanResumeInfo } from '@/lib/custom-plan-resume'
 import { CommunityCatalogPanel } from '@/components/community/CommunityCatalogPanel'
@@ -102,6 +105,11 @@ export default function PlansPage() {
   const [editorActiveDay, setEditorActiveDay] = useState<number | null>(null)
   const [morePlan, setMorePlan] = useState<CustomPlan | null>(null)
   const [publishPlan, setPublishPlan] = useState<CustomPlan | null>(null)
+  const [previewPlan, setPreviewPlan] = useState<{
+    plan: CustomPlan
+    day: CustomPlan['days'][0]
+    dayNumber: number
+  } | null>(null)
   const [deletePlan, setDeletePlan] = useState<CustomPlan | null>(null)
   const online = useOnline()
   const communityMine = searchParams.get('mine') === '1'
@@ -399,7 +407,20 @@ export default function PlansPage() {
                         <Button
                           type="button"
                           size="md"
-                          onClick={() => navigate(`/workout/custom/${plan.id}`)}
+                          onClick={() => {
+                            // Resume → go directly (workout already in progress).
+                            if (customResume[plan.id]) {
+                              navigate(`/workout/custom/${plan.id}`)
+                              return
+                            }
+                            // Fresh start → preview first.
+                            const prog = customProgress[plan.id]
+                            const dayNumber = getCustomPlanDisplayDay(plan, prog ?? null)
+                            const day = plan.days.find((d) => d.dayNumber === dayNumber) ?? plan.days[0]
+                            if (!day) return
+                            void getOrCreateCustomProgress(plan.id)
+                            setPreviewPlan({ plan, day, dayNumber })
+                          }}
                         >
                           {customResume[plan.id]
                             ? pl.continueWorkout(
@@ -608,6 +629,22 @@ export default function PlansPage() {
         open={publishPlan != null}
         onClose={() => setPublishPlan(null)}
       />
+
+      {previewPlan && (
+        <CustomWorkoutPreviewSheet
+          open
+          onClose={() => setPreviewPlan(null)}
+          planId={previewPlan.plan.id}
+          planName={previewPlan.plan.name.trim() || pl.planDash}
+          dayNumber={previewPlan.dayNumber}
+          originalDay={previewPlan.day}
+          exercises={new Map(exercises.map((e) => [e.id, e]))}
+          onStart={() => {
+            setPreviewPlan(null)
+            navigate(`/workout/custom/${previewPlan.plan.id}`)
+          }}
+        />
+      )}
     </div>
   )
 }

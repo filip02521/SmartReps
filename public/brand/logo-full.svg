@@ -1,14 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" fill="none">
-  <circle cx="20" cy="20" r="17" stroke="url(#g)" stroke-width="2.5" stroke-linecap="round"/>
-  <path d="M 20 5 A 15 15 0 0 1 35 20" stroke="#22D3EE" stroke-width="1.5" stroke-linecap="round" opacity="0.5" fill="none"/>
-  <text x="20" y="26" text-anchor="middle" fill="url(#g)" font-size="16" font-weight="800" font-family="Plus Jakarta Sans, system-ui, sans-serif">R</text>
-  <text x="48" y="26" fill="#FAFAFA" font-size="18" font-family="Plus Jakarta Sans, system-ui, sans-serif">Smart</text>
-  <text x="106" y="26" fill="url(#g)" font-size="18" font-weight="700" font-family="Plus Jakarta Sans, system-ui, sans-serif">Reps</text>
   <defs>
-    <linearGradient id="g" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+    <linearGradient id="sr-lf-grad" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
       <stop stop-color="#6366F1"/>
       <stop offset="0.5" stop-color="#6366F1"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
+    <linearGradient id="sr-lf-text" x1="80" y1="8" x2="200" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <filter id="sr-lf-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
+  <!-- Mark -->
+  <circle cx="20" cy="20" r="17" stroke="url(#sr-lf-grad)" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M 20 5 A 15 15 0 0 1 35 20" stroke="#22D3EE" stroke-width="1.5" stroke-linecap="round" opacity="0.5" fill="none"/>
+  <text x="20" y="26" text-anchor="middle" fill="url(#sr-lf-grad)" font-size="16" font-weight="800" font-family="Plus Jakarta Sans, system-ui, sans-serif" filter="url(#sr-lf-glow)">R</text>
+  <!-- Wordmark -->
+  <text x="48" y="27" font-size="20" font-weight="700" font-family="Plus Jakarta Sans, system-ui, sans-serif" fill="#FAFAFA">Smart</text>
+  <text x="108" y="27" font-size="20" font-weight="700" font-family="Plus Jakarta Sans, system-ui, sans-serif" fill="url(#sr-lf-text)">Reps</text>
 </svg>

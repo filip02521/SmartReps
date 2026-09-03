@@ -106,15 +106,21 @@ export function SessionNoteCard({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <Card className="mt-4 p-4">
+    <Card className="mt-4 p-4 transition-colors hover:border-[var(--sr-border-strong)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="sr-text-overline text-[var(--sr-text-muted)]">
             {pl.sessionNoteLabel}
           </p>
-          <p className="mt-1 sr-text-body-sm text-[var(--sr-text-primary)] whitespace-pre-wrap break-words">
-            {note || pl.sessionNoteEmpty}
-          </p>
+          {note ? (
+            <p className="mt-1 sr-text-body-sm text-[var(--sr-text-primary)] whitespace-pre-wrap break-words">
+              {note}
+            </p>
+          ) : (
+            <p className="mt-1 sr-text-body-sm text-[var(--sr-text-muted)]">
+              {pl.sessionNoteEmpty}
+            </p>
+          )}
         </div>
         <Button
           variant="ghost"

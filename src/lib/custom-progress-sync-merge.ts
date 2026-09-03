@@ -21,6 +21,15 @@ export function shouldPreferLocalCustomProgress(
 ): boolean {
   if (!remote) return true
 
+  // cycle_complete is the most advanced state in a cycle — always prefer it
+  // over a stale in-progress status, regardless of direction.
+  if (local.status === 'cycle_complete' && remote.status !== 'cycle_complete') {
+    return true
+  }
+  if (remote.status === 'cycle_complete' && local.status !== 'cycle_complete') {
+    return false
+  }
+
   const sameAttempt = local.cycleAttempt === remote.cycle_attempt
   if (sameAttempt && local.currentDay !== remote.current_day) {
     return local.currentDay > remote.current_day

@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { getOrCreateCustomProgress, setCustomPlanPaused, listExercises } from '@/lib/custom-plan-service'
+import { getOrCreateCustomProgress, getCustomPlan, setCustomPlanPaused, listExercises } from '@/lib/custom-plan-service'
 import { getCustomPlanDisplayDay } from '@/lib/custom-plan-home-summary'
-import { db } from '@/lib/db'
 import { CustomWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
 import type { CustomPlan, ExerciseDefinition, PlanDay } from '@/lib/exercise-model'
 import type { CustomPlanHomeCardModel } from '@/lib/custom-plan-home-summary'
@@ -57,18 +56,14 @@ export function CustomPlanHomeCard({
   } | null>(null)
 
   async function openPreview() {
-    const plan = await db.customPlans.get(model.planId)
+    const plan = await getCustomPlan(model.planId)
     if (!plan) return
-    const progress = await db.customProgramProgress
-      .where('customPlanId')
-      .equals(model.planId)
-      .first()
+    const progress = await getOrCreateCustomProgress(model.planId)
     const dayNumber = getCustomPlanDisplayDay(plan, progress ?? null)
     const day = plan.days.find((d) => d.dayNumber === dayNumber) ?? plan.days[0]
     if (!day) return
     const exList = await listExercises()
     const exMap = new Map(exList.map((e) => [e.id, e]))
-    void getOrCreateCustomProgress(model.planId)
     setPreview({ plan, day, dayNumber, exercises: exMap })
   }
 

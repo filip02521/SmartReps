@@ -41,11 +41,14 @@ export function SessionSummaryHighlights({
 
   return (
     <section className="mb-4" aria-label={pl.summaryHighlightsTitle}>
+      <h3 className="mb-2 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+        {pl.summaryHighlightsTitle}
+      </h3>
       <ul className="flex flex-col gap-2">
         {prHighlights.map((item) => (
           <li
             key={item.id}
-            className="flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/35 bg-[var(--sr-brand-primary-muted)] px-3.5 py-3"
+            className="flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/35 bg-[var(--sr-brand-primary-muted)] px-3.5 py-3 transition-colors hover:border-[var(--sr-brand-primary)]/60"
           >
             <span
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] bg-[var(--sr-brand-primary)]/20"

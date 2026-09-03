@@ -77,6 +77,20 @@ export function CustomPlansHomeSection({
     })()
   }, [enabledIds, filterExplicit, lastSyncedAt, reloadTick])
 
+  // Reload when the page regains focus (e.g., returning from workout summary).
+  useEffect(() => {
+    const onFocus = () => setReloadTick((t) => t + 1)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') setReloadTick((t) => t + 1)
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [])
+
   const shellClass = embedded ? undefined : 'mt-8'
   const aria = pl.homeCustomPlans
 
