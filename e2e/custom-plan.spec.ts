@@ -86,14 +86,14 @@ test.describe('custom plans smoke', () => {
   test('default exercises are present in library on first open', async ({ page }) => {
     await page.goto('/plans?tab=library')
     await expect(page.getByRole('tab', { name: 'Biblioteka' })).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByText('Pompki')).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByText('Przysiady')).toBeVisible()
+    await expect(page.getByText('Pompki', { exact: true })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Przysiady', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Dodaj zestaw startowy' })).toHaveCount(0)
   })
 
   test('merges duplicate exercises in library by name', async ({ page }) => {
     await page.goto('/plans?tab=library')
-    await expect(page.getByText('Pompki').first()).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Pompki', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
 
     await page.evaluate(async () => {
       const now = new Date().toISOString()
@@ -123,8 +123,8 @@ test.describe('custom plans smoke', () => {
 
     await page.getByRole('tab', { name: 'Moje' }).click()
     await page.getByRole('tab', { name: 'Biblioteka' }).click()
-    await expect(page.getByText('Pompki').first()).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByText('Pompki')).toHaveCount(1)
+    await expect(page.getByText('Pompki', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Pompki', { exact: true })).toHaveCount(1)
   })
 
   test('custom workout completes a single-set day', async ({ page }) => {

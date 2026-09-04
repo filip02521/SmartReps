@@ -401,6 +401,7 @@ export const pl = {
   helpTechniquePushups: 'Technika pompek',
   retestAfterCycle: (program: string) => `Test po cyklu — ${program}`,
   mainNav: 'Główna nawigacja',
+  skipToMain: 'Przejdź do treści',
 
   // Disclaimer
   healthDisclaimer:
@@ -833,6 +834,16 @@ export const pl = {
   progressSessionChartTitle: 'Najlepsza seria w treningu',
   progressSessionChartHint: 'Ostatnia seria max w każdej ukończonej sesji',
   progressSessionChartTooltip: 'Seria max',
+  progressSessionChartAria: (count: number) => `Wykres najlepszej serii, ${count} punktów`,
+  progressTestChartAria: (count: number) => `Wykres testów maksymalnych, ${count} punktów`,
+  progressMaxSetChartAria: (count: number) => `Wykres najlepszej serii na dzień, ${count} dni`,
+  progressCustomVolumeChartAria: (count: number) => `Wykres objętości na sesję, ${count} punktów`,
+  bodyWeightChartAria: (count: number, latest: number | string, unit: string) =>
+    `Wykres wagi ciała, ${count} pomiarów, ostatni: ${latest} ${unit}`,
+  exerciseDetailChartAria: (count: number, name: string) => `Wykres postępu ćwiczenia ${name}, ${count} punktów`,
+  exerciseDetailLoadChartAria: (count: number, name: string) => `Wykres obciążenia ćwiczenia ${name}, ${count} punktów`,
+  dateColumn: 'Data',
+  dayLabelShort: 'Dzień',
   progressCycleTrendTitle: 'Trend w cyklu',
   progressCycleTrendHint: 'Ostatnia seria max: obecna vs poprzednia próba cyklu',
   progressCycleTrendCurrent: 'Obecna',

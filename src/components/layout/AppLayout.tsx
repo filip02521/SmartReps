@@ -20,7 +20,16 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-[var(--sr-bg-base)]" data-tabs={hideTabs ? '0' : '1'}>
+      {!hideTabs && (
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[9999] focus:rounded-[var(--sr-radius-md)] focus:bg-[var(--sr-bg-elevated)] focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-[var(--sr-text-primary)] focus:shadow-[var(--sr-shadow-card)]"
+        >
+          {pl.skipToMain}
+        </a>
+      )}
       <main
+        id="main-content"
         className={cn(
           'flex min-h-0 flex-1 flex-col transition-[padding] duration-200 motion-reduce:transition-none',
           !hideTabs && 'safe-header',

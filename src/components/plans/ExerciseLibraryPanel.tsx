@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Dumbbell } from 'lucide-react'
+import { Dumbbell, ChevronDown, Check } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { Sheet } from '@/components/ui/Sheet'
+import { cn } from '@/lib/utils'
 import { EmptyState } from '@/components/ux/Feedback'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { ExerciseDetailSheet } from '@/components/plans/ExerciseDetailSheet'
@@ -49,6 +51,7 @@ export function ExerciseLibraryPanel({
   const [search, setSearch] = useState('')
   const [metricFilter, setMetricFilter] = useState<PrimaryMetric | 'all'>('all')
   const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | 'all'>('all')
+  const [muscleSheetOpen, setMuscleSheetOpen] = useState(false)
 
   async function reload() {
     const list = await listExercises()
@@ -202,17 +205,25 @@ export function ExerciseLibraryPanel({
                   { value: 'reps_weight' as const, label: pl.exerciseMetricRepsWeight },
                 ]}
               />
-              <select
-                value={muscleFilter}
-                onChange={(e) => setMuscleFilter(e.target.value as MuscleGroup | 'all')}
-                className={`w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-2.5 text-sm text-[var(--sr-text-primary)] ${FOCUS_RING}`}
+              <button
+                type="button"
+                onClick={() => setMuscleSheetOpen(true)}
+                className={cn(
+                  'flex min-h-11 w-full items-center justify-between gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-2.5 text-sm text-[var(--sr-text-primary)] transition-colors hover:border-[var(--sr-border-strong)]',
+                  FOCUS_RING,
+                )}
                 aria-label={pl.exerciseMuscleGroup}
               >
-                <option value="all">{pl.exerciseFilterAll} — {pl.exerciseMuscleGroup}</option>
-                {MUSCLE_GROUPS.map((g) => (
-                  <option key={g} value={g}>{muscleGroupLabel(g)}</option>
-                ))}
-              </select>
+                <span className={cn(
+                  'truncate',
+                  muscleFilter === 'all' && 'text-[var(--sr-text-muted)]',
+                )}>
+                  {muscleFilter === 'all'
+                    ? `${pl.exerciseFilterAll} — ${pl.exerciseMuscleGroup}`
+                    : muscleGroupLabel(muscleFilter)}
+                </span>
+                <ChevronDown size={16} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
+              </button>
               {filteredExercises.length === 0 ? (
                 <EmptyState title={pl.exerciseSearchNoResults} />
               ) : (
@@ -345,6 +356,57 @@ export function ExerciseLibraryPanel({
             : undefined
         }
       />
+
+      <Sheet
+        open={muscleSheetOpen}
+        onClose={() => setMuscleSheetOpen(false)}
+        title={pl.exerciseMuscleGroup}
+      >
+        <ul className="flex flex-col gap-1 pb-2">
+          <li>
+            <button
+              type="button"
+              onClick={() => {
+                setMuscleFilter('all')
+                setMuscleSheetOpen(false)
+              }}
+              className={cn(
+                'flex min-h-11 w-full items-center justify-between rounded-[var(--sr-radius-sm)] px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--sr-bg-elevated)]',
+                FOCUS_RING,
+              )}
+            >
+              <span className={cn(
+                muscleFilter === 'all' ? 'font-medium text-[var(--sr-text-primary)]' : 'text-[var(--sr-text-secondary)]',
+              )}>
+                {pl.exerciseFilterAll}
+              </span>
+              {muscleFilter === 'all' && <Check size={16} className="text-[var(--sr-brand-primary)]" aria-hidden />}
+            </button>
+          </li>
+          {MUSCLE_GROUPS.map((g) => (
+            <li key={g}>
+              <button
+                type="button"
+                onClick={() => {
+                  setMuscleFilter(g)
+                  setMuscleSheetOpen(false)
+                }}
+                className={cn(
+                  'flex min-h-11 w-full items-center justify-between rounded-[var(--sr-radius-sm)] px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--sr-bg-elevated)]',
+                  FOCUS_RING,
+                )}
+              >
+                <span className={cn(
+                  muscleFilter === g ? 'font-medium text-[var(--sr-text-primary)]' : 'text-[var(--sr-text-secondary)]',
+                )}>
+                  {muscleGroupLabel(g)}
+                </span>
+                {muscleFilter === g && <Check size={16} className="text-[var(--sr-brand-primary)]" aria-hidden />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Sheet>
     </>
   )
 }

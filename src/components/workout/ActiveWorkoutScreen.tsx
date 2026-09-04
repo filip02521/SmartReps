@@ -19,10 +19,12 @@ import {
   DayPlanSheet,
   WorkoutFailRetryRow,
 } from '@/components/workout/WorkoutComponents'
+import { WarmupPanel } from '@/components/workout/WarmupPanel'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { SessionElapsedLabel } from '@/components/workout/SessionElapsedLabel'
 import { Z_REST_PILL } from '@/lib/ui-chrome'
+import { useAppStore } from '@/stores/app-store'
 
 export type ActiveWorkoutScreenProps = {
   program: Program
@@ -138,6 +140,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
   const preparingNegative = negativeCountdown !== null && negativeCountdown > 0
   const counterLocked = isResting || preparingNegative
   const targetReps = getTargetReps(currentTarget)
+  const weightUnit = useAppStore((s) => s.settings.weightUnit)
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col safe-top safe-bottom">
@@ -235,6 +238,13 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {pl.setColumn} {currentSetIndex + 1} z {day.sets.length}, {pl.targetColumn.toLowerCase()} {targetReps} {unit}
         </p>
+        {currentSetIndex === 0 && !isResting && !preparingNegative && (
+          <WarmupPanel
+            metric="reps"
+            targetReps={targetReps}
+            weightUnit={weightUnit}
+          />
+        )}
         <RepCounter
           target={currentTarget}
           program={program}

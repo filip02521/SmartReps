@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { PageSection } from '@/components/ui/PageSection'
 import { Sheet } from '@/components/ui/Sheet'
 import { SkeletonCard } from '@/components/ux/Feedback'
+import { AccessibleChart } from '@/components/ui/AccessibleChart'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { pl } from '@/i18n/pl'
 import { showToast } from '@/stores/toast-store'
@@ -121,7 +122,15 @@ export function BodyWeightSection() {
 
       {/* Chart */}
       {chartData.length >= 2 && (
-        <div className="mt-4 h-36 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-2 pl-3">
+        <AccessibleChart
+          label={pl.bodyWeightChartAria(chartData.length, kgToDisplay(latest?.weightKg ?? 0, weightUnit), weightUnitLabel(weightUnit))}
+          data={chartData.map((d) => ({ date: d.label, weight: d.weight }))}
+          columns={[
+            { key: 'date', header: pl.dateColumn },
+            { key: 'weight', header: weightUnitLabel(weightUnit) },
+          ]}
+          className="mt-4 h-36 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-2 pl-3"
+        >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
               <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }} axisLine={false} tickLine={false} />
@@ -140,7 +149,7 @@ export function BodyWeightSection() {
               <Line type="monotone" dataKey="weight" stroke="var(--sr-brand-primary)" strokeWidth={2.5} dot={{ r: 3, fill: 'var(--sr-brand-primary)' }} activeDot={{ r: 5 }} />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        </AccessibleChart>
       )}
 
       {/* Entry list */}

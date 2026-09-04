@@ -3,6 +3,7 @@ import { ProgressSection } from '@/components/progress/ProgressSection'
 import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
 import { ActivityCalendar } from '@/components/progress/ActivityCalendar'
 import { UnifiedRecordsSection } from '@/components/progress/UnifiedRecordsSection'
+import { AccessibleChart } from '@/components/ui/AccessibleChart'
 import { LogoMark } from '@/components/brand/Logo'
 import { EmptyState } from '@/components/ux/Feedback'
 import { MetricStrip } from '@/components/ui/MetricStrip'
@@ -246,7 +247,16 @@ export function OverviewPanel({
             </div>
           )}
           {customSessionChart.length >= 2 && (
-            <div className="mt-3 h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1">
+            <AccessibleChart
+              label={pl.progressCustomVolumeChartAria(customSessionChart.length)}
+              data={customSessionChart.map((p) => ({ date: p.dateLabel, volume: p.value, day: pl.dayLabel(p.dayNumber) }))}
+              columns={[
+                { key: 'date', header: pl.dateColumn },
+                { key: 'volume', header: pl.progressCustomVolumePerSession },
+                { key: 'day', header: pl.dayLabelShort },
+              ]}
+              className="mt-3 h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={customSessionChart}>
                   <XAxis
@@ -281,7 +291,7 @@ export function OverviewPanel({
                   />
                 </LineChart>
               </ResponsiveContainer>
-            </div>
+            </AccessibleChart>
           )}
         </ProgressSection>
       )}
@@ -347,7 +357,16 @@ export function OverviewPanel({
           title={pl.progressSessionChartTitle}
           hint={pl.progressSessionChartHint}
         >
-          <div className="h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1">
+          <AccessibleChart
+            label={pl.progressSessionChartAria(sessionChart.length)}
+            data={sessionChart.map((p) => ({ date: p.dateLabel, value: p.value, day: pl.dayLabel(p.dayNumber) }))}
+            columns={[
+              { key: 'date', header: pl.dateColumn },
+              { key: 'value', header: pl.repsUnit },
+              { key: 'day', header: pl.dayLabelShort },
+            ]}
+            className="h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={sessionChart}>
                 <XAxis
@@ -382,14 +401,22 @@ export function OverviewPanel({
                 />
               </LineChart>
             </ResponsiveContainer>
-          </div>
+          </AccessibleChart>
         </ProgressSection>
       )}
 
       {/* Wykres testu max */}
       {tests.length > 0 && (
         <ProgressSection title={pl.chartTestOverTime} hint={pl.progressTestChartHint}>
-          <div className="h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1">
+          <AccessibleChart
+            label={pl.progressTestChartAria(tests.length)}
+            data={tests.map((t) => ({ date: t.dateLabel, reps: t.reps }))}
+            columns={[
+              { key: 'date', header: pl.dateColumn },
+              { key: 'reps', header: pl.repsUnit },
+            ]}
+            className="h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={tests}>
                 <XAxis
@@ -418,7 +445,7 @@ export function OverviewPanel({
                 />
               </LineChart>
             </ResponsiveContainer>
-          </div>
+          </AccessibleChart>
         </ProgressSection>
       )}
 

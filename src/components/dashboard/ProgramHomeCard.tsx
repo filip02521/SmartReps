@@ -30,6 +30,7 @@ import { getCycleById } from '@/data/plans'
 import { useAppStore } from '@/stores/app-store'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
+import { AccessibleChart } from '@/components/ui/AccessibleChart'
 import { PROGRESS_CHART_TOOLTIP_STYLE } from '@/components/progress/chart-style'
 import type { ProgramCardModel, TipSuppression } from '@/lib/home-summary'
 
@@ -826,7 +827,15 @@ export function ProgramHomeCard({
                 <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
                   {pl.maxSetPerDay}
                 </p>
-                <div className="h-36 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1">
+                <AccessibleChart
+                  label={pl.progressMaxSetChartAria(maxPerDay.length)}
+                  data={maxPerDay.map((d) => ({ day: pl.dayLabel(d.day), max: d.maxActual }))}
+                  columns={[
+                    { key: 'day', header: pl.dayLabelShort },
+                    { key: 'max', header: pl.repsUnit },
+                  ]}
+                  className="h-36 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
+                >
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={maxPerDay}>
                       <XAxis
@@ -849,7 +858,7 @@ export function ProgramHomeCard({
                       <Bar dataKey="maxActual" fill="var(--sr-brand-primary)" radius={4} />
                     </BarChart>
                   </ResponsiveContainer>
-                </div>
+                </AccessibleChart>
               </div>
             )}
 

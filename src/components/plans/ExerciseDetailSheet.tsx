@@ -16,6 +16,7 @@ import { BarChart2, TrendingDown, TrendingUp } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Card'
+import { AccessibleChart } from '@/components/ui/AccessibleChart'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { PROGRESS_CHART_TOOLTIP_STYLE } from '@/components/progress/chart-style'
@@ -275,7 +276,15 @@ export function ExerciseDetailSheet({
 
               <ProgressSection title={pl.exerciseDetailChartTitle} hint={pl.exerciseDetailChartHint}>
                 {stats.chartPoints.length >= 2 ? (
-                  <div className="h-44 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3 pl-1">
+                  <AccessibleChart
+                    label={pl.exerciseDetailChartAria(stats.chartPoints.length, exercise.name)}
+                    data={stats.chartPoints.map((p) => ({ date: p.dateLabel, value: p.value }))}
+                    columns={[
+                      { key: 'date', header: pl.dateColumn },
+                      { key: 'value', header: chartValueLabel(exercise.primaryMetric) },
+                    ]}
+                    className="h-44 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3 pl-1"
+                  >
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={stats.chartPoints}>
                         <XAxis
@@ -312,7 +321,7 @@ export function ExerciseDetailSheet({
                         />
                       </LineChart>
                     </ResponsiveContainer>
-                  </div>
+                  </AccessibleChart>
                 ) : stats.chartPoints.length === 1 ? (
                   <p className="sr-text-body-sm text-[var(--sr-text-muted)]">
                     {pl.exerciseDetailChartSingle(
@@ -332,7 +341,15 @@ export function ExerciseDetailSheet({
                   title={pl.exerciseDetailLoadChartTitle}
                   hint={pl.exerciseDetailLoadChartHint}
                 >
-                  <div className="h-44 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3 pl-1">
+                  <AccessibleChart
+                    label={pl.exerciseDetailLoadChartAria(stats.loadPerSession.length, exercise.name)}
+                    data={stats.loadPerSession.map((p) => ({ date: p.dateLabel, load: p.value }))}
+                    columns={[
+                      { key: 'date', header: pl.dateColumn },
+                      { key: 'load', header: loadChartUnit(exercise.primaryMetric) },
+                    ]}
+                    className="h-44 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3 pl-1"
+                  >
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={stats.loadPerSession}>
                         <XAxis
@@ -358,7 +375,7 @@ export function ExerciseDetailSheet({
                         <Bar dataKey="value" fill="var(--sr-brand-primary)" radius={4} />
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
+                  </AccessibleChart>
                 </ProgressSection>
               )}
 
