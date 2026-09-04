@@ -38,7 +38,7 @@ export type UserSettings = {
   aiModel?: string
   /** Base URL for OpenAI-compatible API endpoint (e.g. Google Gemini, Groq). */
   aiBaseUrl?: string
-  /** UI language. Defaults to 'pl'. Not synced to cloud (local preference). */
+  /** UI language. Defaults to 'pl'. Synced to cloud via UI_SYNC_KEYS. */
   language: 'pl' | 'en'
 }
 
