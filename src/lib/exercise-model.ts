@@ -349,16 +349,108 @@ export type ExerciseStarterKey =
   | 'plank'
   | 'sidePlank'
   | 'press'
+  // Klatka piersiowa
+  | 'benchPress'
+  | 'inclineBenchPress'
+  | 'dumbbellFlyes'
+  | 'dips'
+  | 'pushupWide'
+  // Plecy
+  | 'barbellRow'
+  | 'latPulldown'
+  | 'deadlift'
+  | 'seatedRow'
+  | 'facePulls'
+  // Barki
+  | 'overheadPress'
+  | 'lateralRaise'
+  | 'frontRaise'
+  | 'rearDeltFlyes'
+  | 'arnoldPress'
+  // Ramiona
+  | 'barbellCurl'
+  | 'dumbbellCurl'
+  | 'hammerCurl'
+  | 'tricepPushdown'
+  | 'skullCrusher'
+  | 'closeGripBench'
+  // Nogi
+  | 'legPress'
+  | 'lunges'
+  | 'romanianDeadlift'
+  | 'legExtension'
+  | 'legCurl'
+  | 'calfRaise'
+  | 'gobletSquat'
+  | 'hipThrust'
+  // Core
+  | 'crunches'
+  | 'hangingLegRaise'
+  | 'russianTwist'
+  | 'mountainClimbers'
+  | 'deadBug'
+  // Całe ciało
+  | 'burpees'
+  | 'kettlebellSwing'
+  | 'thrusters'
+  | 'cleanAndPress'
 
 export const EXERCISE_STARTERS: Array<{
   key: ExerciseStarterKey
   primaryMetric: PrimaryMetric
   restDefaultSec: number
+  muscleGroup: MuscleGroup
 }> = [
-  { key: 'pushups', primaryMetric: 'reps', restDefaultSec: 90 },
-  { key: 'pullups', primaryMetric: 'reps', restDefaultSec: 120 },
-  { key: 'squats', primaryMetric: 'reps', restDefaultSec: 90 },
-  { key: 'plank', primaryMetric: 'duration_sec', restDefaultSec: 60 },
-  { key: 'sidePlank', primaryMetric: 'duration_sec', restDefaultSec: 60 },
-  { key: 'press', primaryMetric: 'reps_weight', restDefaultSec: 120 },
+  // Oryginalne
+  { key: 'pushups', primaryMetric: 'reps', restDefaultSec: 90, muscleGroup: 'chest' },
+  { key: 'pullups', primaryMetric: 'reps', restDefaultSec: 120, muscleGroup: 'back' },
+  { key: 'squats', primaryMetric: 'reps', restDefaultSec: 90, muscleGroup: 'legs' },
+  { key: 'plank', primaryMetric: 'duration_sec', restDefaultSec: 60, muscleGroup: 'core' },
+  { key: 'sidePlank', primaryMetric: 'duration_sec', restDefaultSec: 60, muscleGroup: 'core' },
+  { key: 'press', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'shoulders' },
+  // Klatka piersiowa
+  { key: 'benchPress', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'chest' },
+  { key: 'inclineBenchPress', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'chest' },
+  { key: 'dumbbellFlyes', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'chest' },
+  { key: 'dips', primaryMetric: 'reps', restDefaultSec: 90, muscleGroup: 'chest' },
+  { key: 'pushupWide', primaryMetric: 'reps', restDefaultSec: 90, muscleGroup: 'chest' },
+  // Plecy
+  { key: 'barbellRow', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'back' },
+  { key: 'latPulldown', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'back' },
+  { key: 'deadlift', primaryMetric: 'reps_weight', restDefaultSec: 180, muscleGroup: 'back' },
+  { key: 'seatedRow', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'back' },
+  { key: 'facePulls', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'back' },
+  // Barki
+  { key: 'overheadPress', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'shoulders' },
+  { key: 'lateralRaise', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'shoulders' },
+  { key: 'frontRaise', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'shoulders' },
+  { key: 'rearDeltFlyes', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'shoulders' },
+  { key: 'arnoldPress', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'shoulders' },
+  // Ramiona
+  { key: 'barbellCurl', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'arms' },
+  { key: 'dumbbellCurl', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'arms' },
+  { key: 'hammerCurl', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'arms' },
+  { key: 'tricepPushdown', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'arms' },
+  { key: 'skullCrusher', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'arms' },
+  { key: 'closeGripBench', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'arms' },
+  // Nogi
+  { key: 'legPress', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'legs' },
+  { key: 'lunges', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'legs' },
+  { key: 'romanianDeadlift', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'legs' },
+  { key: 'legExtension', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'legs' },
+  { key: 'legCurl', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'legs' },
+  { key: 'calfRaise', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'legs' },
+  { key: 'gobletSquat', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'legs' },
+  { key: 'hipThrust', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'legs' },
+  // Core
+  { key: 'crunches', primaryMetric: 'reps', restDefaultSec: 60, muscleGroup: 'core' },
+  { key: 'hangingLegRaise', primaryMetric: 'reps', restDefaultSec: 60, muscleGroup: 'core' },
+  { key: 'russianTwist', primaryMetric: 'reps', restDefaultSec: 60, muscleGroup: 'core' },
+  { key: 'mountainClimbers', primaryMetric: 'duration_sec', restDefaultSec: 45, muscleGroup: 'core' },
+  { key: 'deadBug', primaryMetric: 'reps', restDefaultSec: 45, muscleGroup: 'core' },
+  // Całe ciało
+  { key: 'burpees', primaryMetric: 'reps', restDefaultSec: 60, muscleGroup: 'full_body' },
+  { key: 'kettlebellSwing', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'full_body' },
+  { key: 'thrusters', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'full_body' },
+  { key: 'cleanAndPress', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'full_body' },
 ]

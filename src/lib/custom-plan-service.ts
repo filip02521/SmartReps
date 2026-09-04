@@ -31,6 +31,51 @@ const STARTER_LABELS: Record<ExerciseStarterKey, string> = {
   plank: pl.exerciseStarterPlank,
   sidePlank: pl.exerciseStarterSidePlank,
   press: pl.exerciseStarterPress,
+  // Klatka piersiowa
+  benchPress: pl.exerciseStarterBenchPress,
+  inclineBenchPress: pl.exerciseStarterInclineBenchPress,
+  dumbbellFlyes: pl.exerciseStarterDumbbellFlyes,
+  dips: pl.exerciseStarterDips,
+  pushupWide: pl.exerciseStarterPushupWide,
+  // Plecy
+  barbellRow: pl.exerciseStarterBarbellRow,
+  latPulldown: pl.exerciseStarterLatPulldown,
+  deadlift: pl.exerciseStarterDeadlift,
+  seatedRow: pl.exerciseStarterSeatedRow,
+  facePulls: pl.exerciseStarterFacePulls,
+  // Barki
+  overheadPress: pl.exerciseStarterOverheadPress,
+  lateralRaise: pl.exerciseStarterLateralRaise,
+  frontRaise: pl.exerciseStarterFrontRaise,
+  rearDeltFlyes: pl.exerciseStarterRearDeltFlyes,
+  arnoldPress: pl.exerciseStarterArnoldPress,
+  // Ramiona
+  barbellCurl: pl.exerciseStarterBarbellCurl,
+  dumbbellCurl: pl.exerciseStarterDumbbellCurl,
+  hammerCurl: pl.exerciseStarterHammerCurl,
+  tricepPushdown: pl.exerciseStarterTricepPushdown,
+  skullCrusher: pl.exerciseStarterSkullCrusher,
+  closeGripBench: pl.exerciseStarterCloseGripBench,
+  // Nogi
+  legPress: pl.exerciseStarterLegPress,
+  lunges: pl.exerciseStarterLunges,
+  romanianDeadlift: pl.exerciseStarterRomanianDeadlift,
+  legExtension: pl.exerciseStarterLegExtension,
+  legCurl: pl.exerciseStarterLegCurl,
+  calfRaise: pl.exerciseStarterCalfRaise,
+  gobletSquat: pl.exerciseStarterGobletSquat,
+  hipThrust: pl.exerciseStarterHipThrust,
+  // Core
+  crunches: pl.exerciseStarterCrunches,
+  hangingLegRaise: pl.exerciseStarterHangingLegRaise,
+  russianTwist: pl.exerciseStarterRussianTwist,
+  mountainClimbers: pl.exerciseStarterMountainClimbers,
+  deadBug: pl.exerciseStarterDeadBug,
+  // Całe ciało
+  burpees: pl.exerciseStarterBurpees,
+  kettlebellSwing: pl.exerciseStarterKettlebellSwing,
+  thrusters: pl.exerciseStarterThrusters,
+  cleanAndPress: pl.exerciseStarterCleanAndPress,
 }
 
 export function shouldPersistDraft(plan: CustomPlan): boolean {
@@ -44,18 +89,28 @@ export function isEmptyOrphanDraft(plan: CustomPlan): boolean {
   return plan.status === 'draft' && !shouldPersistDraft(plan)
 }
 
-/** When the library is empty, seed the default starter pack (idempotent). */
+/** When the library is empty, seed the default starter pack (idempotent).
+ *  Also backfills any missing starter exercises for existing users. */
 export async function ensureDefaultExercises(): Promise<{
   seeded: boolean
   created: ExerciseDefinition[]
 }> {
   const all = await db.exercises.toArray()
   const active = all.filter((e) => !e.archived)
-  if (active.length > 0) {
-    return { seeded: false, created: [] }
+  if (active.length === 0) {
+    const { created } = await seedStarterExercises()
+    return { seeded: created.length > 0, created }
   }
-  const { created } = await seedStarterExercises()
-  return { seeded: created.length > 0, created }
+  // Backfill: if user has fewer exercises than the starter pack, add missing ones.
+  const byName = new Set(active.map((e) => e.name.trim().toLowerCase()))
+  const missing = EXERCISE_STARTERS.some(
+    (s) => !byName.has(STARTER_LABELS[s.key].toLowerCase()),
+  )
+  if (missing) {
+    const { created } = await seedStarterExercises()
+    return { seeded: created.length > 0, created }
+  }
+  return { seeded: false, created: [] }
 }
 
 export async function listExercises(includeArchived = false): Promise<ExerciseDefinition[]> {
@@ -145,6 +200,7 @@ export async function seedStarterExercises(): Promise<{
       name,
       primaryMetric: starter.primaryMetric,
       restDefaultSec: starter.restDefaultSec,
+      muscleGroup: starter.muscleGroup,
     })
     created.push(ex)
     byName.add(name.toLowerCase())

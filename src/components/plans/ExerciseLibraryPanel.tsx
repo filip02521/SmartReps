@@ -48,6 +48,7 @@ export function ExerciseLibraryPanel({
   const [detailExercise, setDetailExercise] = useState<ExerciseDefinition | null>(null)
   const [search, setSearch] = useState('')
   const [metricFilter, setMetricFilter] = useState<PrimaryMetric | 'all'>('all')
+  const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | 'all'>('all')
 
   async function reload() {
     const list = await listExercises()
@@ -140,10 +141,11 @@ export function ExerciseLibraryPanel({
     const q = search.trim().toLowerCase()
     return exercises.filter((ex) => {
       if (metricFilter !== 'all' && ex.primaryMetric !== metricFilter) return false
+      if (muscleFilter !== 'all' && ex.muscleGroup !== muscleFilter) return false
       if (q && !ex.name.toLowerCase().includes(q)) return false
       return true
     })
-  }, [exercises, search, metricFilter])
+  }, [exercises, search, metricFilter, muscleFilter])
 
   return (
     <>
@@ -200,6 +202,17 @@ export function ExerciseLibraryPanel({
                   { value: 'reps_weight' as const, label: pl.exerciseMetricRepsWeight },
                 ]}
               />
+              <select
+                value={muscleFilter}
+                onChange={(e) => setMuscleFilter(e.target.value as MuscleGroup | 'all')}
+                className={`w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-2.5 text-sm text-[var(--sr-text-primary)] ${FOCUS_RING}`}
+                aria-label={pl.exerciseMuscleGroup}
+              >
+                <option value="all">{pl.exerciseFilterAll} — {pl.exerciseMuscleGroup}</option>
+                {MUSCLE_GROUPS.map((g) => (
+                  <option key={g} value={g}>{muscleGroupLabel(g)}</option>
+                ))}
+              </select>
               {filteredExercises.length === 0 ? (
                 <EmptyState title={pl.exerciseSearchNoResults} />
               ) : (
