@@ -66,8 +66,7 @@ async function gatherWorkoutHistory(
   exercises: ExerciseDefinition[],
 ): Promise<WorkoutHistorySummary> {
   const sessions = await db.workoutSessions
-    .where('status')
-    .equals('completed')
+    .filter((s) => s.status === 'completed')
     .toArray()
 
   if (sessions.length === 0) {
