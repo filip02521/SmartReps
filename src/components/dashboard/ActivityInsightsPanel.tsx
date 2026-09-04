@@ -30,34 +30,11 @@ function resolveTrend(insights: ActivityInsights): TrendKind {
   return repsChangePct > 0 ? 'up' : 'down'
 }
 
-const trendChrome: Record<
-  TrendKind,
-  { icon: typeof TrendingUp; accent: string; muted: string; ring: string }
-> = {
-  up: {
-    icon: TrendingUp,
-    accent: 'var(--sr-success)',
-    muted: 'color-mix(in srgb, var(--sr-success) 15%, transparent)',
-    ring: 'var(--sr-success)',
-  },
-  down: {
-    icon: TrendingDown,
-    accent: 'var(--sr-error)',
-    muted: 'color-mix(in srgb, var(--sr-error) 15%, transparent)',
-    ring: 'var(--sr-error)',
-  },
-  same: {
-    icon: Minus,
-    accent: 'var(--sr-text-muted)',
-    muted: 'color-mix(in srgb, var(--sr-text-muted) 12%, transparent)',
-    ring: 'var(--sr-border-subtle)',
-  },
-  new: {
-    icon: Sparkles,
-    accent: 'var(--sr-brand-primary)',
-    muted: 'color-mix(in srgb, var(--sr-brand-primary) 15%, transparent)',
-    ring: 'var(--sr-brand-primary)',
-  },
+function trendAccent(trend: TrendKind): { accent: string; muted: string; ring: string } {
+  if (trend === 'up') return { accent: 'var(--sr-success)', muted: 'color-mix(in srgb, var(--sr-success) 15%, transparent)', ring: 'var(--sr-success)' }
+  if (trend === 'down') return { accent: 'var(--sr-error)', muted: 'color-mix(in srgb, var(--sr-error) 15%, transparent)', ring: 'var(--sr-error)' }
+  if (trend === 'same') return { accent: 'var(--sr-text-muted)', muted: 'color-mix(in srgb, var(--sr-text-muted) 12%, transparent)', ring: 'var(--sr-border-subtle)' }
+  return { accent: 'var(--sr-brand-primary)', muted: 'color-mix(in srgb, var(--sr-brand-primary) 15%, transparent)', ring: 'var(--sr-brand-primary)' }
 }
 
 function TrendBadge({
@@ -69,8 +46,7 @@ function TrendBadge({
   pct: number | null
   label: string
 }) {
-  const chrome = trendChrome[trend]
-  const Icon = chrome.icon
+  const chrome = trendAccent(trend)
 
   if (trend === 'new') {
     return (
@@ -79,7 +55,7 @@ function TrendBadge({
         style={{ background: chrome.muted, color: chrome.accent }}
         aria-label={label}
       >
-        <Icon size={20} strokeWidth={2.25} />
+        <Sparkles size={20} strokeWidth={2.25} />
       </span>
     )
   }
@@ -91,7 +67,7 @@ function TrendBadge({
         style={{ color: chrome.accent }}
         aria-label={label}
       >
-        <Icon size={20} strokeWidth={2.25} />
+        <Minus size={20} strokeWidth={2.25} />
       </span>
     )
   }
@@ -106,7 +82,7 @@ function TrendBadge({
       style={{ background: chrome.muted, color: chrome.accent }}
       aria-label={label}
     >
-      <Icon size={14} strokeWidth={2.5} />
+      {trend === 'up' ? <TrendingUp size={14} strokeWidth={2.5} /> : <TrendingDown size={14} strokeWidth={2.5} />}
       {pct !== null && (
         <span className="leading-none">
           {trend === 'up' ? '+' : '−'}
@@ -140,7 +116,7 @@ export function ActivityInsightsPanel({
 
   if (!headline && !recordNote) return null
 
-  const chrome = trendChrome[trend]
+  const chrome = trendAccent(trend)
 
   return (
     <div
