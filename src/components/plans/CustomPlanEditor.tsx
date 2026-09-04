@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, ChevronUp, Trash2, ArrowLeft, Copy, Dumbbell } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, ArrowLeft, Copy, Dumbbell, Repeat, Plus, MoreHorizontal } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
@@ -30,6 +30,7 @@ import {
   isEmptyOrphanDraft,
   listExercises,
   saveCustomPlan,
+  saveExercise,
   shouldPersistDraft,
 } from '@/lib/custom-plan-service'
 import { canEditCustomPlanDay } from '@/lib/custom-plan-edit-lock'
@@ -52,6 +53,7 @@ type EditorView =
   | { screen: 'day'; dayIndex: number }
   | { screen: 'exercise'; dayIndex: number; exerciseIndex: number }
   | { screen: 'pick'; dayIndex: number }
+  | { screen: 'pickReplace'; dayIndex: number; exerciseIndex: number }
 
 function defaultSets(metric: ExerciseDefinition['primaryMetric']): SetPrescription[] {
   if (metric === 'duration_sec') return [{ durationSec: { kind: 'min', value: 30 } }]
@@ -78,6 +80,31 @@ function renumberDays(days: CustomPlan['days']): CustomPlan['days'] {
   }))
 }
 
+function SaveBar({
+  plan,
+  onActivate,
+  onSaveDraft,
+}: {
+  plan: CustomPlan
+  onActivate: () => void
+  onSaveDraft: () => void
+}) {
+  return (
+    <div className="sticky bottom-0 -mx-4 mt-4 flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+      <Button type="button" size="touch" fullWidth onClick={onActivate}>
+        {plan.status === 'active'
+          ? pl.planSaveActive
+          : plan.source === 'community'
+            ? pl.communityActivateHint
+            : pl.planPublish}
+      </Button>
+      <Button type="button" variant="ghost" fullWidth onClick={onSaveDraft}>
+        {pl.planSaveDraft}
+      </Button>
+    </div>
+  )
+}
+
 export function CustomPlanEditor({
   open,
   planId,
@@ -102,6 +129,9 @@ export function CustomPlanEditor({
   const [deleteDayIndex, setDeleteDayIndex] = useState<number | null>(null)
   const [showProgression, setShowProgression] = useState(false)
   const [showDeload, setShowDeload] = useState(false)
+  const [expandedExercise, setExpandedExercise] = useState<number | null>(null)
+  const [expandedDay, setExpandedDay] = useState<number | null>(null)
+  const exerciseNameTimer = useRef<number | null>(null)
   const activeDay = activeWorkoutDayNumber ?? null
 
   function isDayLocked(dayNumber: number): boolean {
@@ -233,7 +263,7 @@ export function CustomPlanEditor({
   }
 
   const day =
-    view.screen === 'day' || view.screen === 'exercise' || view.screen === 'pick'
+    view.screen === 'day' || view.screen === 'exercise' || view.screen === 'pick' || view.screen === 'pickReplace'
       ? plan.days[view.dayIndex]
       : undefined
   const exerciseIndex = view.screen === 'exercise' ? view.exerciseIndex : 0
@@ -244,6 +274,7 @@ export function CustomPlanEditor({
 
   function sheetTitle() {
     if (view.screen === 'pick') return pl.exercisePickTitle
+    if (view.screen === 'pickReplace') return pl.exerciseReplaceTitle
     if (view.screen === 'day' && day) return pl.planDayLabel(day.dayNumber)
     if (view.screen === 'exercise') return exDef?.name ?? pl.planEllipsis
     return plan.name.trim() || pl.newCustomPlan
@@ -290,6 +321,26 @@ export function CustomPlanEditor({
     updatePlan(next)
     setExercises((prev) => (prev.some((e) => e.id === ex.id) ? prev : [...prev, ex]))
     setView({ screen: 'exercise', dayIndex: dayIdx, exerciseIndex: d.exercises.length })
+  }
+
+  /** Replace the exercise definition at (dayIdx, exIdx) while keeping sets, rests, notes, progression. */
+  function replaceExercise(dayIdx: number, exIdx: number, ex: ExerciseDefinition) {
+    if (!guardDayEdit(dayIdx)) return
+    const d = plan.days[dayIdx]
+    if (!d) return
+    const current = d.exercises[exIdx]
+    if (!current) return
+    const updated: PlannedExercise = {
+      ...current,
+      exerciseId: ex.id,
+    }
+    const exercises = [...d.exercises]
+    exercises[exIdx] = updated
+    const days = [...plan.days]
+    days[dayIdx] = { ...d, exercises }
+    updatePlan({ ...plan, days })
+    setExercises((prev) => (prev.some((e) => e.id === ex.id) ? prev : [...prev, ex]))
+    setView({ screen: 'exercise', dayIndex: dayIdx, exerciseIndex: exIdx })
   }
 
   const filterExplicit = useAppStore((s) => s.settings.customPlansFilterExplicit)
@@ -380,15 +431,65 @@ export function CustomPlanEditor({
         className="max-h-[92vh] overflow-y-auto"
       >
         {view.screen === 'hub' && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-5">
             {activeDay != null && (
               <FeedbackBanner variant="warning" message={pl.customEditBlockedActiveDay} />
             )}
 
+            {/* Plan summary card */}
+            <div className="flex items-center gap-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-4 py-3">
+              <div className="flex flex-1 flex-col items-center gap-0.5">
+                <span className="text-xl font-bold text-[var(--sr-text-primary)]">
+                  {plan.days.length}
+                </span>
+                <span className="text-xs text-[var(--sr-text-muted)]">
+                  {pl.planSummaryDays(plan.days.length)}
+                </span>
+              </div>
+              <div className="h-8 w-px bg-[var(--sr-border-subtle)]" />
+              <div className="flex flex-1 flex-col items-center gap-0.5">
+                <span className="text-xl font-bold text-[var(--sr-text-primary)]">
+                  {plan.days.reduce((acc, d) => acc + d.exercises.length, 0)}
+                </span>
+                <span className="text-xs text-[var(--sr-text-muted)]">
+                  {pl.planSummaryExercises(plan.days.reduce((acc, d) => acc + d.exercises.length, 0))}
+                </span>
+              </div>
+              <div className="h-8 w-px bg-[var(--sr-border-subtle)]" />
+              <div className="flex flex-1 flex-col items-center gap-0.5">
+                <span className="text-xl font-bold text-[var(--sr-text-primary)]">
+                  {plan.days.reduce(
+                    (acc, d) => acc + d.exercises.reduce((s, e) => s + e.sets.length, 0),
+                    0,
+                  )}
+                </span>
+                <span className="text-xs text-[var(--sr-text-muted)]">
+                  {pl.planSummarySets(
+                    plan.days.reduce(
+                      (acc, d) => acc + d.exercises.reduce((s, e) => s + e.sets.length, 0),
+                      0,
+                    ),
+                  )}
+                </span>
+              </div>
+            </div>
+
             <div>
-              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
-                {pl.planSectionInfo}
-              </p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="sr-text-overline text-[var(--sr-text-muted)]">
+                  {pl.planSectionInfo}
+                </p>
+                <span
+                  className={cn(
+                    'rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                    plan.status === 'active'
+                      ? 'bg-[var(--sr-success)]/15 text-[var(--sr-success)]'
+                      : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
+                  )}
+                >
+                  {plan.status === 'active' ? pl.planStatusActive : pl.planStatusDraft}
+                </span>
+              </div>
               <div className="flex flex-col gap-3">
                 <TextField
                   id="plan-name"
@@ -429,7 +530,7 @@ export function CustomPlanEditor({
                     isDayLocked(d.dayNumber) && 'border-l-4 border-l-[var(--sr-warning)]',
                   )}
                 >
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-1">
                     <button
                       type="button"
                       className={cn('min-h-11 min-w-0 flex-1 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-[0.99]', FOCUS_RING)}
@@ -463,72 +564,97 @@ export function CustomPlanEditor({
                       type="button"
                       size="sm"
                       variant="ghost"
-                      className="min-h-11 min-w-11"
-                      disabled={i === 0 || isDayLocked(d.dayNumber)}
-                      aria-label={pl.planMoveDayUp}
-                      onClick={() => {
-                        if (!guardDayEdit(i)) return
-                        const list = plan.days.map((x) => ({ ...x }))
-                        ;[list[i - 1], list[i]] = [list[i]!, list[i - 1]!]
-                        updatePlan({ ...plan, days: renumberDays(list) })
-                      }}
+                      className="min-h-11 min-w-11 shrink-0"
+                      aria-label={pl.planExerciseActions}
+                      aria-expanded={expandedDay === i}
+                      onClick={() => setExpandedDay(expandedDay === i ? null : i)}
                     >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="min-h-11 min-w-11"
-                      disabled={i === plan.days.length - 1 || isDayLocked(d.dayNumber)}
-                      aria-label={pl.planMoveDayDown}
-                      onClick={() => {
-                        if (!guardDayEdit(i)) return
-                        const list = plan.days.map((x) => ({ ...x }))
-                        ;[list[i], list[i + 1]] = [list[i + 1]!, list[i]!]
-                        updatePlan({ ...plan, days: renumberDays(list) })
-                      }}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="min-h-11"
-                      onClick={() => {
-                        const nextNum = Math.max(0, ...plan.days.map((x) => x.dayNumber)) + 1
-                        updatePlan({
-                          ...plan,
-                          days: [...plan.days, duplicatePlanDay(d, nextNum)],
-                        })
-                      }}
-                    >
-                      {pl.planDuplicateDay}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="min-h-11"
-                      aria-label={pl.planDeleteDay}
-                      onClick={() => {
-                        if (!guardDayEdit(i)) return
-                        if (plan.days.length <= 1) {
-                          showToast(pl.planCannotDeleteLastDay, 'error')
-                          return
-                        }
-                        if (d.exercises.length > 0) setDeleteDayIndex(i)
-                        else {
-                          const days = renumberDays(plan.days.filter((_, idx) => idx !== i))
-                          updatePlan({ ...plan, days })
-                          void syncProgressAfterDayDelete(plan.id, days)
-                        }
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
+                      <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </div>
+                  {expandedDay === i && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-[var(--sr-border-subtle)] pt-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="min-h-9 flex-1 gap-1.5"
+                        disabled={i === 0 || isDayLocked(d.dayNumber)}
+                        aria-label={pl.planMoveDayUp}
+                        onClick={() => {
+                          if (!guardDayEdit(i)) return
+                          const list = plan.days.map((x) => ({ ...x }))
+                          ;[list[i - 1], list[i]] = [list[i]!, list[i - 1]!]
+                          updatePlan({ ...plan, days: renumberDays(list) })
+                          setExpandedDay(null)
+                        }}
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                        {pl.planMoveDayUp}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="min-h-9 flex-1 gap-1.5"
+                        disabled={i === plan.days.length - 1 || isDayLocked(d.dayNumber)}
+                        aria-label={pl.planMoveDayDown}
+                        onClick={() => {
+                          if (!guardDayEdit(i)) return
+                          const list = plan.days.map((x) => ({ ...x }))
+                          ;[list[i], list[i + 1]] = [list[i + 1]!, list[i]!]
+                          updatePlan({ ...plan, days: renumberDays(list) })
+                          setExpandedDay(null)
+                        }}
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                        {pl.planMoveDayDown}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="min-h-9 flex-1 gap-1.5"
+                        aria-label={pl.planDuplicateDay}
+                        disabled={isDayLocked(d.dayNumber)}
+                        onClick={() => {
+                          const nextNum = Math.max(0, ...plan.days.map((x) => x.dayNumber)) + 1
+                          updatePlan({
+                            ...plan,
+                            days: [...plan.days, duplicatePlanDay(d, nextNum)],
+                          })
+                          setExpandedDay(null)
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                        {pl.planDuplicateDay}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="min-h-9 flex-1 gap-1.5 text-[var(--sr-error)]"
+                        aria-label={pl.planDeleteDay}
+                        onClick={() => {
+                          if (!guardDayEdit(i)) return
+                          if (plan.days.length <= 1) {
+                            showToast(pl.planCannotDeleteLastDay, 'error')
+                            return
+                          }
+                          if (d.exercises.length > 0) setDeleteDayIndex(i)
+                          else {
+                            const days = renumberDays(plan.days.filter((_, idx) => idx !== i))
+                            updatePlan({ ...plan, days })
+                            void syncProgressAfterDayDelete(plan.id, days)
+                          }
+                          setExpandedDay(null)
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {pl.planDeleteDay}
+                      </Button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -536,7 +662,7 @@ export function CustomPlanEditor({
             <Button
               type="button"
               variant="secondary"
-              className="mt-3"
+              className="mt-2 gap-1.5"
               onClick={() => {
                 const nextNum = Math.max(0, ...plan.days.map((x) => x.dayNumber)) + 1
                 updatePlan({
@@ -548,6 +674,7 @@ export function CustomPlanEditor({
                 })
               }}
             >
+              <Plus size={16} aria-hidden />
               {pl.planAddDay}
             </Button>
             </div>
@@ -557,7 +684,7 @@ export function CustomPlanEditor({
                 {pl.planSectionProgression}
               </p>
               <div className="flex flex-col gap-3">
-            <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] p-3">
+              <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] p-3">
               <SwitchRow
                 id="prog-enable"
                 label={pl.progressionEnable}
@@ -729,23 +856,16 @@ export function CustomPlanEditor({
               </div>
             </div>
 
-            <div className="sticky bottom-0 -mx-4 mt-2 flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-4 py-3">
-            <Button type="button" size="touch" fullWidth onClick={() => void handleActivate()}>
-              {plan.status === 'active'
-                ? pl.planSaveActive
-                : plan.source === 'community'
-                  ? pl.communityActivateHint
-                  : pl.planPublish}
-            </Button>
-            <Button type="button" variant="ghost" fullWidth onClick={() => void handleSaveDraft()}>
-              {pl.planSaveDraft}
-            </Button>
-            </div>
+            <SaveBar
+              plan={plan}
+              onActivate={() => void handleActivate()}
+              onSaveDraft={() => void handleSaveDraft()}
+            />
           </div>
         )}
 
         {view.screen === 'day' && day && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             <Button
               type="button"
               variant="ghost"
@@ -761,9 +881,15 @@ export function CustomPlanEditor({
               <FeedbackBanner variant="warning" message={pl.customEditBlockedActiveDay} />
             )}
 
+            {day.exercises.length > 0 && (
+              <p className="text-sm text-[var(--sr-text-muted)]">
+                {pl.planDayExercisesCount(day.exercises.length)}
+              </p>
+            )}
+
             <div>
-              <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
-                {pl.planRestAfterDay}
+              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.planSectionRestDay}
               </p>
               <SegmentedControl
                 value={String(day.restAfterDay) as '1' | '2'}
@@ -838,6 +964,7 @@ export function CustomPlanEditor({
                         }}
                       >
                         <p className="font-medium">
+                          <span className="mr-1.5 text-[var(--sr-text-muted)]">{i + 1}.</span>
                           {name}{' '}
                           <span className="text-[var(--sr-text-muted)]">
                             · {pl.planSetsShort(pe.sets.length)}
@@ -861,80 +988,102 @@ export function CustomPlanEditor({
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="min-h-11 min-w-11"
-                        disabled={i === 0 || isDayLocked(day.dayNumber)}
-                        aria-label={pl.planMoveUp}
-                        onClick={() => {
-                          if (!guardDayEdit(view.dayIndex)) return
-                          const list = day.exercises.map((x) => ({ ...x }))
-                          ;[list[i - 1], list[i]] = [list[i]!, list[i - 1]!]
-                          const ordered = list.map((x, idx) => ({ ...x, order: idx }))
-                          const days = [...plan.days]
-                          days[view.dayIndex] = { ...day, exercises: ordered }
-                          updatePlan({ ...plan, days })
-                        }}
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="min-h-11 min-w-11"
-                        disabled={i === day.exercises.length - 1 || isDayLocked(day.dayNumber)}
-                        aria-label={pl.planMoveDown}
-                        onClick={() => {
-                          if (!guardDayEdit(view.dayIndex)) return
-                          const list = day.exercises.map((x) => ({ ...x }))
-                          ;[list[i], list[i + 1]] = [list[i + 1]!, list[i]!]
-                          const ordered = list.map((x, idx) => ({ ...x, order: idx }))
-                          const days = [...plan.days]
-                          days[view.dayIndex] = { ...day, exercises: ordered }
-                          updatePlan({ ...plan, days })
-                        }}
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="min-h-11 min-w-11"
-                        aria-label={pl.planDuplicateExercise}
+                        className="min-h-11 min-w-11 shrink-0"
+                        aria-label={pl.planExerciseActions}
+                        aria-expanded={expandedExercise === i}
                         disabled={isDayLocked(day.dayNumber)}
-                        onClick={() => {
-                          if (!guardDayEdit(view.dayIndex)) return
-                          const copy = { ...pe, sets: pe.sets.map((s) => ({ ...s })), order: i + 1 }
-                          const list = [...day.exercises]
-                          list.splice(i + 1, 0, copy)
-                          const ordered = list.map((x, idx) => ({ ...x, order: idx }))
-                          const days = [...plan.days]
-                          days[view.dayIndex] = { ...day, exercises: ordered }
-                          updatePlan({ ...plan, days })
-                        }}
+                        onClick={() => setExpandedExercise(expandedExercise === i ? null : i)}
                       >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="min-h-11 min-w-11"
-                        aria-label={pl.planRemoveExercise}
-                        disabled={isDayLocked(day.dayNumber)}
-                        onClick={() => {
-                          if (!guardDayEdit(view.dayIndex)) return
-                          const list = day.exercises
-                            .filter((_, idx) => idx !== i)
-                            .map((x, idx) => ({ ...x, order: idx }))
-                          const days = [...plan.days]
-                          days[view.dayIndex] = { ...day, exercises: list }
-                          updatePlan({ ...plan, days })
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
+                        <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </div>
+                    {expandedExercise === i && !isDayLocked(day.dayNumber) && (
+                      <div className="mt-2 flex items-center gap-1 border-t border-[var(--sr-border-subtle)] pt-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="min-h-9 flex-1 gap-1.5"
+                          disabled={i === 0}
+                          aria-label={pl.planMoveUp}
+                          onClick={() => {
+                            if (!guardDayEdit(view.dayIndex)) return
+                            const list = day.exercises.map((x) => ({ ...x }))
+                            ;[list[i - 1], list[i]] = [list[i]!, list[i - 1]!]
+                            const ordered = list.map((x, idx) => ({ ...x, order: idx }))
+                            const days = [...plan.days]
+                            days[view.dayIndex] = { ...day, exercises: ordered }
+                            updatePlan({ ...plan, days })
+                            setExpandedExercise(null)
+                          }}
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                          {pl.planMoveUp}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="min-h-9 flex-1 gap-1.5"
+                          disabled={i === day.exercises.length - 1}
+                          aria-label={pl.planMoveDown}
+                          onClick={() => {
+                            if (!guardDayEdit(view.dayIndex)) return
+                            const list = day.exercises.map((x) => ({ ...x }))
+                            ;[list[i], list[i + 1]] = [list[i + 1]!, list[i]!]
+                            const ordered = list.map((x, idx) => ({ ...x, order: idx }))
+                            const days = [...plan.days]
+                            days[view.dayIndex] = { ...day, exercises: ordered }
+                            updatePlan({ ...plan, days })
+                            setExpandedExercise(null)
+                          }}
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                          {pl.planMoveDown}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="min-h-9 flex-1 gap-1.5"
+                          aria-label={pl.planDuplicateExercise}
+                          onClick={() => {
+                            if (!guardDayEdit(view.dayIndex)) return
+                            const copy = { ...pe, sets: pe.sets.map((s) => ({ ...s })), order: i + 1 }
+                            const list = [...day.exercises]
+                            list.splice(i + 1, 0, copy)
+                            const ordered = list.map((x, idx) => ({ ...x, order: idx }))
+                            const days = [...plan.days]
+                            days[view.dayIndex] = { ...day, exercises: ordered }
+                            updatePlan({ ...plan, days })
+                            setExpandedExercise(null)
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                          {pl.planDuplicateExercise}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="min-h-9 flex-1 gap-1.5 text-[var(--sr-error)]"
+                          aria-label={pl.planRemoveExercise}
+                          onClick={() => {
+                            if (!guardDayEdit(view.dayIndex)) return
+                            const list = day.exercises
+                              .filter((_, idx) => idx !== i)
+                              .map((x, idx) => ({ ...x, order: idx }))
+                            const days = [...plan.days]
+                            days[view.dayIndex] = { ...day, exercises: list }
+                            updatePlan({ ...plan, days })
+                            setExpandedExercise(null)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {pl.planRemoveExercise}
+                        </Button>
+                      </div>
+                    )}
                     {!isDayLocked(day.dayNumber) && i < day.exercises.length - 1 && !pe.groupId && (
                       <Button
                         type="button"
@@ -1062,18 +1211,29 @@ export function CustomPlanEditor({
             )}
 
             {day.exercises.length > 0 && (
-            <Button
+            <button
               type="button"
-              variant="secondary"
               disabled={isDayLocked(day.dayNumber)}
               onClick={() => {
                 if (!guardDayEdit(view.dayIndex)) return
                 setView({ screen: 'pick', dayIndex: view.dayIndex })
               }}
+              className={cn(
+                'flex min-h-11 w-full items-center justify-center gap-1.5 rounded-[var(--sr-radius-md)] border border-dashed border-[var(--sr-border-subtle)] text-sm font-medium text-[var(--sr-text-secondary)] transition-colors hover:border-[var(--sr-brand-primary)] hover:text-[var(--sr-brand-primary)] active:scale-[0.99]',
+                FOCUS_RING,
+                isDayLocked(day.dayNumber) && 'opacity-40 pointer-events-none',
+              )}
             >
+              <Plus size={16} aria-hidden />
               {pl.planAddExercise}
-            </Button>
+            </button>
             )}
+
+            <SaveBar
+              plan={plan}
+              onActivate={() => void handleActivate()}
+              onSaveDraft={() => void handleSaveDraft()}
+            />
           </div>
         )}
 
@@ -1089,151 +1249,280 @@ export function CustomPlanEditor({
               <ArrowLeft size={18} aria-hidden />
               {pl.planBack}
             </Button>
+            <p className="text-sm text-[var(--sr-text-muted)]">
+              {pl.exercisePickHint}
+            </p>
             <ExerciseLibraryPanel
               mode="pick"
               onPick={(ex) => appendExercise(view.dayIndex, ex)}
               onExercisesChange={setExercises}
             />
+            <SaveBar
+              plan={plan}
+              onActivate={() => void handleActivate()}
+              onSaveDraft={() => void handleSaveDraft()}
+            />
           </div>
         )}
 
-        {view.screen === 'exercise' && planned && day && (
-          <div className="flex flex-col gap-4">
+        {view.screen === 'pickReplace' && (
+          <div className="flex flex-col gap-3">
             <Button
               type="button"
               variant="ghost"
               className="self-start gap-1.5"
-              onClick={() => setView({ screen: 'day', dayIndex: view.dayIndex })}
+              onClick={() => setView({ screen: 'exercise', dayIndex: view.dayIndex, exerciseIndex: view.exerciseIndex })}
               aria-label={pl.planBack}
             >
               <ArrowLeft size={18} aria-hidden />
               {pl.planBack}
             </Button>
+            <p className="text-sm text-[var(--sr-text-muted)]">
+              {pl.exerciseReplaceHint(exDef?.name ?? '')}
+            </p>
+            <ExerciseLibraryPanel
+              mode="pick"
+              onPick={(ex) => replaceExercise(view.dayIndex, view.exerciseIndex, ex)}
+              onExercisesChange={setExercises}
+            />
+            <SaveBar
+              plan={plan}
+              onActivate={() => void handleActivate()}
+              onSaveDraft={() => void handleSaveDraft()}
+            />
+          </div>
+        )}
+
+        {view.screen === 'exercise' && planned && day && (
+          <div className="flex flex-col gap-5">
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="gap-1.5"
+                onClick={() => setView({ screen: 'day', dayIndex: view.dayIndex })}
+                aria-label={pl.planBack}
+              >
+                <ArrowLeft size={18} aria-hidden />
+                {pl.planBack}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="gap-1.5"
+                disabled={exerciseDayLocked}
+                onClick={() => setView({ screen: 'pickReplace', dayIndex: view.dayIndex, exerciseIndex: view.exerciseIndex })}
+              >
+                <Repeat size={16} aria-hidden />
+                {pl.exerciseReplace}
+              </Button>
+            </div>
 
             {isDayLocked(day.dayNumber) && (
               <FeedbackBanner variant="warning" message={pl.customEditBlockedActiveDay} />
             )}
 
-            <RestSecChips
-              id="rest-sets"
-              label={pl.planRestBetweenSets}
-              value={planned.restBetweenSetsSec}
-              disabled={exerciseDayLocked}
-              onChange={(sec) =>
-                updatePlanned(view.dayIndex, view.exerciseIndex, { restBetweenSetsSec: sec })
-              }
-            />
-            <RestSecChips
-              id="rest-ex"
-              label={pl.planRestAfterExercise}
-              value={planned.restAfterExerciseSec ?? 60}
-              disabled={exerciseDayLocked}
-              onChange={(sec) =>
-                updatePlanned(view.dayIndex, view.exerciseIndex, { restAfterExerciseSec: sec })
-              }
-            />
-            <TextField
-              id="exercise-note"
-              label={pl.customExerciseNoteLabel}
-              placeholder={pl.customExerciseNotePlaceholder}
-              value={planned.note ?? ''}
-              maxLength={200}
-              disabled={exerciseDayLocked}
-              onChange={(e) =>
-                updatePlanned(view.dayIndex, view.exerciseIndex, { note: e.target.value })
-              }
-            />
-
-            <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] p-3">
-              <SwitchRow
-                id="ex-prog-enable"
-                label={pl.progressionPerExercise}
-                description={pl.progressionPerExerciseHint}
-                checked={planned.progression?.enabled ?? false}
-                disabled={exerciseDayLocked}
-                onChange={(checked) =>
-                  updatePlanned(view.dayIndex, view.exerciseIndex, {
-                    progression: checked
-                      ? {
-                          enabled: true,
-                          afterCycleComplete: true,
-                          repsDelta: planned.progression?.repsDelta ?? plan.progression?.repsDelta ?? 2,
-                          weightKgDelta:
-                            planned.progression?.weightKgDelta ?? plan.progression?.weightKgDelta ?? 2.5,
-                          durationSecDelta:
-                            planned.progression?.durationSecDelta ??
-                            plan.progression?.durationSecDelta ??
-                            5,
-                        }
-                      : { enabled: false, afterCycleComplete: true },
-                  })
-                }
-              />
-              {planned.progression?.enabled && (
-                <div className="mt-2 flex flex-col gap-2">
-                  <TextField
-                    id="ex-prog-reps"
-                    label={pl.progressionReps}
-                    type="number"
-                    disabled={exerciseDayLocked}
-                    value={planned.progression.repsDelta ?? 0}
-                    onChange={(e) =>
-                      updatePlanned(view.dayIndex, view.exerciseIndex, {
-                        progression: {
-                          ...planned.progression!,
-                          repsDelta: Number(e.target.value) || 0,
-                        },
-                      })
-                    }
-                  />
-                  <TextField
-                    id="ex-prog-kg"
-                    label={pl.progressionKg}
-                    type="number"
-                    disabled={exerciseDayLocked}
-                    value={planned.progression.weightKgDelta ?? 0}
-                    onChange={(e) =>
-                      updatePlanned(view.dayIndex, view.exerciseIndex, {
-                        progression: {
-                          ...planned.progression!,
-                          weightKgDelta: Number(e.target.value) || 0,
-                        },
-                      })
-                    }
-                  />
+            {exDef && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-[var(--sr-radius-sm)] bg-[var(--sr-brand-primary-muted)] px-2 py-0.5 text-xs font-medium text-[var(--sr-brand-primary)]">
+                    {exDef.primaryMetric === 'reps_weight'
+                      ? pl.planExerciseMetricRepsWeight
+                      : exDef.primaryMetric === 'duration_sec'
+                        ? pl.planExerciseMetricDuration
+                        : pl.planExerciseMetricReps}
+                  </span>
                 </div>
+                <div>
+                  <TextField
+                    id="exercise-name-edit"
+                    label={pl.exerciseNameLabel}
+                    value={exDef.name}
+                    disabled={exerciseDayLocked}
+                    onChange={(e) => {
+                      if (!exDef) return
+                      const newName = e.target.value
+                      // Optimistic local update
+                      setExercises((prev) =>
+                        prev.map((x) => (x.id === exDef.id ? { ...x, name: newName } : x)),
+                      )
+                      // Debounced save to library
+                      if (exerciseNameTimer.current) window.clearTimeout(exerciseNameTimer.current)
+                      exerciseNameTimer.current = window.setTimeout(async () => {
+                        try {
+                          const updated = await saveExercise({
+                            id: exDef.id,
+                            name: newName,
+                            primaryMetric: exDef.primaryMetric,
+                            restDefaultSec: exDef.restDefaultSec,
+                            archived: exDef.archived,
+                            muscleGroup: exDef.muscleGroup,
+                          })
+                          setExercises((prev) =>
+                            prev.map((x) => (x.id === updated.id ? updated : x)),
+                          )
+                        } catch {
+                          showToast(pl.errorCrash, 'error')
+                        }
+                      }, 600)
+                    }}
+                  />
+                  <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
+                    {pl.exerciseNameHint}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.planSectionSets}
+              </p>
+              <SetsCountStepper
+                value={planned.sets.length}
+                disabled={exerciseDayLocked}
+                onChange={(n) => {
+                  const metric = exDef?.primaryMetric ?? 'reps'
+                  const sets: SetPrescription[] = Array.from({ length: n }, (_, i) => {
+                    const prev = planned.sets[i]
+                    if (prev) return prev
+                    return defaultSets(metric)[0]!
+                  })
+                  updatePlanned(view.dayIndex, view.exerciseIndex, { sets })
+                }}
+              />
+              {planned.sets.length > 0 && (
+                <ul className="mt-3 flex flex-col gap-3">
+                  {planned.sets.map((s, i) => (
+                    <li key={i}>
+                      <CustomSetPrescriptionEditor
+                        setNumber={i + 1}
+                        metric={exDef?.primaryMetric ?? 'reps'}
+                        prescription={s}
+                        disabled={exerciseDayLocked}
+                        onChange={(next) => updateSet(view.dayIndex, view.exerciseIndex, i, next)}
+                      />
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
 
-            <SetsCountStepper
-              value={planned.sets.length}
-              disabled={exerciseDayLocked}
-              onChange={(n) => {
-                const metric = exDef?.primaryMetric ?? 'reps'
-                const sets: SetPrescription[] = Array.from({ length: n }, (_, i) => {
-                  const prev = planned.sets[i]
-                  if (prev) return prev
-                  return defaultSets(metric)[0]!
-                })
-                updatePlanned(view.dayIndex, view.exerciseIndex, { sets })
-              }}
-            />
+            <div>
+              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.planSectionRest}
+              </p>
+              <div className="flex flex-col gap-3">
+                <RestSecChips
+                  id="rest-sets"
+                  label={pl.planRestBetweenSets}
+                  value={planned.restBetweenSetsSec}
+                  disabled={exerciseDayLocked}
+                  onChange={(sec) =>
+                    updatePlanned(view.dayIndex, view.exerciseIndex, { restBetweenSetsSec: sec })
+                  }
+                />
+                <RestSecChips
+                  id="rest-ex"
+                  label={pl.planRestAfterExercise}
+                  value={planned.restAfterExerciseSec ?? 60}
+                  disabled={exerciseDayLocked}
+                  onChange={(sec) =>
+                    updatePlanned(view.dayIndex, view.exerciseIndex, { restAfterExerciseSec: sec })
+                  }
+                />
+              </div>
+            </div>
 
-            {planned.sets.length > 0 && (
-              <ul className="flex flex-col gap-3">
-                {planned.sets.map((s, i) => (
-                  <li key={i}>
-                    <CustomSetPrescriptionEditor
-                      setNumber={i + 1}
-                      metric={exDef?.primaryMetric ?? 'reps'}
-                      prescription={s}
+            <div>
+              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.planSectionNote}
+              </p>
+              <TextField
+                id="exercise-note"
+                label={pl.customExerciseNoteLabel}
+                placeholder={pl.customExerciseNotePlaceholder}
+                value={planned.note ?? ''}
+                maxLength={200}
+                disabled={exerciseDayLocked}
+                onChange={(e) =>
+                  updatePlanned(view.dayIndex, view.exerciseIndex, { note: e.target.value })
+                }
+              />
+            </div>
+
+            <div>
+              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.planSectionProgressPerExercise}
+              </p>
+              <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] p-3">
+                <SwitchRow
+                  id="ex-prog-enable"
+                  label={pl.progressionPerExercise}
+                  description={pl.progressionPerExerciseHint}
+                  checked={planned.progression?.enabled ?? false}
+                  disabled={exerciseDayLocked}
+                  onChange={(checked) =>
+                    updatePlanned(view.dayIndex, view.exerciseIndex, {
+                      progression: checked
+                        ? {
+                            enabled: true,
+                            afterCycleComplete: true,
+                            repsDelta: planned.progression?.repsDelta ?? plan.progression?.repsDelta ?? 2,
+                            weightKgDelta:
+                              planned.progression?.weightKgDelta ?? plan.progression?.weightKgDelta ?? 2.5,
+                            durationSecDelta:
+                              planned.progression?.durationSecDelta ??
+                              plan.progression?.durationSecDelta ??
+                              5,
+                          }
+                        : { enabled: false, afterCycleComplete: true },
+                    })
+                  }
+                />
+                {planned.progression?.enabled && (
+                  <div className="mt-2 flex flex-col gap-2">
+                    <TextField
+                      id="ex-prog-reps"
+                      label={pl.progressionReps}
+                      type="number"
                       disabled={exerciseDayLocked}
-                      onChange={(next) => updateSet(view.dayIndex, view.exerciseIndex, i, next)}
+                      value={planned.progression.repsDelta ?? 0}
+                      onChange={(e) =>
+                        updatePlanned(view.dayIndex, view.exerciseIndex, {
+                          progression: {
+                            ...planned.progression!,
+                            repsDelta: Number(e.target.value) || 0,
+                          },
+                        })
+                      }
                     />
-                  </li>
-                ))}
-              </ul>
-            )}
+                    <TextField
+                      id="ex-prog-kg"
+                      label={pl.progressionKg}
+                      type="number"
+                      disabled={exerciseDayLocked}
+                      value={planned.progression.weightKgDelta ?? 0}
+                      onChange={(e) =>
+                        updatePlanned(view.dayIndex, view.exerciseIndex, {
+                          progression: {
+                            ...planned.progression!,
+                            weightKgDelta: Number(e.target.value) || 0,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <SaveBar
+              plan={plan}
+              onActivate={() => void handleActivate()}
+              onSaveDraft={() => void handleSaveDraft()}
+            />
           </div>
         )}
       </Sheet>
