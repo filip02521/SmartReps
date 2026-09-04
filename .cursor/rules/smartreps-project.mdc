@@ -19,9 +19,15 @@ Mobilna PWA (Vite + React 19 + TS + Tailwind 4 + Zustand + Dexie + Supabase). PL
 
 - Każdy nowy klucz tłumaczenia musi trafić do **BOTH** `pl.ts` i `en.ts` w tym samym commicie
 - Zero hardcoded stringów widocznych dla użytkownika w `src/` — wszystko przez proxy `pl.*`
+  - Dotyczy: JSX, toast, error messages, aria-label, placeholder, alt, title
+  - Dotyczy: treść prawna (Privacy/Terms), prompty AI, nazwy cykli, etykiety grup mięśniowych
+  - Dotyczy: fallback names (`'Ćwiczenie'` → `pl.exerciseFallbackName`)
+  - Wyjątek: SW push body (brak dostępu do i18n) — neutralny fallback
 - Komentarze po polsku OK — nie są widoczne dla usera
 - Sygnatury funkcji muszą się zgadzać między pl i en (parametry, kolejność, typy)
 - en.ts jest typowane jako `Translation` importowane z pl.ts — nigdy `as const` w en.ts
+- Używaj helperów dla stringów z plików danych: `getCycleName()`, `getCycleDescription()` z `plan-resolver.ts`
+- Testy automatyczne wymuszają: `i18n-parity.test.ts` (klucze + sygnatury)
 - Sprawdź parzystość kluczy przed commit:
   ```bash
   diff <(grep -E "^\s+[a-zA-Z_]+:" src/i18n/pl.ts | sed -E 's/^\s+//; s/:.*//' | sort) \
@@ -34,7 +40,18 @@ Mobilna PWA (Vite + React 19 + TS + Tailwind 4 + Zustand + Dexie + Supabase). PL
 - Nowe pole w encji syncowanej → dodaj do upsert/pull w `src/lib/sync.ts`
 - Nowe ustawienie → dodaj do `defaultSettings` w `app-store.ts` + zachowaj w `clearAllLocalData()` w `local-data.ts` + sync w `enabled-programs-sync.ts`
 - AI keys (`aiApiKey`, `aiModel`, `aiBaseUrl`) są LOCAL-ONLY — nigdy do Supabase
+- Komentarz „not synced" musi odzwierciedlać rzeczywistość (incydent z `language`)
+- Testy automatyczne wymuszają: `local-data-preservation.test.ts`
 - Sprawdź: persist across reload, survive clear-local-data, sync when logged in, pull on fresh device
+
+## Powtarzające się pułapki (z historii projektu)
+
+- **Hardcoded stringi w lib/** — nie tylko JSX: błędy AI, nazwy ćwiczeń, etykiety grup, toast messages
+- **Treść prawna hardcoded** — Privacy.tsx i Terms.tsx miały cały tekst po polsku bez i18n
+- **Prompty AI po polsku** — `RESEARCH_CONTEXT` i szablony plan/analysis były hardcoded PL
+- **Mapa/picker bez domyślnego wyboru** — mapa planu pokazywała same przyciski; zawsze domyślnie bieżący dzień lub dzień 1
+- **Crash tylko w produkcji** — lucide icons undefined w buildzie; zawsze uruchamiaj `npm run build`, nie tylko `tsc`
+- **Błędy shell w commit** — używaj `git commit -m "$(cat <<'EOF' ... EOF)"` z cytowanym 'EOF'
 
 ## Stack — czego NIE dodawać bez uzasadnienia
 

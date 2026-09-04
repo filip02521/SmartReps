@@ -31,15 +31,41 @@ Przy zmianach w routing/auth/workout/sync/i18n: `npm run test:e2e`
 
 ## Antywzorce z naszej historii — UNIKAJ
 
-- **Hardcoded stringi w JSX** — zawsze przez `pl.*` / `en.*` (proxy)
-- **Klucz tylko w pl.ts bez en.ts** — parzystość obowiązkowa w tym samym commicie
-- **Pole bez sync** — nowe pole user-data musi się synchronizować z Supabase
-- **Ustawienie bez persist** — nowe ustawienie musi przetrwać `clearAllLocalData()`
-- **Usuwanie funkcji przy „uproszczeniu UX”** — Filip chce lepszy podział, nie mniej treści
-- **Duplikowanie statystyk** — jedna metryka + proste porównanie („wcześniej X”)
-- **Skomplikowany copy** — krótko, jak trener
+### i18n
+
+- **Hardcoded stringi w JSX** — zawsze przez `pl.*` / `en.*` (proxy); dotyczy też: toast messages, error messages, aria-label, placeholder, alt, title, fallback names
+- **Klucz tylko w pl.ts bez en.ts** — parzystość obowiązkowa w tym samym commicie; test `i18n-parity.test.ts` zfailuje
+- **`as const` w en.ts** — en.ts jest typowane jako `Translation` z pl.ts; `as const` łamie kontrakt typów
+- **Polskie stringi w plikach lib/ (nie tylko JSX)** — błędy AI, nazwy ćwiczeń builtin, etykiety grup mięśniowych, nazwy cykli — wszystko przez `pl.*`
+- **Polskie stringi w treści prawnej** — Privacy/Terms to też UI; cały tekst przez `pl.*` / `en.*`
+- **Polskie prompty AI** — `RESEARCH_CONTEXT`, plan/analysis prompts — przez `pl.aiPrompt*`
+- **Hardcoded WEEKDAYS / nazwy dni** — użyj `pl.progressWeekdayLabels`
+- **Nazwy cykli z plików danych** — użyj `getCycleName()` / `getCycleDescription()` z `plan-resolver.ts`
+- **SW push body po polsku** — SW nie ma dostępu do i18n; użyj neutralnego fallbacku
+
+### Sync
+
+- **Pole bez sync** — nowe pole user-data musi się synchronizować z Supabase (upsert + pull + merge)
+- **Ustawienie bez persist** — nowe ustawienie musi przetrwać `clearAllLocalData()`; test `local-data-preservation.test.ts` zfailuje
+- **AI keys w sync** — `aiApiKey`, `aiModel`, `aiBaseUrl` są LOCAL-ONLY; nigdy do Supabase
+- **Komentarz „not synced" gdy faktycznie sync** — komentarz musi odzwierciedlać rzeczywistość
+- **Pole w `UserSettings` bez `defaultSettings`** — każde nowe pole musi mieć wartość domyślną
+
+### Architektura / UX
+
+- **Usuwanie funkcji przy „uproszczeniu UX”** — Filip chce lepszy podział, nie mniej treści (incydent dashboardu)
+- **Duplikowanie statystyk** — jedna metryka + proste porównanie („wcześniej X”), nie dwa okresy obok siebie
+- **Skomplikowany copy** — krótko, jak trener; unikaj „Ostatnie 14 dni w porównaniu z poprzednimi 14 dniami”
+- **Mapa planu bez domyślnego dnia** — przy otwarciu mapy pokaż od razu szczegóły dnia (bieżącego lub 1), nie same przyciski
+- **Brak default selection** — listy/pickery/selektory muszą mieć domyślnie wybrany element
 - **Push bez zielonego builda** — napraw testy/typy najpierw
 - **Edycja plików planu** (.plan.md) — implementuj plan, nie modyfikuj załącznika
+
+### Git / shell
+
+- **Commit message z heredoc** — używaj `git commit -m "$(cat <<'EOF' ... EOF)"`; unikaj zagnieżdżonych cudzysłowów
+- **`git add` plików w .gitignore** — użyj `git add -f` tylko gdy świadomie chcesz dodać ignorowany plik
+- **Force-push na main** — nigdy; nie amenduj po failed hooku
 
 ## Po większej zmianie UI
 
