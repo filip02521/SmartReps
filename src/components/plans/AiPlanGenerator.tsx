@@ -29,10 +29,10 @@ function formatTarget(t: MetricTarget | undefined): string {
 /** Format a set prescription for the preview. */
 function formatSet(set: SetPrescription): string {
   const parts: string[] = []
-  if (set.reps) parts.push(`${formatTarget(set.reps)} powt`)
-  if (set.durationSec) parts.push(`${formatTarget(set.durationSec)} s`)
-  if (set.weightKg) parts.push(`${formatTarget(set.weightKg)} kg`)
-  return parts.join(' · ') || '—'
+  if (set.reps) parts.push(`${formatTarget(set.reps)} ${pl.repUnit}`)
+  if (set.durationSec) parts.push(`${formatTarget(set.durationSec)} ${pl.durationUnitShort}`)
+  if (set.weightKg) parts.push(`${formatTarget(set.weightKg)} ${pl.weightUnitShort}`)
+  return parts.join(' · ') || pl.planDash
 }
 
 export function AiPlanGenerator({
@@ -434,8 +434,8 @@ export function AiPlanGenerator({
                         <ul className="mt-0.5 pl-4 text-xs text-[var(--sr-text-muted)]">
                           {ex.sets.map((s, si) => (
                             <li key={si}>
-                              S{si + 1}: {formatSet(s)}
-                              {ex.restBetweenSetsSec ? ` · przerwa ${ex.restBetweenSetsSec}s` : ''}
+                              {pl.setLabel}{si + 1}: {formatSet(s)}
+                              {ex.restBetweenSetsSec ? ` · ${pl.restLabel} ${ex.restBetweenSetsSec}${pl.durationUnitShort}` : ''}
                             </li>
                           ))}
                         </ul>
@@ -448,7 +448,7 @@ export function AiPlanGenerator({
           </div>
 
           {/* Import warning */}
-          <div className="flex items-start gap-2 rounded-[var(--sr-radius-sm)] bg-[var(--sr-warning-bg)] p-3 text-xs text-[var(--sr-text-secondary)]">
+          <div className="flex items-start gap-2 rounded-[var(--sr-radius-sm)] border border-[var(--sr-warning)]/30 bg-[var(--sr-warning-muted)] p-3 text-xs text-[var(--sr-text-secondary)]">
             <AlertTriangle size={14} className="mt-0.5 shrink-0 text-[var(--sr-warning)]" aria-hidden />
             <span>{pl.aiImportWarning}</span>
           </div>

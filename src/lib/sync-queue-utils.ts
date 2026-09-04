@@ -68,3 +68,7 @@ export async function hasPendingCustomProgressDelete(customPlanId: string): Prom
     (p) => (p as { customPlanId?: string }).customPlanId === customPlanId,
   )
 }
+
+export async function hasPendingSessionDelete(sessionId: string): Promise<boolean> {
+  return hasPendingSyncQueue('workout_sessions', 'delete', (p) => (p as { id?: string }).id === sessionId)
+}

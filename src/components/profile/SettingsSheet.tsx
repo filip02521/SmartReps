@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Sheet } from '@/components/ui/Sheet'
 import { AccountHero } from './AccountHero'
 import { ProfilePreferences } from './ProfilePreferences'
@@ -45,6 +46,19 @@ type SettingsSheetProps = {
   onDeleteAccount: () => void
 }
 
+/** Group header — visual separator with label, breaks up the long settings scroll. */
+function GroupHeader({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 pt-2">
+      <div className="h-px flex-1 bg-[var(--sr-border-subtle)]" />
+      <span className="text-xs font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+        {children}
+      </span>
+      <div className="h-px flex-1 bg-[var(--sr-border-subtle)]" />
+    </div>
+  )
+}
+
 export function SettingsSheet({
   open,
   onClose,
@@ -87,8 +101,9 @@ export function SettingsSheet({
       onClose={onClose}
       title={pl.settingsTitle}
     >
-      <div className="flex flex-col gap-6 pb-4">
-        {/* Account / sync */}
+      <div className="flex flex-col gap-4 pb-4">
+        {/* Group: Account & sync */}
+        <GroupHeader>{pl.profileSettingsGroupAccount}</GroupHeader>
         <AccountHero
           syncing={syncing}
           online={online}
@@ -98,7 +113,8 @@ export function SettingsSheet({
           onLogout={onLogout}
         />
 
-        {/* Preferences */}
+        {/* Group: Preferences (appearance, training, reminders, AI coach) */}
+        <GroupHeader>{pl.profileSettingsGroupPreferences}</GroupHeader>
         <ProfilePreferences
           theme={settings.theme}
           highContrast={settings.highContrast}
@@ -135,7 +151,8 @@ export function SettingsSheet({
           onAiBaseUrlSave={onAiBaseUrlSave}
         />
 
-        {/* Data management */}
+        {/* Group: Data & backup */}
+        <GroupHeader>{pl.profileSettingsGroupData}</GroupHeader>
         <ProfileDataSection
           showDeleteAccount={showDeleteAccount}
           onImport={onImport}

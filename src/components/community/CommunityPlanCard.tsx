@@ -49,7 +49,7 @@ export function CommunityPlanCard({
         <div className="flex items-start gap-2 pr-1">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <p className="font-semibold text-[var(--sr-text-primary)]">{row.title}</p>
+              <p className="min-w-0 flex-1 break-words font-semibold text-[var(--sr-text-primary)]">{row.title}</p>
               <div className="flex flex-wrap gap-1">
                 {isOwn ? <Badge variant="default">{pl.communityYourPlan}</Badge> : null}
                 {row.trained_count > 0 ? (
@@ -77,7 +77,7 @@ export function CommunityPlanCard({
                 {row.tags.slice(0, 3).map((t) => (
                   <span
                     key={t}
-                    className="rounded-[var(--sr-radius-full)] bg-[var(--sr-bg-muted)] px-2 py-0.5 text-[11px] text-[var(--sr-text-muted)]"
+                    className="rounded-[var(--sr-radius-full)] bg-[var(--sr-bg-surface)] px-2 py-0.5 text-[11px] text-[var(--sr-text-muted)]"
                   >
                     {communityTagLabel(t)}
                   </span>

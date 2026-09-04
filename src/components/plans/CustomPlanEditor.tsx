@@ -11,7 +11,7 @@ import { CustomSetChips } from '@/components/plans/CustomSetChips'
 import { CustomSetPrescriptionEditor } from '@/components/plans/CustomSetPrescriptionEditor'
 import { RestSecChips, SetsCountStepper } from '@/components/plans/RestSecChips'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
-import { FeedbackBanner, EmptyState } from '@/components/ux/Feedback'
+import { FeedbackBanner, EmptyState, SkeletonCard } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import type {
   CustomPlan,
@@ -125,6 +125,7 @@ export function CustomPlanEditor({
   const [plan, setPlan] = useState<CustomPlan>(() => createEmptyDraftPlan())
   const [persisted, setPersisted] = useState(false)
   const [exercises, setExercises] = useState<ExerciseDefinition[]>([])
+  const [editorLoading, setEditorLoading] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [deleteDayIndex, setDeleteDayIndex] = useState<number | null>(null)
   const [showProgression, setShowProgression] = useState(false)
@@ -169,6 +170,7 @@ export function CustomPlanEditor({
       window.clearTimeout(saveTimer.current)
       saveTimer.current = null
     }
+    setEditorLoading(true)
     void (async () => {
       const exs = await listExercises()
       if (session !== editorSessionRef.current) return
@@ -190,6 +192,7 @@ export function CustomPlanEditor({
               setView({ screen: 'day', dayIndex })
             }
           }
+          setEditorLoading(false)
           return
         }
       }
@@ -198,6 +201,7 @@ export function CustomPlanEditor({
       setPersisted(false)
       setShowProgression(false)
       setShowDeload(false)
+      setEditorLoading(false)
     })()
   }, [open, planId, initialDayNumber])
 
@@ -430,7 +434,13 @@ export function CustomPlanEditor({
         title={sheetTitle()}
         className="max-h-[92vh] overflow-y-auto"
       >
-        {view.screen === 'hub' && (
+        {editorLoading ? (
+          <div className="flex flex-col gap-4 py-4" aria-busy aria-label={pl.loading}>
+            <SkeletonCard className="min-h-[5rem]" />
+            <SkeletonCard className="min-h-[8rem]" />
+            <SkeletonCard className="min-h-[5rem]" />
+          </div>
+        ) : view.screen === 'hub' && (
           <div className="flex flex-col gap-5">
             {activeDay != null && (
               <FeedbackBanner variant="warning" message={pl.customEditBlockedActiveDay} />

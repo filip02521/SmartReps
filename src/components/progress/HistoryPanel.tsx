@@ -1,4 +1,4 @@
-import { ChevronRight, Dumbbell, User } from 'lucide-react'
+import { ChevronRight, Dumbbell, Trash2, User } from 'lucide-react'
 import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { useMemo, useState } from 'react'
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Card'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet } from '@/components/ui/Sheet'
 import { LogoMark } from '@/components/brand/Logo'
+import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { EmptyState } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import {
@@ -28,6 +29,7 @@ import {
 } from '@/lib/custom-session-stats'
 import { formatExerciseSetSummary } from '@/lib/custom-exercise-stats'
 import { useAppStore } from '@/stores/app-store'
+import { deleteWorkoutSession } from '@/lib/session-service'
 import { db } from '@/lib/db'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
 import type { Program } from '@/data/plans/types'
@@ -86,6 +88,8 @@ export function HistoryPanel({
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [selectedSession, setSelectedSession] = useState<LocalWorkoutSession | null>(null)
   const [detailExercises, setDetailExercises] = useState<Map<string, ExerciseDefinition>>(new Map())
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const weightUnit = useAppStore((s) => s.settings.weightUnit)
 
   async function openSessionDetail(s: LocalWorkoutSession) {
@@ -145,6 +149,7 @@ export function HistoryPanel({
     setSourceFilter('all')
     setResultFilter('all')
     setDateFilter('all')
+    setCycleFilter('all')
   }
 
   function customSessionSummary(s: LocalWorkoutSession): string {
@@ -344,6 +349,7 @@ export function HistoryPanel({
               {pl.progressFilterResult}
             </p>
             <SegmentedControl
+              aria-label={pl.progressFilterResult}
               options={[
                 { value: 'all' as const, label: pl.filterAll },
                 { value: 'passed' as const, label: pl.filterPassed },
@@ -358,6 +364,7 @@ export function HistoryPanel({
               {pl.progressFilterDate}
             </p>
             <SegmentedControl
+              aria-label={pl.progressFilterDate}
               options={[
                 { value: 'all' as const, label: pl.filterDateAll },
                 { value: '30d' as const, label: pl.filterDate30 },
@@ -373,6 +380,7 @@ export function HistoryPanel({
                 {pl.progressFilterCycle}
               </p>
               <SegmentedControl
+                aria-label={pl.progressFilterCycle}
                 options={[
                   { value: 'all' as const, label: pl.filterCycleAll },
                   { value: 'current' as const, label: pl.filterCycleCurrent },
@@ -525,9 +533,45 @@ export function HistoryPanel({
             >
               {pl.progressOpenFullSummary}
             </Button>
+
+            <Button
+              className="mt-2"
+              variant="danger"
+              fullWidth
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 size={16} aria-hidden />
+              {pl.sessionDelete}
+            </Button>
           </>
         )}
       </Sheet>
+
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <ConfirmSheet
+          title={pl.sessionDeleteConfirmTitle}
+          message={pl.sessionDeleteConfirm}
+          confirmLabel={pl.sessionDelete}
+          variant="danger"
+          onConfirm={async () => {
+            if (!selectedSession || deleting) return
+            setDeleting(true)
+            try {
+              await deleteWorkoutSession(selectedSession.id)
+              showToast(pl.sessionDeletedToast, 'success')
+              setConfirmDelete(false)
+              setSelectedSession(null)
+              setDetailExercises(new Map())
+            } catch {
+              showToast(pl.sessionDeleteError, 'error')
+            } finally {
+              setDeleting(false)
+            }
+          }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
     </>
   )
 }

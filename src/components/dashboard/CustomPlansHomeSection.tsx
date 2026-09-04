@@ -35,45 +35,50 @@ export function CustomPlansHomeSection({
 
   useEffect(() => {
     void (async () => {
-      const all = (await listCustomPlans()).filter((p) => p.status === 'active')
-      const plans = resolveHomeCustomPlans(all, {
-        enabledCustomPlanIds: enabledIds,
-        customPlansFilterExplicit: filterExplicit,
-      })
-      setExtraPlanCount(
-        countHiddenHomeCustomPlans(all, {
+      try {
+        const all = (await listCustomPlans()).filter((p) => p.status === 'active')
+        const plans = resolveHomeCustomPlans(all, {
           enabledCustomPlanIds: enabledIds,
           customPlansFilterExplicit: filterExplicit,
-        }),
-      )
-      const exercises = await listExercises()
-
-      const models: CustomPlanHomeCardModel[] = []
-      for (const plan of plans) {
-        const progress =
-          (await db.customProgramProgress.where('customPlanId').equals(plan.id).first()) ?? null
-        const resume = await getCustomPlanResumeInfo(plan.id)
-        const planSessions = await db.workoutSessions.where('customPlanId').equals(plan.id).toArray()
-        const lastCompleted = planSessions
-          .filter((s) => s.status === 'completed')
-          .sort(
-            (a, b) =>
-              new Date(b.completedAt ?? b.startedAt).getTime() -
-              new Date(a.completedAt ?? a.startedAt).getTime(),
-          )[0]
-        const lastFailed = !!lastCompleted && lastCompleted.passed === false
-        models.push(
-          buildCustomPlanHomeCardModel({
-            plan,
-            progress,
-            resume,
-            exercises,
-            lastFailed,
+        })
+        setExtraPlanCount(
+          countHiddenHomeCustomPlans(all, {
+            enabledCustomPlanIds: enabledIds,
+            customPlansFilterExplicit: filterExplicit,
           }),
         )
+        const exercises = await listExercises()
+
+        const models: CustomPlanHomeCardModel[] = []
+        for (const plan of plans) {
+          const progress =
+            (await db.customProgramProgress.where('customPlanId').equals(plan.id).first()) ?? null
+          const resume = await getCustomPlanResumeInfo(plan.id)
+          const planSessions = await db.workoutSessions.where('customPlanId').equals(plan.id).toArray()
+          const lastCompleted = planSessions
+            .filter((s) => s.status === 'completed')
+            .sort(
+              (a, b) =>
+                new Date(b.completedAt ?? b.startedAt).getTime() -
+                new Date(a.completedAt ?? a.startedAt).getTime(),
+            )[0]
+          const lastFailed = !!lastCompleted && lastCompleted.passed === false
+          models.push(
+            buildCustomPlanHomeCardModel({
+              plan,
+              progress,
+              resume,
+              exercises,
+              lastFailed,
+            }),
+          )
+        }
+        setCards(models)
+      } catch {
+        setCards([])
+      } finally {
+        setLoaded(true)
       }
-      setCards(models)
-      setLoaded(true)
     })()
   }, [enabledIds, filterExplicit, lastSyncedAt, reloadTick])
 
@@ -138,7 +143,7 @@ export function CustomPlansHomeSection({
         <div className="flex flex-col gap-2">
           <Button
             type="button"
-            size={embedded ? 'sm' : 'touch'}
+            size={embedded ? 'md' : 'touch'}
             fullWidth
             variant={embedded ? 'secondary' : 'primary'}
             onClick={() => navigate('/plans?tab=mine')}
@@ -148,7 +153,7 @@ export function CustomPlansHomeSection({
           <Button
             type="button"
             variant={embedded ? 'ghost' : 'secondary'}
-            size="sm"
+            size="md"
             fullWidth
             onClick={() => navigate('/plans?tab=library')}
           >
@@ -167,7 +172,7 @@ export function CustomPlansHomeSection({
             <h2 className="sr-text-h2 text-[var(--sr-text-primary)]">{pl.homeCustomPlans}</h2>
             <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.homeCustomPlansHint}</p>
           </div>
-          <Button type="button" size="sm" variant="ghost" onClick={() => navigate('/plans?tab=mine')}>
+          <Button type="button" size="md" variant="ghost" onClick={() => navigate('/plans?tab=mine')}>
             {pl.homeSeeAllCustom}
           </Button>
         </div>
@@ -177,7 +182,7 @@ export function CustomPlansHomeSection({
           <p className="sr-text-overline text-[var(--sr-text-muted)]">
             {pl.homeCustomPlans}
           </p>
-          <Button type="button" size="sm" variant="ghost" onClick={() => navigate('/plans?tab=mine')}>
+          <Button type="button" size="md" variant="ghost" onClick={() => navigate('/plans?tab=mine')}>
             {pl.homeSeeAllCustom}
           </Button>
         </div>

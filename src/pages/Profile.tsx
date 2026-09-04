@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
-import { Settings, MoreVertical } from 'lucide-react'
+import { MoreVertical } from 'lucide-react'
 import { useAppStore } from '@/stores/app-store'
 import { Button } from '@/components/ui/Button'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { PageSection } from '@/components/ui/PageSection'
 import { Switch } from '@/components/ui/Switch'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
@@ -16,6 +15,9 @@ import { ProgramSettingsCard } from '@/components/profile/ProgramSettingsCard'
 import { ImportBackupSheet } from '@/components/profile/ImportBackupSheet'
 import { SettingsSheet } from '@/components/profile/SettingsSheet'
 import { ProfileStats } from '@/components/profile/ProfileStats'
+import { ProfileHero } from '@/components/profile/ProfileHero'
+import { AiCoachCard } from '@/components/profile/AiCoachCard'
+import { ProfileAbout } from '@/components/profile/ProfileAbout'
 import { BodyWeightSection } from '@/components/progress/BodyWeightSection'
 import { runAuthenticatedSync } from '@/lib/auth-sync'
 import { signOutUser } from '@/lib/auth-lifecycle'
@@ -46,8 +48,6 @@ import { TextField } from '@/components/ui/TextField'
 import { showToast } from '@/stores/toast-store'
 import type { LocalProgramProgress } from '@/lib/db'
 import type { Program } from '@/data/plans/types'
-
-const appVersion = import.meta.env.VITE_APP_VERSION ?? '1.0.0'
 
 function applyTheme(theme: 'system' | 'dark' | 'light') {
   if (theme === 'system') {
@@ -306,35 +306,42 @@ export default function ProfilePage() {
   const customMenuPlan = customActivePlans.find((p) => p.id === customMenuPlanId) ?? null
 
   const displayName = settings.displayName ?? ''
-  const profileTitle = displayName || email || pl.navProfile
 
   return (
     <div className={TAB_PAGE_SHELL}>
-      <PageHeader
-        title={profileTitle}
-        subtitle={email && displayName ? email : undefined}
-        action={
-          <button
-            type="button"
-            onClick={() => setShowSettings(true)}
-            className={cn(
-              FOCUS_RING,
-              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
-            )}
-            aria-label={pl.settingsTitle}
-          >
-            <Settings size={22} />
-          </button>
-        }
+      {/* Profile hero — identity, sync status, quick CTA */}
+      <ProfileHero
+        displayName={displayName}
+        email={email}
+        connected={!!email}
+        syncing={syncing}
+        online={online}
+        onSyncNow={handleSyncNow}
+        onLogin={() => navigate('/setup/login', { state: { returnTo: '/profile' } })}
+        onOpenSettings={() => setShowSettings(true)}
       />
 
       {/* Stats summary */}
-      <ProfileStats />
+      <div className="mt-4">
+        <ProfileStats />
+      </div>
+
+      {/* AI Coach — promoted from settings to profile */}
+      <div className="mt-4">
+        <AiCoachCard
+          connected={!!(settings.aiApiKey ?? '').trim()}
+          onOpenSettings={() => setShowSettings(true)}
+        />
+      </div>
 
       {/* Achievements (gablotka) */}
-      <ProfileAchievementsSection />
+      <div className="mt-6">
+        <ProfileAchievementsSection />
+      </div>
 
-      <BodyWeightSection />
+      <div className="mt-6">
+        <BodyWeightSection />
+      </div>
 
       {/* Programs */}
       <PageSection title={pl.programs} className="mt-8">
@@ -460,39 +467,9 @@ export default function ProfilePage() {
         )}
       </PageSection>
 
-      {/* About */}
-      <PageSection title={pl.about} className="mt-8">
-        <div className="flex flex-col gap-2 text-sm">
-          <Link to="/privacy" className="text-[var(--sr-brand-primary)] underline-offset-4 hover:underline">
-            {pl.privacyLink}
-          </Link>
-          <Link to="/terms" className="text-[var(--sr-brand-primary)] underline-offset-4 hover:underline">
-            {pl.termsLink}
-          </Link>
-        </div>
-        <p className="mt-4 text-sm leading-relaxed text-[var(--sr-text-secondary)]">
-          {pl.healthDisclaimer}
-        </p>
-        <p className="mt-3 text-xs text-[var(--sr-text-muted)]">
-          <a
-            href="https://100pompek.pl"
-            className="text-[var(--sr-brand-primary)]"
-            target="_blank"
-            rel="noreferrer"
-          >
-            100pompek.pl
-          </a>
-          {' · '}
-          <a
-            href="https://podciaganie.pl"
-            className="text-[var(--sr-brand-primary)]"
-            target="_blank"
-            rel="noreferrer"
-          >
-            podciaganie.pl
-          </a>
-        </p>
-        <p className="mt-4 text-xs text-[var(--sr-text-muted)]">{pl.appVersion(appVersion)}</p>
+      {/* About — redesigned with app identity, legal links, disclaimer */}
+      <PageSection title={pl.profileAboutTitle} className="mt-8">
+        <ProfileAbout />
       </PageSection>
 
       {/* Settings sheet — mounted only when needed */}

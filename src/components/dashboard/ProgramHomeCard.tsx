@@ -66,6 +66,13 @@ export function ProgramHomeCard({
   const [showPreview, setShowPreview] = useState(false)
   const [showCycleMap, setShowCycleMap] = useState(false)
   const [cycleMapDay, setCycleMapDay] = useState<number | null>(null)
+
+  // When opening the cycle map, default to the current day (or day 1)
+  // to avoid the anti-pattern of showing an empty details area.
+  const openCycleMap = () => {
+    setCycleMapDay(progress?.currentDay ?? 1)
+    setShowCycleMap(true)
+  }
   const [maxPerDay, setMaxPerDay] = useState<{ day: number; maxActual: number }[]>([])
 
   const { program, bucket, progress, stats, resume, available, daysLeft } = model
@@ -160,7 +167,7 @@ export function ProgramHomeCard({
             <ProgramIcon program={program} size={22} />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="sr-text-h2 text-[var(--sr-text-primary)]" title={model.label}>
+            <h2 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
               {model.label}
             </h2>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -225,9 +232,8 @@ export function ProgramHomeCard({
               setShowMenu(false)
               if (progress) {
                 setMaxPerDay(await getMaxSetPerDay(program, progress.cycleId, progress.cycleAttempt))
-                setCycleMapDay(progress.currentDay)
               }
-              setShowCycleMap(true)
+              openCycleMap()
             }}
           >
             {pl.menuCycleMap}

@@ -284,7 +284,7 @@ export function ExerciseLibraryPanel({
               onChange={(e) => setMuscleGroup(e.target.value as MuscleGroup | '')}
               className={`w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-base text-[var(--sr-text-primary)] ${FOCUS_RING}`}
             >
-              <option value="">—</option>
+              <option value="">{pl.planDash}</option>
               {MUSCLE_GROUPS.map((g) => (
                 <option key={g} value={g}>{muscleGroupLabel(g)}</option>
               ))}

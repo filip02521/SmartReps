@@ -117,6 +117,7 @@ export function OverviewPanel({
         <ProgressSection first title={pl.progressSummaryTitle}>
           <div className="mb-3">
             <SegmentedControl
+              aria-label={pl.progressRangeLabel}
               value={String(rangeDays)}
               onChange={(v) => setRangeDays(Number(v) as 14 | 30 | 90 | 365)}
               options={[

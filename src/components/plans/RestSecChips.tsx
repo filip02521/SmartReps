@@ -77,7 +77,7 @@ export function RestSecChips({
                 onChange(sec)
               }}
             >
-              {sec}s
+              {sec}{pl.durationUnitShort}
             </button>
           ))}
           <button

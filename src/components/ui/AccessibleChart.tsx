@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { pl } from '@/i18n/pl'
 
 /**
  * Wraps a Recharts chart with accessibility metadata.
@@ -36,7 +37,7 @@ export function AccessibleChart({
       {children}
       {/* Screen-reader-only data table fallback */}
       <details className="sr-only">
-        <summary>Dane wykresu</summary>
+        <summary>{pl.chartDataSummary}</summary>
         <table>
           <thead>
             <tr>

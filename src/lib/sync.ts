@@ -24,6 +24,7 @@ import { shouldPreferLocalSession } from '@/lib/session-sync-merge'
 import {
   hasPendingActiveWorkoutDelete,
   hasPendingActiveWorkoutUpdate,
+  hasPendingSessionDelete,
 } from '@/lib/sync-queue-utils'
 import { useAppStore } from '@/stores/app-store'
 
@@ -426,7 +427,15 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
       }
       break
     case 'workout_sessions':
-      if (action !== 'delete') {
+      if (action === 'delete') {
+        const { id } = payload as { id: string }
+        const { error } = await supabase
+          .from('workout_sessions')
+          .delete()
+          .eq('user_id', userId)
+          .eq('id', id)
+        if (error) throw error
+      } else {
         const queued = payload as LocalWorkoutSession
         const local = await db.workoutSessions.get(queued.id)
         await upsertSession(userId, local ?? queued)
@@ -645,6 +654,9 @@ async function mergeProgressRemote(userId: string, remote: RemoteProgressRow) {
 }
 
 async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
+  // Don't resurrect a session that was deleted locally and is pending sync.
+  if (await hasPendingSessionDelete(remote.id)) return
+
   const local = await db.workoutSessions.get(remote.id)
 
   const setResults = (remote.set_results ?? [])

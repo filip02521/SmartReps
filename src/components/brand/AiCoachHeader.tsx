@@ -54,6 +54,7 @@ export function AiCoachHeader({
         )}
         {status && (
           <p
+            aria-live="polite"
             className={cn(
               'mt-0.5 text-xs font-medium',
               pulse ? 'text-[var(--sr-brand-primary)]' : 'text-[var(--sr-text-muted)]',
@@ -95,6 +96,7 @@ export function AiCoachMessage({
   }
   return (
     <div
+      aria-live="polite"
       className={cn(
         'sr-coach-msg-in flex gap-2.5 rounded-[var(--sr-radius-md)] border p-3',
         toneStyles[tone],

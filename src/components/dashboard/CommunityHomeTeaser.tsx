@@ -84,7 +84,8 @@ export function CommunityHomeTeaser() {
       <Button
         type="button"
         variant="ghost"
-        size="sm"
+        size="md"
+        fullWidth
         className="mt-3"
         onClick={() => navigate('/plans?tab=community')}
       >

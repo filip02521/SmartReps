@@ -224,6 +224,15 @@ export async function finalizeFailedDay(
   void schedulePostWorkoutSync()
 }
 
+/** Delete a completed session from history (local + cloud sync). */
+export async function deleteWorkoutSession(sessionId: string): Promise<void> {
+  const session = await db.workoutSessions.get(sessionId)
+  if (!session) return
+  await db.workoutSessions.delete(sessionId)
+  await enqueueSync('workout_sessions', 'delete', { id: sessionId })
+  track('session_deleted', { program: session.program })
+}
+
 export async function abandonWorkoutSession(program: Program, _sessionId: string): Promise<void> {
   // Always clear every in_progress row for the program — cancels must not leave ghosts
   // that Workout init reconstructs into a resume when activeWorkout is missing.

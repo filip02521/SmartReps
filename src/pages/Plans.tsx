@@ -323,17 +323,21 @@ export default function PlansPage() {
             <button
               type="button"
               onClick={() => setAiGeneratorOpen(true)}
-              className="flex w-full items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-bg-elevated)] p-3 text-left transition-colors hover:bg-[var(--sr-bg-surface)]"
+              aria-label={pl.aiCoachName}
+              className={cn(
+                FOCUS_RING,
+                'flex min-h-11 w-full items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-bg-elevated)] p-3 text-left transition-colors hover:bg-[var(--sr-bg-surface)]',
+              )}
               style={{
                 backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 8%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 60%)`,
               }}
             >
               <AiCoachMark size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-[var(--sr-text-primary)]">
+                <p className="truncate text-sm font-semibold text-[var(--sr-text-primary)]">
                   {pl.aiCoachName}
                 </p>
-                <p className="text-xs text-[var(--sr-text-secondary)]">
+                <p className="truncate text-xs text-[var(--sr-text-secondary)]">
                   {pl.aiGeneratePlanHint}
                 </p>
               </div>
@@ -342,7 +346,7 @@ export default function PlansPage() {
             <Button
               type="button"
               variant="ghost"
-              size="sm"
+              size="md"
               fullWidth
               onClick={() => importInputRef.current?.click()}
             >
@@ -501,7 +505,7 @@ export default function PlansPage() {
                       </Button>
                       <Button
                         type="button"
-                        size="sm"
+                        size="md"
                         variant="ghost"
                         className="ml-auto"
                         aria-label={pl.planMoreActions}

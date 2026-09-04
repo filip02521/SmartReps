@@ -79,13 +79,15 @@ export function FeedbackBanner({
 
 export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <NoticeCard
-      tone="error"
-      icon={noticeIcon('error')}
-      message={message}
-      actionLabel={onRetry ? pl.tryAgain : undefined}
-      onAction={onRetry}
-    />
+    <div role="alert">
+      <NoticeCard
+        tone="error"
+        icon={noticeIcon('error')}
+        message={message}
+        actionLabel={onRetry ? pl.tryAgain : undefined}
+        onAction={onRetry}
+      />
+    </div>
   )
 }
 

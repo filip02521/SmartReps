@@ -33,9 +33,14 @@ export function BodyWeightSection() {
   }, [])
 
   async function load() {
-    const data = await listBodyWeightEntries()
-    setEntries(data)
-    setLoading(false)
+    try {
+      const data = await listBodyWeightEntries()
+      setEntries(data)
+    } catch {
+      setEntries([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleAdd() {

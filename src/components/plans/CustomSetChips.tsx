@@ -6,7 +6,7 @@ import { metricTargetDisplayValue } from '@/lib/plan-resolver'
 function formatPrescriptionChip(set: SetPrescription, metric: PrimaryMetric): string {
   if (metric === 'duration_sec' && set.durationSec) {
     const v = metricTargetDisplayValue(set.durationSec)
-    return `${v}s`
+    return `${v}${pl.durationUnitShort}`
   }
   const reps = set.reps ? metricTargetDisplayValue(set.reps) : 0
   if (metric === 'reps_weight') {
@@ -16,7 +16,7 @@ function formatPrescriptionChip(set: SetPrescription, metric: PrimaryMetric): st
         : set.weightKg?.kind === 'max'
           ? set.weightKg.minValue
           : null
-    return kg != null && Number.isFinite(kg) ? `${reps}×${kg}kg` : `${reps}`
+    return kg != null && Number.isFinite(kg) ? `${reps}×${kg}${pl.weightUnitShort}` : `${reps}`
   }
   return String(reps)
 }

@@ -6,6 +6,7 @@ import { pl as plLocale } from 'date-fns/locale'
 import { OverviewPanel } from '@/components/progress/OverviewPanel'
 import { HistoryPanel } from '@/components/progress/HistoryPanel'
 import { AiWorkoutAnalysis } from '@/components/progress/AiWorkoutAnalysis'
+import { BodyWeightSection } from '@/components/progress/BodyWeightSection'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
@@ -25,7 +26,8 @@ import {
 import { buildActivityInsights } from '@/lib/weekly-recap'
 import { useAppStore } from '@/stores/app-store'
 import { pl } from '@/i18n/pl'
-import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
+import { TAB_PAGE_SHELL, FOCUS_RING } from '@/lib/ui-chrome'
+import { cn } from '@/lib/utils'
 import type { Program } from '@/data/plans/types'
 import type { LocalProgramProgress, LocalWorkoutSession } from '@/lib/db'
 import {
@@ -331,17 +333,21 @@ export default function ProgressPage() {
             <button
               type="button"
               onClick={() => selectTab('history')}
-              className="mt-4 flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-brand-primary)]/30 p-3 text-left transition-colors hover:bg-[var(--sr-bg-surface)]"
+              aria-label={pl.aiCoachName}
+              className={cn(
+                FOCUS_RING,
+                'mt-4 flex min-h-11 w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-brand-primary)]/30 p-3 text-left transition-colors hover:bg-[var(--sr-bg-surface)]',
+              )}
               style={{
                 backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 8%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 60%)`,
               }}
             >
               <AiCoachMark size="md" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-[var(--sr-text-primary)]">
+                <p className="truncate text-sm font-semibold text-[var(--sr-text-primary)]">
                   {pl.aiCoachName}
                 </p>
-                <p className="text-xs text-[var(--sr-text-secondary)]">
+                <p className="truncate text-xs text-[var(--sr-text-secondary)]">
                   {pl.aiAnalysisHint}
                 </p>
               </div>
@@ -350,6 +356,10 @@ export default function ProgressPage() {
               </span>
             </button>
           )}
+          {/* Body weight tracking — also on overview for discoverability */}
+          <div className="mt-6">
+            <BodyWeightSection />
+          </div>
           </>
         )}
 

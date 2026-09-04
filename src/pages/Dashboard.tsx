@@ -134,7 +134,6 @@ export default function Dashboard() {
 
   const reload = () => setReloadEpoch((n) => n + 1)
   const showTip = installVisible === false && !!home?.tip
-  const showAttention = installVisible === true || showTip
   const tipSuppression = home?.tip
     ? home.tipSuppression
     : { stale: false, test: false, level: false }
@@ -169,7 +168,7 @@ export default function Dashboard() {
           {/* Quick activity stats — visible immediately under today's status */}
           <HomeActivitySection summary={home.summary} />
 
-          <div className={showAttention ? 'mt-4' : undefined}>
+          <div className="mt-4">
             <InstallCoach demotePrimary onVisibilityChange={onInstallVisibility} />
 
             {showTip && home.tip && (
