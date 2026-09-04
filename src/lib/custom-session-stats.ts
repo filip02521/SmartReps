@@ -41,6 +41,6 @@ export function formatCustomSessionSummary(
   setCount: number,
   detail: string,
 ): string {
-  const base = `${exerciseCount} ćw. · ${pl.planSetsShort(setCount)}`
+  const base = `${pl.planExercisesShort(exerciseCount)} · ${pl.planSetsShort(setCount)}`
   return detail ? `${base} · ${detail}` : base
 }

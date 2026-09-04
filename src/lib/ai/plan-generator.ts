@@ -20,6 +20,7 @@ import { saveExercise } from '@/lib/custom-plan-service'
 import { saveCustomPlan } from '@/lib/custom-plan-service'
 import { generateId } from '@/lib/utils'
 import { db } from '@/lib/db'
+import { pl } from '@/i18n/pl'
 import { chatCompletion, parseJsonResponse, AiApiError } from './ai-client'
 import { buildPlanGenerationPrompt, type AiPlanResponse, type PlanGenerationInput } from './prompts'
 
@@ -130,7 +131,7 @@ export async function generatePlan(
 
   const parsed = parseJsonResponse<AiPlanResponse>(result.content)
   if (!parsed?.plan?.days?.length) {
-    throw new AiApiError('AI nie zwrócił prawidłowego planu.', undefined, 'parse')
+    throw new AiApiError(pl.aiErrorParsePlan, undefined, 'parse')
   }
 
   const now = new Date().toISOString()
@@ -277,7 +278,7 @@ export async function generatePlan(
 
   const plan: CustomPlan = {
     id: generateId(),
-    name: parsed.plan.name.trim().slice(0, 100) || 'Plan AI',
+    name: parsed.plan.name.trim().slice(0, 100) || pl.aiPlanFallbackName,
     description: parsed.plan.description.trim().slice(0, 500),
     status: 'draft',
     source: 'user',

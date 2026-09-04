@@ -4,21 +4,22 @@
 
 import { db } from '@/lib/db'
 import type { ExerciseDefinition, MuscleGroup } from '@/lib/exercise-model'
+import { pl } from '@/i18n/pl'
 import { chatCompletion, parseJsonResponse, AiApiError } from './ai-client'
 import { buildWorkoutAnalysisPrompt, type AiAnalysisResponse, type WorkoutHistorySummary } from './prompts'
 
 const DEFAULT_MODEL = 'gpt-4o-mini'
 
 const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
-  chest: 'Klatka piersiowa',
-  back: 'Plecy',
-  shoulders: 'Barki',
-  arms: 'Ramię',
-  legs: 'Nogi',
-  core: 'Core',
-  full_body: 'Całe ciało',
-  cardio: 'Cardio',
-  other: 'Inne',
+  chest: pl.muscleGroupFull_chest,
+  back: pl.muscleGroupFull_back,
+  shoulders: pl.muscleGroupFull_shoulders,
+  arms: pl.muscleGroupFull_arms,
+  legs: pl.muscleGroupFull_legs,
+  core: pl.muscleGroupFull_core,
+  full_body: pl.muscleGroupFull_full_body,
+  cardio: pl.muscleGroupFull_cardio,
+  other: pl.muscleGroupFull_other,
 }
 
 export type AnalysisResult = AiAnalysisResponse['analysis'] & {
@@ -53,7 +54,7 @@ export async function analyzeWorkouts(
 
   const parsed = parseJsonResponse<AiAnalysisResponse>(result.content)
   if (!parsed?.analysis) {
-    throw new AiApiError('AI nie zwróciło prawidłowej analizy.', undefined, 'parse')
+    throw new AiApiError(pl.aiErrorParseAnalysis, undefined, 'parse')
   }
 
   return {
@@ -114,7 +115,7 @@ async function gatherWorkoutHistory(
     if (session.exerciseLogs && session.exerciseLogs.length > 0) {
       for (const log of session.exerciseLogs) {
         const def = exerciseById.get(log.exerciseId)
-        const name = def?.name ?? 'Nieznane ćwiczenie'
+        const name = def?.name ?? pl.builtinExerciseUnknown
         const sets = log.sets.length
         const totalRepsEx = log.sets.reduce((acc, s) => acc + (s.actual.reps ?? 0), 0)
         const avgWeight =
@@ -151,7 +152,7 @@ async function gatherWorkoutHistory(
         )
       }
       sessionExercises.push({
-        name: program === 'pushups' ? 'Pompki' : program === 'pullups' ? 'Podciąganie' : 'Trening',
+        name: program === 'pushups' ? pl.builtinExercisePushups : program === 'pullups' ? pl.builtinExercisePullups : pl.builtinWorkoutFallback,
         sets: builtinSets,
         reps: session.totalReps,
       })
@@ -160,7 +161,7 @@ async function gatherWorkoutHistory(
     if (recentSessions.length < 10) {
       recentSessions.push({
         date: session.startedAt.split('T')[0]!,
-        planName: session.program === 'custom' ? 'Plan własny' : session.program === 'pushups' ? 'Pompki' : 'Podciąganie',
+        planName: session.program === 'custom' ? pl.calendarSessionCustom : session.program === 'pushups' ? pl.builtinExercisePushups : pl.builtinExercisePullups,
         dayNumber: session.dayNumber,
         exercises: sessionExercises,
       })

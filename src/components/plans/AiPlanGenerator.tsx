@@ -391,7 +391,7 @@ export function AiPlanGenerator({
                 </p>
                 <ul className="mt-2 flex flex-col gap-1.5">
                   {d.exercises.map((ex, j) => {
-                    const exName = exerciseNames.get(ex.exerciseId) ?? 'Ćwiczenie'
+                    const exName = exerciseNames.get(ex.exerciseId) ?? pl.exerciseFallbackName
                     return (
                       <li key={j} className="text-sm text-[var(--sr-text-secondary)]">
                         <span className="font-medium">{j + 1}. {exName}</span>

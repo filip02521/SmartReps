@@ -34,7 +34,7 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('push', (event) => {
   let title = 'SmartReps'
-  let body = 'Czas na trening — sprawdź swój plan na dziś.'
+  let body = 'SmartReps — Time to train'
   let url = '/'
   let program: string | undefined
   try {

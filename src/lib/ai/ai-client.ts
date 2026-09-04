@@ -3,6 +3,8 @@
  * Supports OpenAI and any OpenAI-compatible endpoint (e.g. Groq, OpenRouter).
  */
 
+import { pl } from '@/i18n/pl'
+
 export type ChatMessage = {
   role: 'system' | 'user' | 'assistant'
   content: string
@@ -46,10 +48,10 @@ export class AiApiError extends Error {
 
 export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatCompletionResult> {
   if (!navigator.onLine) {
-    throw new AiApiError('Brak połączenia z internetem.', undefined, 'offline')
+    throw new AiApiError(pl.aiErrorOfflineConnection, undefined, 'offline')
   }
   if (!opts.apiKey?.trim()) {
-    throw new AiApiError('Brak klucza API.', undefined, 'auth')
+    throw new AiApiError(pl.aiErrorNoApiKey, undefined, 'auth')
   }
 
   const baseURL = opts.baseURL?.trim() || DEFAULT_BASE_URL
@@ -76,7 +78,7 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') throw e
     throw new AiApiError(
-      'Nie udało się połączyć z API. Sprawdź połączenie internetowe.',
+      pl.aiErrorConnection,
       undefined,
       'network',
     )
@@ -92,20 +94,20 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
     }
     if (resp.status === 401 || resp.status === 403) {
       throw new AiApiError(
-        `Nieprawidłowy klucz API. ${detail}`.trim(),
+        pl.aiErrorInvalidKey(detail),
         resp.status,
         'auth',
       )
     }
     if (resp.status === 429) {
       throw new AiApiError(
-        'Zbyt wiele zapytań. Poczekaj chwilę i spróbuj ponownie.',
+        pl.aiErrorRateLimited,
         resp.status,
         'rate_limit',
       )
     }
     throw new AiApiError(
-      `Błąd API (${resp.status}). ${detail}`.trim(),
+      pl.aiErrorGenericStatus(resp.status, detail),
       resp.status,
       'server',
     )
@@ -114,7 +116,7 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
   const data = await resp.json()
   const content = data?.choices?.[0]?.message?.content
   if (typeof content !== 'string') {
-    throw new AiApiError('Nieprawidłowa odpowiedź API.', undefined, 'parse')
+    throw new AiApiError(pl.aiErrorInvalidResponse, undefined, 'parse')
   }
   return {
     content,
@@ -145,7 +147,7 @@ export function parseJsonResponse<T>(content: string): T {
       }
     }
     throw new AiApiError(
-      'AI zwrócił nieprawidłowy JSON. Spróbuj ponownie.',
+      pl.aiErrorParseJson,
       undefined,
       'parse',
     )

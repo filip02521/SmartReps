@@ -1901,6 +1901,374 @@ const plDict = {
   // ── Secret marathon ──
   achievement_secret_marathon_title: 'Maraton treningowy',
   achievement_secret_marathon_desc: 'Sesje trwające ponad godzinę — cierpliwość i objętość.',
+
+  // ── Builtin exercise names (used in plan-resolver, workout-analyzer) ──
+  builtinExercisePushups: 'Pompki',
+  builtinExercisePullups: 'Podciąganie',
+  builtinExerciseUnknown: 'Nieznane ćwiczenie',
+  builtinWorkoutFallback: 'Trening',
+  exerciseFallbackName: 'Ćwiczenie',
+
+  // ── Full muscle group labels (for AI analysis) ──
+  muscleGroupFull_chest: 'Klatka piersiowa',
+  muscleGroupFull_back: 'Plecy',
+  muscleGroupFull_shoulders: 'Barki',
+  muscleGroupFull_arms: 'Ramię',
+  muscleGroupFull_legs: 'Nogi',
+  muscleGroupFull_core: 'Core',
+  muscleGroupFull_full_body: 'Całe ciało',
+  muscleGroupFull_cardio: 'Cardio',
+  muscleGroupFull_other: 'Inne',
+
+  // ── AI client error messages (shown via e.message) ──
+  aiErrorOfflineConnection: 'Brak połączenia z internetem.',
+  aiErrorNoApiKey: 'Brak klucza API.',
+  aiErrorConnection: 'Nie udało się połączyć z API. Sprawdź połączenie internetowe.',
+  aiErrorInvalidKey: (detail: string) => `Nieprawidłowy klucz API. ${detail}`.trim(),
+  aiErrorRateLimited: 'Zbyt wiele zapytań. Poczekaj chwilę i spróbuj ponownie.',
+  aiErrorGenericStatus: (status: number, detail: string) =>
+    `Błąd API (${status}). ${detail}`.trim(),
+  aiErrorInvalidResponse: 'Nieprawidłowa odpowiedź API.',
+  aiErrorParseJson: 'AI zwrócił nieprawidłowy JSON. Spróbuj ponownie.',
+  aiErrorParseAnalysis: 'AI nie zwróciło prawidłowej analizy.',
+  aiErrorParsePlan: 'AI nie zwróciło prawidłowego planu.',
+  aiPlanFallbackName: 'Plan AI',
+
+  // ── Plans toast ──
+  plansRepairedToast: (plans: number, sets: number) =>
+    `Naprawiono ${plans} plan(ów): ${sets} serii.`,
+
+  // ── Cycle names and descriptions (builtin programs) ──
+  // Keys map cycle.id with hyphens → underscores
+  cycleName_pushups_ponizej_5: 'Poniżej 5 pompek',
+  cycleDesc_pushups_ponizej_5:
+    'Program startowy dla osób wykonujących mniej niż 5 pompek w teście. Buduje podstawową siłę i wytrzymałość.',
+  cycleName_pushups_6_10: '6–10 pompek',
+  cycleDesc_pushups_6_10:
+    'Dla osób wykonujących 6–10 pompek w teście. Rozwija siłę i objętość.',
+  cycleName_pushups_11_20: '11–20 pompek',
+  cycleDesc_pushups_11_20:
+    'Dla osób wykonujących 11–20 pompek w teście. Buduje wytrzymałość siłową.',
+  cycleName_pushups_21_25: '21–25 pompek',
+  cycleDesc_pushups_21_25:
+    'Dla osób wykonujących 21–25 pompek w teście. Zwiększa objętość i wytrzymałość.',
+  cycleName_pushups_26_30: '26–30 pompek',
+  cycleDesc_pushups_26_30:
+    'Dla osób wykonujących 26–30 pompek w teście. Rozwija moc i wytrzymałość.',
+  cycleName_pushups_31_35: '31–35 pompek',
+  cycleDesc_pushups_31_35:
+    'Dla osób wykonujących 31–35 pompek w teście. Zaawansowana wytrzymałość.',
+  cycleName_pushups_36_40: '36–40 pompek',
+  cycleDesc_pushups_36_40:
+    'Dla osób wykonujących 36–40 pompek w teście. Wysoka wytrzymałość siłowa.',
+  cycleName_pushups_41_45: '41–45 pompek',
+  cycleDesc_pushups_41_45:
+    'Dla osób wykonujących 41–45 pompek w teście. Elita wytrzymałości.',
+  cycleName_pushups_46_50: '46–50 pompek',
+  cycleDesc_pushups_46_50:
+    'Dla osób wykonujących 46–50 pompek w teście. Mistrzowska wytrzymałość.',
+  cycleName_pushups_51_55: '51–55 pompek',
+  cycleDesc_pushups_51_55:
+    'Dla osób wykonujących 51–55 pompek w teście. Ekspert poziomu elitarnego.',
+  cycleName_pushups_56_60: '56–60 pompek',
+  cycleDesc_pushups_56_60:
+    'Dla osób wykonujących 56–60 pompek w teście. Wysoka powtarzalność.',
+  cycleName_pushups_powyzej_60: 'Powyżej 60 pompek',
+  cycleDesc_pushups_powyzej_60:
+    'Dla osób wykonujących powyżej 60 pompek w teście. Poziom mistrzowski.',
+
+  cycleName_pullups_ponizej_4: 'Poniżej 4 podciągnięć',
+  cycleDesc_pullups_ponizej_4:
+    'Program startowy dla osób wykonujących mniej niż 4 podciągnięcia. Buduje siłę bazową z negatywami.',
+  cycleName_pullups_4_5: '4–5 podciągnięć',
+  cycleDesc_pullups_4_5:
+    'Dla osób wykonujących 4–5 podciągnięć. Rozwija siłę i objętość.',
+  cycleName_pullups_6_8: '6–8 podciągnięć',
+  cycleDesc_pullups_6_8:
+    'Dla osób wykonujących 6–8 podciągnięć. Zwiększa objętość.',
+  cycleName_pullups_9_11: '9–11 podciągnięć',
+  cycleDesc_pullups_9_11:
+    'Dla osób wykonujących 9–11 podciągnięć. Rozwija wytrzymałość siłową.',
+  cycleName_pullups_12_15: '12–15 podciągnięć',
+  cycleDesc_pullups_12_15:
+    'Dla osób wykonujących 12–15 podciągnięć. Zaawansowana objętość.',
+  cycleName_pullups_16_20: '16–20 podciągnięć',
+  cycleDesc_pullups_16_20:
+    'Dla osób wykonujących 16–20 podciągnięć. Wysoka wytrzymałość.',
+  cycleName_pullups_21_25: '21–25 podciągnięć',
+  cycleDesc_pullups_21_25:
+    'Dla osób wykonujących 21–25 podciągnięć. Elita wytrzymałości.',
+  cycleName_pullups_26_30: '26–30 podciągnięć',
+  cycleDesc_pullups_26_30:
+    'Dla osób wykonujących 26–30 podciągnięć. Mistrzowska wytrzymałość.',
+  cycleName_pullups_31_35: '31–35 podciągnięć',
+  cycleDesc_pullups_31_35:
+    'Dla osób wykonujących 31–35 podciągnięć. Poziom elitarny.',
+  cycleName_pullups_36_40: '36–40 podciągnięć',
+  cycleDesc_pullups_36_40:
+    'Dla osób wykonujących 36–40 podciągnięć. Zaawansowany poziom.',
+  cycleName_pullups_powyzej_40: 'Powyżej 40 podciągnięć',
+  cycleDesc_pullups_powyzej_40:
+    'Dla osób wykonujących powyżej 40 podciągnięć. Ekspert poziomu mistrzowskiego.',
+
+  // ── Legal pages ──
+  privacyBody1:
+    'SmartReps to aplikacja treningowa działająca przede wszystkim lokalnie na Twoim urządzeniu (IndexedDB / Dexie). Postęp, sesje i ustawienia są zapisywane u Ciebie.',
+  privacyBody2:
+    'Opcjonalnie możesz podać adres e-mail i zalogować się przez Supabase (kod OTP), aby synchronizować postęp między urządzeniami. Wówczas przetwarzamy identyfikator konta, e-mail oraz dane treningowe niezbędne do synchronizacji.',
+  privacyBody3:
+    'Nie sprzedajemy danych. Nie budujemy profili reklamowych. Przypomnienia możesz włączyć w dwóch trybach: (1) lokalnie przy otwartej aplikacji lub (2) opcjonalnie jako Web Push po instalacji PWA i zalogowaniu — wtedy powiadomienie może dotrzeć także po zamknięciu aplikacji. Endpoint subskrypcji push jest powiązany z Twoim kontem.',
+  privacyBodyExport: 'Eksport danych:',
+  privacyBodyExportDetail:
+    'w Profilu → sekcja „Dane” możesz pobrać historię treningów (CSV) lub pełny backup (JSON) z postępem i ustawieniami na tym urządzeniu.',
+  privacyBodyCommunity: 'Katalog społecznościowy:',
+  privacyBodyCommunityDetail:
+    'przy publikacji planu zapisujemy w chmurze snapshot treningu, podpis autora (wyświetlana nazwa), tagi oraz metadane (np. liczba polubień i importów). Import i polubienie wymagają konta. Katalog nie udostępnia Twojego e-maila ani prywatnych draftów.',
+  privacyBodyDelete: 'Usunięcie konta:',
+  privacyBodyDeleteDetail:
+    'zalogowany użytkownik może w Profilu trwale usunąć konto w chmurze (postęp, sesje, subskrypcje push, publikacje społecznościowe, polubienia, importy i zgłoszenia powiązane z kontem). Usunięcie konta nie kasuje automatycznie danych lokalnych — możesz je wyczyścić osobno. Przed usunięciem zalecamy pobrać backup.',
+  privacyBodyLocal:
+    'Możesz w każdej chwili wyczyścić dane lokalne w Profilu oraz wylogować się bez usuwania konta w chmurze.',
+  privacyBodyContact:
+    'Kontakt w sprawach prywatności: poprzez issues w repozytorium SmartReps na GitHubie.',
+
+  termsBody1:
+    'Korzystając ze SmartReps akceptujesz, że aplikacja służy do śledzenia treningu siłowego (pompki, podciąganie) według planów inspirowanych publicznymi programami progresji.',
+  termsBody2:
+    'Trening siłowy wiąże się z ryzykiem urazu. Przed rozpoczęciem skonsultuj się z lekarzem, jeśli masz problemy zdrowotne. SmartReps nie zastępuje porady medycznej.',
+  termsBody3:
+    'Aplikacja jest dostarczana „tak jak jest”. Dokładamy starań, by działała offline i synchronicznie z chmurą, ale nie gwarantujemy nieprzerwanej dostępności usług zewnętrznych (np. dostawy e-mail OTP).',
+  termsBody4:
+    'Plany treningowe odwołują się do materiałów z 100pompek.pl i podciaganie.pl — prawa do oryginalnych programów należą do ich autorów; SmartReps implementuje śledzenie postępu.',
+  termsBody5:
+    'W katalogu społecznościowym możesz publikować własne plany (tytuł, opis, strukturę treningu) oraz importować plany innych użytkowników jako lokalną kopię. Publikując, udzielasz SmartReps niewyłącznej licencji na wyświetlanie planu w katalogu i umożliwienie importu kopii innym użytkownikom. Nie publikuj danych osobowych w opisach ani treści niebezpiecznych / niezgodnych z prawem. Możesz wycofać publikację (unpublish) oraz zgłosić cudzą treść. Zastrzegamy prawo do ukrycia lub usunięcia zgłoszonych publikacji.',
+  termsBody6:
+    'Możesz zaprzestać korzystania w dowolnym momencie i usunąć dane lokalne w Profilu. Kontynuując, potwierdzasz zapoznanie się z polityką prywatności.',
+
+  // ── AI prompts (research context + plan generation) ──
+  aiPromptResearchContext: `Jesteś ekspertem ds. treningu siłowego z wiedzą opartą na badaniach naukowych.
+
+Kluczowe zasady, którymi się kierujesz:
+
+1. OBJĘTOŚĆ (Volume Landmarks — Israetel & Hoffmann):
+   - MEV (Minimum Effective Volume): 10 serii na grupę mięśniową na tydzień (początkujący)
+   - MAV (Maximum Adaptive Volume): 15-25 serii na grupę mięśniową na tydzień (średniozaawansowani)
+   - MRV (Maximum Recoverable Volume): 20-30+ serii na grupę mięśniową na tydzień (zaawansowani)
+   - Każda grupa mięśniowa powinna otrzymać objętość w zakresie MEV-MAV
+
+2. CZĘSTOTLIWOŚĆ (Schoenfeld et al. 2016):
+   - Każda grupa mięśniowa 2x w tygodniu (optymalne dla hipertrofii)
+   - 1x w tygodniu akceptowalne dla początkujących lub przy niskiej częstotliwości treningowej
+   - 3x+ w tygodniu dla małych grup (core, łydki) lub gdy objętość jest niska
+
+3. PROGRESJA (Progressive Overload):
+   - Zwiększaj obciążenie o 2.5-5% lub 1-2 powtórzenia gdy wszystkie serie są w zakresie RPE 7-8
+   - RPE 7 = zostawiasz 3 powtórzenia w rezerwie (RIR=3)
+   - RPE 8 = zostawiasz 2 powtórzenia w rezerwie (RIR=2)
+   - RPE 9 = zostawiasz 1 powtórzenie w rezerwie (RIR=1)
+   - Nie trenuj do upadku mięśniowego regularnie (RPE 10) — zwiększa ryzyko kontuzji i zmęczenie
+
+4. WYBÓR ĆWICZEŃ:
+   - Priorytetyzuj ćwiczenia wielostawowe (przysiady, martwy ciąg, wyciskanie, wiosłowanie)
+   - 60-70% objętości z ćwiczeń wielostawowych, 30-40% z izolacji
+   - Na każdą grupę mięśniową: 1 ćwiczenie wielostawowe + 1-2 izolacje
+
+5. PRZERWY (Rest intervals):
+   - Ćwiczenia siłowe (1-6 rep): 3-5 min
+   - Hipertrofia (6-12 rep): 60-90 sek
+   - Wytrzymałość (12+ rep): 30-60 sek
+   - Core/izolacje: 45-60 sek
+
+6. DELOAD:
+   - Co 4-6 tygodni zmniejsz objętość o 40-50% przy zachowaniu intensywności
+   - Deload po 3-4 tygodniach przy wysokim RPE (8-9)
+
+7. BEZPIECZEŃSTWO:
+   - Nigdy nie proponuj ćwiczeń z dużym ryzykiem kontuzji bez odpowiedniego przygotowania
+   - Uwzględniaj poziom doświadczenia i dostępny sprzęt
+   - Zawsze zaczynaj od rozgrzewki (5-10 min) — nie wliczaj w objętość`,
+
+  aiPromptPlanSystem: 'Jesteś ekspertem ds. treningu siłowego. Generujesz plany treningowe w formacie JSON.',
+  aiPromptPlanUser: (desc: string, days: number, experience: string, equipment: string, goal: string, duration?: string) =>
+    `Ułóż plan treningowy na ${days} dni w tygodniu.\n\nOpis celu: ${desc}\nPoziom: ${experience}\nSprzęt: ${equipment}\nCel: ${goal}${duration ? `\nCzas treningu: ${duration} min` : ''}\n\nZwróć WYŁĄCZNIE poprawny JSON zgodny ze schematem. Nie dodawaj komentarzy ani tekstu poza JSON.`,
+  aiPromptPlanExample: 'Przykład poprawnego planu:',
+  aiPromptPlanExampleJson:
+    '{"name":"Plan na hipertrofię z hantlami, 4 dni w tygodniu","description":"Push/Pull/Legs/Upper","days":[{"dayNumber":1,"restAfterDays":1,"exercises":[{"exerciseName":"Wyciskanie hantli na ławce","sets":3,"targetReps":"8-12","restSeconds":90,"note":"Kontroluj opuszczanie"}]}]}',
+  aiPromptPlanRules: `Zasady:
+1. Każde ćwiczenie musi mieć nazwę, serie, cel powtórzeń (lub zakres), przerwę w sekundach.
+2. Uwzględnij przerwę po dniu treningowym (1 lub 2 dni).
+3. Rozgrzewka nie wlicza się w serie robocze.
+4. Nie używaj ćwiczeń z dużym ryzykiem kontuzji.
+5. Zwróć tylko JSON — bez markdown, bez komentarzy.`,
+
+  aiPromptAnalysisSystem: 'Jesteś ekspertem ds. treningu siłowego. Analizujesz historię treningów użytkownika i dajesz sugestie oparte na badaniach.',
+  aiPromptAnalysisUser: (sessions: string) =>
+    `Przeanalizuj moją historię treningów (ostatnie ${sessions} sesji) i podaj sugestie. Zwróć WYŁĄCZNIE poprawny JSON zgodny ze schematem.`,
+  aiPromptAnalysisRules: `Zasady analizy:
+1. Oceń objętość na grupę mięśniową (optymalna / poniżej MEV / powyżej MRV).
+2. Wskazaj mocne i słabe strony.
+3. Podaj konkretne sugestie z priorytetem (high/medium/low).
+4. Zwróć tylko JSON — bez markdown, bez komentarzy.`,
+
+  // ── Service worker push fallback ──
+  swPushBody: 'Czas na trening — sprawdź swój plan na dziś.',
+
+  // ── AI prompt maps (equipment/goal/experience for prompt construction) ──
+  aiPromptEquipmentBodyweight: 'tylko masa ciała (bez sprzętu)',
+  aiPromptEquipmentDumbbells: 'hantle',
+  aiPromptEquipmentBarbell: 'sztanga',
+  aiPromptEquipmentFullGym: 'pełna siłownia',
+  aiPromptEquipmentKettlebell: 'odwążki (kettlebell)',
+  aiPromptGoalHypertrophy: 'hipertrofia (budowa masy mięśniowej)',
+  aiPromptGoalStrength: 'siła',
+  aiPromptGoalEndurance: 'wytrzymałość mięśniowa',
+  aiPromptGoalGeneral: 'ogólna sprawność',
+  aiPromptGoalFatLoss: 'redukcja tkanki tłuszczowej',
+  aiPromptExperienceBeginner: 'początkujący (0-6 miesięcy doświadczenia)',
+  aiPromptExperienceIntermediate: 'średniozaawansowany (6 miesięcy - 2 lata)',
+  aiPromptExperienceAdvanced: 'zaawansowany (2+ lata)',
+
+  // ── AI plan generation full prompt ──
+  aiPromptPlanBuild: (
+    desc: string,
+    days: number,
+    experience: string,
+    equipment: string,
+    goal: string,
+    duration: string,
+    libraryList: string,
+  ) => `Ułóż plan treningowy na podstawie:
+- Opis użytkownika: "${desc}"
+- Dni w tygodniu: ${days}
+- Poziom: ${experience}
+- Sprzęt: ${equipment}
+- Cel: ${goal}
+${duration}
+
+BIBLIOTEKA ĆWICZEŃ (używaj tych gdy pasują, ale możesz proponować nowe):
+${libraryList}
+
+ZASADY:
+1. Używaj ćwiczeń z biblioteki gdy pasują do celu i sprzętu. Jeśli używasz ćwiczenia z biblioteki, zachowaj jego primaryMetric.
+2. Możesz proponować NOWE ćwiczenia — zostaną dodane do biblioteki. Podaj realistyczną nazwę po polsku.
+3. Każde ćwiczenie musi mieć metrykę: "reps" (powtórzenia), "reps_weight" (powtórzenia + ciężar), lub "duration_sec" (czas w sekundach). Dla ćwiczeń z ciężarem używaj "reps_weight" i ustaw weightKg w seriach.
+4. Dobierz serie, powtórzenia i przerwy zgodnie z badaniami (patrz kontekst systemowy).
+5. Rozłóż grupy mięśniowe na dni tak, aby każda była trenowana 2x w tygodniu (lub 1x dla początkujących).
+6. Uwzględnij przerwę po dniu treningowym (1 lub 2 dni).
+7. Dodaj progresję (zwiększaj o 1-2 powtórzenia lub 2.5kg po pełnym cyklu).
+8. Zwróć DOKŁADNIE ${days} dni treningowych (tyle ile użytkownik wybrał).
+9. Maksymalnie 10 ćwiczeń na dzień, maksymalnie 5 serii na ćwiczenie.
+10. Nazwa planu po polsku, krótka i opisowa (np. "Push/Pull/Legs 4x tyg.").
+11. Używaj TYLKO kind: "fixed", "max", "min", lub "exact". NIE używaj "range" ani innych.
+
+DOZWOLONE wartości muscleGroup: "chest", "back", "shoulders", "arms", "legs", "core", "full_body", "cardio", "other".
+DOZWOLONE wartości primaryMetric: "reps", "reps_weight", "duration_sec".
+DOZWOLONE wartości kind w MetricTarget: "fixed", "max", "min", "exact".
+
+Zwróć JSON w tym formacie (to jest przykład, podmień wartości):
+{
+  "plan": {
+    "name": "Push/Pull/Legs 4x tyg.",
+    "description": "Plan na hipertrofię z hantlami, 4 dni w tygodniu.",
+    "days": [
+      {
+        "dayNumber": 1,
+        "restAfterDay": 1,
+        "exercises": [
+          {
+            "exerciseName": "Pompki",
+            "primaryMetric": "reps",
+            "muscleGroup": "chest",
+            "sets": [
+              { "reps": { "kind": "fixed", "value": 10 } },
+              { "reps": { "kind": "fixed", "value": 10 } },
+              { "reps": { "kind": "max", "value": 8 } }
+            ],
+            "restBetweenSetsSec": 90,
+            "restAfterExerciseSec": 120,
+            "note": "RPE 7-8"
+          }
+        ]
+      }
+    ],
+    "progression": {
+      "enabled": true,
+      "repsDelta": 1,
+      "weightKgDelta": 2.5,
+      "afterCycleComplete": true
+    },
+    "rationale": "Plan rozkłada objętość 12-16 serii na główne grupy, 2x w tygodniu."
+  }
+}`,
+  aiPromptLibraryEmpty: '  (pusta biblioteka)',
+  aiPromptLibraryEntry: (id: string, name: string, metric: string, group: string) =>
+    `  - id: "${id}", nazwa: "${name}", metryka: "${metric}", grupa: "${group}"`,
+
+  // ── AI analysis full prompt ──
+  aiPromptAnalysisBuild: (
+    totalSessions: number,
+    totalSets: number,
+    totalReps: number,
+    dateRange: string,
+    sessionsPerWeek: string,
+    activePlan: string,
+    volumeTable: string,
+    recentTable: string,
+  ) => `Przeanalizuj historię treningów użytkownika i daj konkretne sugestie.
+
+DANE:
+- Liczba sesji: ${totalSessions}
+- Liczba serii łącznie: ${totalSets}
+- Liczba powtórzeń łącznie: ${totalReps}
+- Okres: ${dateRange}
+- Sesji na tydzień: ${sessionsPerWeek}
+${activePlan}
+
+OBJĘTOŚĆ NA GRUPĘ MIĘŚNIOWĄ (serie/tydzień):
+${volumeTable}
+
+OSTATNIE SESJE:
+${recentTable}
+
+Zasady analizy:
+1. Porównaj objętość z zakresami MEV/MAV/MRV (patrz kontekst systemowy).
+2. Sprawdź czy częstotliwość treningowa jest optymalna.
+3. Zidentyfikuj grupy mięśniowe z niedostateczną lub nadmierną objętością.
+4. Sprawdź czy progresja jest odpowiednia.
+5. Daj 3-5 konkretnych, praktycznych sugestii (po polsku).
+
+Zwróć JSON w tym formacie (to jest przykład, podmień wartości):
+{
+  "analysis": {
+    "summary": "Ogólna ocena treningów (2-3 zdania po polsku)",
+    "strengths": ["Mocna strona 1", "Mocna strona 2"],
+    "weaknesses": ["Słaba strona 1", "Słaba strona 2"],
+    "suggestions": [
+      {
+        "title": "Zwiększ objętość na plecy",
+        "description": "Trenujesz plecy 1x w tygodniu z 6 seriami. Dodaj drugi dzień lub ćwiczenie.",
+        "priority": "high"
+      }
+    ],
+    "volumeAssessment": [
+      {
+        "muscleGroup": "chest",
+        "weeklySets": 12,
+        "status": "optimal",
+        "recommendation": "Objętość w zakresie MAV, utrzymaj."
+      }
+    ]
+  }
+}
+
+DOZWOLONE wartości priority: "high", "medium", "low".
+DOZWOLONE wartości status: "optimal", "below_mev", "above_mrv", "low", "high".
+DOZWOLONE wartości muscleGroup: "chest", "back", "shoulders", "arms", "legs", "core", "full_body", "cardio", "other".`,
+  aiPromptVolumeEntry: (group: string, sets: number) => `  ${group}: ${sets} serii/tydzień`,
+  aiPromptVolumeEmpty: '  (brak danych)',
+  aiPromptRecentEmpty: '  (brak sesji)',
+  aiPromptDateRangeNone: 'brak danych',
+  aiPromptNoActivePlan: '',
 }
 
 export type Translation = typeof plDict

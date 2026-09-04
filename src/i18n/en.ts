@@ -1880,4 +1880,372 @@ export const en: Translation = {
   // \u2500\u2500 Secret marathon \u2500\u2500
   achievement_secret_marathon_title: 'Training marathon',
   achievement_secret_marathon_desc: 'Sessions lasting over an hour — patience and volume.',
+
+  // ── Builtin exercise names (used in plan-resolver, workout-analyzer) ──
+  builtinExercisePushups: 'Pushups',
+  builtinExercisePullups: 'Pull-ups',
+  builtinExerciseUnknown: 'Unknown exercise',
+  builtinWorkoutFallback: 'Workout',
+  exerciseFallbackName: 'Exercise',
+
+  // ── Full muscle group labels (for AI analysis) ──
+  muscleGroupFull_chest: 'Chest',
+  muscleGroupFull_back: 'Back',
+  muscleGroupFull_shoulders: 'Shoulders',
+  muscleGroupFull_arms: 'Arms',
+  muscleGroupFull_legs: 'Legs',
+  muscleGroupFull_core: 'Core',
+  muscleGroupFull_full_body: 'Full body',
+  muscleGroupFull_cardio: 'Cardio',
+  muscleGroupFull_other: 'Other',
+
+  // ── AI client error messages (shown via e.message) ──
+  aiErrorOfflineConnection: 'No internet connection.',
+  aiErrorNoApiKey: 'Missing API key.',
+  aiErrorConnection: 'Failed to connect to API. Check your internet connection.',
+  aiErrorInvalidKey: (detail: string) => `Invalid API key. ${detail}`.trim(),
+  aiErrorRateLimited: 'Too many requests. Wait a moment and try again.',
+  aiErrorGenericStatus: (status: number, detail: string) =>
+    `API error (${status}). ${detail}`.trim(),
+  aiErrorInvalidResponse: 'Invalid API response.',
+  aiErrorParseJson: 'AI returned invalid JSON. Try again.',
+  aiErrorParseAnalysis: 'AI did not return a valid analysis.',
+  aiErrorParsePlan: 'AI did not return a valid plan.',
+  aiPlanFallbackName: 'AI Plan',
+
+  // ── Plans toast ──
+  plansRepairedToast: (plans: number, sets: number) =>
+    `Repaired ${plans} plan(s): ${sets} sets.`,
+
+  // ── Cycle names and descriptions (builtin programs) ──
+  // Keys map cycle.id with hyphens → underscores
+  cycleName_pushups_ponizej_5: 'Below 5 pushups',
+  cycleDesc_pushups_ponizej_5:
+    'Starter program for those doing fewer than 5 pushups in the test. Builds basic strength and endurance.',
+  cycleName_pushups_6_10: '6–10 pushups',
+  cycleDesc_pushups_6_10:
+    'For those doing 6–10 pushups in the test. Develops strength and volume.',
+  cycleName_pushups_11_20: '11–20 pushups',
+  cycleDesc_pushups_11_20:
+    'For those doing 11–20 pushups in the test. Builds strength endurance.',
+  cycleName_pushups_21_25: '21–25 pushups',
+  cycleDesc_pushups_21_25:
+    'For those doing 21–25 pushups in the test. Increases volume and endurance.',
+  cycleName_pushups_26_30: '26–30 pushups',
+  cycleDesc_pushups_26_30:
+    'For those doing 26–30 pushups in the test. Develops power and endurance.',
+  cycleName_pushups_31_35: '31–35 pushups',
+  cycleDesc_pushups_31_35:
+    'For those doing 31–35 pushups in the test. Advanced endurance.',
+  cycleName_pushups_36_40: '36–40 pushups',
+  cycleDesc_pushups_36_40:
+    'For those doing 36–40 pushups in the test. High strength endurance.',
+  cycleName_pushups_41_45: '41–45 pushups',
+  cycleDesc_pushups_41_45:
+    'For those doing 41–45 pushups in the test. Elite endurance.',
+  cycleName_pushups_46_50: '46–50 pushups',
+  cycleDesc_pushups_46_50:
+    'For those doing 46–50 pushups in the test. Master-level endurance.',
+  cycleName_pushups_51_55: '51–55 pushups',
+  cycleDesc_pushups_51_55:
+    'For those doing 51–55 pushups in the test. Elite expert level.',
+  cycleName_pushups_56_60: '56–60 pushups',
+  cycleDesc_pushups_56_60:
+    'For those doing 56–60 pushups in the test. High repeatability.',
+  cycleName_pushups_powyzej_60: 'Above 60 pushups',
+  cycleDesc_pushups_powyzej_60:
+    'For those doing more than 60 pushups in the test. Master level.',
+
+  cycleName_pullups_ponizej_4: 'Below 4 pull-ups',
+  cycleDesc_pullups_ponizej_4:
+    'Starter program for those doing fewer than 4 pull-ups. Builds base strength with negatives.',
+  cycleName_pullups_4_5: '4–5 pull-ups',
+  cycleDesc_pullups_4_5:
+    'For those doing 4–5 pull-ups. Develops strength and volume.',
+  cycleName_pullups_6_8: '6–8 pull-ups',
+  cycleDesc_pullups_6_8:
+    'For those doing 6–8 pull-ups. Increases volume.',
+  cycleName_pullups_9_11: '9–11 pull-ups',
+  cycleDesc_pullups_9_11:
+    'For those doing 9–11 pull-ups. Develops strength endurance.',
+  cycleName_pullups_12_15: '12–15 pull-ups',
+  cycleDesc_pullups_12_15:
+    'For those doing 12–15 pull-ups. Advanced volume.',
+  cycleName_pullups_16_20: '16–20 pull-ups',
+  cycleDesc_pullups_16_20:
+    'For those doing 16–20 pull-ups. High endurance.',
+  cycleName_pullups_21_25: '21–25 pull-ups',
+  cycleDesc_pullups_21_25:
+    'For those doing 21–25 pull-ups. Elite endurance.',
+  cycleName_pullups_26_30: '26–30 pull-ups',
+  cycleDesc_pullups_26_30:
+    'For those doing 26–30 pull-ups. Master-level endurance.',
+  cycleName_pullups_31_35: '31–35 pull-ups',
+  cycleDesc_pullups_31_35:
+    'For those doing 31–35 pull-ups. Elite level.',
+  cycleName_pullups_36_40: '36–40 pull-ups',
+  cycleDesc_pullups_36_40:
+    'For those doing 36–40 pull-ups. Advanced level.',
+  cycleName_pullups_powyzej_40: 'Above 40 pull-ups',
+  cycleDesc_pullups_powyzej_40:
+    'For those doing more than 40 pull-ups. Master expert level.',
+
+  // ── Legal pages ──
+  privacyBody1:
+    'SmartReps is a workout app that runs primarily locally on your device (IndexedDB / Dexie). Your progress, sessions, and settings are stored on your device.',
+  privacyBody2:
+    'Optionally, you can provide an email address and log in via Supabase (OTP code) to sync progress across devices. We then process your account ID, email, and workout data necessary for synchronization.',
+  privacyBody3:
+    'We do not sell data. We do not build advertising profiles. You can enable reminders in two modes: (1) locally when the app is open, or (2) optionally as Web Push after installing the PWA and logging in — then notifications may arrive even when the app is closed. The push subscription endpoint is linked to your account.',
+  privacyBodyExport: 'Data export:',
+  privacyBodyExportDetail:
+    'in Profile → "Data" section you can download workout history (CSV) or a full backup (JSON) with progress and settings from this device.',
+  privacyBodyCommunity: 'Community catalog:',
+  privacyBodyCommunityDetail:
+    'when publishing a plan, we store a workout snapshot, author display name, tags, and metadata (e.g. likes and imports count) in the cloud. Importing and liking require an account. The catalog does not expose your email or private drafts.',
+  privacyBodyDelete: 'Account deletion:',
+  privacyBodyDeleteDetail:
+    'a logged-in user can permanently delete their cloud account in Profile (progress, sessions, push subscriptions, community publications, likes, imports, and reports linked to the account). Account deletion does not automatically delete local data — you can clear it separately. We recommend downloading a backup before deletion.',
+  privacyBodyLocal:
+    'You can clear local data at any time in Profile and log out without deleting your cloud account.',
+  privacyBodyContact:
+    'Privacy contact: via issues in the SmartReps repository on GitHub.',
+
+  termsBody1:
+    'By using SmartReps you accept that the app is for tracking strength training (pushups, pull-ups) following plans inspired by public progression programs.',
+  termsBody2:
+    'Strength training carries injury risk. Consult a doctor before starting if you have health concerns. SmartReps does not replace medical advice.',
+  termsBody3:
+    'The app is provided "as is". We strive for offline and cloud sync functionality, but do not guarantee uninterrupted availability of external services (e.g. email OTP delivery).',
+  termsBody4:
+    'Workout plans reference materials from 100pompek.pl and podciaganie.pl — rights to the original programs belong to their authors; SmartReps implements progress tracking.',
+  termsBody5:
+    'In the community catalog you can publish your own plans (title, description, workout structure) and import other users\' plans as a local copy. By publishing, you grant SmartReps a non-exclusive license to display the plan in the catalog and allow other users to import a copy. Do not publish personal data in descriptions or unsafe / illegal content. You can unpublish and report others\' content. We reserve the right to hide or remove reported publications.',
+  termsBody6:
+    'You can stop using the app at any time and delete local data in Profile. By continuing, you confirm you have read the privacy policy.',
+
+  // ── AI prompts (research context + plan generation) ──
+  aiPromptResearchContext: `You are a strength training expert with research-based knowledge.
+
+Key principles you follow:
+
+1. VOLUME (Volume Landmarks — Israetel & Hoffmann):
+   - MEV (Minimum Effective Volume): 10 sets per muscle group per week (beginners)
+   - MAV (Maximum Adaptive Volume): 15-25 sets per muscle group per week (intermediate)
+   - MRV (Maximum Recoverable Volume): 20-30+ sets per muscle group per week (advanced)
+   - Each muscle group should receive volume in the MEV-MAV range
+
+2. FREQUENCY (Schoenfeld et al. 2016):
+   - Each muscle group 2x per week (optimal for hypertrophy)
+   - 1x per week acceptable for beginners or low training frequency
+   - 3x+ per week for small groups (core, calves) or when volume is low
+
+3. PROGRESSION (Progressive Overload):
+   - Increase load by 2.5-5% or 1-2 reps when all sets are in RPE 7-8 range
+   - RPE 7 = 3 reps in reserve (RIR=3)
+   - RPE 8 = 2 reps in reserve (RIR=2)
+   - RPE 9 = 1 rep in reserve (RIR=1)
+   - Do not train to muscular failure regularly (RPE 10) — increases injury risk and fatigue
+
+4. EXERCISE SELECTION:
+   - Prioritize compound exercises (squats, deadlifts, presses, rows)
+   - 60-70% volume from compound exercises, 30-40% from isolation
+   - For each muscle group: 1 compound exercise + 1-2 isolation
+
+5. REST INTERVALS:
+   - Strength exercises (1-6 rep): 3-5 min
+   - Hypertrophy (6-12 rep): 60-90 sec
+   - Endurance (12+ rep): 30-60 sec
+   - Core/isolation: 45-60 sec
+
+6. DELOAD:
+   - Every 4-6 weeks reduce volume by 40-50% while maintaining intensity
+   - Deload after 3-4 weeks at high RPE (8-9)
+
+7. SAFETY:
+   - Never suggest high-injury-risk exercises without proper preparation
+   - Consider experience level and available equipment
+   - Always start with a warm-up (5-10 min) — do not count toward volume`,
+
+  aiPromptPlanSystem: 'You are a strength training expert. You generate workout plans in JSON format.',
+  aiPromptPlanUser: (desc: string, days: number, experience: string, equipment: string, goal: string, duration?: string) =>
+    `Create a workout plan for ${days} days per week.\n\nGoal description: ${desc}\nLevel: ${experience}\nEquipment: ${equipment}\nGoal: ${goal}${duration ? `\nWorkout duration: ${duration} min` : ''}\n\nReturn ONLY valid JSON matching the schema. No comments or text outside JSON.`,
+  aiPromptPlanExample: 'Example of a valid plan:',
+  aiPromptPlanExampleJson:
+    '{"name":"Dumbbell hypertrophy plan, 4 days per week","description":"Push/Pull/Legs/Upper","days":[{"dayNumber":1,"restAfterDays":1,"exercises":[{"exerciseName":"Dumbbell bench press","sets":3,"targetReps":"8-12","restSeconds":90,"note":"Control the descent"}]}]}',
+  aiPromptPlanRules: `Rules:
+1. Each exercise must have a name, sets, rep target (or range), rest in seconds.
+2. Include rest after training day (1 or 2 days).
+3. Warm-up does not count toward working sets.
+4. Do not use high-injury-risk exercises.
+5. Return only JSON — no markdown, no comments.`,
+
+  aiPromptAnalysisSystem: 'You are a strength training expert. You analyze the user\'s workout history and provide research-based suggestions.',
+  aiPromptAnalysisUser: (sessions: string) =>
+    `Analyze my workout history (last ${sessions} sessions) and provide suggestions. Return ONLY valid JSON matching the schema.`,
+  aiPromptAnalysisRules: `Analysis rules:
+1. Assess volume per muscle group (optimal / below MEV / above MRV).
+2. Identify strengths and weaknesses.
+3. Provide specific suggestions with priority (high/medium/low).
+4. Return only JSON — no markdown, no comments.`,
+
+  // ── Service worker push fallback ──
+  swPushBody: 'Time to train — check your plan for today.',
+
+  // ── AI prompt maps (equipment/goal/experience for prompt construction) ──
+  aiPromptEquipmentBodyweight: 'bodyweight only (no equipment)',
+  aiPromptEquipmentDumbbells: 'dumbbells',
+  aiPromptEquipmentBarbell: 'barbell',
+  aiPromptEquipmentFullGym: 'full gym',
+  aiPromptEquipmentKettlebell: 'kettlebells',
+  aiPromptGoalHypertrophy: 'hypertrophy (building muscle mass)',
+  aiPromptGoalStrength: 'strength',
+  aiPromptGoalEndurance: 'muscular endurance',
+  aiPromptGoalGeneral: 'general fitness',
+  aiPromptGoalFatLoss: 'fat loss',
+  aiPromptExperienceBeginner: 'beginner (0-6 months experience)',
+  aiPromptExperienceIntermediate: 'intermediate (6 months - 2 years)',
+  aiPromptExperienceAdvanced: 'advanced (2+ years)',
+
+  // ── AI plan generation full prompt ──
+  aiPromptPlanBuild: (
+    desc: string,
+    days: number,
+    experience: string,
+    equipment: string,
+    goal: string,
+    duration: string,
+    libraryList: string,
+  ) => `Create a workout plan based on:
+- User description: "${desc}"
+- Days per week: ${days}
+- Level: ${experience}
+- Equipment: ${equipment}
+- Goal: ${goal}
+${duration}
+
+EXERCISE LIBRARY (use these when they fit, but you can propose new ones):
+${libraryList}
+
+RULES:
+1. Use exercises from the library when they fit the goal and equipment. If using a library exercise, keep its primaryMetric.
+2. You can propose NEW exercises — they will be added to the library. Give a realistic name in English.
+3. Each exercise must have a metric: "reps" (repetitions), "reps_weight" (reps + weight), or "duration_sec" (time in seconds). For weighted exercises use "reps_weight" and set weightKg in sets.
+4. Choose sets, reps, and rest according to research (see system context).
+5. Distribute muscle groups across days so each is trained 2x per week (or 1x for beginners).
+6. Include rest after training day (1 or 2 days).
+7. Add progression (increase by 1-2 reps or 2.5kg after a full cycle).
+8. Return EXACTLY ${days} training days (as many as the user selected).
+9. Maximum 10 exercises per day, maximum 5 sets per exercise.
+10. Plan name in English, short and descriptive (e.g. "Push/Pull/Legs 4x week").
+11. Use ONLY kind: "fixed", "max", "min", or "exact". Do NOT use "range" or others.
+
+ALLOWED muscleGroup values: "chest", "back", "shoulders", "arms", "legs", "core", "full_body", "cardio", "other".
+ALLOWED primaryMetric values: "reps", "reps_weight", "duration_sec".
+ALLOWED kind values in MetricTarget: "fixed", "max", "min", "exact".
+
+Return JSON in this format (this is an example, replace values):
+{
+  "plan": {
+    "name": "Push/Pull/Legs 4x week",
+    "description": "Dumbbell hypertrophy plan, 4 days per week.",
+    "days": [
+      {
+        "dayNumber": 1,
+        "restAfterDay": 1,
+        "exercises": [
+          {
+            "exerciseName": "Pushups",
+            "primaryMetric": "reps",
+            "muscleGroup": "chest",
+            "sets": [
+              { "reps": { "kind": "fixed", "value": 10 } },
+              { "reps": { "kind": "fixed", "value": 10 } },
+              { "reps": { "kind": "max", "value": 8 } }
+            ],
+            "restBetweenSetsSec": 90,
+            "restAfterExerciseSec": 120,
+            "note": "RPE 7-8"
+          }
+        ]
+      }
+    ],
+    "progression": {
+      "enabled": true,
+      "repsDelta": 1,
+      "weightKgDelta": 2.5,
+      "afterCycleComplete": true
+    },
+    "rationale": "Plan distributes 12-16 sets across major muscle groups, 2x per week."
+  }
+}`,
+  aiPromptLibraryEmpty: '  (empty library)',
+  aiPromptLibraryEntry: (id: string, name: string, metric: string, group: string) =>
+    `  - id: "${id}", name: "${name}", metric: "${metric}", group: "${group}"`,
+
+  // ── AI analysis full prompt ──
+  aiPromptAnalysisBuild: (
+    totalSessions: number,
+    totalSets: number,
+    totalReps: number,
+    dateRange: string,
+    sessionsPerWeek: string,
+    activePlan: string,
+    volumeTable: string,
+    recentTable: string,
+  ) => `Analyze the user's workout history and provide specific suggestions.
+
+DATA:
+- Number of sessions: ${totalSessions}
+- Total sets: ${totalSets}
+- Total reps: ${totalReps}
+- Period: ${dateRange}
+- Sessions per week: ${sessionsPerWeek}
+${activePlan}
+
+VOLUME PER MUSCLE GROUP (sets/week):
+${volumeTable}
+
+RECENT SESSIONS:
+${recentTable}
+
+Analysis rules:
+1. Compare volume with MEV/MAV/MRV ranges (see system context).
+2. Check if training frequency is optimal.
+3. Identify muscle groups with insufficient or excessive volume.
+4. Check if progression is appropriate.
+5. Give 3-5 specific, practical suggestions (in English).
+
+Return JSON in this format (this is an example, replace values):
+{
+  "analysis": {
+    "summary": "Overall assessment of workouts (2-3 sentences in English)",
+    "strengths": ["Strength 1", "Strength 2"],
+    "weaknesses": ["Weakness 1", "Weakness 2"],
+    "suggestions": [
+      {
+        "title": "Increase back volume",
+        "description": "You train back 1x per week with 6 sets. Add a second day or exercise.",
+        "priority": "high"
+      }
+    ],
+    "volumeAssessment": [
+      {
+        "muscleGroup": "chest",
+        "weeklySets": 12,
+        "status": "optimal",
+        "recommendation": "Volume in MAV range, maintain."
+      }
+    ]
+  }
+}
+
+ALLOWED priority values: "high", "medium", "low".
+ALLOWED status values: "optimal", "below_mev", "above_mrv", "low", "high".
+ALLOWED muscleGroup values: "chest", "back", "shoulders", "arms", "legs", "core", "full_body", "cardio", "other".`,
+  aiPromptVolumeEntry: (group: string, sets: number) => `  ${group}: ${sets} sets/week`,
+  aiPromptVolumeEmpty: '  (no data)',
+  aiPromptRecentEmpty: '  (no sessions)',
+  aiPromptDateRangeNone: 'no data',
+  aiPromptNoActivePlan: '',
 }

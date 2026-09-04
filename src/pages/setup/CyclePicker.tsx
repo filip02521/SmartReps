@@ -12,6 +12,7 @@ import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { selectCycleByTest, isHigherCycle, isLowerCycle, getRetestOptions } from '@/lib/cycle-selector'
 import { getNextWorkoutDate, getTestBlockDays, isWorkoutAvailable } from '@/lib/progress-engine'
 import { getCyclesByProgram } from '@/data/plans'
+import { getCycleDescription } from '@/lib/plan-resolver'
 import { initProgramProgress, updateProgramProgress, getProgramProgress } from '@/lib/program-service'
 import {
   applyLevelChange,
@@ -543,7 +544,7 @@ function CycleCard({
           {isLower && !isRec && !isCurrent && <Badge variant="success" className="mb-2">{pl.saferStart}</Badge>}
           <p className="font-semibold">{cycle.nameShort}</p>
           <p className="text-sm text-[var(--sr-text-secondary)]">
-            {cycle.days.length} dni · {cycle.description}
+            {pl.planSummaryDays(cycle.days.length)} · {getCycleDescription(cycle)}
           </p>
         </div>
         {isSel && <span className="text-[var(--sr-brand-primary)]"><ChevronRight size={20} /></span>}

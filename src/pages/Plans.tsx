@@ -150,7 +150,7 @@ export default function PlansPage() {
         const repaired = await repairPlanSetMetrics()
         if (repaired.fixedPlans > 0) {
           showToast(
-            `Naprawiono ${repaired.fixedPlans} plan(ów): ${repaired.fixedSets} serii.`,
+            pl.plansRepairedToast(repaired.fixedPlans, repaired.fixedSets),
             'success',
           )
         }

@@ -9,7 +9,7 @@ import { FOCUS_RING } from '@/lib/ui-chrome'
 import type { LocalWorkoutSession } from '@/lib/db'
 import type { NavigateFunction } from 'react-router-dom'
 
-const WEEKDAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd']
+const WEEKDAYS = () => pl.progressWeekdayLabels
 
 function sessionLabel(s: LocalWorkoutSession, customPlanNames: Record<string, string>): string {
   if (s.customPlanId) {
@@ -122,7 +122,7 @@ export function ActivityCalendar({
 
       {/* Weekday headers */}
       <div className="grid grid-cols-7 gap-1">
-        {WEEKDAYS.map((wd) => (
+        {WEEKDAYS().map((wd) => (
           <div key={wd} className="pb-1 text-center text-xs font-medium text-[var(--sr-text-muted)]">
             {wd}
           </div>

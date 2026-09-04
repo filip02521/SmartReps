@@ -8,6 +8,7 @@ import type {
   PlanDay,
   SetPrescription,
 } from '@/lib/exercise-model'
+import { pl } from '@/i18n/pl'
 import { setTargetToMetricTarget } from '@/lib/exercise-model'
 
 export const BUILTIN_EXERCISE_IDS: Record<Program, string> = {
@@ -77,13 +78,30 @@ export function getBuiltinExerciseDefinition(program: Program): ExerciseDefiniti
   const now = new Date(0).toISOString()
   return {
     id: BUILTIN_EXERCISE_IDS[program],
-    name: program === 'pushups' ? 'Pompki' : 'Podciąganie',
+    name: program === 'pushups' ? pl.builtinExercisePushups : pl.builtinExercisePullups,
     primaryMetric: 'reps',
     restDefaultSec: 90,
     archived: false,
     createdAt: now,
     updatedAt: now,
   }
+}
+
+/**
+ * Localized cycle name — falls back to the data file's `name` if no i18n key exists.
+ * Keys follow the pattern `cycleName_<id-with-hyphens-as-underscores>`.
+ */
+export function getCycleName(cycle: Cycle): string {
+  const key = `cycleName_${cycle.id.replace(/-/g, '_')}` as keyof typeof pl
+  return (pl[key] as string) ?? cycle.name
+}
+
+/**
+ * Localized cycle description — falls back to the data file's `description` if no i18n key exists.
+ */
+export function getCycleDescription(cycle: Cycle): string {
+  const key = `cycleDesc_${cycle.id.replace(/-/g, '_')}` as keyof typeof pl
+  return (pl[key] as string) ?? cycle.description
 }
 
 export function metricTargetDisplayValue(target: MetricTarget): number {
