@@ -225,6 +225,7 @@ export function ProgramHomeCard({
               setShowMenu(false)
               if (progress) {
                 setMaxPerDay(await getMaxSetPerDay(program, progress.cycleId, progress.cycleAttempt))
+                setCycleMapDay(progress.currentDay)
               }
               setShowCycleMap(true)
             }}

@@ -228,13 +228,14 @@ export function CustomPlanHomeCard({
               onDayClick={setPlanMapDay}
             />
 
-            {planMapDay !== null && (() => {
-              const day = planMap.plan.days.find((d) => d.dayNumber === planMapDay)
+            {(() => {
+              const detailDay = planMapDay ?? getCustomPlanDisplayDay(planMap.plan, planMap.progress)
+              const day = planMap.plan.days.find((d) => d.dayNumber === detailDay)
               if (!day) return null
               return (
                 <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3">
                   <p className="sr-text-overline text-[var(--sr-text-muted)]">
-                    {pl.dayLabel(planMapDay)}
+                    {pl.dayLabel(detailDay)}
                   </p>
                   <ul className="mt-2 space-y-1.5">
                     {day.exercises.map((ex, idx) => {
