@@ -24,6 +24,8 @@ export type RemoteProfileSettings = {
   timer_vibration?: boolean | null
   keep_screen_on?: boolean | null
   reminder_hour?: number | null
+  weight_unit?: string | null
+  high_contrast?: boolean | null
   ui_settings_updated_at?: string | null
 }
 
@@ -122,13 +124,18 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     typeof remote.reminder_hour === 'number' && remote.reminder_hour >= 0 && remote.reminder_hour <= 23
       ? remote.reminder_hour
       : settings.reminderHour
+  const weightUnit: UserSettings['weightUnit'] =
+    remote.weight_unit === 'lb' ? 'lb' : remote.weight_unit === 'kg' ? 'kg' : settings.weightUnit
+  const highContrast = remote.high_contrast ?? settings.highContrast
 
   const unchanged =
     theme === settings.theme &&
     timerSound === settings.timerSound &&
     timerVibration === settings.timerVibration &&
     keepScreenOn === settings.keepScreenOn &&
-    reminderHour === settings.reminderHour
+    reminderHour === settings.reminderHour &&
+    weightUnit === settings.weightUnit &&
+    highContrast === settings.highContrast
 
   if (unchanged) {
     useAppStore.setState({ uiSettingsUpdatedAt: remote.ui_settings_updated_at })
@@ -142,6 +149,8 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     timerVibration,
     keepScreenOn,
     reminderHour,
+    weightUnit,
+    highContrast,
   }
   useAppStore.setState({
     settings: next,
@@ -154,6 +163,12 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     document.documentElement.setAttribute('data-theme', theme)
   }
   applyThemeColor(theme)
+
+  if (highContrast) {
+    document.documentElement.setAttribute('data-high-contrast', 'true')
+  } else {
+    document.documentElement.removeAttribute('data-high-contrast')
+  }
 
   void import('@/lib/notifications').then(({ scheduleDailyReminder, cancelReminder }) => {
     const { settings: s } = useAppStore.getState()

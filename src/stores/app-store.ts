@@ -128,10 +128,12 @@ type AppStore = {
 
 const UI_SYNC_KEYS: (keyof UserSettings)[] = [
   'theme',
+  'highContrast',
   'timerSound',
   'timerVibration',
   'keepScreenOn',
   'reminderHour',
+  'weightUnit',
 ]
 
 export const defaultSettings: UserSettings = {

@@ -597,6 +597,8 @@ export async function repairPlanSetMetrics(): Promise<{ fixedPlans: number; fixe
     if (changed) {
       plan.updatedAt = new Date().toISOString()
       await db.customPlans.put(plan)
+      // Enqueue sync so repaired plan is pushed to cloud
+      await enqueueSync('custom_plans', 'update', plan)
       fixedPlans++
     }
   }
