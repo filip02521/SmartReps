@@ -1,6 +1,7 @@
 import { useCallback, useRef, type KeyboardEvent, type ClipboardEvent } from 'react'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
+import { pl } from '@/i18n/pl'
 
 /**
  * 6-digit OTP input with separate boxes, auto-advance, paste support,
@@ -122,7 +123,7 @@ export function OtpInput({
     <div
       className="flex justify-between gap-1.5 sm:gap-2"
       role="group"
-      aria-label="Kod weryfikacyjny"
+      aria-label={pl.loginOtpAriaGroup}
     >
       {digits.map((digit, idx) => (
         <input
@@ -141,7 +142,7 @@ export function OtpInput({
           onKeyDown={(e) => handleKeyDown(idx, e)}
           onPaste={(e) => handlePaste(idx, e)}
           onFocus={(e) => e.target.select()}
-          aria-label={`Cyfra ${idx + 1}`}
+          aria-label={pl.loginOtpAriaDigit(idx + 1)}
           className={cn(
             'h-14 w-full min-w-0 rounded-[var(--sr-radius-md)] border bg-[var(--sr-bg-surface)] text-center text-2xl font-semibold tabular-nums text-[var(--sr-text-primary)] transition-colors',
             error

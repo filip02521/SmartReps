@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, XCircle } from 'lucide-react'
+import { CheckCircle2, XCircle, Trophy, PencilLine } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -25,8 +25,9 @@ import {
   getCustomSessionComparison,
 } from '@/lib/custom-session-comparison'
 import {
-  applySessionLogsToPlanDay,
+  applySessionLogsToPlanDaySelective,
   buildSessionPlanChanges,
+  categorizePlanChanges,
   isPlanUpdateDeclined,
   markPlanUpdateDeclined,
   parseSessionDayPatchJson,
@@ -73,6 +74,8 @@ export default function CustomSessionSummary() {
   const [offerPlanUpdate, setOfferPlanUpdate] = useState(false)
   const [planUpdateBusy, setPlanUpdateBusy] = useState(false)
   const [planUpdateDone, setPlanUpdateDone] = useState(false)
+  const [applyValues, setApplyValues] = useState(true)
+  const [applyExercises, setApplyExercises] = useState(false)
   const [newAchievements, setNewAchievements] = useState<
     import('@/lib/achievements/types').LocalAchievementUnlock[]
   >([])
@@ -196,17 +199,21 @@ export default function CustomSessionSummary() {
     track('login_cloud_prompt_shown')
   }, [showLoginPrompt])
 
-  async function handleSavePlanFromSession() {
+  async function handleSavePlanFromSession(opts?: { values?: boolean; exercises?: boolean }) {
     if (!session || !plan || planUpdateBusy) return
+    const values = opts?.values ?? applyValues
+    const exercises = opts?.exercises ?? applyExercises
+    if (!values && !exercises) return
     setPlanUpdateBusy(true)
     try {
       const sessionDay = parseSessionDayPatchJson(session.sessionDayPatchJson)
-      const next = applySessionLogsToPlanDay(
+      const next = applySessionLogsToPlanDaySelective(
         plan,
         session.dayNumber,
         session.exerciseLogs ?? [],
         exerciseMap,
         sessionDay,
+        { applyValues: values, applyExercises: exercises },
       )
       const saved = await saveCustomPlan(next, { skipValidation: true })
       setPlan(saved)
@@ -304,6 +311,8 @@ export default function CustomSessionSummary() {
         )
       : []
   const planChangeHasSets = planChanges.some((c) => c.kind === 'sets' || c.kind === 'target_values')
+  const { hasValueChanges, hasExerciseChanges } = categorizePlanChanges(planChanges)
+  const canSaveSelected = applyValues || applyExercises
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
@@ -365,12 +374,19 @@ export default function CustomSessionSummary() {
 
       {offerPlanUpdate && planChanges.length > 0 && (
         <Card className="mt-4 border border-[var(--sr-border-subtle)] p-4">
-          <p className="font-medium text-[var(--sr-text-primary)]">
-            {pl.customSummaryUpdatePlanTitle}
-          </p>
-          <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
-            {pl.customSummaryUpdatePlanBody}
-          </p>
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)]" aria-hidden>
+              <PencilLine size={18} strokeWidth={2.25} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-[var(--sr-text-primary)]">
+                {pl.customSummaryUpdatePlanTitle}
+              </p>
+              <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
+                {pl.customSummaryUpdatePlanBody}
+              </p>
+            </div>
+          </div>
           {planChanges.length > 0 && (
             <ul className="mt-3 list-disc space-y-1 pl-5 sr-text-body-sm text-[var(--sr-text-primary)]">
               {planChanges.map((change, idx) => {
@@ -424,19 +440,72 @@ export default function CustomSessionSummary() {
               })}
             </ul>
           )}
-          {planChangeHasSets && (
+
+          {/* Selective update checkboxes */}
+          <div className="mt-4 flex flex-col gap-3">
+            {hasValueChanges && (
+              <label className="flex min-h-11 cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={applyValues}
+                  onChange={(e) => setApplyValues(e.target.checked)}
+                  className="mt-1 h-5 w-5 shrink-0 rounded border-[var(--sr-border-strong)] bg-[var(--sr-bg-surface)] text-[var(--sr-brand-primary)] focus:ring-[var(--sr-brand-primary)]"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-[var(--sr-text-primary)]">
+                    {pl.customSummaryUpdatePlanGroupValues}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-[var(--sr-text-muted)]">
+                    {pl.customSummaryUpdatePlanGroupValuesHint}
+                  </span>
+                </span>
+              </label>
+            )}
+            {hasExerciseChanges && (
+              <label className="flex min-h-11 cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={applyExercises}
+                  onChange={(e) => setApplyExercises(e.target.checked)}
+                  className="mt-1 h-5 w-5 shrink-0 rounded border-[var(--sr-border-strong)] bg-[var(--sr-bg-surface)] text-[var(--sr-brand-primary)] focus:ring-[var(--sr-brand-primary)]"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-[var(--sr-text-primary)]">
+                    {pl.customSummaryUpdatePlanGroupExercises}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-[var(--sr-text-muted)]">
+                    {pl.customSummaryUpdatePlanGroupExercisesHint}
+                  </span>
+                </span>
+              </label>
+            )}
+          </div>
+
+          {planChangeHasSets && applyValues && (
             <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
               {pl.customSummaryUpdatePlanTargetsNote}
             </p>
           )}
+
           <div className="mt-4 flex flex-col gap-2">
+            {hasValueChanges && hasExerciseChanges && (
+              <Button
+                size="touch"
+                fullWidth
+                disabled={planUpdateBusy || !canSaveSelected}
+                onClick={() => void handleSavePlanFromSession()}
+              >
+                {pl.customSummaryUpdatePlanSaveSelected}
+              </Button>
+            )}
             <Button
               size="touch"
               fullWidth
+              variant={hasValueChanges && hasExerciseChanges ? 'secondary' : 'primary'}
               disabled={planUpdateBusy}
-              onClick={() => void handleSavePlanFromSession()}
+              onClick={() => void handleSavePlanFromSession({ values: true, exercises: true })}
             >
-              {pl.customSummaryUpdatePlanConfirm}
+              {pl.customSummaryUpdatePlanSaveAll}
             </Button>
             <Button
               variant="ghost"
@@ -451,13 +520,19 @@ export default function CustomSessionSummary() {
       )}
 
       {planUpdateDone && (
-        <p className="mt-3 sr-text-body-sm text-[var(--sr-success)]">
-          {pl.customSummaryUpdatePlanDone}
-        </p>
+        <div className="mt-3 flex items-center gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)] px-4 py-3">
+          <CheckCircle2 size={18} className="shrink-0 text-[var(--sr-success)]" aria-hidden />
+          <p className="sr-text-body-sm text-[var(--sr-text-primary)]">
+            {pl.customSummaryUpdatePlanDone}
+          </p>
+        </div>
       )}
 
       {cycleComplete && (
-        <p className="mt-2 text-sm font-medium text-[var(--sr-success)]">{pl.cycleComplete}</p>
+        <div className="mt-3 flex items-center gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)] px-4 py-3">
+          <Trophy size={18} className="shrink-0 text-[var(--sr-success)]" aria-hidden />
+          <p className="text-sm font-medium text-[var(--sr-text-primary)]">{pl.cycleComplete}</p>
+        </div>
       )}
 
       {session.progressionDiffJson && resolvedPlanId && (

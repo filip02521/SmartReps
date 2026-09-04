@@ -330,6 +330,20 @@ export type SessionPlanChange =
   | { kind: 'exercise_added'; exerciseId: string }
   | { kind: 'target_values'; exerciseId: string; changes: TargetValueChange[] }
 
+/** Group changes into two categories for selective plan updates. */
+export function categorizePlanChanges(changes: SessionPlanChange[]): {
+  hasValueChanges: boolean
+  hasExerciseChanges: boolean
+} {
+  const hasValueChanges = changes.some(
+    (c) => c.kind === 'sets' || c.kind === 'rest' || c.kind === 'target_values',
+  )
+  const hasExerciseChanges = changes.some(
+    (c) => c.kind === 'exercise_swap' || c.kind === 'exercise_added',
+  )
+  return { hasValueChanges, hasExerciseChanges }
+}
+
 /** Diff vs saved plan: exercise swaps + set counts + rest + target value changes. */
 export function buildSessionPlanChanges(
   plan: CustomPlan,
@@ -535,6 +549,32 @@ export function applySessionLogsToPlanDay(
   exerciseMap: Map<string, ExerciseDefinition>,
   sessionDay?: PlanDay | null,
 ): CustomPlan {
+  return applySessionLogsToPlanDaySelective(plan, dayNumber, exerciseLogs, exerciseMap, sessionDay, {
+    applyValues: true,
+    applyExercises: true,
+  })
+}
+
+export type PlanUpdateOptions = {
+  /** Apply target value changes (reps, weight, duration) + set count + rest changes. */
+  applyValues: boolean
+  /** Apply exercise swaps and added exercises. */
+  applyExercises: boolean
+}
+
+/**
+ * Selective version of applySessionLogsToPlanDay.
+ * Allows the user to choose which categories of changes to persist to the plan.
+ */
+export function applySessionLogsToPlanDaySelective(
+  plan: CustomPlan,
+  dayNumber: number,
+  exerciseLogs: ExerciseLog[],
+  exerciseMap: Map<string, ExerciseDefinition>,
+  sessionDay: PlanDay | null | undefined,
+  options: PlanUpdateOptions,
+): CustomPlan {
+  const { applyValues, applyExercises } = options
   return {
     ...plan,
     days: plan.days.map((day) => {
@@ -543,22 +583,23 @@ export function applySessionLogsToPlanDay(
         if (getGroupForExercise(day, i)) return pe
         let next = pe
 
-          // Exercise swap: adopt new exerciseId + sets + rest from session day.
-          const sessionPe = sessionDay?.exercises[i]
-          const isSwapped = sessionPe && sessionPe.exerciseId !== pe.exerciseId
-          if (isSwapped && sessionPe) {
-            next = {
-              ...next,
-              exerciseId: sessionPe.exerciseId,
-              sets: sessionPe.sets,
-              restBetweenSetsSec: sessionPe.restBetweenSetsSec,
-            }
+        // Exercise swap: adopt new exerciseId + sets + rest from session day.
+        const sessionPe = sessionDay?.exercises[i]
+        const isSwapped = sessionPe && sessionPe.exerciseId !== pe.exerciseId
+        if (applyExercises && isSwapped && sessionPe) {
+          next = {
+            ...next,
+            exerciseId: sessionPe.exerciseId,
+            sets: sessionPe.sets,
+            restBetweenSetsSec: sessionPe.restBetweenSetsSec,
           }
+        }
 
-          // Set count change OR target value change: rewrite targets from logs.
-          // When set count differs, we already rewrite. When set count is the same
-          // but actual values differ from planned targets, also rewrite to match
-          // what the user actually did.
+        // Set count change OR target value change: rewrite targets from logs.
+        // When set count differs, we already rewrite. When set count is the same
+        // but actual values differ from planned targets, also rewrite to match
+        // what the user actually did.
+        if (applyValues) {
           const log =
             exerciseLogs.find((l) => l.exerciseId === next.exerciseId) ?? exerciseLogs[i]
           if (log && log.sets.length > 0) {
@@ -575,20 +616,21 @@ export function applySessionLogsToPlanDay(
               }
             }
           }
+        }
 
-          // Rest change (non-swap path — swap already applied rest above).
-          if (!isSwapped && sessionDay) {
-            const restPe = sessionDay.exercises[i]
-            if (restPe && restPe.restBetweenSetsSec !== next.restBetweenSetsSec) {
-              next = { ...next, restBetweenSetsSec: restPe.restBetweenSetsSec }
-            }
+        // Rest change (non-swap path — swap already applied rest above).
+        if (applyValues && !isSwapped && sessionDay) {
+          const restPe = sessionDay.exercises[i]
+          if (restPe && restPe.restBetweenSetsSec !== next.restBetweenSetsSec) {
+            next = { ...next, restBetweenSetsSec: restPe.restBetweenSetsSec }
           }
-          return next
-        })
+        }
+        return next
+      })
 
       // Append exercises added during the session (session day has more exercises).
       const added: PlannedExercise[] = []
-      if (sessionDay && sessionDay.exercises.length > day.exercises.length) {
+      if (applyExercises && sessionDay && sessionDay.exercises.length > day.exercises.length) {
         for (let i = day.exercises.length; i < sessionDay.exercises.length; i++) {
           const sessionPe = sessionDay.exercises[i]
           if (!sessionPe || getGroupForExercise(sessionDay, i)) continue

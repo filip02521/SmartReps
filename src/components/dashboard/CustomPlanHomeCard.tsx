@@ -2,13 +2,17 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { Sheet } from '@/components/ui/Sheet'
 import { getOrCreateCustomProgress, getCustomPlan, setCustomPlanPaused, listExercises } from '@/lib/custom-plan-service'
 import { getCustomPlanDisplayDay } from '@/lib/custom-plan-home-summary'
 import { CustomWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
+import { CustomPlanCycleRail } from '@/components/progress/CustomPlanCycleRail'
 import type { CustomPlan, ExerciseDefinition, PlanDay } from '@/lib/exercise-model'
 import type { CustomPlanHomeCardModel } from '@/lib/custom-plan-home-summary'
 import { cn } from '@/lib/utils'
-import { Dumbbell, Pause, Play, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
+import { FOCUS_RING } from '@/lib/ui-chrome'
+import { pl } from '@/i18n/pl'
+import { Dumbbell, Pause, Play, CheckCircle2, Clock, AlertCircle, Map as MapIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 const statusIcon: Record<string, { icon: ReactNode; accent: string; muted: string }> = {
@@ -54,6 +58,13 @@ export function CustomPlanHomeCard({
     dayNumber: number
     exercises: Map<string, ExerciseDefinition>
   } | null>(null)
+  const [planMap, setPlanMap] = useState<{
+    plan: CustomPlan
+    progress: import('@/lib/exercise-model').CustomProgramProgress | null
+    exercises: Map<string, ExerciseDefinition>
+    sessions: import('@/lib/db').LocalWorkoutSession[]
+  } | null>(null)
+  const [planMapDay, setPlanMapDay] = useState<number | null>(null)
 
   async function openPreview() {
     const plan = await getCustomPlan(model.planId)
@@ -70,6 +81,24 @@ export function CustomPlanHomeCard({
   function handleStart() {
     setPreview(null)
     navigate(`/workout/custom/${model.planId}`)
+  }
+
+  async function openPlanMap() {
+    const plan = await getCustomPlan(model.planId)
+    if (!plan) return
+    // Read-only — don't create progress just by viewing the map.
+    const { db } = await import('@/lib/db')
+    const progress = await db.customProgramProgress
+      .where('customPlanId')
+      .equals(model.planId)
+      .first()
+    const planSessions = await db.workoutSessions
+      .where('customPlanId')
+      .equals(model.planId)
+      .toArray()
+    const exList = await listExercises()
+    const exMap = new Map(exList.map((e) => [e.id, e]))
+    setPlanMap({ plan, progress: progress ?? null, exercises: exMap, sessions: planSessions })
   }
 
   return (
@@ -146,6 +175,21 @@ export function CustomPlanHomeCard({
         {model.ctaLabel}
       </Button>
 
+      <button
+        type="button"
+        className={cn(
+          'mt-2 flex min-h-11 w-full items-center justify-center gap-2',
+          'sr-text-body-sm text-[var(--sr-text-muted)] transition-colors',
+          'hover:text-[var(--sr-text-primary)]',
+          FOCUS_RING,
+          'rounded-[var(--sr-radius-md)]',
+        )}
+        onClick={() => void openPlanMap()}
+      >
+        <MapIcon size={16} aria-hidden />
+        {pl.menuPlanMap}
+      </button>
+
       {preview && (
         <CustomWorkoutPreviewSheet
           open
@@ -158,6 +202,64 @@ export function CustomPlanHomeCard({
           plan={preview.plan}
           onStart={handleStart}
         />
+      )}
+
+      {planMap && (
+        <Sheet
+          open
+          onClose={() => {
+            setPlanMap(null)
+            setPlanMapDay(null)
+          }}
+          title={planMap.plan.name.trim() || model.planName}
+        >
+          <div className="pb-2">
+            <p className="mb-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
+              {pl.progressCustomPlanDayProgress(
+                getCustomPlanDisplayDay(planMap.plan, planMap.progress),
+                planMap.plan.days.length,
+              )}
+            </p>
+            <CustomPlanCycleRail
+              plan={planMap.plan}
+              progress={planMap.progress}
+              sessions={planMap.sessions}
+              selectedDay={planMapDay ?? getCustomPlanDisplayDay(planMap.plan, planMap.progress)}
+              onDayClick={setPlanMapDay}
+            />
+
+            {planMapDay !== null && (() => {
+              const day = planMap.plan.days.find((d) => d.dayNumber === planMapDay)
+              if (!day) return null
+              return (
+                <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3">
+                  <p className="sr-text-overline text-[var(--sr-text-muted)]">
+                    {pl.dayLabel(planMapDay)}
+                  </p>
+                  <ul className="mt-2 space-y-1.5">
+                    {day.exercises.map((ex, idx) => {
+                      const def = planMap.exercises.get(ex.exerciseId)
+                      const name = def?.name ?? pl.progressCustomExerciseFallback
+                      return (
+                        <li
+                          key={`${ex.exerciseId}-${idx}`}
+                          className="flex items-baseline justify-between gap-2"
+                        >
+                          <span className="min-w-0 truncate sr-text-body-sm text-[var(--sr-text-primary)]">
+                            {name}
+                          </span>
+                          <span className="shrink-0 sr-text-caption text-[var(--sr-text-muted)]">
+                            {pl.progressCustomDaySets(ex.sets.length)}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )
+            })()}
+          </div>
+        </Sheet>
       )}
     </article>
   )

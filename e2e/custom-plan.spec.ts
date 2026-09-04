@@ -684,10 +684,15 @@ test.describe('custom plans smoke', () => {
       { planId, sessionId },
     )
 
-    await page.goto('/progress?tab=custom&view=history')
+    await page.goto('/progress?tab=history')
     await dismissAchievementUi(page)
+    // Filter to custom sessions only
+    await page.getByRole('tab', { name: 'Własne' }).click()
     await expect(page.getByText('E2E history plan')).toBeVisible({ timeout: 15_000 })
     await page.getByText('E2E history plan').click()
+    // Detail sheet opens — navigate to full summary
+    await expect(page.getByText('Szczegóły sesji')).toBeVisible({ timeout: 15_000 })
+    await page.getByRole('button', { name: 'Pełne podsumowanie' }).click()
     await expect(page.getByText('Dzień niezaliczony')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByRole('button', { name: 'Powtórz dzień' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Udostępnij wynik' })).toHaveCount(0)

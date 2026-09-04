@@ -89,13 +89,10 @@ export function ExerciseLibraryPanel({
     setUsedIn(await countPlansUsingExercise(ex.id))
   }
 
-  const metricLocked = editing != null && usedIn > 0
+  const metricChanged = editing != null && metric !== editing.primaryMetric
+  const metricWarn = metricChanged && usedIn > 0
 
   async function handleSave() {
-    if (metricLocked && editing && metric !== editing.primaryMetric) {
-      showToast(pl.exerciseMetricLocked, 'error')
-      return
-    }
     try {
       const saved = await saveExercise({
         id: editing?.id,
@@ -241,7 +238,6 @@ export function ExerciseLibraryPanel({
             <SegmentedControl
               value={metric}
               onChange={setMetric}
-              disabled={metricLocked}
               options={[
                 { value: 'reps', label: pl.exerciseMetricReps },
                 { value: 'duration_sec', label: pl.exerciseMetricDuration },
@@ -249,8 +245,10 @@ export function ExerciseLibraryPanel({
               ]}
             />
           </div>
-          {metricLocked && (
-            <p className="text-sm text-[var(--sr-text-muted)]">{pl.exerciseMetricLockedHint}</p>
+          {metricWarn && (
+            <p className="rounded-[var(--sr-radius-sm)] border border-[var(--sr-warning)]/30 bg-[var(--sr-warning-muted)] px-3 py-2 text-sm text-[var(--sr-text-secondary)]">
+              {pl.exerciseMetricChangeWarn(usedIn)}
+            </p>
           )}
           <div>
             <p className="mb-1 text-sm font-medium text-[var(--sr-text-secondary)]">

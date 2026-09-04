@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MoreVertical } from 'lucide-react'
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
@@ -9,6 +10,7 @@ import { ProgramAccentCard } from '@/components/ui/ProgramAccentCard'
 import { ProgramIcon } from '@/components/ui/ProgramIcon'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { CycleDayRail } from '@/components/ui/CycleDayRail'
+import { CycleDayPicker } from '@/components/ui/CycleDayPicker'
 import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { BuiltinWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
@@ -23,10 +25,12 @@ import {
 import { abandonAllInProgress } from '@/lib/session-service'
 import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import { getCycleDayStatus } from '@/lib/cycle-progress'
+import { getMaxSetPerDay } from '@/lib/stats-engine'
 import { getCycleById } from '@/data/plans'
 import { useAppStore } from '@/stores/app-store'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
+import { PROGRESS_CHART_TOOLTIP_STYLE } from '@/components/progress/chart-style'
 import type { ProgramCardModel, TipSuppression } from '@/lib/home-summary'
 
 function toneToBadge(
@@ -59,6 +63,9 @@ export function ProgramHomeCard({
   const [pendingSetup, setPendingSetup] = useState<'level' | 'retest' | null>(null)
   const [busy, setBusy] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showCycleMap, setShowCycleMap] = useState(false)
+  const [cycleMapDay, setCycleMapDay] = useState<number | null>(null)
+  const [maxPerDay, setMaxPerDay] = useState<{ day: number; maxActual: number }[]>([])
 
   const { program, bucket, progress, stats, resume, available, daysLeft } = model
   const isPaused = progress?.status === 'paused'
@@ -208,6 +215,20 @@ export function ProgramHomeCard({
             }}
           >
             {pl.menuFullCycle}
+          </Button>
+          <Button
+            variant="ghost"
+            fullWidth
+            className="justify-start px-3"
+            onClick={async () => {
+              setShowMenu(false)
+              if (progress) {
+                setMaxPerDay(await getMaxSetPerDay(program, progress.cycleId, progress.cycleAttempt))
+              }
+              setShowCycleMap(true)
+            }}
+          >
+            {pl.menuCycleMap}
           </Button>
           <Button
             variant="ghost"
@@ -752,6 +773,101 @@ export function ProgramHomeCard({
             )
           }}
         />
+      )}
+
+      {showCycleMap && cycle && progress && (
+        <Sheet
+          open
+          onClose={() => {
+            setShowCycleMap(false)
+            setCycleMapDay(null)
+          }}
+          title={pl.cycleMapTitle(cycle.nameShort)}
+        >
+          <div className="pb-2">
+            <p className="mb-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
+              {pl.progressCycleProgress(
+                stats?.completedDaysInCycle ?? 0,
+                stats?.cycleDaysTotal ?? cycle.days.length,
+              )}
+            </p>
+            <CycleDayPicker
+              totalDays={cycle.days.length}
+              selectedDay={cycleMapDay}
+              onSelect={setCycleMapDay}
+              days={cycle.days.map((d) => ({
+                dayNumber: d.dayNumber,
+                status: getCycleDayStatus(progress, d.dayNumber, cycle.days.length),
+              }))}
+            />
+
+            {cycleMapDay !== null && (
+              <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3">
+                <p className="sr-text-overline text-[var(--sr-text-muted)]">
+                  {pl.dayLabel(cycleMapDay)}
+                </p>
+                {(() => {
+                  const day = cycle.days.find((d) => d.dayNumber === cycleMapDay)
+                  if (!day) return null
+                  return (
+                    <div className="mt-2">
+                      <SetTargetsRow sets={day.sets} size="md" />
+                      <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
+                        {pl.restBetweenSets(day.restBetweenSetsSec)}
+                      </p>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+
+            {maxPerDay.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+                  {pl.maxSetPerDay}
+                </p>
+                <div className="h-36 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={maxPerDay}>
+                      <XAxis
+                        dataKey="day"
+                        tickFormatter={(d) => pl.chartDayShort(Number(d))}
+                        tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                        stroke="var(--sr-border-subtle)"
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                        stroke="var(--sr-border-subtle)"
+                        width={28}
+                      />
+                      <Tooltip
+                        contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
+                        formatter={(value) => [value ?? 0, pl.repsUnit]}
+                        labelFormatter={(label) => String(label)}
+                        cursor={{ fill: 'var(--sr-brand-primary-muted)' }}
+                      />
+                      <Bar dataKey="maxActual" fill="var(--sr-brand-primary)" radius={4} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-4"
+              fullWidth
+              onClick={() => {
+                setShowCycleMap(false)
+                setCycleMapDay(null)
+                navigate(`/plans?tab=programs&highlight=${progress.cycleId}`)
+              }}
+            >
+              {pl.progressFullCyclePlan}
+            </Button>
+          </div>
+        </Sheet>
       )}
     </ProgramAccentCard>
   )

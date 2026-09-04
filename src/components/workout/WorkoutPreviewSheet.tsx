@@ -266,8 +266,8 @@ export function CustomWorkoutPreviewSheet({
         <div className="rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-4 py-3">
           <p className="sr-text-overline text-[var(--sr-text-muted)]">
             {pl.planDayLabel(selectedDayNumber)}
-            {dayChanged && (
-              <span className="ml-1.5 text-[var(--sr-brand-primary)]">· {pl.previewCurrentDay}</span>
+            {!dayChanged && (
+              <span className="ml-1.5 text-[var(--sr-text-muted)]">· {pl.previewCurrentDay}</span>
             )}
           </p>
           <p className="mt-1 sr-text-h3 text-[var(--sr-text-primary)]">{planName}</p>

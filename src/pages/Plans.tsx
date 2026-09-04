@@ -281,6 +281,7 @@ export default function PlansPage() {
         ))}
 
       {tab === 'mine' && (
+        <>
         <PageSection
           title={pl.myPlansTitle}
           hint={customPlans.length > 0 && !customLoading ? pl.myPlansHint : undefined}
@@ -466,6 +467,38 @@ export default function PlansPage() {
             </ul>
           )}
         </PageSection>
+
+        {/* Skrócony dostęp do biblioteki ćwiczeń */}
+        {exercises.length > 0 && (
+          <PageSection
+            title={pl.myExercisesSectionTitle}
+            hint={pl.myExercisesSectionHint}
+            className="mt-6"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setTab('library')
+                writeTabParam('library')
+              }}
+              className="flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-4 text-left transition-colors hover:border-[var(--sr-border-strong)]"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)]" aria-hidden>
+                <Dumbbell size={20} strokeWidth={2.25} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-[var(--sr-text-primary)]">
+                  {pl.myExercisesSectionCta}
+                </p>
+                <p className="mt-0.5 text-sm text-[var(--sr-text-muted)]">
+                  {pl.myExercisesCount(exercises.length)}
+                </p>
+              </div>
+              <ChevronRight size={20} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
+            </button>
+          </PageSection>
+        )}
+        </>
       )}
 
       {tab === 'library' && (
