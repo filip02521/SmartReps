@@ -4,7 +4,9 @@ import { useWorkoutStore } from '@/stores/workout-store'
 import { cancelReminder } from '@/lib/notifications'
 import { clearSignedOutPreference } from '@/lib/auth-lifecycle'
 
-/** Wipe IndexedDB + persisted app settings (logout / privacy / account switch). */
+/** Wipe IndexedDB + persisted app settings (logout / privacy / account switch).
+ *  AI API keys are local-only prefs (never synced to cloud) and are preserved
+ *  so the user doesn't have to re-enter them after logout/clear or account switch. */
 export async function clearAllLocalData(): Promise<void> {
   cancelReminder()
   try {
@@ -31,8 +33,16 @@ export async function clearAllLocalData(): Promise<void> {
   } catch {
     // store may be unavailable in rare test harnesses
   }
+  // Preserve AI API keys across clear — they're local-only, never synced,
+  // and re-entering them after every logout is frustrating.
+  const prevSettings = useAppStore.getState().settings
   useAppStore.setState({
-    settings: { ...defaultSettings },
+    settings: {
+      ...defaultSettings,
+      aiApiKey: prevSettings.aiApiKey,
+      aiModel: prevSettings.aiModel,
+      aiBaseUrl: prevSettings.aiBaseUrl,
+    },
     pendingTest: null,
     pendingStart: null,
     pendingCustomStart: null,
