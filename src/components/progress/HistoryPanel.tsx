@@ -1,7 +1,7 @@
 import { ChevronRight, Dumbbell, Trash2, User } from 'lucide-react'
 import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Card'
@@ -18,6 +18,7 @@ import {
 } from '@/lib/progress-history'
 import { navigateToTrain } from '@/lib/setup-flow'
 import { getCycleById } from '@/data/plans'
+import { getCycleName } from '@/lib/plan-resolver'
 import { exportSessionsCsv, exportCustomSessionsCsv, downloadCsv, mergeSessionCsvExports } from '@/lib/export'
 import { showToast } from '@/stores/toast-store'
 import { cn } from '@/lib/utils'
@@ -73,12 +74,14 @@ export function HistoryPanel({
   enabledPrograms,
   currentCycleId,
   navigate,
+  onSessionDeleted,
 }: {
   allSessions: LocalWorkoutSession[]
   customPlanNames: Record<string, string>
   enabledPrograms: Program[]
   currentCycleId?: string
   navigate: NavigateFunction
+  onSessionDeleted?: () => void
 }) {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
   const [resultFilter, setResultFilter] = useState<ResultFilter>('all')
@@ -141,6 +144,11 @@ export function HistoryPanel({
       return true
     })
   }, [historyBase, sourceFilter, resultFilter, dateFilter, cycleFilter, currentCycleId])
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setLimit(PAGE_SIZE)
+  }, [sourceFilter, resultFilter, dateFilter, cycleFilter])
 
   const visibleSessions = filteredSessions.slice(0, limit)
   const hasMore = filteredSessions.length > limit
@@ -301,19 +309,17 @@ export function HistoryPanel({
                           </Badge>
                         </div>
                         <p className="sr-text-h3 leading-snug text-[var(--sr-text-primary)]">
-                          {isCustom
-                            ? sourceLabel
-                            : pl.dayLabel(s.dayNumber)}
+                          {sourceLabel}
                           <span className="ml-2 tabular-nums sr-text-body-sm font-normal text-[var(--sr-text-secondary)]">
                             {isCustom
                               ? `· ${pl.dayLabel(s.dayNumber)}`
-                              : `· ${sessionTotalReps(s)} ${pl.repsUnit}`}
+                              : `· ${pl.dayLabel(s.dayNumber)} · ${sessionTotalReps(s)} ${pl.repsUnit}`}
                           </span>
                         </p>
                         <p className="sr-text-body-sm text-[var(--sr-text-muted)]">
                           {isCustom
                             ? customSessionSummary(s)
-                            : getCycleById(s.cycleId)?.nameShort ?? s.cycleId}
+                            : (getCycleById(s.cycleId) ? getCycleName(getCycleById(s.cycleId)!) : s.cycleId)}
                         </p>
                       </div>
                       <ChevronRight
@@ -330,7 +336,7 @@ export function HistoryPanel({
               <Button
                 className="mt-3"
                 variant="secondary"
-                size="sm"
+                size="md"
                 fullWidth
                 onClick={() => setLimit((n) => n + PAGE_SIZE)}
               >
@@ -425,17 +431,17 @@ export function HistoryPanel({
               </span>
             </div>
             <p className="mt-2 sr-text-h3 text-[var(--sr-text-primary)]">
-              {isCustomSession(selectedSession)
-                ? sessionSourceLabel(selectedSession, customPlanNames)
-                : pl.dayLabel(selectedSession.dayNumber)}
+              {sessionSourceLabel(selectedSession, customPlanNames)}
               <span className="ml-2 tabular-nums sr-text-body-sm font-normal text-[var(--sr-text-secondary)]">
-                {sessionTotalReps(selectedSession)} {pl.repsUnit}
+                {isCustomSession(selectedSession)
+                  ? `· ${pl.dayLabel(selectedSession.dayNumber)}`
+                  : `· ${pl.dayLabel(selectedSession.dayNumber)} · ${sessionTotalReps(selectedSession)} ${pl.repsUnit}`}
               </span>
             </p>
             <p className="mt-0.5 sr-text-body-sm text-[var(--sr-text-muted)]">
               {isCustomSession(selectedSession)
-                ? pl.dayLabel(selectedSession.dayNumber)
-                : getCycleById(selectedSession.cycleId)?.nameShort ?? selectedSession.cycleId}
+                ? customSessionSummary(selectedSession)
+                : (getCycleById(selectedSession.cycleId) ? getCycleName(getCycleById(selectedSession.cycleId)!) : selectedSession.cycleId)}
             </p>
 
             {/* Builtin sessions — set results list */}
@@ -563,6 +569,7 @@ export function HistoryPanel({
               setConfirmDelete(false)
               setSelectedSession(null)
               setDetailExercises(new Map())
+              onSessionDeleted?.()
             } catch {
               showToast(pl.sessionDeleteError, 'error')
             } finally {

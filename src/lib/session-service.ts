@@ -224,12 +224,15 @@ export async function finalizeFailedDay(
   void schedulePostWorkoutSync()
 }
 
-/** Delete a completed session from history (local + cloud sync). */
+/** Delete a completed session from history (local + cloud sync).
+ *  Enqueues sync delete BEFORE local delete to prevent pull from
+ *  resurrecting the session in the narrow window between Dexie delete
+ *  and queue enqueue. */
 export async function deleteWorkoutSession(sessionId: string): Promise<void> {
   const session = await db.workoutSessions.get(sessionId)
   if (!session) return
-  await db.workoutSessions.delete(sessionId)
   await enqueueSync('workout_sessions', 'delete', { id: sessionId })
+  await db.workoutSessions.delete(sessionId)
   track('session_deleted', { program: session.program })
 }
 

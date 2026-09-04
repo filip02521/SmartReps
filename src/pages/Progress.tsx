@@ -88,6 +88,8 @@ export default function ProgressPage() {
   )
   const [tests, setTests] = useState<{ date: string; dateLabel: string; reps: number }[]>([])
   const [sessions, setSessions] = useState<LocalWorkoutSession[]>([])
+  // All builtin sessions (pushups + pullups) for history — not just the selected program
+  const [allBuiltinSessions, setAllBuiltinSessions] = useState<LocalWorkoutSession[]>([])
   const [progress, setProgress] = useState<LocalProgramProgress | undefined>(undefined)
   const [stats, setStats] = useState<ProgramStats | null>(null)
   const [sessionChart, setSessionChart] = useState<SessionChartPoint[]>([])
@@ -125,6 +127,12 @@ export default function ProgressPage() {
       try {
         const initialProgram = settings.enabledPrograms[0] ?? 'pushups'
         await loadProgramData(initialProgram)
+
+        // All builtin sessions (pushups + pullups) for history tab
+        const builtinHistory = (await db.workoutSessions.toArray())
+          .filter(isProgressHistorySession)
+          .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+        setAllBuiltinSessions(builtinHistory)
 
         // Custom data
         setCustomPrs(await computeCustomExercisePrs())
@@ -255,8 +263,8 @@ export default function ProgressPage() {
   }
 
   const allSessions = useMemo(
-    () => [...sessions, ...customSessionsAll],
-    [sessions, customSessionsAll],
+    () => [...allBuiltinSessions, ...customSessionsAll],
+    [allBuiltinSessions, customSessionsAll],
   )
 
   const hasAnyData = tests.length > 0 || sessions.length > 0 || customSessionsAll.length > 0
@@ -370,6 +378,7 @@ export default function ProgressPage() {
             enabledPrograms={settings.enabledPrograms}
             currentCycleId={progress?.cycleId}
             navigate={navigate}
+            onSessionDeleted={() => setReloadEpoch((n) => n + 1)}
           />
         )}
 
