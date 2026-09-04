@@ -1,0 +1,55 @@
+---
+description: SmartReps — stack, architektura, źródła prawdy
+alwaysApply: true
+---
+
+# SmartReps — kontekst projektu
+
+Mobilna PWA (Vite + React 19 + TS + Tailwind 4 + Zustand + Dexie + Supabase). PL-first + EN i18n, offline-first, Strong style workout.
+
+## Źródła prawdy (czytaj przed większymi zmianami)
+
+- `docs/ux-guidelines.md` — wireframe'y, shell, komponenty DS, checklist merge
+- `docs/product.md` — scope, metryki, co poza scope
+- `src/i18n/pl.ts` + `src/i18n/en.ts` — słowniki UI (zero hardcoded stringów w JSX)
+- `src/styles/tokens.css` — kolory, typografia; zero hardcoded hex w komponentach
+- `src/lib/ui-chrome.ts` — z-index, focus ring, offset toastów
+
+## i18n — ZASADY (obowiązkowe)
+
+- Każdy nowy klucz tłumaczenia musi trafić do **BOTH** `pl.ts` i `en.ts` w tym samym commicie
+- Zero hardcoded stringów widocznych dla użytkownika w `src/` — wszystko przez proxy `pl.*`
+- Komentarze po polsku OK — nie są widoczne dla usera
+- Sygnatury funkcji muszą się zgadzać między pl i en (parametry, kolejność, typy)
+- en.ts jest typowane jako `Translation` importowane z pl.ts — nigdy `as const` w en.ts
+- Sprawdź parzystość kluczy przed commit:
+  ```bash
+  diff <(grep -E "^\s+[a-zA-Z_]+:" src/i18n/pl.ts | sed -E 's/^\s+//; s/:.*//' | sort) \
+       <(grep -E "^\s+[a-zA-Z_]+:" src/i18n/en.ts | sed -E 's/^\s+//; s/:.*//' | sort)
+  ```
+
+## Sync — ZASADY (obowiązkowe)
+
+- Każde pole user-data musi się synchronizować z Supabase
+- Nowe pole w encji syncowanej → dodaj do upsert/pull w `src/lib/sync.ts`
+- Nowe ustawienie → dodaj do `defaultSettings` w `app-store.ts` + zachowaj w `clearAllLocalData()` w `local-data.ts` + sync w `enabled-programs-sync.ts`
+- AI keys (`aiApiKey`, `aiModel`, `aiBaseUrl`) są LOCAL-ONLY — nigdy do Supabase
+- Sprawdź: persist across reload, survive clear-local-data, sync when logged in, pull on fresh device
+
+## Stack — czego NIE dodawać bez uzasadnienia
+
+- Brak shadcn/Radix — własny design system w `src/components/ui/` i `src/components/ux/`
+- Plany treningowe: dane w `src/data/plans/`, walidacja `npm run validate-plans`
+
+## Struktura kodu
+
+- **Pages** (`src/pages/`) — kompozycja ekranów, minimalna logika
+- **Lib** (`src/lib/`) — logika domenowa, sync, silnik postępu; testy obok w `__tests__/`
+- **Components** — `ui/` (atomy), `ux/` (feedback, coach), `dashboard/`, `workout/`, `progress/`
+- **Stores** — Zustand: `app-store`, `workout-store`, `toast-store`
+
+## PWA / produkcja
+
+- Deploy: push na `main` → Vercel; repo: `filip02521/SmartReps`
+- Chunk recovery: `src/lib/chunk-load-recovery.ts` — nie łamać lazy route’ów bez fallbacku
+- Sekrety tylko w env (Vercel/Supabase), nigdy w repo ani commitach

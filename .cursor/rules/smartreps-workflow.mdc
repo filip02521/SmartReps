@@ -1,0 +1,46 @@
+---
+description: Jak pracować z Filipem — audyt, git, Definition of Done
+alwaysApply: true
+---
+
+# Workflow współpracy
+
+## Typowy cykl Filipa
+
+1. Zaimplementuj / dopracuj feature
+2. **i18n check** — każdy nowy string do BOTH `pl.ts` + `en.ts`; zero hardcoded PL/EN w JSX
+3. **Sync check** — nowe pole user-data → sync do Supabase; nowe ustawienie → persist + clear-safe
+4. **Audyt** — „sprawdź dokładnie w poszukiwaniu nieprawidłowości i braków”
+5. **Napraw** — logiczne błędy, UX, copy
+6. **Weryfikacja** — lint + test + build (+ e2e przy flow krytycznych)
+7. **Push na GH** — tylko gdy Filip prosi („wrzuc na gh”, „produkcja”)
+
+## Git
+
+- Commit **tylko na prośbę**; message po angielsku, 1–2 zdania „why”
+- Nie amenduj po failed hooku; nie force-push na main
+- Nie commituj `.env`, haseł SMTP, kluczy Supabase
+
+## Definition of Done (przed „100% gotowe”)
+
+```bash
+npm run validate-plans && npm run validate-custom-plans && npm run lint && npm test -- --run && npm run build
+```
+
+Przy zmianach w routing/auth/workout/sync/i18n: `npm run test:e2e`
+
+## Antywzorce z naszej historii — UNIKAJ
+
+- **Hardcoded stringi w JSX** — zawsze przez `pl.*` / `en.*` (proxy)
+- **Klucz tylko w pl.ts bez en.ts** — parzystość obowiązkowa w tym samym commicie
+- **Pole bez sync** — nowe pole user-data musi się synchronizować z Supabase
+- **Ustawienie bez persist** — nowe ustawienie musi przetrwać `clearAllLocalData()`
+- **Usuwanie funkcji przy „uproszczeniu UX”** — Filip chce lepszy podział, nie mniej treści
+- **Duplikowanie statystyk** — jedna metryka + proste porównanie („wcześniej X”)
+- **Skomplikowany copy** — krótko, jak trener
+- **Push bez zielonego builda** — napraw testy/typy najpierw
+- **Edycja plików planu** (.plan.md) — implementuj plan, nie modyfikuj załącznika
+
+## Po większej zmianie UI
+
+Krótko wskaż: co zmieniono, jak przetestować (ścieżka + urządzenie 375px), czy poszło na GH.
