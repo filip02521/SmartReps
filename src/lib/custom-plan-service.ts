@@ -184,15 +184,33 @@ export async function countPlansUsingExercise(exerciseId: string): Promise<numbe
   ).length
 }
 
-/** Idempotent: creates only starters whose names are missing. */
+/** Idempotent: creates only starters whose names are missing.
+ *  Also backfills muscleGroup on existing starter exercises that lack it. */
 export async function seedStarterExercises(): Promise<{
   created: ExerciseDefinition[]
   all: ExerciseDefinition[]
 }> {
   const existing = await db.exercises.toArray()
   const active = existing.filter((e) => !e.archived)
-  const byName = new Set(active.map((e) => e.name.trim().toLowerCase()))
+  const byName = new Map(active.map((e) => [e.name.trim().toLowerCase(), e]))
   const created: ExerciseDefinition[] = []
+
+  // Backfill muscleGroup for existing starter exercises missing it.
+  for (const starter of EXERCISE_STARTERS) {
+    const name = STARTER_LABELS[starter.key]
+    const match = byName.get(name.toLowerCase())
+    if (match && !match.muscleGroup) {
+      const updated: ExerciseDefinition = {
+        ...match,
+        muscleGroup: starter.muscleGroup,
+        updatedAt: new Date().toISOString(),
+      }
+      await db.exercises.put(updated)
+      await enqueueSync('user_exercises', 'update', updated)
+      byName.set(name.toLowerCase(), updated)
+    }
+  }
+
   for (const starter of EXERCISE_STARTERS) {
     const name = STARTER_LABELS[starter.key]
     if (byName.has(name.toLowerCase())) continue
@@ -203,7 +221,7 @@ export async function seedStarterExercises(): Promise<{
       muscleGroup: starter.muscleGroup,
     })
     created.push(ex)
-    byName.add(name.toLowerCase())
+    byName.set(name.toLowerCase(), ex)
   }
   return { created, all: await listExercises() }
 }
