@@ -25,7 +25,16 @@ import { pl } from '@/i18n/pl'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
 import type { Program } from '@/data/plans/types'
 import type { LocalProgramProgress, LocalWorkoutSession } from '@/lib/db'
-import { computeCustomExercisePrs, type ExercisePr } from '@/lib/custom-stats'
+import {
+  computeCustomExercisePrs,
+  getCustomVolumeStats,
+  getCustomSessionChart,
+  getCustomOverviewStats,
+  type ExercisePr,
+  type CustomVolumeStats,
+  type CustomSessionChartPoint,
+  type CustomOverviewStats,
+} from '@/lib/custom-stats'
 import { ExerciseDetailSheet } from '@/components/plans/ExerciseDetailSheet'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
 import { isCustomProgressHistorySession, isProgressHistorySession } from '@/lib/progress-history'
@@ -84,6 +93,9 @@ export default function ProgressPage() {
   const [customPrs, setCustomPrs] = useState<ExercisePr[]>([])
   const [customSessionsAll, setCustomSessionsAll] = useState<LocalWorkoutSession[]>([])
   const [customPlanNames, setCustomPlanNames] = useState<Record<string, string>>({})
+  const [customVolumeStats, setCustomVolumeStats] = useState<CustomVolumeStats | null>(null)
+  const [customSessionChart, setCustomSessionChart] = useState<CustomSessionChartPoint[]>([])
+  const [customOverviewStats, setCustomOverviewStats] = useState<CustomOverviewStats | null>(null)
 
   // Achievements
   const [achievementUnlocks, setAchievementUnlocks] = useState<LocalAchievementUnlock[]>([])
@@ -105,37 +117,14 @@ export default function ProgressPage() {
       setLoading(true)
       setError(null)
       try {
-        // Use first enabled program with progress for charts/stats
-        const primaryProgram = settings.enabledPrograms[0] ?? 'pushups'
-        setProgram(primaryProgram)
-
-        const p = await getProgramProgress(primaryProgram)
-        setProgress(p)
-        if (p) {
-          setStats(await getProgramStats(primaryProgram, p))
-          setDayCycleTrend(await getDayCycleTrend(primaryProgram, p.cycleId, p.cycleAttempt))
-        } else {
-          setStats(null)
-          setDayCycleTrend([])
-        }
-
-        const rows = await db.maxTests.where('program').equals(primaryProgram).sortBy('testedAt')
-        setTests(
-          rows.map((r) => ({
-            date: r.testedAt.slice(0, 10),
-            dateLabel: format(new Date(r.testedAt), 'd MMM', { locale: plLocale }),
-            reps: r.reps,
-          })),
-        )
-        const sess = await db.workoutSessions.where('program').equals(primaryProgram).toArray()
-        sess.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-        setSessions(sess)
-        setSessionChart(await getMaxSetPerSession(primaryProgram))
-        setRecordsWithDates(await getProgramRecordsWithDates(primaryProgram))
-        setVolumeStats(await getProgramVolumeStats(primaryProgram))
+        const initialProgram = settings.enabledPrograms[0] ?? 'pushups'
+        await loadProgramData(initialProgram)
 
         // Custom data
         setCustomPrs(await computeCustomExercisePrs())
+        setCustomVolumeStats(await getCustomVolumeStats())
+        setCustomSessionChart(await getCustomSessionChart())
+        setCustomOverviewStats(await getCustomOverviewStats())
         const customHistory = (await db.workoutSessions.toArray())
           .filter(isCustomProgressHistorySession)
           .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
@@ -169,6 +158,34 @@ export default function ProgressPage() {
     }
     void load()
   }, [reloadEpoch, lastSyncedAt, settings.enabledPrograms])
+
+  async function loadProgramData(prog: Program) {
+    setProgram(prog)
+    const p = await getProgramProgress(prog)
+    setProgress(p)
+    if (p) {
+      setStats(await getProgramStats(prog, p))
+      setDayCycleTrend(await getDayCycleTrend(prog, p.cycleId, p.cycleAttempt))
+    } else {
+      setStats(null)
+      setDayCycleTrend([])
+    }
+
+    const rows = await db.maxTests.where('program').equals(prog).sortBy('testedAt')
+    setTests(
+      rows.map((r) => ({
+        date: r.testedAt.slice(0, 10),
+        dateLabel: format(new Date(r.testedAt), 'd MMM', { locale: plLocale }),
+        reps: r.reps,
+      })),
+    )
+    const sess = await db.workoutSessions.where('program').equals(prog).toArray()
+    sess.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+    setSessions(sess)
+    setSessionChart(await getMaxSetPerSession(prog))
+    setRecordsWithDates(await getProgramRecordsWithDates(prog))
+    setVolumeStats(await getProgramVolumeStats(prog))
+  }
 
   // URL sync + legacy redirect
   useEffect(() => {
@@ -283,6 +300,8 @@ export default function ProgressPage() {
         {tab === 'overview' && (
           <OverviewPanel
             program={program}
+            enabledPrograms={settings.enabledPrograms}
+            onProgramChange={(p) => void loadProgramData(p)}
             stats={stats}
             progress={progress}
             tests={tests}
@@ -292,7 +311,11 @@ export default function ProgressPage() {
             volumeStats={volumeStats}
             dayCycleTrend={dayCycleTrend}
             allSessions={allSessions}
+            customSessionsAll={customSessionsAll}
             customPrs={customPrs}
+            customVolumeStats={customVolumeStats}
+            customSessionChart={customSessionChart}
+            customOverviewStats={customOverviewStats}
             recordsWithDates={recordsWithDates}
             onOpenExercise={(id) => void openExerciseDetail(id)}
             navigate={navigate}

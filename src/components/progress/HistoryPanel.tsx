@@ -26,6 +26,10 @@ import {
   formatCustomSessionSummary,
   sessionTotalSets,
 } from '@/lib/custom-session-stats'
+import { formatExerciseSetSummary } from '@/lib/custom-exercise-stats'
+import { useAppStore } from '@/stores/app-store'
+import { db } from '@/lib/db'
+import type { ExerciseDefinition } from '@/lib/exercise-model'
 import type { Program } from '@/data/plans/types'
 import type { LocalWorkoutSession } from '@/lib/db'
 import type { NavigateFunction } from 'react-router-dom'
@@ -81,6 +85,23 @@ export function HistoryPanel({
   const [limit, setLimit] = useState(PAGE_SIZE)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [selectedSession, setSelectedSession] = useState<LocalWorkoutSession | null>(null)
+  const [detailExercises, setDetailExercises] = useState<Map<string, ExerciseDefinition>>(new Map())
+  const weightUnit = useAppStore((s) => s.settings.weightUnit)
+
+  async function openSessionDetail(s: LocalWorkoutSession) {
+    setSelectedSession(s)
+    if (isCustomSession(s) && s.exerciseLogs?.length) {
+      const ids = [...new Set(s.exerciseLogs.map((l) => l.exerciseId))]
+      const rows = await db.exercises.bulkGet(ids)
+      const map = new Map<string, ExerciseDefinition>()
+      for (const r of rows) {
+        if (r && !r.archived) map.set(r.id, r)
+      }
+      setDetailExercises(map)
+    } else {
+      setDetailExercises(new Map())
+    }
+  }
 
   // All completed sessions (builtin + custom).
   const historyBase = useMemo(
@@ -252,7 +273,7 @@ export function HistoryPanel({
                         'hover:bg-[var(--sr-bg-surface)] active:bg-[var(--sr-bg-surface)]',
                         FOCUS_RING,
                       )}
-                      onClick={() => setSelectedSession(s)}
+                      onClick={() => void openSessionDetail(s)}
                     >
                       <span
                         className={cn(
@@ -379,7 +400,10 @@ export function HistoryPanel({
       {/* Session detail sheet */}
       <Sheet
         open={!!selectedSession}
-        onClose={() => setSelectedSession(null)}
+        onClose={() => {
+          setSelectedSession(null)
+          setDetailExercises(new Map())
+        }}
         title={pl.sessionDetails}
       >
         {selectedSession && (
@@ -405,7 +429,9 @@ export function HistoryPanel({
                 ? pl.dayLabel(selectedSession.dayNumber)
                 : getCycleById(selectedSession.cycleId)?.nameShort ?? selectedSession.cycleId}
             </p>
-            {selectedSession.setResults.length > 0 ? (
+
+            {/* Builtin sessions — set results list */}
+            {!isCustomSession(selectedSession) && selectedSession.setResults.length > 0 && (
               <ul className="mt-4 divide-y divide-[var(--sr-border-subtle)]">
                 {selectedSession.setResults.map((r) => (
                   <li
@@ -427,11 +453,61 @@ export function HistoryPanel({
                   </li>
                 ))}
               </ul>
-            ) : (
+            )}
+
+            {/* Custom sessions — exercise logs */}
+            {isCustomSession(selectedSession) && selectedSession.exerciseLogs?.length ? (
+              <div className="mt-4 space-y-4">
+                {selectedSession.exerciseLogs.map((log, idx) => {
+                  const def = detailExercises.get(log.exerciseId)
+                  const name = def?.name ?? pl.progressCustomExerciseFallback
+                  const metric = def?.primaryMetric ?? 'reps'
+                  return (
+                    <div key={`${log.exerciseId}-${idx}`}>
+                      <p className="mb-1.5 font-medium text-[var(--sr-text-primary)]">
+                        {name}
+                      </p>
+                      <ul className="divide-y divide-[var(--sr-border-subtle)]">
+                        {log.sets.map((set) => (
+                          <li
+                            key={set.setNumber}
+                            className="flex items-center justify-between gap-3 py-2 sr-text-body-sm"
+                          >
+                            <span className="text-[var(--sr-text-secondary)]">
+                              {pl.setColumn} {set.setNumber}
+                            </span>
+                            <span
+                              className={cn(
+                                'font-semibold tabular-nums',
+                                set.passed
+                                  ? 'text-[var(--sr-text-primary)]'
+                                  : 'text-[var(--sr-error)]',
+                              )}
+                            >
+                              {formatExerciseSetSummary(metric, set, weightUnit)}
+                              {!set.passed && ` · ${pl.failedShort}`}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
+
+            {/* No data fallback */}
+            {!isCustomSession(selectedSession) && selectedSession.setResults.length === 0 && (
               <p className="mt-4 sr-text-body-sm text-[var(--sr-text-muted)]">
                 {pl.progressSessionNoSets}
               </p>
             )}
+            {isCustomSession(selectedSession) && !selectedSession.exerciseLogs?.length && (
+              <p className="mt-4 sr-text-body-sm text-[var(--sr-text-muted)]">
+                {pl.progressSessionNoSets}
+              </p>
+            )}
+
             <Button
               className="mt-4"
               variant="ghost"
@@ -439,6 +515,7 @@ export function HistoryPanel({
               onClick={() => {
                 const id = selectedSession.id
                 setSelectedSession(null)
+                setDetailExercises(new Map())
                 if (isCustomSession(selectedSession) && selectedSession.customPlanId) {
                   navigate(`/workout/custom/${selectedSession.customPlanId}/summary?session=${id}`)
                 } else {

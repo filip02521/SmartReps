@@ -115,3 +115,141 @@ export async function computeCustomExercisePrs(): Promise<ExercisePr[]> {
 
   return results.sort((a, b) => a.name.localeCompare(b.name, 'pl'))
 }
+
+export type CustomVolumeStats = {
+  volume14d: number
+  volumePrev14d: number
+  volumeChangePct: number | null
+  avgRepsPerSession: number | null
+  avgSessionsPerWeek: number | null
+  sessionsLast30d: number
+}
+
+function sessionTotalVolume(s: { exerciseLogs?: ExerciseLog[]; totalReps?: number }): number {
+  if (s.exerciseLogs?.length) {
+    return s.exerciseLogs.reduce((sum, log) => {
+      return sum + log.sets.reduce((s2, set) => {
+        const reps = set.actual.reps ?? 0
+        const w = set.actual.weightKg ?? 0
+        const dur = set.actual.durationSec ?? 0
+        // Volume = reps*weight for weighted; reps for bodyweight; 1 per second for time
+        return s2 + (w > 0 ? reps * w : reps > 0 ? reps : dur)
+      }, 0)
+    }, 0)
+  }
+  return s.totalReps ?? 0
+}
+
+export async function getCustomVolumeStats(): Promise<CustomVolumeStats> {
+  const { isCustomWorkoutSession } = await import('@/lib/custom-session-utils')
+  const sessions = (await db.workoutSessions.toArray())
+    .filter((s) => isCustomWorkoutSession(s) && s.status === 'completed' && s.passed === true)
+
+  const now = Date.now()
+  const windowMs = 14 * 86400000
+  let volume14d = 0
+  let volumePrev14d = 0
+  let sessionsLast30d = 0
+  let totalVolume = 0
+  let firstAt: string | null = null
+  let lastAt: string | null = null
+
+  for (const s of sessions) {
+    const t = new Date(s.startedAt).getTime()
+    const vol = sessionTotalVolume(s)
+    totalVolume += vol
+    if (t >= now - windowMs) volume14d += vol
+    else if (t >= now - 2 * windowMs) volumePrev14d += vol
+    if (t >= now - 30 * 86400000) sessionsLast30d++
+    const at = s.completedAt ?? s.startedAt
+    if (!firstAt || at < firstAt) firstAt = at
+    if (!lastAt || at > lastAt) lastAt = at
+  }
+
+  const volumeChangePct =
+    volumePrev14d > 0 ? Math.round(((volume14d - volumePrev14d) / volumePrev14d) * 100) : null
+
+  const avgRepsPerSession = sessions.length > 0 ? Math.round(totalVolume / sessions.length) : null
+  let avgSessionsPerWeek: number | null = null
+  if (firstAt && lastAt && sessions.length > 0) {
+    const spanDays = Math.max(1, (new Date(lastAt).getTime() - new Date(firstAt).getTime()) / 86400000)
+    avgSessionsPerWeek = Math.round((sessions.length / spanDays) * 7 * 10) / 10
+  }
+
+  return {
+    volume14d,
+    volumePrev14d,
+    volumeChangePct,
+    avgRepsPerSession,
+    avgSessionsPerWeek,
+    sessionsLast30d,
+  }
+}
+
+export type CustomSessionChartPoint = {
+  date: string
+  dateLabel: string
+  value: number
+  dayNumber: number
+}
+
+export async function getCustomSessionChart(): Promise<CustomSessionChartPoint[]> {
+  const { format } = await import('date-fns')
+  const { pl: plLocale } = await import('date-fns/locale')
+  const { isCustomWorkoutSession } = await import('@/lib/custom-session-utils')
+  const sessions = (await db.workoutSessions.toArray())
+    .filter((s) => isCustomWorkoutSession(s) && s.status === 'completed' && s.passed === true)
+
+  const points: CustomSessionChartPoint[] = []
+  for (const s of sessions) {
+    const vol = sessionTotalVolume(s)
+    if (vol <= 0) continue
+    const at = s.completedAt ?? s.startedAt
+    points.push({
+      date: at,
+      dateLabel: format(new Date(at), 'd MMM', { locale: plLocale }),
+      value: vol,
+      dayNumber: s.dayNumber,
+    })
+  }
+  return points.sort((a, b) => a.date.localeCompare(b.date))
+}
+
+export type CustomOverviewStats = {
+  totalSessions: number
+  totalVolume: number
+  streakWeeks: number
+  exercisesTrained: number
+}
+
+export async function getCustomOverviewStats(): Promise<CustomOverviewStats> {
+  const { isCustomWorkoutSession } = await import('@/lib/custom-session-utils')
+  const sessions = (await db.workoutSessions.toArray())
+    .filter((s) => isCustomWorkoutSession(s) && s.status === 'completed' && s.passed === true)
+
+  let totalVolume = 0
+  const exerciseIds = new Set<string>()
+  for (const s of sessions) {
+    totalVolume += sessionTotalVolume(s)
+    if (s.exerciseLogs) {
+      for (const log of s.exerciseLogs) exerciseIds.add(log.exerciseId)
+    }
+  }
+
+  // Streak weeks: count distinct ISO weeks with at least one session
+  const weeks = new Set<string>()
+  for (const s of sessions) {
+    const d = new Date(s.startedAt)
+    const year = d.getFullYear()
+    const onejan = new Date(year, 0, 1)
+    const week = Math.ceil(((d.getTime() - onejan.getTime()) / 86400000 + onejan.getDay() + 1) / 7)
+    weeks.add(`${year}-${week}`)
+  }
+
+  return {
+    totalSessions: sessions.length,
+    totalVolume,
+    streakWeeks: weeks.size,
+    exercisesTrained: exerciseIds.size,
+  }
+}

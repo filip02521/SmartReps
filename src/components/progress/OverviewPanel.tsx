@@ -17,10 +17,12 @@ import { navigateToTrain } from '@/lib/setup-flow'
 import type { Program } from '@/data/plans/types'
 import type { NavigateFunction } from 'react-router-dom'
 import { PROGRESS_CHART_TOOLTIP_STYLE } from '@/components/progress/chart-style'
-import type { ExercisePr } from '@/lib/custom-stats'
+import type { ExercisePr, CustomVolumeStats, CustomSessionChartPoint, CustomOverviewStats } from '@/lib/custom-stats'
 
 export function OverviewPanel({
   program,
+  enabledPrograms,
+  onProgramChange,
   stats,
   progress,
   tests,
@@ -30,12 +32,18 @@ export function OverviewPanel({
   volumeStats,
   dayCycleTrend,
   allSessions,
+  customSessionsAll,
   customPrs,
+  customVolumeStats,
+  customSessionChart,
+  customOverviewStats,
   recordsWithDates,
   onOpenExercise,
   navigate,
 }: {
   program: Program
+  enabledPrograms: Program[]
+  onProgramChange: (p: Program) => void
   stats: ProgramStats | null
   progress: LocalProgramProgress | undefined
   tests: { date: string; dateLabel: string; reps: number }[]
@@ -45,7 +53,11 @@ export function OverviewPanel({
   volumeStats: ProgramVolumeStats | null
   dayCycleTrend: DayCycleTrend[]
   allSessions: LocalWorkoutSession[]
+  customSessionsAll: LocalWorkoutSession[]
   customPrs: ExercisePr[]
+  customVolumeStats: CustomVolumeStats | null
+  customSessionChart: CustomSessionChartPoint[]
+  customOverviewStats: CustomOverviewStats | null
   recordsWithDates: ProgramRecordsWithDates | null
   onOpenExercise: (exerciseId: string) => void
   navigate: NavigateFunction
@@ -72,11 +84,31 @@ export function OverviewPanel({
 
   const showEmptyState = !hasAnyData && allSessions.length === 0
   const showStatsSection = stats != null && hasAnyData
+  const hasCustomSessions = customSessionsAll.length > 0
+  const showCustomSection = hasCustomSessions && customOverviewStats != null
   // First section flag: if stats/empty don't render, calendar or records is first.
-  const calendarFirst = !showStatsSection && !showEmptyState
+  const calendarFirst = !showStatsSection && !showEmptyState && !showCustomSection
+
+  // Program switcher options
+  const programOptions = enabledPrograms.map((p) => ({
+    value: p as string,
+    label: p === 'pushups' ? pl.pushupsProgram : p === 'pullups' ? pl.pullupsProgram : p,
+  }))
 
   return (
     <>
+      {/* Program switcher */}
+      {enabledPrograms.length > 1 && (
+        <div className="mb-4">
+          <SegmentedControl
+            aria-label={pl.progressProgramSwitcher}
+            value={program as string}
+            onChange={(v) => onProgramChange(v as Program)}
+            options={programOptions}
+          />
+        </div>
+      )}
+
       {/* Podsumowanie + metryki */}
       {showStatsSection && (
         <ProgressSection first title={pl.progressSummaryTitle}>
@@ -160,6 +192,95 @@ export function OverviewPanel({
               onClick: () => void navigateToTrain(navigate, program),
             }}
           />
+        </ProgressSection>
+      )}
+
+      {/* Statystyki planów własnych */}
+      {showCustomSection && customOverviewStats && (
+        <ProgressSection
+          first={!showStatsSection && !showEmptyState}
+          title={pl.progressCustomStatsTitle}
+        >
+          <MetricStrip
+            metrics={[
+              {
+                value: customOverviewStats.totalSessions,
+                label: pl.sessionsTotal,
+                hint: pl.progressCustomStatsHint,
+              },
+              {
+                value: customOverviewStats.exercisesTrained,
+                label: pl.progressCustomExercisesTrained,
+                hint: pl.progressCustomStatsHint,
+              },
+              {
+                value: customOverviewStats.totalVolume,
+                label: pl.progressCustomVolumeTotal,
+                hint: pl.progressCustomStatsHint,
+              },
+            ]}
+          />
+          {customVolumeStats && (customVolumeStats.volume14d > 0 || customVolumeStats.sessionsLast30d > 0) && (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <NestedStat
+                size="md"
+                overline={pl.progressVolume14d}
+                value={customVolumeStats.volume14d}
+                hint={
+                  customVolumeStats.volumeChangePct != null
+                    ? customVolumeStats.volumeChangePct > 0
+                      ? pl.progressVolumeTrendUp(customVolumeStats.volumeChangePct)
+                      : customVolumeStats.volumeChangePct < 0
+                        ? pl.progressVolumeTrendDown(Math.abs(customVolumeStats.volumeChangePct))
+                        : pl.progressVolumeTrendFlat
+                    : undefined
+                }
+              />
+              <NestedStat
+                size="md"
+                overline={pl.progressSessions30d}
+                value={customVolumeStats.sessionsLast30d}
+              />
+            </div>
+          )}
+          {customSessionChart.length >= 2 && (
+            <div className="mt-3 h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={customSessionChart}>
+                  <XAxis
+                    dataKey="dateLabel"
+                    tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                    stroke="var(--sr-border-subtle)"
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                    stroke="var(--sr-border-subtle)"
+                    width={28}
+                  />
+                  <Tooltip
+                    contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
+                    formatter={(value, _name, item) => {
+                      const row = item.payload as CustomSessionChartPoint
+                      return [
+                        `${value ?? 0} · ${pl.dayLabel(row.dayNumber)}`,
+                        pl.progressCustomVolumePerSession,
+                      ]
+                    }}
+                    labelFormatter={(label) => String(label)}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="var(--sr-brand-primary)"
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: 'var(--sr-brand-primary)' }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </ProgressSection>
       )}
 
