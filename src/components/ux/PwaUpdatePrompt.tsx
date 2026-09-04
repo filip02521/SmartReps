@@ -6,6 +6,8 @@ import { trackPwaUpdateReload } from '@/lib/analytics'
 import { pl } from '@/i18n/pl'
 import { CHROME_BOTTOM_ABOVE_TABS, Z_TOAST } from '@/lib/ui-chrome'
 
+const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
+
 /** Shows a NoticeCard when a new service worker is waiting (registerType: prompt). */
 export function PwaUpdatePrompt() {
   const [needsRefresh, setNeedsRefresh] = useState(false)
@@ -26,6 +28,8 @@ export function PwaUpdatePrompt() {
       },
       onRegistered(reg) {
         registration = reg
+        // Check for updates immediately after registration
+        void reg?.update()
       },
     })
 
@@ -36,8 +40,15 @@ export function PwaUpdatePrompt() {
     }
     document.addEventListener('visibilitychange', onVisible)
 
+    // Fallback: periodic update check for browsers that don't fire visibilitychange
+    // reliably (notably iOS Safari when PWA is launched from home screen).
+    const interval = window.setInterval(() => {
+      void registration?.update()
+    }, UPDATE_CHECK_INTERVAL_MS)
+
     return () => {
       document.removeEventListener('visibilitychange', onVisible)
+      window.clearInterval(interval)
       setUpdateFn(null)
     }
   }, [])

@@ -90,7 +90,8 @@ export function isEmptyOrphanDraft(plan: CustomPlan): boolean {
 }
 
 /** When the library is empty, seed the default starter pack (idempotent).
- *  Also backfills any missing starter exercises for existing users. */
+ *  Also backfills any missing starter exercises for existing users,
+ *  and backfills muscleGroup on existing starter exercises that lack it. */
 export async function ensureDefaultExercises(): Promise<{
   seeded: boolean
   created: ExerciseDefinition[]
@@ -101,6 +102,8 @@ export async function ensureDefaultExercises(): Promise<{
     const { created } = await seedStarterExercises()
     return { seeded: created.length > 0, created }
   }
+  // Backfill muscleGroup on existing starter exercises that lack it.
+  await backfillStarterMuscleGroups(active)
   // Backfill: if user has fewer exercises than the starter pack, add missing ones.
   const byName = new Set(active.map((e) => e.name.trim().toLowerCase()))
   const missing = EXERCISE_STARTERS.some(
@@ -111,6 +114,29 @@ export async function ensureDefaultExercises(): Promise<{
     return { seeded: created.length > 0, created }
   }
   return { seeded: false, created: [] }
+}
+
+/**
+ * Backfills muscleGroup on existing starter exercises that are missing it.
+ * Runs on every library load so users who had exercises before muscleGroup
+ * was introduced get the tag applied automatically.
+ */
+async function backfillStarterMuscleGroups(active: ExerciseDefinition[]): Promise<void> {
+  const byName = new Map(active.map((e) => [e.name.trim().toLowerCase(), e]))
+  for (const starter of EXERCISE_STARTERS) {
+    const name = STARTER_LABELS[starter.key]
+    const match = byName.get(name.toLowerCase())
+    if (match && !match.muscleGroup) {
+      const updated: ExerciseDefinition = {
+        ...match,
+        muscleGroup: starter.muscleGroup,
+        updatedAt: new Date().toISOString(),
+      }
+      await db.exercises.put(updated)
+      await enqueueSync('user_exercises', 'update', updated)
+      byName.set(name.toLowerCase(), updated)
+    }
+  }
 }
 
 export async function listExercises(includeArchived = false): Promise<ExerciseDefinition[]> {
@@ -192,24 +218,9 @@ export async function seedStarterExercises(): Promise<{
 }> {
   const existing = await db.exercises.toArray()
   const active = existing.filter((e) => !e.archived)
+  await backfillStarterMuscleGroups(active)
   const byName = new Map(active.map((e) => [e.name.trim().toLowerCase(), e]))
   const created: ExerciseDefinition[] = []
-
-  // Backfill muscleGroup for existing starter exercises missing it.
-  for (const starter of EXERCISE_STARTERS) {
-    const name = STARTER_LABELS[starter.key]
-    const match = byName.get(name.toLowerCase())
-    if (match && !match.muscleGroup) {
-      const updated: ExerciseDefinition = {
-        ...match,
-        muscleGroup: starter.muscleGroup,
-        updatedAt: new Date().toISOString(),
-      }
-      await db.exercises.put(updated)
-      await enqueueSync('user_exercises', 'update', updated)
-      byName.set(name.toLowerCase(), updated)
-    }
-  }
 
   for (const starter of EXERCISE_STARTERS) {
     const name = STARTER_LABELS[starter.key]
