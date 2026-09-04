@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSeo } from '@/hooks/useSeo'
 import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { OverviewPanel } from '@/components/progress/OverviewPanel'
@@ -63,6 +64,7 @@ export default function ProgressPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { settings } = useAppStore()
+  useSeo({ title: pl.seoProgressTitle, description: pl.seoProgressDescription, path: '/progress' })
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const [tab, setTab] = useState<ProgressTab>(() => {
     const raw = parseTab(searchParams.get('tab'))

@@ -27,7 +27,7 @@ export default defineConfig({
         id: '/',
         name: 'SmartReps',
         short_name: 'SmartReps',
-        description: 'Inteligentne śledzenie treningu pompek i podciągania',
+        description: 'Planuj i śledź treningi w domu i na siłowni — gotowe programy oraz własne plany. Działa offline.',
         lang: 'pl',
         start_url: '/',
         theme_color: '#6366F1',

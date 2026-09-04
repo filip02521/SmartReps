@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+Allow: /privacy
+Allow: /terms
+Allow: /plans
+Allow: /progress
+Allow: /setup/onboarding
+Allow: /setup/login
+Allow: /setup/technique
+Allow: /setup/technique-pullups
+
+# Private app areas — nie indeksuj
+Disallow: /workout/
+Disallow: /profile
+Disallow: /setup/test/
+Disallow: /setup/cycle/
+Disallow: /setup/start/
+Disallow: /not-found
+
+Sitemap: https://smart-reps.vercel.app/sitemap.xml

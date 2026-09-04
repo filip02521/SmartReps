@@ -1,9 +1,11 @@
 import { useNavigate, Link } from 'react-router-dom'
+import { useSeo } from '@/hooks/useSeo'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { pl } from '@/i18n/pl'
 
 export default function PrivacyPage() {
   const navigate = useNavigate()
+  useSeo({ title: pl.seoPrivacyTitle, description: pl.seoPrivacyDescription, path: '/privacy' })
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
       <PageHeader

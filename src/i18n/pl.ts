@@ -116,7 +116,7 @@ export const pl = {
   noProgramsTitle: 'Twój trening, Twoje zasady',
   noProgramsDesc: 'Zacznij od własnego planu — albo włącz pompki / podciąganie w profilu.',
   noProgramsCreatePlan: 'Stwórz plan',
-  noProgramsGoProfile: 'Włącz program Strong',
+  noProgramsGoProfile: 'Włącz program treningowy',
   goToProfile: 'Przejdź do profilu',
   rest: 'Przerwa',
   test: 'Wykonaj test',
@@ -323,14 +323,14 @@ export const pl = {
     'Wylogowano. Zaloguj się właściwym adresem e-mail, aby zsynchronizować swoje dane.',
   onboardingWelcome: 'Witaj w SmartReps',
   onboardingWelcomeBody:
-    'Prowadzimy Cię przez gotowe cykle pompek i podciągania. Możesz też ułożyć własne plany albo zaimportować gotowy z katalogu. Działa offline — logowanie e-mail OTP, bez kont Google czy Facebook.',
+    'Prowadzimy Cię przez gotowe cykle pompek i podciągania. Możesz też ułożyć własne plany treningowe — na siłownię, maszyny albo trening w domu — albo zaimportować gotowy z katalogu. Działa offline — logowanie e-mail OTP, bez kont Google czy Facebook.',
   onboardingNewUser: 'Zaczynam',
   onboardingHaveAccount: 'Mam już konto',
   onboardingInterestTitle: 'Co chcesz trenować?',
   onboardingInterestHint: 'Zaznacz jedną opcję albo obie.',
   onboardingInterestStrongTitle: 'Pompki i podciąganie',
   onboardingInterestStrongBody:
-    'Gotowe programy: test maksymalnej liczby powtórzeń, dobór poziomu, dni treningowe i przerwy.',
+    'Gotowe programy: test maksymalnej liczby powtórzeń, dobór poziomu, dni treningowe i przerwy między seriami.',
   onboardingInterestCustomTitle: 'Własne plany',
   onboardingInterestCustomBody:
     'Sam układasz ćwiczenia — na siłownię, maszyny albo trening w domu.',
@@ -341,7 +341,7 @@ export const pl = {
   onboardingNextHome:
     'Wejdziesz na ekran Trening. Nic nie wymuszamy — sam wybierasz, kiedy zacząć.',
   onboardingNextStrong:
-    'Program uruchomisz z karty na ekranie Trening. Przy dwóch programach zrób testy osobno i zostaw sobie przerwę między nimi.',
+    'Program uruchomisz z karty na ekranie Trening. Przy dwóch programach zrób testy osobno i zostaw sobie przerwę między nimi. Możesz też stworzyć własny plan w zakładce Plany.',
   onboardingNextCustom:
     'Własne plany dodasz w zakładce Plany albo w sekcji na ekranie Trening.',
   onboardingEnterApp: 'Przejdź do Treningu',
@@ -402,6 +402,42 @@ export const pl = {
   retestAfterCycle: (program: string) => `Test po cyklu — ${program}`,
   mainNav: 'Główna nawigacja',
   skipToMain: 'Przejdź do treści',
+
+  // SEO — dynamic per-route metadata
+  seoDefaultDescription:
+    'SmartReps — planuj i śledź treningi w domu i na siłowni. Gotowe programy pompek i podciągania oraz własne plany treningowe. Działa offline.',
+  seoDashboardTitle: 'Trening',
+  seoDashboardDescription:
+    'Twój pulpit treningowy — następny trening, aktywność, serie i postępy. Start treningu wbudowanego lub własnego planu.',
+  seoProgressTitle: 'Postępy',
+  seoProgressDescription:
+    'Statystyki treningowe, wykresy objętości, kalendarz aktywności, rekordy i odznaki. Śledź swoje postępy krok po kroku.',
+  seoPlansTitle: 'Plany treningowe',
+  seoPlansDescription:
+    'Własne plany treningowe, gotowe programy pompek i podciągania, biblioteka ćwiczeń oraz katalog planów społecznościowych.',
+  seoProfileTitle: 'Profil',
+  seoProfileDescription:
+    'Ustawienia konta, wygląd, powiadomienia, waga ciała, odznaki oraz zarządzanie danymi i synchronizacją.',
+  seoPrivacyTitle: 'Polityka prywatności',
+  seoPrivacyDescription:
+    'Polityka prywatności SmartReps — jakie dane zbieramy, jak je chronimy i jak możesz nimi zarządzać.',
+  seoTermsTitle: 'Regulamin',
+  seoTermsDescription:
+    'Regulamin korzystania z aplikacji SmartReps — zasady używania treningów, planów i konta użytkownika.',
+  seoOnboardingTitle: 'Konfiguracja',
+  seoOnboardingDescription:
+    'Konfiguracja SmartReps — wybór programu treningowego, pompki, podciąganie lub własne plany.',
+  seoLoginTitle: 'Logowanie',
+  seoLoginDescription:
+    'Zaloguj się do SmartReps kodem e-mail OTP. Bez kont Google ani Facebook.',
+  seoTechniquePushupsTitle: 'Technika pompek',
+  seoTechniquePushupsDescription:
+    'Prawidłowa technika pompek — pozycja dłoni, łokcie, tempo i najczęstsze błędy. Poradnik dla początkujących.',
+  seoTechniquePullupsTitle: 'Technika podciągania',
+  seoTechniquePullupsDescription:
+    'Prawidłowa technika podciągania na drążku — chwyt, łokcie, pełny zakres ruchu. Poradnik dla początkujących.',
+  seoNotFoundTitle: 'Nie znaleziono strony',
+  seoNotFoundDescription: 'Strona, której szukasz, nie istnieje. Wróć do SmartReps.',
 
   // Disclaimer
   healthDisclaimer:
@@ -909,7 +945,7 @@ export const pl = {
   profileDangerZone: 'Niebezpieczne',
   profileUnconfiguredHint: 'Jeszcze bez poziomu — skonfigurujesz na ekranie Trening.',
   profileSetupOnTraining: 'Skonfiguruj na Treningu',
-  profileProgramsEmpty: 'Brak włączonych programów Strong.',
+  profileProgramsEmpty: 'Brak włączonych programów treningowych.',
   profileCustomPlansSubhead: 'Własne plany',
   profileCustomOnTraining: 'Widoczny na ekranie Trening',
   timerSound: 'Dźwięki treningu',
@@ -982,7 +1018,7 @@ export const pl = {
   disableProgramConfirm:
     'Program zniknie z ekranu Trening. Historia pozostanie na urządzeniu. Kontynuować?',
   disableProgramConfirmLast:
-    'To ostatni program Strong — ekran Trening przejdzie na własne plany. Historia Strong zostanie na urządzeniu. Kontynuować?',
+    'To ostatni włączony program — ekran Trening przejdzie na własne plany. Historia treningów zostanie na urządzeniu. Kontynuować?',
   pauseProgram: 'Wstrzymaj program',
   resumeProgram: 'Wznów program',
   clearLocalData: 'Wyczyść lokalne dane',
@@ -1663,7 +1699,7 @@ export const pl = {
   achievement_first_custom_session_title: 'Własna ścieżka',
   achievement_first_custom_session_desc: 'Pierwszy trening na własnym planie.',
   achievement_cycle_closed_strong_title: 'Domknięty cykl',
-  achievement_cycle_closed_strong_desc: 'Przeszedłeś cały cykl Strong do końca.',
+  achievement_cycle_closed_strong_desc: 'Przeszedłeś cały cykl treningowy do końca.',
   achievement_goal_pushups_100_title: 'Setka pod rząd',
   achievement_goal_pushups_100_desc: '100 pompek w teście max.',
   achievement_goal_pullups_50_title: 'Pół setki na drążku',
@@ -1728,7 +1764,7 @@ export const pl = {
   achievement_volume_10k_title: 'Dziesięć tysięcy powtórzeń',
   achievement_volume_10k_desc: 'Suma wszystkich powtórzeń w historii treningów.',
   achievement_cycles_5_title: 'Pięć cykli',
-  achievement_cycles_5_desc: 'Pięć domkniętych cykli Strong do końca.',
+  achievement_cycles_5_desc: 'Pięć domkniętych cykli treningowych do końca.',
   achievement_legend_grandmaster_title: 'Wielki Mistrz',
   achievement_legend_grandmaster_desc:
     'Tysiąc sesji i dwa lata serii — absolutny szczyt konsekwencji.',

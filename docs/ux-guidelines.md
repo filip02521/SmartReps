@@ -1,8 +1,8 @@
 # SmartReps UX Guidelines
 
-## Sekcja 2B — Referencja Strong (adaptacja)
+## Sekcja 2B — Referencja wzorce treningowe (adaptacja)
 
-| Wzorzec Strong | SmartReps |
+| Wzorzec treningowy | SmartReps |
 |---|---|
 | Checklist serii | `SetChecklist` + `SetRow` (done/active/pending/failed) |
 | Szybkie logowanie | `RepCounter` + CTA „Zrobione” (prefill z celu) |
@@ -10,7 +10,7 @@
 | Timer inline | `RestTimerPill` → tap → `RestTimerExpanded` + `ProgressRing` |
 | Auto-start przerwy | Po „Zrobione” — timer startuje automatycznie |
 | Immersive | Tab bar ukryty (`useWorkoutStore.immersive`) |
-| Ekran treningu | `ActiveWorkoutScreen` (Strong-style layout) |
+| Ekran treningu | `ActiveWorkoutScreen` (układ programowy) |
 
 ## Komponenty design system
 
@@ -49,7 +49,7 @@ i nie nachodzi na ekran summary / aktywny workout (defer do wyjścia z `/workout
 - Logout sheet: 3 akcje (wyczyść / zostaw dane / Anuluj = zamknij)
 - Summary: headline dominant — bez toastu „dzień ukończony”
 
-## Hierarchia ekranu treningu (Strong-style)
+## Hierarchia ekranu treningu (układ programowy)
 
 1. **POZIOM 1** — liczba celu (`--sr-text-display`), CTA „Zrobione"
 2. **POZIOM 2** — kontekst: seria, `PreviousResultBadge`
@@ -74,9 +74,9 @@ Bez auto Max Test; drugi program nie w setupQueue.
 [Status dnia — headline + opcjonalny subtitle]
 [Attention: InstallCoach XOR HomeTip]
 [Zacznij trening]
-  — CustomPlanHomeCard(s) LUB empty: Stwórz plan + Biblioteka (nad Strong)
+  — CustomPlanHomeCard(s) LUB empty: Stwórz plan + Biblioteka (nad programami)
   — ProgramHomeCard(s) z pełnym lifecycle (unconfigured: badge + soft hint + CTA)
-  — custom-only ([] builtins): Empty „Twój trening…” + Stwórz plan / Włącz Strong
+  — custom-only ([] builtins): Empty „Twój trening…” + Stwórz plan / Włącz program
 [Twoja aktywność — MetricStrip + trend „wcześniej”]
 [Tab bar: Trening · Postępy · Plany · Profil]
 ```
@@ -123,7 +123,7 @@ Query: ?tab=mine|programs|library ; legacy ?library=1 → library
 [PageHeader: Profil]
 [Konto — AccountHero: badge · sync · 1 CTA · FAQ · Wyloguj ghost]
 [Odznaki — gablotka 3 sloty (auto najmocniejsze / ręczne) · Wybierz · Wszystkie → Postępy]
-[Programy — karty Strong kompakt + ⋮ · dodaj dashed · własne wiersze]
+[Programy — karty programów kompakt + ⋮ · dodaj dashed · własne wiersze]
 [Wygląd]
 [Ustawienia treningu]
 [Przypomnienia — push: godzina lokalna w dniu dostępnego treningu]

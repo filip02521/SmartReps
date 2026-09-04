@@ -218,11 +218,11 @@ test.describe('SmartReps routing critical paths', () => {
       timeout: 15_000,
     })
     await expect(page.getByRole('button', { name: 'Stwórz plan' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Włącz program Strong' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Włącz program treningowy' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Rozpocznij konfigurację' })).toHaveCount(0)
   })
 
-  test('1c) dual Strong stays on home — no auto drain to pullups', async ({ page }) => {
+  test('1c) dual program stays on home — no auto drain to pullups', async ({ page }) => {
     test.setTimeout(120_000)
     await page.goto('/setup/onboarding')
     await expect(page.getByRole('heading', { name: 'Witaj w SmartReps' })).toBeVisible({

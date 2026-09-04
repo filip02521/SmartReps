@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSeo } from '@/hooks/useSeo'
 import { LogoFull, LogoMark } from '@/components/brand/Logo'
 import { Button } from '@/components/ui/Button'
 import { PageLoader, SkeletonCard, EmptyState, ErrorBanner } from '@/components/ux/Feedback'
@@ -34,6 +35,7 @@ export default function Dashboard() {
   const settings = useAppStore((s) => s.settings)
   const dismissedHomeTipId = useAppStore((s) => s.dismissedHomeTipId)
   const dismissedHomeTipDay = useAppStore((s) => s.dismissedHomeTipDay)
+  useSeo({ title: pl.seoDashboardTitle, description: pl.seoDashboardDescription, path: '/' })
   const hasCompletedFirstWorkout = useAppStore((s) => s.hasCompletedFirstWorkout)
   const dismissedLoginBackupTip = useAppStore((s) => s.dismissedLoginBackupTip)
   const dismissedHabitMetTip = useAppStore((s) => s.dismissedHabitMetTip)

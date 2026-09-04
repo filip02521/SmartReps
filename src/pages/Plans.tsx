@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSeo } from '@/hooks/useSeo'
 import { ChevronRight, Copy, Dumbbell, Download, MoreHorizontal, Pause, Pencil, Play, Plus, Share2, Trash2, Upload } from 'lucide-react'
 import { ProgramIcon } from '@/components/ui/ProgramIcon'
 import { allCycles } from '@/data/plans'
@@ -79,6 +80,7 @@ export default function PlansPage() {
   const navigate = useNavigate()
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const [searchParams, setSearchParams] = useSearchParams()
+  useSeo({ title: pl.seoPlansTitle, description: pl.seoPlansDescription, path: '/plans' })
   const highlightId = searchParams.get('highlight')
   const editParam = searchParams.get('edit')
   const dayParam = searchParams.get('day')

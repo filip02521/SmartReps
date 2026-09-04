@@ -23,6 +23,7 @@ import { isStandalonePwa } from '@/lib/pwa-detect'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
+import { useSeo } from '@/hooks/useSeo'
 import { track } from '@/lib/analytics'
 
 type LoginLocationState = { returnTo?: string; fromOnboarding?: boolean }
@@ -82,6 +83,7 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [sent, setSent] = useState(false)
+  useSeo({ title: pl.seoLoginTitle, description: pl.seoLoginDescription, path: '/setup/login' })
   const [loading, setLoading] = useState(false)
   const [resendIn, setResendIn] = useState(0)
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null)

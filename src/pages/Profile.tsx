@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useSeo } from '@/hooks/useSeo'
 import { Settings, MoreVertical } from 'lucide-react'
 import { useAppStore } from '@/stores/app-store'
 import { Button } from '@/components/ui/Button'
@@ -66,6 +67,7 @@ export default function ProfilePage() {
   const { settings, setSettings } = useAppStore()
   const navigate = useNavigate()
   const [email, setEmail] = useState<string | null>(null)
+  useSeo({ title: pl.seoProfileTitle, description: pl.seoProfileDescription, path: '/profile' })
   const [syncing, setSyncing] = useState(false)
   const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true))
   const [pendingChangeLevel, setPendingChangeLevel] = useState<Program | null>(null)

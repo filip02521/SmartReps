@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { StepIndicator, PageLoader } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
+import { useSeo } from '@/hooks/useSeo'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { runAuthenticatedSync, setAuthFromOnboarding, consumeAuthReturnTo } from '@/lib/auth-sync'
@@ -24,6 +25,7 @@ export default function Onboarding() {
   const [stepId, setStepId] = useState<WizardStep>('welcome')
   const [wantStrong, setWantStrong] = useState(true)
   const [wantCustom, setWantCustom] = useState(false)
+  useSeo({ title: pl.seoOnboardingTitle, description: pl.seoOnboardingDescription, path: '/setup/onboarding' })
   const [programs, setPrograms] = useState<Program[]>(['pushups'])
   const setSettings = useAppStore((s) => s.setSettings)
   const setSetupQueue = useAppStore((s) => s.setSetupQueue)
