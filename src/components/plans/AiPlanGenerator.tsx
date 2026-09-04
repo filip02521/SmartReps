@@ -12,7 +12,8 @@ import { generatePlan, commitGeneratedPlan, type PlanGenerationResult } from '@/
 import { AiApiError } from '@/lib/ai/ai-client'
 import type { PlanGenerationInput } from '@/lib/ai/prompts'
 import type { MetricTarget, SetPrescription } from '@/lib/exercise-model'
-import { Sparkles, Check, AlertTriangle } from 'lucide-react'
+import { AiCoachHeader, AiCoachMessage } from '@/components/brand/AiCoachHeader'
+import { Check, AlertTriangle, RotateCcw, Sparkles } from 'lucide-react'
 
 type Step = 'form' | 'generating' | 'result' | 'error'
 
@@ -65,7 +66,7 @@ export function AiPlanGenerator({
 
   function handleGenerate() {
     if (!apiKey) {
-      setError(pl.aiNoApiKey)
+      setError(pl.aiCoachNoApiKey)
       setStep('error')
       return
     }
@@ -183,11 +184,30 @@ export function AiPlanGenerator({
     <Sheet
       open={open}
       onClose={handleClose}
-      title={pl.aiGeneratePlan}
+      title={pl.aiCoachName}
     >
+      {/* Coach header — persistent across all steps */}
+      <AiCoachHeader
+        size="sm"
+        subtitle={pl.aiCoachTagline}
+        status={
+          step === 'generating'
+            ? pl.aiCoachGenerating
+            : step === 'result'
+              ? pl.aiCoachPlanReady
+              : step === 'error'
+                ? pl.aiCoachErrorRetry
+                : pl.aiCoachReady
+        }
+        pulse={step === 'generating'}
+      />
+
+      {/* FORM STEP — coach greets, then asks for details */}
       {step === 'form' && (
-        <div className="flex flex-col gap-4">
-          <FeedbackBanner variant="info" message={pl.aiGeneratePlanHint} />
+        <div className="mt-3 flex flex-col gap-4">
+          <AiCoachMessage tone="insight">
+            {pl.aiCoachGreetingPlan}
+          </AiCoachMessage>
 
           <TextField
             id="ai-description"
@@ -274,7 +294,7 @@ export function AiPlanGenerator({
           />
 
           {!apiKey && (
-            <FeedbackBanner variant="warning" message={pl.aiNoApiKey} />
+            <FeedbackBanner variant="warning" message={pl.aiCoachNoApiKey} />
           )}
 
           <Button
@@ -291,30 +311,42 @@ export function AiPlanGenerator({
         </div>
       )}
 
+      {/* GENERATING STEP — coach thinking */}
       {step === 'generating' && (
-        <div className="flex flex-col items-center gap-4 py-12">
+        <div className="mt-3 flex flex-col items-center gap-4 py-8">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--sr-border-subtle)] border-t-[var(--sr-brand-primary)]" />
-          <p className="text-sm text-[var(--sr-text-muted)]">{pl.aiGenerating}</p>
+          <p className="text-sm text-[var(--sr-text-muted)]">{pl.aiCoachGenerating}</p>
         </div>
       )}
 
+      {/* ERROR STEP — coach explains what went wrong */}
       {step === 'error' && (
-        <div className="flex flex-col gap-4">
-          <FeedbackBanner variant="error" message={error} />
+        <div className="mt-3 flex flex-col gap-4">
+          <AiCoachMessage tone="warning">
+            {error || pl.aiCoachErrorRetry}
+          </AiCoachMessage>
           <Button
             type="button"
             variant="secondary"
             fullWidth
             onClick={handleBackToForm}
+            className="gap-2"
           >
+            <RotateCcw size={18} aria-hidden />
             {pl.planBack}
           </Button>
         </div>
       )}
 
+      {/* RESULT STEP — coach presents the plan */}
       {step === 'result' && result && (
-        <div className="flex flex-col gap-4">
-          {/* Plan preview */}
+        <div className="mt-3 flex flex-col gap-3">
+          {/* Coach intro message */}
+          <AiCoachMessage tone="insight">
+            {pl.aiCoachPlanReady}
+          </AiCoachMessage>
+
+          {/* Plan preview card */}
           <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-4">
             <h3 className="text-lg font-bold text-[var(--sr-text-primary)]">
               {result.plan.name}
@@ -358,14 +390,14 @@ export function AiPlanGenerator({
             </div>
           </div>
 
-          {/* Rationale */}
+          {/* Rationale — coach explains the "why" */}
           {result.rationale && (
-            <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)]/30 p-3">
+            <AiCoachMessage tone="insight">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--sr-brand-primary)]">
                 {pl.aiRationaleTitle}
               </p>
-              <p className="text-sm text-[var(--sr-text-secondary)]">{result.rationale}</p>
-            </div>
+              {result.rationale}
+            </AiCoachMessage>
           )}
 
           {/* New exercises info */}
@@ -438,7 +470,9 @@ export function AiPlanGenerator({
             fullWidth
             disabled={importing}
             onClick={handleDiscardResult}
+            className="gap-2"
           >
+            <RotateCcw size={16} aria-hidden />
             {pl.aiDiscard}
           </Button>
         </div>

@@ -6,6 +6,7 @@ import { pl as plLocale } from 'date-fns/locale'
 import { OverviewPanel } from '@/components/progress/OverviewPanel'
 import { HistoryPanel } from '@/components/progress/HistoryPanel'
 import { AiWorkoutAnalysis } from '@/components/progress/AiWorkoutAnalysis'
+import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
 import { db } from '@/lib/db'
@@ -301,6 +302,7 @@ export default function ProgressPage() {
 
       <div role="tabpanel" aria-label={pl.navProgress}>
         {tab === 'overview' && (
+          <>
           <OverviewPanel
             program={program}
             enabledPrograms={settings.enabledPrograms}
@@ -324,6 +326,31 @@ export default function ProgressPage() {
             onOpenExercise={(id) => void openExerciseDetail(id)}
             navigate={navigate}
           />
+          {/* AI Coach teaser — discoverability for analysis feature */}
+          {hasAnyData && (
+            <button
+              type="button"
+              onClick={() => selectTab('history')}
+              className="mt-4 flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-brand-primary)]/30 p-3 text-left transition-colors hover:bg-[var(--sr-bg-surface)]"
+              style={{
+                backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 8%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 60%)`,
+              }}
+            >
+              <AiCoachMark size="md" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-[var(--sr-text-primary)]">
+                  {pl.aiCoachName}
+                </p>
+                <p className="text-xs text-[var(--sr-text-secondary)]">
+                  {pl.aiAnalysisHint}
+                </p>
+              </div>
+              <span className="shrink-0 text-xs font-medium text-[var(--sr-brand-primary)]">
+                {pl.aiAnalyze}
+              </span>
+            </button>
+          )}
+          </>
         )}
 
         {tab === 'history' && (

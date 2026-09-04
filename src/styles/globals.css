@@ -587,6 +587,34 @@ html[data-offline='1'] .safe-header {
   animation: check-in 200ms ease-out;
 }
 
+/* AI Coach — gentle ring pulse when processing */
+@keyframes sr-coach-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.04);
+  }
+}
+
+/* AI Coach — message bubble entrance */
+@keyframes sr-coach-msg-in {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.sr-coach-msg-in {
+  animation: sr-coach-msg-in 220ms ease-out;
+}
+
 [data-high-contrast='true'] {
   --sr-border-subtle: #71717a;
   --sr-border-strong: #a1a1aa;

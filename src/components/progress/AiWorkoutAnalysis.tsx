@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { FeedbackBanner } from '@/components/ux/Feedback'
 import { PageSection } from '@/components/ui/PageSection'
@@ -7,7 +7,9 @@ import { useAppStore } from '@/stores/app-store'
 import { listExercises } from '@/lib/custom-plan-service'
 import { analyzeWorkouts, type AnalysisResult } from '@/lib/ai/workout-analyzer'
 import { AiApiError } from '@/lib/ai/ai-client'
-import { Sparkles, TrendingUp, AlertTriangle, Check, Lightbulb } from 'lucide-react'
+import { AiCoachHeader, AiCoachMessage } from '@/components/brand/AiCoachHeader'
+import { TrendingUp, AlertTriangle, Check, Lightbulb, RotateCcw } from 'lucide-react'
+import { db } from '@/lib/db'
 import { cn } from '@/lib/utils'
 
 const PRIORITY_COLORS = {
@@ -37,14 +39,24 @@ export function AiWorkoutAnalysis() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [hasSessions, setHasSessions] = useState<boolean | null>(null)
 
   const apiKey = settings.aiApiKey ?? ''
   const model = settings.aiModel ?? 'gpt-4o-mini'
   const baseURL = settings.aiBaseUrl ?? ''
 
+  // Check if there are any completed sessions to analyze
+  useEffect(() => {
+    void db.workoutSessions
+      .filter((s) => s.status === 'completed')
+      .count()
+      .then((n) => setHasSessions(n > 0))
+      .catch(() => setHasSessions(false))
+  }, [])
+
   function handleAnalyze() {
     if (!apiKey) {
-      setError(pl.aiNoApiKey)
+      setError(pl.aiCoachNoApiKey)
       return
     }
     setLoading(true)
@@ -81,82 +93,106 @@ export function AiWorkoutAnalysis() {
 
   return (
     <PageSection title={pl.aiAnalysisTitle} hint={pl.aiAnalysisHint}>
-      {!apiKey && (
-        <FeedbackBanner variant="warning" message={pl.aiNoApiKey} />
+      {/* Coach header — always visible, establishes persona */}
+      <AiCoachHeader
+        subtitle={pl.aiCoachTagline}
+        status={
+          loading
+            ? pl.aiCoachAnalyzing
+            : result
+              ? pl.aiCoachAnalysisDone
+              : error
+                ? pl.aiCoachErrorRetry
+                : pl.aiCoachReady
+        }
+        pulse={loading}
+      />
+
+      {/* Coach greeting — before first analysis */}
+      {!result && !loading && !error && hasSessions && (
+        <AiCoachMessage tone="insight" className="mt-3">
+          {pl.aiCoachGreeting}
+        </AiCoachMessage>
       )}
 
+      {/* Empty state — no workouts to analyze */}
+      {!result && !loading && !error && hasSessions === false && (
+        <AiCoachMessage tone="default" className="mt-3">
+          {pl.aiAnalysisEmpty}
+        </AiCoachMessage>
+      )}
+
+      {/* Error */}
       {error && (
-        <div className="mb-3">
+        <div className="mt-3">
           <FeedbackBanner variant="error" message={error} />
         </div>
       )}
 
-      {!result && !loading && (
+      {/* CTA — before first analysis or after error (only if sessions exist) */}
+      {!result && !loading && hasSessions && (
         <Button
           type="button"
           variant="secondary"
           fullWidth
           disabled={!apiKey}
           onClick={handleAnalyze}
-          className="gap-2"
+          className="mt-3 gap-2"
         >
-          <Sparkles size={18} aria-hidden />
           {pl.aiAnalyze}
         </Button>
       )}
 
+      {/* Loading — coach thinking state */}
       {loading && (
-        <div className="flex flex-col items-center gap-3 py-8">
+        <div className="mt-3 flex flex-col items-center gap-3 py-6">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--sr-border-subtle)] border-t-[var(--sr-brand-primary)]" />
-          <p className="text-sm text-[var(--sr-text-muted)]">{pl.aiAnalyzing}</p>
+          <p className="text-sm text-[var(--sr-text-muted)]">{pl.aiCoachAnalyzing}</p>
         </div>
       )}
 
+      {/* Results — coach conversation layout */}
       {result && !loading && (
-        <div className="flex flex-col gap-4">
-          {/* Summary */}
-          <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3">
-            <p className="text-sm text-[var(--sr-text-secondary)]">{result.summary}</p>
-          </div>
+        <div className="mt-3 flex flex-col gap-3">
+          {/* Summary — coach's opening message */}
+          <AiCoachMessage tone="insight">
+            {result.summary}
+          </AiCoachMessage>
 
           {/* Strengths */}
           {result.strengths.length > 0 && (
-            <div>
-              <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-[var(--sr-success)]">
+            <AiCoachMessage tone="success">
+              <p className="mb-2 flex items-center gap-1.5 font-semibold text-[var(--sr-success)]">
                 <Check size={16} aria-hidden />
                 {pl.aiStrengths}
               </p>
               <ul className="flex flex-col gap-1">
                 {result.strengths.map((s, i) => (
-                  <li key={i} className="text-sm text-[var(--sr-text-secondary)]">
-                    • {s}
-                  </li>
+                  <li key={i}>• {s}</li>
                 ))}
               </ul>
-            </div>
+            </AiCoachMessage>
           )}
 
           {/* Weaknesses */}
           {result.weaknesses.length > 0 && (
-            <div>
-              <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-[var(--sr-warning)]">
+            <AiCoachMessage tone="warning">
+              <p className="mb-2 flex items-center gap-1.5 font-semibold text-[var(--sr-warning)]">
                 <AlertTriangle size={16} aria-hidden />
                 {pl.aiWeaknesses}
               </p>
               <ul className="flex flex-col gap-1">
                 {result.weaknesses.map((w, i) => (
-                  <li key={i} className="text-sm text-[var(--sr-text-secondary)]">
-                    • {w}
-                  </li>
+                  <li key={i}>• {w}</li>
                 ))}
               </ul>
-            </div>
+            </AiCoachMessage>
           )}
 
           {/* Volume assessment */}
           {result.volumeAssessment.length > 0 && (
-            <div>
-              <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-[var(--sr-text-primary)]">
+            <AiCoachMessage>
+              <p className="mb-2 flex items-center gap-1.5 font-semibold text-[var(--sr-text-primary)]">
                 <TrendingUp size={16} aria-hidden />
                 {pl.aiVolumeAssessment}
               </p>
@@ -167,14 +203,14 @@ export function AiWorkoutAnalysis() {
                   return (
                     <li
                       key={i}
-                      className="rounded-[var(--sr-radius-sm)] border border-[var(--sr-border-subtle)] p-2"
+                      className="rounded-[var(--sr-radius-sm)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-2"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-[var(--sr-text-primary)]">
+                        <span className="font-medium text-[var(--sr-text-primary)]">
                           {label}
                         </span>
                         <span className={cn('text-xs font-semibold', STATUS_COLORS[status])}>
-                          {v.weeklySets} serii/tyg — {STATUS_LABELS[status]}
+                          {v.weeklySets} {pl.setsShort}/tyg — {STATUS_LABELS[status]}
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
@@ -184,13 +220,13 @@ export function AiWorkoutAnalysis() {
                   )
                 })}
               </ul>
-            </div>
+            </AiCoachMessage>
           )}
 
           {/* Suggestions */}
           {result.suggestions.length > 0 && (
-            <div>
-              <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-[var(--sr-text-primary)]">
+            <AiCoachMessage>
+              <p className="mb-2 flex items-center gap-1.5 font-semibold text-[var(--sr-text-primary)]">
                 <Lightbulb size={16} aria-hidden />
                 {pl.aiSuggestions}
               </p>
@@ -199,14 +235,14 @@ export function AiWorkoutAnalysis() {
                   <li
                     key={i}
                     className={cn(
-                      'rounded-[var(--sr-radius-sm)] border border-[var(--sr-border-subtle)] border-l-4 p-3',
+                      'rounded-[var(--sr-radius-sm)] border border-[var(--sr-border-subtle)] border-l-4 bg-[var(--sr-bg-surface)] p-3',
                       PRIORITY_COLORS[s.priority],
                     )}
                   >
-                    <p className="text-sm font-medium text-[var(--sr-text-primary)]">
+                    <p className="font-medium text-[var(--sr-text-primary)]">
                       {s.title}
                     </p>
-                    <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">
+                    <p className="mt-1 text-[var(--sr-text-secondary)]">
                       {s.description}
                     </p>
                     <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
@@ -219,7 +255,7 @@ export function AiWorkoutAnalysis() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </AiCoachMessage>
           )}
 
           <Button
@@ -227,7 +263,9 @@ export function AiWorkoutAnalysis() {
             variant="ghost"
             fullWidth
             onClick={() => setResult(null)}
+            className="mt-1 gap-2"
           >
+            <RotateCcw size={16} aria-hidden />
             {pl.aiAnalyzeAgain}
           </Button>
         </div>

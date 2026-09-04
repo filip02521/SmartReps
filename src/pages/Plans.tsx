@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
-import { ChevronRight, Copy, Dumbbell, Download, MoreHorizontal, Pause, Pencil, Play, Plus, Share2, Sparkles, Trash2, Upload } from 'lucide-react'
+import { ChevronRight, Copy, Dumbbell, Download, MoreHorizontal, Pause, Pencil, Play, Plus, Share2, Trash2, Upload } from 'lucide-react'
 import { ProgramIcon } from '@/components/ui/ProgramIcon'
+import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { allCycles } from '@/data/plans'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { PageSection } from '@/components/ui/PageSection'
@@ -319,17 +320,25 @@ export default function PlansPage() {
               <Plus size={20} aria-hidden />
               {pl.newCustomPlan}
             </Button>
-            <Button
+            <button
               type="button"
-              variant="secondary"
-              size="sm"
-              fullWidth
               onClick={() => setAiGeneratorOpen(true)}
-              className="gap-2"
+              className="flex w-full items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-bg-elevated)] p-3 text-left transition-colors hover:bg-[var(--sr-bg-surface)]"
+              style={{
+                backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 8%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 60%)`,
+              }}
             >
-              <Sparkles size={16} aria-hidden />
-              {pl.aiGeneratePlan}
-            </Button>
+              <AiCoachMark size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-[var(--sr-text-primary)]">
+                  {pl.aiCoachName}
+                </p>
+                <p className="text-xs text-[var(--sr-text-secondary)]">
+                  {pl.aiGeneratePlanHint}
+                </p>
+              </div>
+              <ChevronRight size={18} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
+            </button>
             <Button
               type="button"
               variant="ghost"

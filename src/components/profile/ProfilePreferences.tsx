@@ -4,6 +4,7 @@ import { PageSection } from '@/components/ui/PageSection'
 import { TextField } from '@/components/ui/TextField'
 import { SwitchRow } from '@/components/ui/Switch'
 import { Button } from '@/components/ui/Button'
+import { AiCoachHeader } from '@/components/brand/AiCoachHeader'
 import { pl } from '@/i18n/pl'
 import type { UserSettings } from '@/stores/app-store'
 
@@ -235,8 +236,15 @@ export function ProfilePreferences({
         )}
       </PageSection>
 
-      <PageSection title={pl.aiSettingsTitle} hint={pl.aiSettingsHint} className={SECTION}>
-        <div>
+      <PageSection title={pl.aiCoachConfigTitle} hint={pl.aiCoachConfigHint} className={SECTION}>
+        {/* Coach status header — shows connection state */}
+        <AiCoachHeader
+          size="sm"
+          subtitle={pl.aiCoachTagline}
+          status={apiKeyDraft.trim() ? pl.aiCoachConfigConnected : pl.aiCoachConfigDisconnected}
+        />
+
+        <div className="mt-4">
           <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
             {pl.aiProviderLabel}
           </p>
@@ -308,7 +316,7 @@ export function ProfilePreferences({
             onAiBaseUrlSave(baseUrlDraft.trim())
           }}
         >
-          {pl.communityDisplayNameSave}
+          {pl.aiCoachConfigSave}
         </Button>
       </PageSection>
     </>
