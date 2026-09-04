@@ -873,11 +873,11 @@ export const pl = {
   totalRepsDelta: (n: number) => `${n > 0 ? '+' : ''}${n} względem poprzedniej sesji`,
 
   // Plans — resistance bands
-  plansCatalogHint:
-    'Katalog cykli — poziom i start wybierasz na Treningu lub w Profilu.',
   plansMinePageHint: 'Własne plany treningowe — edycja i start.',
   plansLibraryPageHint: 'Ćwiczenia do użycia w planach.',
+  plansProgramsPageHint: 'Programy pompki i podciąganie — rozwiń cykl, aby zobaczyć cele.',
   plansProgramHint: 'Rozwiń cykl, aby zobaczyć cele serii w kolejnych dniach.',
+  plansTabAriaLabel: 'Zakładki planów',
   plansYourCycle: 'Twój cykl',
   plansDayCount: (n: number) => (n === 1 ? '1 dzień' : `${n} dni`),
   plansPeakDay: (day: number, reps: number) => `szczyt D${day} · ~${reps} powt.`,

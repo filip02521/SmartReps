@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronRight, Dumbbell, MoreHorizontal } from 'lucide-react'
+import { ChevronRight, Copy, Dumbbell, Download, MoreHorizontal, Pause, Pencil, Play, Plus, Share2, Trash2, Upload } from 'lucide-react'
 import { ProgramIcon } from '@/components/ui/ProgramIcon'
 import { allCycles } from '@/data/plans'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -60,7 +60,7 @@ function plansSubtitle(tab: PlansTab): string {
   if (tab === 'mine') return pl.plansMinePageHint
   if (tab === 'library') return pl.plansLibraryPageHint
   if (tab === 'community') return pl.plansCommunityPageHint
-  return pl.plansCatalogHint
+  return pl.plansProgramsPageHint
 }
 
 function planExerciseCount(plan: CustomPlan): number {
@@ -260,6 +260,8 @@ export default function PlansPage() {
       <SegmentedControl
         className="mt-2"
         size="compact"
+        stretch
+        aria-label={pl.plansTabAriaLabel}
         value={tab}
         onChange={(v) => {
           setTab(v)
@@ -267,18 +269,21 @@ export default function PlansPage() {
         }}
         options={[
           { value: 'mine', label: pl.plansTabMine },
-          { value: 'community', label: pl.plansTabCommunity },
           { value: 'programs', label: pl.plansTabPrograms },
+          { value: 'community', label: pl.plansTabCommunity },
           { value: 'library', label: pl.plansTabLibrary },
         ]}
       />
 
-      {tab === 'community' &&
-        (communityMine ? (
-          <MyCommunityPublicationsPanel />
-        ) : (
-          <CommunityCatalogPanel showMyLink />
-        ))}
+      {tab === 'community' && (
+        <div className="mt-4">
+          {communityMine ? (
+            <MyCommunityPublicationsPanel />
+          ) : (
+            <CommunityCatalogPanel showMyLink />
+          )}
+        </div>
+      )}
 
       {tab === 'mine' && (
         <>
@@ -292,6 +297,7 @@ export default function PlansPage() {
           )}
           <div className="mb-4 flex flex-col gap-2">
             <Button type="button" size="touch" fullWidth onClick={() => void openEditor(null)}>
+              <Plus size={20} aria-hidden />
               {pl.newCustomPlan}
             </Button>
             <Button
@@ -301,6 +307,7 @@ export default function PlansPage() {
               fullWidth
               onClick={() => importInputRef.current?.click()}
             >
+              <Upload size={16} aria-hidden />
               {pl.planImportJson}
             </Button>
             <input
@@ -423,6 +430,7 @@ export default function PlansPage() {
                             setPreviewPlan({ plan, day, dayNumber })
                           }}
                         >
+                          <Play size={16} aria-hidden />
                           {customResume[plan.id]
                             ? pl.continueWorkout(
                                 customResume[plan.id]!.day,
@@ -439,6 +447,7 @@ export default function PlansPage() {
                             void setCustomPlanPaused(plan.id, false).then(() => reloadCustom())
                           }
                         >
+                          <Play size={16} aria-hidden />
                           {pl.planResume}
                         </Button>
                       ) : null}
@@ -448,6 +457,7 @@ export default function PlansPage() {
                         variant={isActive ? 'secondary' : 'primary'}
                         onClick={() => void openEditor(plan.id)}
                       >
+                        <Pencil size={16} aria-hidden />
                         {pl.editPlan}
                       </Button>
                       <Button
@@ -502,9 +512,12 @@ export default function PlansPage() {
       )}
 
       {tab === 'library' && (
-        <div className="mt-4">
+        <PageSection
+          title={pl.plansTabLibrary}
+          className="mt-4"
+        >
           <ExerciseLibraryPanel mode="manage" onExercisesChange={() => void reloadCustom()} />
-        </div>
+        </PageSection>
       )}
 
       {tab === 'programs' &&
@@ -524,7 +537,7 @@ export default function PlansPage() {
               />
             </PageSection>
 
-            <PageSection title={pl.pullupsProgram} hint={pl.plansProgramHint} className="mt-8">
+            <PageSection title={pl.pullupsProgram} hint={pl.plansProgramHint} className="mt-6">
               <CycleList
                 program="pullups"
                 cycles={pullups}
@@ -536,7 +549,7 @@ export default function PlansPage() {
               />
             </PageSection>
 
-            <PageSection title={pl.resistanceBandsTitle} hint={pl.resistanceBandsIntro} className="mt-8">
+            <PageSection title={pl.resistanceBandsTitle} hint={pl.resistanceBandsIntro} className="mt-6">
               <ul className="list-disc space-y-2 pl-5 sr-text-body-sm text-[var(--sr-text-secondary)]">
                 <li>{pl.resistanceBandsTip1}</li>
                 <li>{pl.resistanceBandsTip2}</li>
@@ -582,6 +595,7 @@ export default function PlansPage() {
                 })
               }
             >
+              <Copy size={16} aria-hidden />
               {pl.planDuplicate}
             </Button>
             <Button
@@ -593,6 +607,7 @@ export default function PlansPage() {
                 setMorePlan(null)
               }}
             >
+              <Download size={16} aria-hidden />
               {pl.planExportJson}
             </Button>
             {morePlan.status === 'active' ? (
@@ -610,6 +625,7 @@ export default function PlansPage() {
                   setMorePlan(null)
                 }}
               >
+                <Share2 size={16} aria-hidden />
                 {pl.communityPublish}
               </Button>
             ) : null}
@@ -628,7 +644,17 @@ export default function PlansPage() {
                   })
                 }
               >
-                {customProgress[morePlan.id]?.status === 'paused' ? pl.planResume : pl.planPause}
+                {customProgress[morePlan.id]?.status === 'paused' ? (
+                  <>
+                    <Play size={16} aria-hidden />
+                    {pl.planResume}
+                  </>
+                ) : (
+                  <>
+                    <Pause size={16} aria-hidden />
+                    {pl.planPause}
+                  </>
+                )}
               </Button>
             ) : null}
             <Button
@@ -640,6 +666,7 @@ export default function PlansPage() {
                 setMorePlan(null)
               }}
             >
+              <Trash2 size={16} aria-hidden />
               {pl.planDelete}
             </Button>
           </div>
