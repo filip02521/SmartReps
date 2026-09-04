@@ -37,6 +37,7 @@ export function OverviewPanel({
   customVolumeStats,
   customSessionChart,
   customOverviewStats,
+  customPlanNames,
   recordsWithDates,
   onOpenExercise,
   navigate,
@@ -58,6 +59,7 @@ export function OverviewPanel({
   customVolumeStats: CustomVolumeStats | null
   customSessionChart: CustomSessionChartPoint[]
   customOverviewStats: CustomOverviewStats | null
+  customPlanNames: Record<string, string>
   recordsWithDates: ProgramRecordsWithDates | null
   onOpenExercise: (exerciseId: string) => void
   navigate: NavigateFunction
@@ -287,7 +289,7 @@ export function OverviewPanel({
       {/* Kalendarz aktywności */}
       {allSessions.length > 0 && (
         <ProgressSection first={calendarFirst} title={pl.calendarTitle} hint={pl.calendarHint}>
-          <ActivityCalendar sessions={allSessions} />
+          <ActivityCalendar sessions={allSessions} customPlanNames={customPlanNames} navigate={navigate} />
         </ProgressSection>
       )}
 

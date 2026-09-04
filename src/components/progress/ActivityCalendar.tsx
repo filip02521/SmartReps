@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, X, ChevronRight as ChevronRightIcon } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, parseISO } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { Button } from '@/components/ui/Button'
@@ -7,14 +7,24 @@ import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import type { LocalWorkoutSession } from '@/lib/db'
+import type { NavigateFunction } from 'react-router-dom'
 
 const WEEKDAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd']
 
-function sessionLabel(s: LocalWorkoutSession): string {
-  if (s.customPlanId) return pl.calendarSessionCustom
+function sessionLabel(s: LocalWorkoutSession, customPlanNames: Record<string, string>): string {
+  if (s.customPlanId) {
+    return customPlanNames[s.customPlanId] ?? pl.calendarSessionCustom
+  }
   if (s.program === 'pushups') return pl.pushupsProgram
   if (s.program === 'pullups') return pl.pullupsProgram
   return pl.calendarSessionBuiltin
+}
+
+function sessionRoute(s: LocalWorkoutSession): string {
+  if (s.customPlanId) {
+    return `/workout/custom/${s.customPlanId}/summary?session=${s.id}`
+  }
+  return `/workout/${s.program}/summary?session=${s.id}`
 }
 
 /**
@@ -22,7 +32,15 @@ function sessionLabel(s: LocalWorkoutSession): string {
  * Sessions are mapped to calendar dates — completed sessions get a filled dot,
  * failed sessions get a hollow dot, in-progress/abandoned are omitted.
  */
-export function ActivityCalendar({ sessions }: { sessions: LocalWorkoutSession[] }) {
+export function ActivityCalendar({
+  sessions,
+  customPlanNames = {},
+  navigate,
+}: {
+  sessions: LocalWorkoutSession[]
+  customPlanNames?: Record<string, string>
+  navigate?: NavigateFunction
+}) {
   const [cursor, setCursor] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
@@ -199,30 +217,50 @@ export function ActivityCalendar({ sessions }: { sessions: LocalWorkoutSession[]
           <p className="sr-text-overline text-[var(--sr-text-muted)] capitalize">
             {format(selectedDate!, 'EEEE d MMMM yyyy', { locale: plLocale })}
           </p>
-          <ul className="mt-2 space-y-2">
-            {selectedSessions.map((s) => (
-              <li key={s.id} className="flex items-center gap-2.5 sr-text-body-sm">
-                <span
-                  className={cn(
-                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
-                    s.passed === false
-                      ? 'bg-[var(--sr-error)]/15 text-[var(--sr-error)]'
-                      : 'bg-[var(--sr-success)]/15 text-[var(--sr-success)]',
-                  )}
-                  aria-hidden
-                >
-                  {s.passed === false ? <X size={12} strokeWidth={3} /> : <Check size={12} strokeWidth={3} />}
-                </span>
-                <span className="min-w-0 flex-1 text-[var(--sr-text-primary)]">
-                  {sessionLabel(s)}
-                </span>
-                {s.totalReps != null && s.totalReps > 0 && (
-                  <span className="shrink-0 text-[var(--sr-text-muted)]">
-                    {s.totalReps} {pl.repUnit}
-                  </span>
-                )}
-              </li>
-            ))}
+          <ul className="mt-2 space-y-1.5">
+            {selectedSessions.map((s) => {
+              const canNavigate = navigate != null
+              return (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    disabled={!canNavigate}
+                    onClick={() => {
+                      if (!navigate) return
+                      navigate(sessionRoute(s))
+                    }}
+                    className={cn(
+                      'flex w-full items-center gap-2.5 rounded-[var(--sr-radius-sm)] py-1.5 text-left transition-colors',
+                      canNavigate && 'hover:bg-[var(--sr-bg-elevated)] active:scale-[0.99]',
+                      FOCUS_RING,
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
+                        s.passed === false
+                          ? 'bg-[var(--sr-error)]/15 text-[var(--sr-error)]'
+                          : 'bg-[var(--sr-success)]/15 text-[var(--sr-success)]',
+                      )}
+                      aria-hidden
+                    >
+                      {s.passed === false ? <X size={12} strokeWidth={3} /> : <Check size={12} strokeWidth={3} />}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate sr-text-body-sm text-[var(--sr-text-primary)]">
+                      {sessionLabel(s, customPlanNames)}
+                    </span>
+                    {s.totalReps != null && s.totalReps > 0 && (
+                      <span className="shrink-0 text-xs text-[var(--sr-text-muted)]">
+                        {s.totalReps} {pl.repUnit}
+                      </span>
+                    )}
+                    {canNavigate && (
+                      <ChevronRightIcon size={16} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
+                    )}
+                  </button>
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}

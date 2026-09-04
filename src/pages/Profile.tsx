@@ -329,10 +329,10 @@ export default function ProfilePage() {
       {/* Stats summary */}
       <ProfileStats />
 
-      <BodyWeightSection />
-
-      {/* Achievements */}
+      {/* Achievements (gablotka) */}
       <ProfileAchievementsSection />
+
+      <BodyWeightSection />
 
       {/* Programs */}
       <PageSection title={pl.programs} className="mt-8">

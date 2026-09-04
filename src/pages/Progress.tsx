@@ -316,6 +316,7 @@ export default function ProgressPage() {
             customVolumeStats={customVolumeStats}
             customSessionChart={customSessionChart}
             customOverviewStats={customOverviewStats}
+            customPlanNames={customPlanNames}
             recordsWithDates={recordsWithDates}
             onOpenExercise={(id) => void openExerciseDetail(id)}
             navigate={navigate}
