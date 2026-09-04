@@ -531,6 +531,12 @@ export default function ProfilePage() {
         onTimerVibrationChange={(checked) => setSettings({ timerVibration: checked })}
         onKeepScreenOnChange={(checked) => setSettings({ keepScreenOn: checked })}
         onWeightUnitChange={(unit) => setSettings({ weightUnit: unit })}
+        onAiApiKeySave={(key) => {
+          setSettings({ aiApiKey: key })
+          showToast(pl.communityDisplayNameSaved, 'success')
+        }}
+        onAiModelSave={(model) => setSettings({ aiModel: model })}
+        onAiBaseUrlSave={(url) => setSettings({ aiBaseUrl: url })}
         onDisplayNameSave={async (name) => {
           if (!name) {
             showToast(pl.communityPublishNeedName, 'error')

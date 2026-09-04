@@ -2,9 +2,11 @@ import { db, type LocalWorkoutSession } from '@/lib/db'
 import type {
   CustomPlan,
   ExerciseDefinition,
+  MetricTarget,
   MuscleGroup,
   PlanDay,
   PrimaryMetric,
+  SetPrescription,
 } from '@/lib/exercise-model'
 import {
   EXERCISE_STARTERS,
@@ -532,3 +534,73 @@ export async function applyCycleProgression(planId: string): Promise<CustomPlan 
   const next = applyProgressionToPlan(plan, rule, { nextCycleAttempt })
   return saveCustomPlan(next, { activate: true })
 }
+
+/**
+ * Repair all plans where set targets don't match the exercise's primaryMetric.
+ * Fixes: duration_sec exercises with reps targets, and reps exercises with durationSec targets.
+ * Returns count of fixed plans and sets.
+ */
+export async function repairPlanSetMetrics(): Promise<{ fixedPlans: number; fixedSets: number }> {
+  const exercises = await db.exercises.toArray()
+  const exById = new Map(exercises.map((e) => [e.id, e]))
+  const plans = await db.customPlans.toArray()
+
+  let fixedPlans = 0
+  let fixedSets = 0
+
+  function fixSet(set: SetPrescription, metric: PrimaryMetric): SetPrescription {
+    if (metric === 'duration_sec') {
+      if (set.durationSec) return set
+      if (set.reps) {
+        const v = set.reps.kind === 'max' ? set.reps.minValue : set.reps.value
+        const dur = Math.max(10, Math.round(v * 3))
+        const target: MetricTarget =
+          set.reps.kind === 'max' ? { kind: 'max', minValue: dur } : { kind: set.reps.kind, value: dur }
+        return { durationSec: target }
+      }
+      return { durationSec: { kind: 'fixed', value: 30 } }
+    }
+    // reps or reps_weight
+    if (set.reps) return set
+    if (set.durationSec) {
+      const v = set.durationSec.kind === 'max' ? set.durationSec.minValue : set.durationSec.value
+      const reps = Math.max(1, Math.round(v / 3))
+      const target: MetricTarget =
+        set.durationSec.kind === 'max' ? { kind: 'max', minValue: reps } : { kind: set.durationSec.kind, value: reps }
+      return { reps: target, ...(set.weightKg ? { weightKg: set.weightKg } : {}) }
+    }
+    return { reps: { kind: 'fixed', value: 8 } }
+  }
+
+  for (const plan of plans) {
+    let changed = false
+    for (const day of plan.days) {
+      for (const ex of day.exercises) {
+        const def = exById.get(ex.exerciseId)
+        if (!def) continue
+        const newSets = ex.sets.map((s) => {
+          const needsFix =
+            (def.primaryMetric === 'duration_sec' && !s.durationSec) ||
+            (def.primaryMetric !== 'duration_sec' && !s.reps)
+          if (needsFix) {
+            fixedSets++
+            return fixSet(s, def.primaryMetric)
+          }
+          return s
+        })
+        if (JSON.stringify(newSets) !== JSON.stringify(ex.sets)) {
+          ex.sets = newSets
+          changed = true
+        }
+      }
+    }
+    if (changed) {
+      plan.updatedAt = new Date().toISOString()
+      await db.customPlans.put(plan)
+      fixedPlans++
+    }
+  }
+
+  return { fixedPlans, fixedSets }
+}
+

@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { OverviewPanel } from '@/components/progress/OverviewPanel'
 import { HistoryPanel } from '@/components/progress/HistoryPanel'
+import { AiWorkoutAnalysis } from '@/components/progress/AiWorkoutAnalysis'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
 import { db } from '@/lib/db'
@@ -344,6 +345,12 @@ export default function ProgressPage() {
                 void getAllUnlocks().then(setAchievementUnlocks)
               }}
             />
+          </div>
+        )}
+
+        {tab === 'history' && (
+          <div className="mt-4">
+            <AiWorkoutAnalysis />
           </div>
         )}
       </div>

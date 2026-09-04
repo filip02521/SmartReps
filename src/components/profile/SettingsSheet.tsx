@@ -32,6 +32,9 @@ type SettingsSheetProps = {
   onReminderHourChange: (hour: number) => void
   onDisplayNameSave: (name: string) => void | Promise<void>
   onWeightUnitChange: (unit: 'kg' | 'lb') => void
+  onAiApiKeySave: (key: string) => void
+  onAiModelSave: (model: string) => void
+  onAiBaseUrlSave: (url: string) => void
   // Data
   showDeleteAccount: boolean
   onImport: () => void
@@ -66,6 +69,9 @@ export function SettingsSheet({
   onReminderHourChange,
   onDisplayNameSave,
   onWeightUnitChange,
+  onAiApiKeySave,
+  onAiModelSave,
+  onAiBaseUrlSave,
   showDeleteAccount,
   onImport,
   onExportJson,
@@ -102,6 +108,9 @@ export function SettingsSheet({
           reminderHour={settings.reminderHour}
           displayName={settings.displayName ?? ''}
           weightUnit={settings.weightUnit}
+          aiApiKey={settings.aiApiKey ?? ''}
+          aiModel={settings.aiModel ?? 'gpt-4o-mini'}
+          aiBaseUrl={settings.aiBaseUrl ?? ''}
           pushDescription={pushDescription}
           remindersDenied={remindersDenied}
           pushDisabled={pushDisabled}
@@ -117,6 +126,9 @@ export function SettingsSheet({
           onReminderHourChange={onReminderHourChange}
           onDisplayNameSave={onDisplayNameSave}
           onWeightUnitChange={onWeightUnitChange}
+          onAiApiKeySave={onAiApiKeySave}
+          onAiModelSave={onAiModelSave}
+          onAiBaseUrlSave={onAiBaseUrlSave}
         />
 
         {/* Data management */}

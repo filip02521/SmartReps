@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
-import { ChevronRight, Copy, Dumbbell, Download, MoreHorizontal, Pause, Pencil, Play, Plus, Share2, Trash2, Upload } from 'lucide-react'
+import { ChevronRight, Copy, Dumbbell, Download, MoreHorizontal, Pause, Pencil, Play, Plus, Share2, Sparkles, Trash2, Upload } from 'lucide-react'
 import { ProgramIcon } from '@/components/ui/ProgramIcon'
 import { allCycles } from '@/data/plans'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -16,6 +16,7 @@ import { EmptyState, SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
 import { LogoMark } from '@/components/brand/Logo'
 import { ExerciseLibraryPanel } from '@/components/plans/ExerciseLibraryPanel'
 import { CustomPlanEditor } from '@/components/plans/CustomPlanEditor'
+import { AiPlanGenerator } from '@/components/plans/AiPlanGenerator'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { CustomWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
 import { getTargetReps } from '@/lib/progress-engine'
@@ -35,6 +36,7 @@ import {
   importCustomPlanFromJson,
   listCustomPlans,
   listExercises,
+  repairPlanSetMetrics,
   setCustomPlanPaused,
 } from '@/lib/custom-plan-service'
 import { getActiveCustomWorkoutDay } from '@/lib/custom-plan-edit-lock'
@@ -102,6 +104,7 @@ export default function PlansPage() {
   >({})
   const [exercises, setExercises] = useState<ExerciseDefinition[]>([])
   const [editorOpen, setEditorOpen] = useState(false)
+  const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false)
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null)
   const [editorInitialDay, setEditorInitialDay] = useState<number | null>(null)
   const [editorActiveDay, setEditorActiveDay] = useState<number | null>(null)
@@ -141,6 +144,20 @@ export default function PlansPage() {
     setCustomLoading(true)
     setCustomLoadError(null)
     try {
+      // Auto-repair: fix set targets that don't match exercise primaryMetric
+      // (one-time fix for AI-generated plans with mismatched metrics)
+      try {
+        const repaired = await repairPlanSetMetrics()
+        if (repaired.fixedPlans > 0) {
+          showToast(
+            `Naprawiono ${repaired.fixedPlans} plan(ów): ${repaired.fixedSets} serii.`,
+            'success',
+          )
+        }
+      } catch {
+        // Silent — repair is best-effort
+      }
+
       const plans = await listCustomPlans()
       setCustomPlans(plans)
       setExercises(await listExercises())
@@ -301,6 +318,17 @@ export default function PlansPage() {
             <Button type="button" size="touch" fullWidth onClick={() => void openEditor(null)}>
               <Plus size={20} aria-hidden />
               {pl.newCustomPlan}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              fullWidth
+              onClick={() => setAiGeneratorOpen(true)}
+              className="gap-2"
+            >
+              <Sparkles size={16} aria-hidden />
+              {pl.aiGeneratePlan}
             </Button>
             <Button
               type="button"
@@ -576,6 +604,12 @@ export default function PlansPage() {
           setEditorActiveDay(null)
         }}
         onSaved={() => void reloadCustom()}
+      />
+
+      <AiPlanGenerator
+        open={aiGeneratorOpen}
+        onClose={() => setAiGeneratorOpen(false)}
+        onGenerated={() => void reloadCustom()}
       />
 
       {morePlan && (

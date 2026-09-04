@@ -32,6 +32,12 @@ export type UserSettings = {
   displayName?: string
   /** Weight unit preference: 'kg' (default) or 'lb'. Backend always stores kg. */
   weightUnit: 'kg' | 'lb'
+  /** AI API key for plan generator/analysis (user-provided, stored locally). */
+  aiApiKey?: string
+  /** AI model to use for AI features. */
+  aiModel?: string
+  /** Base URL for OpenAI-compatible API endpoint (e.g. Google Gemini, Groq). */
+  aiBaseUrl?: string
 }
 
 export type PendingTest = {

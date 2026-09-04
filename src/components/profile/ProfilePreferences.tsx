@@ -11,6 +11,12 @@ const SECTION = 'mt-5'
 
 type Theme = UserSettings['theme']
 
+const AI_PRESETS = {
+  openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+  gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash' },
+  groq: { baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
+} as const
+
 export function ProfilePreferences({
   theme,
   highContrast,
@@ -22,6 +28,9 @@ export function ProfilePreferences({
   reminderHour,
   displayName,
   weightUnit,
+  aiApiKey,
+  aiModel,
+  aiBaseUrl,
   pushDescription,
   remindersDenied,
   pushDisabled,
@@ -37,6 +46,9 @@ export function ProfilePreferences({
   onReminderHourChange,
   onDisplayNameSave,
   onWeightUnitChange,
+  onAiApiKeySave,
+  onAiModelSave,
+  onAiBaseUrlSave,
 }: {
   theme: Theme
   highContrast: boolean
@@ -48,6 +60,9 @@ export function ProfilePreferences({
   reminderHour: number
   displayName: string
   weightUnit: 'kg' | 'lb'
+  aiApiKey: string
+  aiModel: string
+  aiBaseUrl: string
   pushDescription: string
   remindersDenied: boolean
   pushDisabled: boolean
@@ -63,11 +78,26 @@ export function ProfilePreferences({
   onReminderHourChange: (hour: number) => void
   onDisplayNameSave: (name: string) => void | Promise<void>
   onWeightUnitChange: (unit: 'kg' | 'lb') => void
+  onAiApiKeySave: (key: string) => void
+  onAiModelSave: (model: string) => void
+  onAiBaseUrlSave: (url: string) => void
 }) {
   const [nameDraft, setNameDraft] = useState(displayName)
+  const [apiKeyDraft, setApiKeyDraft] = useState(aiApiKey)
+  const [modelDraft, setModelDraft] = useState(aiModel)
+  const [baseUrlDraft, setBaseUrlDraft] = useState(aiBaseUrl)
   useEffect(() => {
     setNameDraft(displayName)
   }, [displayName])
+  useEffect(() => {
+    setApiKeyDraft(aiApiKey)
+  }, [aiApiKey])
+  useEffect(() => {
+    setModelDraft(aiModel)
+  }, [aiModel])
+  useEffect(() => {
+    setBaseUrlDraft(aiBaseUrl)
+  }, [aiBaseUrl])
 
   return (
     <>
@@ -186,6 +216,83 @@ export function ProfilePreferences({
             </select>
           </label>
         )}
+      </PageSection>
+
+      <PageSection title={pl.aiSettingsTitle} hint={pl.aiSettingsHint} className={SECTION}>
+        <div>
+          <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
+            {pl.aiProviderLabel}
+          </p>
+          <SegmentedControl
+            value={(() => {
+              if (!baseUrlDraft || baseUrlDraft === AI_PRESETS.openai.baseUrl) return 'openai'
+              if (baseUrlDraft === AI_PRESETS.gemini.baseUrl) return 'gemini'
+              if (baseUrlDraft === AI_PRESETS.groq.baseUrl) return 'groq'
+              return 'custom'
+            })()}
+            onChange={(v) => {
+              const preset = AI_PRESETS[v as keyof typeof AI_PRESETS]
+              if (preset) {
+                setBaseUrlDraft(preset.baseUrl)
+                setModelDraft(preset.model)
+              }
+            }}
+            options={[
+              { value: 'openai', label: pl.aiProviderOpenai },
+              { value: 'gemini', label: pl.aiProviderGemini },
+              { value: 'groq', label: pl.aiProviderGroq },
+              { value: 'custom', label: pl.aiProviderCustom },
+            ]}
+          />
+          <p className="mt-2 text-xs text-[var(--sr-text-muted)]">
+            {(() => {
+              const url = baseUrlDraft
+              if (!url || url === AI_PRESETS.openai.baseUrl) return pl.aiProviderHintOpenai
+              if (url === AI_PRESETS.gemini.baseUrl) return pl.aiProviderHintGemini
+              if (url === AI_PRESETS.groq.baseUrl) return pl.aiProviderHintGroq
+              return pl.aiProviderHintCustom
+            })()}
+          </p>
+        </div>
+
+        <TextField
+          id="ai-api-key"
+          className="mt-3"
+          label={pl.aiApiKeyLabel}
+          placeholder={pl.aiApiKeyPlaceholder}
+          type="password"
+          value={apiKeyDraft}
+          onChange={(e) => setApiKeyDraft(e.target.value)}
+        />
+        <TextField
+          id="ai-model"
+          className="mt-3"
+          label={pl.aiModelLabel}
+          value={modelDraft}
+          onChange={(e) => setModelDraft(e.target.value)}
+        />
+        <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.aiModelHint}</p>
+        <TextField
+          id="ai-base-url"
+          className="mt-3"
+          label={pl.aiBaseUrlLabel}
+          value={baseUrlDraft}
+          onChange={(e) => setBaseUrlDraft(e.target.value)}
+          placeholder="https://api.openai.com/v1"
+        />
+        <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.aiBaseUrlHint}</p>
+        <Button
+          type="button"
+          className="mt-3"
+          size="sm"
+          onClick={() => {
+            onAiApiKeySave(apiKeyDraft.trim())
+            onAiModelSave(modelDraft.trim() || 'gpt-4o-mini')
+            onAiBaseUrlSave(baseUrlDraft.trim())
+          }}
+        >
+          {pl.communityDisplayNameSave}
+        </Button>
       </PageSection>
     </>
   )
