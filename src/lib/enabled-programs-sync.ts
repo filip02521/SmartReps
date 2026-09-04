@@ -26,6 +26,7 @@ export type RemoteProfileSettings = {
   reminder_hour?: number | null
   weight_unit?: string | null
   high_contrast?: boolean | null
+  language?: string | null
   ui_settings_updated_at?: string | null
 }
 
@@ -127,6 +128,8 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
   const weightUnit: UserSettings['weightUnit'] =
     remote.weight_unit === 'lb' ? 'lb' : remote.weight_unit === 'kg' ? 'kg' : settings.weightUnit
   const highContrast = remote.high_contrast ?? settings.highContrast
+  const language: UserSettings['language'] =
+    remote.language === 'en' ? 'en' : remote.language === 'pl' ? 'pl' : settings.language
 
   const unchanged =
     theme === settings.theme &&
@@ -135,7 +138,8 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     keepScreenOn === settings.keepScreenOn &&
     reminderHour === settings.reminderHour &&
     weightUnit === settings.weightUnit &&
-    highContrast === settings.highContrast
+    highContrast === settings.highContrast &&
+    language === settings.language
 
   if (unchanged) {
     useAppStore.setState({ uiSettingsUpdatedAt: remote.ui_settings_updated_at })
@@ -151,6 +155,7 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     reminderHour,
     weightUnit,
     highContrast,
+    language,
   }
   useAppStore.setState({
     settings: next,

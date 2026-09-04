@@ -32,6 +32,7 @@ type SettingsSheetProps = {
   onReminderHourChange: (hour: number) => void
   onDisplayNameSave: (name: string) => void | Promise<void>
   onWeightUnitChange: (unit: 'kg' | 'lb') => void
+  onLanguageChange: (lang: 'pl' | 'en') => void
   onAiApiKeySave: (key: string) => void
   onAiModelSave: (model: string) => void
   onAiBaseUrlSave: (url: string) => void
@@ -69,6 +70,7 @@ export function SettingsSheet({
   onReminderHourChange,
   onDisplayNameSave,
   onWeightUnitChange,
+  onLanguageChange,
   onAiApiKeySave,
   onAiModelSave,
   onAiBaseUrlSave,
@@ -108,6 +110,7 @@ export function SettingsSheet({
           reminderHour={settings.reminderHour}
           displayName={settings.displayName ?? ''}
           weightUnit={settings.weightUnit}
+          language={settings.language}
           aiApiKey={settings.aiApiKey ?? ''}
           aiModel={settings.aiModel ?? 'gpt-4o-mini'}
           aiBaseUrl={settings.aiBaseUrl ?? ''}
@@ -126,6 +129,7 @@ export function SettingsSheet({
           onReminderHourChange={onReminderHourChange}
           onDisplayNameSave={onDisplayNameSave}
           onWeightUnitChange={onWeightUnitChange}
+          onLanguageChange={onLanguageChange}
           onAiApiKeySave={onAiApiKeySave}
           onAiModelSave={onAiModelSave}
           onAiBaseUrlSave={onAiBaseUrlSave}

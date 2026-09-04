@@ -190,6 +190,7 @@ async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
       reminder_hour: settings.reminderHour,
       weight_unit: settings.weightUnit ?? 'kg',
       high_contrast: settings.highContrast ?? false,
+      language: settings.language ?? 'pl',
       ui_settings_updated_at: uiUpdatedAt,
     },
     { onConflict: 'id' },
@@ -215,7 +216,7 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, weight_unit, high_contrast, ui_settings_updated_at',
+        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, weight_unit, high_contrast, language, ui_settings_updated_at',
       )
       .eq('id', userId)
       .maybeSingle()

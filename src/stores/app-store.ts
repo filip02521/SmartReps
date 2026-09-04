@@ -38,6 +38,8 @@ export type UserSettings = {
   aiModel?: string
   /** Base URL for OpenAI-compatible API endpoint (e.g. Google Gemini, Groq). */
   aiBaseUrl?: string
+  /** UI language. Defaults to 'pl'. Not synced to cloud (local preference). */
+  language: 'pl' | 'en'
 }
 
 export type PendingTest = {
@@ -134,6 +136,7 @@ const UI_SYNC_KEYS: (keyof UserSettings)[] = [
   'keepScreenOn',
   'reminderHour',
   'weightUnit',
+  'language',
 ]
 
 export const defaultSettings: UserSettings = {
@@ -153,6 +156,7 @@ export const defaultSettings: UserSettings = {
   customPlansFilterExplicit: false,
   onboardingComplete: false,
   displayName: '',
+  language: 'pl',
 }
 
 export const useAppStore = create<AppStore>()(

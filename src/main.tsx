@@ -6,6 +6,7 @@ import App from './App'
 import './styles/globals.css'
 import { setupOnlineSync } from '@/lib/online-sync'
 import { useAppStore } from '@/stores/app-store'
+import { detectBrowserLang } from '@/i18n'
 import { ErrorBoundary } from '@/components/ux/ErrorBoundary'
 import { SplashScreen, hideSplash } from '@/components/brand/SplashScreen'
 import { scheduleDailyReminder } from '@/lib/notifications'
@@ -23,6 +24,10 @@ setupChunkLoadRecovery()
 setupOnlineSync()
 
 function applyPersistedUi(settings: ReturnType<typeof useAppStore.getState>['settings']) {
+  // Set document language for SEO and accessibility
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = settings.language ?? 'pl'
+  }
   if (settings.theme === 'system') {
     document.documentElement.removeAttribute('data-theme')
   } else {
@@ -46,7 +51,14 @@ function applyPersistedUi(settings: ReturnType<typeof useAppStore.getState>['set
 
 applyPersistedUi(useAppStore.getState().settings)
 useAppStore.persist.onFinishHydration((state) => {
-  applyPersistedUi(state.settings)
+  // Auto-detect browser language on first run (no persisted language yet)
+  if (!state.settings.language) {
+    const detected = detectBrowserLang()
+    if (detected !== 'pl') {
+      useAppStore.getState().setSettings({ language: detected })
+    }
+  }
+  applyPersistedUi(useAppStore.getState().settings)
 })
 
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {

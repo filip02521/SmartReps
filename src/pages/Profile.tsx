@@ -531,6 +531,12 @@ export default function ProfilePage() {
         onTimerVibrationChange={(checked) => setSettings({ timerVibration: checked })}
         onKeepScreenOnChange={(checked) => setSettings({ keepScreenOn: checked })}
         onWeightUnitChange={(unit) => setSettings({ weightUnit: unit })}
+        onLanguageChange={(lang) => {
+          setSettings({ language: lang })
+          if (typeof document !== 'undefined') {
+            document.documentElement.lang = lang
+          }
+        }}
         onAiApiKeySave={(key) => {
           setSettings({ aiApiKey: key })
           showToast(pl.communityDisplayNameSaved, 'success')

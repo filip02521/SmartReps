@@ -28,6 +28,7 @@ export function ProfilePreferences({
   reminderHour,
   displayName,
   weightUnit,
+  language,
   aiApiKey,
   aiModel,
   aiBaseUrl,
@@ -46,6 +47,7 @@ export function ProfilePreferences({
   onReminderHourChange,
   onDisplayNameSave,
   onWeightUnitChange,
+  onLanguageChange,
   onAiApiKeySave,
   onAiModelSave,
   onAiBaseUrlSave,
@@ -60,6 +62,7 @@ export function ProfilePreferences({
   reminderHour: number
   displayName: string
   weightUnit: 'kg' | 'lb'
+  language: 'pl' | 'en'
   aiApiKey: string
   aiModel: string
   aiBaseUrl: string
@@ -78,6 +81,7 @@ export function ProfilePreferences({
   onReminderHourChange: (hour: number) => void
   onDisplayNameSave: (name: string) => void | Promise<void>
   onWeightUnitChange: (unit: 'kg' | 'lb') => void
+  onLanguageChange: (lang: 'pl' | 'en') => void
   onAiApiKeySave: (key: string) => void
   onAiModelSave: (model: string) => void
   onAiBaseUrlSave: (url: string) => void
@@ -137,6 +141,19 @@ export function ProfilePreferences({
       </PageSection>
 
       <PageSection title={pl.trainingSettings} className={SECTION}>
+        <div className="mb-3">
+          <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
+            {pl.languageLabel}
+          </p>
+          <SegmentedControl
+            options={[
+              { value: 'pl' as const, label: pl.languagePl },
+              { value: 'en' as const, label: pl.languageEn },
+            ]}
+            value={language}
+            onChange={onLanguageChange}
+          />
+        </div>
         <div className="mb-3">
           <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
             {pl.weightUnitLabel}

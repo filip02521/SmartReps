@@ -1,4 +1,6 @@
-export const pl = {
+import { getActiveDict } from './i18n-runtime'
+
+const plDict = {
   appName: 'SmartReps',
   tagline: 'Twój inteligentny trener powtórzeń',
   splashTagline: 'Trening, który mierzy postęp',
@@ -812,7 +814,7 @@ export const pl = {
   progressCycleDaysHint: 'w cyklu',
   progressSessionsHint: 'sesje',
   progressActivityAria: 'Trend 14 dni w programie',
-  progressWeekdayLabels: ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'] as const,
+  progressWeekdayLabels: ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'],
   progressLastSetTrend: (current: number, previous: number) =>
     `Ostatnia seria max (ten sam dzień): ${current} · wcześniej ${previous}`,
   progressOpenFullSummary: 'Pełne podsumowanie',
@@ -941,6 +943,9 @@ export const pl = {
   weightUnitLabel: 'Jednostka wagi',
   weightUnitKg: 'kg',
   weightUnitLb: 'lb',
+  languageLabel: 'Język',
+  languagePl: 'Polski',
+  languageEn: 'Angielski',
   remindersSection: 'Przypomnienia',
   profileDangerZone: 'Niebezpieczne',
   profileUnconfiguredHint: 'Jeszcze bez poziomu — skonfigurujesz na ekranie Trening.',
@@ -1896,4 +1901,22 @@ export const pl = {
   // ── Secret marathon ──
   achievement_secret_marathon_title: 'Maraton treningowy',
   achievement_secret_marathon_desc: 'Sesje trwające ponad godzinę — cierpliwość i objętość.',
-} as const
+}
+
+export type Translation = typeof plDict
+
+/**
+ * Proxy that reads from the active dictionary (PL or EN based on user setting).
+ * All 123+ files importing { pl } from '@/i18n/pl' get localized strings
+ * without any refactor. When no active dict is set (e.g. before store hydration),
+ * falls back to the Polish dictionary.
+ */
+export const pl = new Proxy(plDict, {
+  get(_target, prop, receiver) {
+    const active = getActiveDict()
+    if (active) {
+      return Reflect.get(active, prop, receiver)
+    }
+    return Reflect.get(plDict, prop, receiver)
+  },
+})

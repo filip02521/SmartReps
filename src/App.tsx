@@ -6,6 +6,7 @@ import { AuthBridge } from '@/components/ux/AuthBridge'
 import { GlobalOfflineBar } from '@/components/ux/GlobalOfflineBar'
 import { RequireOnboarding, RequireProgram } from '@/components/ux/RequireOnboarding'
 import { BrandLoader } from '@/components/ui/BrandLoader'
+import { useAppStore } from '@/stores/app-store'
 import Dashboard from '@/pages/Dashboard'
 import WorkoutPage from '@/pages/Workout'
 import SessionSummary from '@/pages/SessionSummary'
@@ -47,8 +48,11 @@ function LazyPage({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  // Re-render entire tree when language changes — proxy-based i18n needs this
+  // to refresh all `pl.foo` references in 123+ files without refactoring them.
+  const language = useAppStore((s) => s.settings.language ?? 'pl')
   return (
-    <BrowserRouter>
+    <BrowserRouter key={language}>
       <ToastHost />
       <AuthBridge />
       <AccountSwitchGate />
