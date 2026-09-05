@@ -32,6 +32,7 @@ import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
 import { PrCelebrationBanner } from '@/components/progress/PrCelebrationBanner'
 import { detectPersonalRecords, type PersonalRecord } from '@/lib/pr-detector'
+import { initCelebrationAudio } from '@/lib/celebration-feedback'
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
 import { AiInsightCard } from '@/components/brand/AiInsightCard'
 import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
@@ -94,6 +95,13 @@ export default function SessionSummary() {
     return () => setSummaryMode(false)
   }, [setSummaryMode])
 
+  // Initialize audio context on mount so celebration sound works on iOS PWA
+  // (iOS requires AudioContext resume near a user gesture; workout page already
+  // unlocked it, but reload-of-summary edge case needs this safety net).
+  useEffect(() => {
+    void initCelebrationAudio()
+  }, [])
+
   // Subscribe to queue changes — handles race condition where evaluation
   // completes after summary mount. Drain queue into local state when items arrive.
   useEffect(() => {
@@ -122,28 +130,34 @@ export default function SessionSummary() {
       const prog = await getProgramProgress(program)
       setProgress(prog)
 
-      const [comparison, historicalSessions] = await Promise.all([
+      const [comparison, historicalSessions, totalCompletedCount] = await Promise.all([
         getSessionComparison(program, sessionId),
         db.workoutSessions
           .where('program')
           .equals(program)
           .filter((s) => s.status === 'completed')
           .toArray(),
+        db.workoutSessions.filter((s) => s.status === 'completed').count(),
       ])
       setCurrent(comparison.current)
       setPrevious(comparison.previous)
       if (comparison.current) {
         currentSessionIdRef.current = comparison.current.id
         // Detect personal records for celebration banner
+        let records: PersonalRecord[] = []
         try {
-          const records = await detectPersonalRecords(comparison.current)
+          records = await detectPersonalRecords(comparison.current)
           setPrRecords(records)
         } catch {
           setPrRecords([])
         }
-        // Trigger celebration overlay on successful completion
+        // Trigger celebration overlay on successful completion:
+        // - Always for first 3 workouts (onboarding honeymoon)
+        // - After that: only when PR or new achievement makes it special
         if (!failed) {
-          setShowCelebration(true)
+          const isSpecial = records.length > 0 || achievementQueue.length > 0
+          const isEarlyWorkout = totalCompletedCount <= 3
+          setShowCelebration(isSpecial || isEarlyWorkout)
         }
         setInsights(
           computeBuiltinSessionInsights({
@@ -171,8 +185,10 @@ export default function SessionSummary() {
   ) {
     if (!currentSession) return
     // Check if insight already exists for this session
+    // Only cache AI insights — local insights are cheap to regenerate and
+    // depend on `previous` which can change as more sessions are completed.
     const existing = await db.aiInsights.where('sessionId').equals(currentSession.id).first()
-    if (existing && !existing.dismissedAt) {
+    if (existing && !existing.dismissedAt && existing.source === 'ai') {
       setCoachInsight(existing)
       return
     }
@@ -345,6 +361,27 @@ export default function SessionSummary() {
       <WorkoutCelebrationOverlay
         active={showCelebration}
         onDismiss={() => setShowCelebration(false)}
+        onShare={async () => {
+          try {
+            await shareSessionCard({
+              program,
+              dayNumber: current?.dayNumber ?? progress?.currentDay ?? 1,
+              totalReps,
+              passed: true,
+              prCount: insights?.prCount,
+              bestSetReps: rows.length > 0 ? Math.max(...rows.map((r) => r.actual)) : undefined,
+            })
+            trackShareCard(program, true)
+            showToast(pl.summaryShareDone, 'success')
+          } catch {
+            showToast(pl.summaryShareFailed, 'error')
+          }
+        }}
+        contextLabel={
+          cycle
+            ? pl.celebrationDayContext(current?.dayNumber ?? 1, cycle.days.length)
+            : undefined
+        }
         hasPr={prRecords.length > 0}
         hasNewAchievement={newAchievements.length > 0}
         stats={[

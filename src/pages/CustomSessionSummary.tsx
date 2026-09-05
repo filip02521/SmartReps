@@ -52,6 +52,7 @@ import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
 import { PrCelebrationBanner } from '@/components/progress/PrCelebrationBanner'
 import { detectPersonalRecords, type PersonalRecord } from '@/lib/pr-detector'
+import { initCelebrationAudio } from '@/lib/celebration-feedback'
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
 import { AiInsightCard } from '@/components/brand/AiInsightCard'
 import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
@@ -116,6 +117,11 @@ export default function CustomSessionSummary() {
     return () => setSummaryMode(false)
   }, [setSummaryMode])
 
+  // Initialize audio context on mount so celebration sound works on iOS PWA
+  useEffect(() => {
+    void initCelebrationAudio()
+  }, [])
+
   // Subscribe to queue changes — handles race condition where evaluation
   // completes after summary mount. Drain queue into local state when items arrive.
   useEffect(() => {
@@ -163,15 +169,23 @@ export default function CustomSessionSummary() {
         setSession(s)
         currentSessionIdRef.current = s.id
         // Detect personal records for celebration banner
+        let records: PersonalRecord[] = []
         try {
-          const records = await detectPersonalRecords(s)
+          records = await detectPersonalRecords(s)
           setPrRecords(records)
         } catch {
           setPrRecords([])
         }
-        // Trigger celebration overlay on successful completion
+        // Trigger celebration overlay on successful completion:
+        // - Always for first 3 workouts (onboarding honeymoon)
+        // - After that: only when PR or new achievement makes it special
         if (s.passed !== false) {
-          setShowCelebration(true)
+          const totalCompleted = await db.workoutSessions
+            .filter((row) => row.status === 'completed')
+            .count()
+          const isSpecial = records.length > 0 || achievementQueue.length > 0
+          const isEarlyWorkout = totalCompleted <= 3
+          setShowCelebration(isSpecial || isEarlyWorkout)
         }
         const resolvedPlanId = s.customPlanId ?? planId
         if (resolvedPlanId) {
@@ -229,6 +243,7 @@ export default function CustomSessionSummary() {
         setLoading(false)
       }
     })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when session/plan identity changes; achievementQueue is read at call time
   }, [sessionId, planId])
 
   async function loadOrGenerateCoachInsight(
@@ -238,7 +253,9 @@ export default function CustomSessionSummary() {
     exercises: ExerciseDefinition[],
   ) {
     const existing = await db.aiInsights.where('sessionId').equals(current.id).first()
-    if (existing && !existing.dismissedAt) {
+    // Only cache AI insights — local insights are cheap to regenerate and
+    // depend on `previous` which can change as more sessions are completed.
+    if (existing && !existing.dismissedAt && existing.source === 'ai') {
       setCoachInsight(existing)
       return
     }
@@ -458,11 +475,35 @@ export default function CustomSessionSummary() {
       <WorkoutCelebrationOverlay
         active={showCelebration}
         onDismiss={() => setShowCelebration(false)}
+        onShare={async () => {
+          try {
+            await shareCustomSessionCard({
+              planName: planName ?? pl.dayLabel(session.dayNumber),
+              dayNumber: session.dayNumber,
+              exerciseCount,
+              totalSets,
+              passed: session.passed !== false,
+              bestSetReps,
+              volumeKg: volumeKg > 0 ? Math.round(volumeKg) : undefined,
+            })
+            trackShareCard('custom', true)
+            showToast(pl.summaryShareDone, 'success')
+          } catch {
+            showToast(pl.summaryShareFailed, 'error')
+          }
+        }}
+        contextLabel={
+          plan
+            ? pl.celebrationDayContext(session.dayNumber, plan.days.length)
+            : undefined
+        }
         hasPr={prRecords.length > 0}
         hasNewAchievement={newAchievements.length > 0}
         stats={[
           { icon: Dumbbell, value: totalSets, label: pl.celebrationStatSets, animate: true },
-          { icon: Flame, value: exerciseCount, label: pl.celebrationStatExercises, animate: true },
+          ...(volumeKg > 0
+            ? [{ icon: Flame, value: Math.round(volumeKg), label: pl.celebrationStatVolume, animate: true }]
+            : [{ icon: Flame, value: exerciseCount, label: pl.celebrationStatExercises, animate: true }]),
         ]}
       />
 

@@ -19,7 +19,7 @@ const CONFETTI_COLORS = [
   'var(--sr-success)',
   'var(--sr-warning)',
   'var(--sr-pushups-accent)',
-  'var(--sr-brand-primary-muted)',
+  'var(--sr-pullups-accent)',
 ]
 
 /**
@@ -73,8 +73,10 @@ export function ConfettiCanvas({
     // Resolve CSS color variables to actual colors
     const style = getComputedStyle(document.documentElement)
     const resolveColor = (cssVar: string): string => {
-      const value = style.getPropertyValue(cssVar.replace('var(', '').replace(')', '').trim()).trim()
-      return value || cssVar
+      const name = cssVar.replace('var(', '').replace(')', '').trim()
+      const value = style.getPropertyValue(name).trim()
+      // Canvas cannot resolve CSS var() — return resolved value or a safe fallback
+      return value || '#6366f1'
     }
     const colors = CONFETTI_COLORS.map(resolveColor)
 

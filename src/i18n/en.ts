@@ -521,6 +521,8 @@ export const en: Translation = {
   celebrationPrBadge: 'New personal record',
   celebrationAchievementBadge: 'New achievement',
   celebrationTapToContinue: 'Tap to continue',
+  celebrationShare: 'Share',
+  celebrationDayContext: (day: number, total: number) => `Day ${day} of ${total}`,
   celebrationStatReps: 'reps',
   celebrationStatSets: 'sets',
   celebrationStatExercises: 'exercises',

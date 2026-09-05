@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CheckCircle2, Flame, Trophy } from 'lucide-react'
+import { CheckCircle2, Flame, Trophy, Share2 } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { ConfettiCanvas } from '@/components/ux/ConfettiCanvas'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
-import { Z_CELEBRATION } from '@/lib/ui-chrome'
+import { Z_CELEBRATION, FOCUS_RING } from '@/lib/ui-chrome'
+import { playCelebrationSound } from '@/lib/celebration-feedback'
 
 type StatItem = {
   icon: typeof Flame
@@ -27,14 +28,20 @@ type StatItem = {
 export function WorkoutCelebrationOverlay({
   active,
   onDismiss,
+  onShare,
   stats,
+  contextLabel,
   hasPr = false,
   hasNewAchievement = false,
-  durationMs = 3500,
+  durationMs = 2000,
 }: {
   active: boolean
   onDismiss: () => void
+  /** Optional share handler — shows a "Share" button in the overlay. */
+  onShare?: () => void
   stats: StatItem[]
+  /** Optional context line, e.g. "Dzień 3 z 7" — shown under the headline. */
+  contextLabel?: string
   hasPr?: boolean
   hasNewAchievement?: boolean
   durationMs?: number
@@ -70,6 +77,9 @@ export function WorkoutCelebrationOverlay({
         // ignore — vibration not supported
       }
     }
+
+    // Celebration sound — respects timerSound setting; richer fanfare for PR
+    playCelebrationSound(hasPrRef.current)
 
     // Auto-dismiss
     dismissTimerRef.current = window.setTimeout(handleDismiss, durationMs)
@@ -110,6 +120,8 @@ export function WorkoutCelebrationOverlay({
       className={cn(
         'fixed inset-0 flex flex-col items-center justify-center',
         'transition-opacity duration-300',
+        'p-4',
+        'pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]',
         visible ? 'opacity-100' : 'opacity-0',
         'bg-gradient-to-br from-[color-mix(in_srgb,var(--sr-brand-primary)_20%,var(--sr-bg-base))] via-[var(--sr-bg-base)] to-[color-mix(in_srgb,var(--sr-success)_15%,var(--sr-bg-base))]',
       )}
@@ -182,6 +194,22 @@ export function WorkoutCelebrationOverlay({
           {pl.celebrationSubtitle}
         </p>
 
+        {/* Context label — e.g. "Dzień 3 z 7" */}
+        {contextLabel && (
+          <p
+            className="mt-1 sr-text-body-sm font-medium text-[var(--sr-brand-primary)]"
+            style={
+              !prefersReduced
+                ? {
+                    animation: 'srCelebrationFadeUp 0.5s ease-out 0.5s both',
+                  }
+                : undefined
+            }
+          >
+            {contextLabel}
+          </p>
+        )}
+
         {/* Stats with count-up */}
         <div
           className="mt-8 flex items-center gap-6"
@@ -240,9 +268,9 @@ export function WorkoutCelebrationOverlay({
           </div>
         )}
 
-        {/* Tap to dismiss hint */}
-        <p
-          className="mt-10 sr-text-body-sm text-[var(--sr-text-muted)]"
+        {/* Actions: Share + dismiss hint */}
+        <div
+          className="mt-10 flex flex-col items-center gap-3"
           style={
             !prefersReduced
               ? {
@@ -251,8 +279,29 @@ export function WorkoutCelebrationOverlay({
               : undefined
           }
         >
-          {pl.celebrationTapToContinue}
-        </p>
+          {onShare && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onShare()
+              }}
+              className={cn(
+                FOCUS_RING,
+                'flex items-center gap-2 rounded-full px-5 py-2.5',
+                'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-primary)]',
+                'border border-[var(--sr-border-subtle)]',
+                'sr-text-body-sm font-semibold transition-colors hover:bg-[var(--sr-bg-surface)]',
+              )}
+            >
+              <Share2 size={16} />
+              {pl.celebrationShare}
+            </button>
+          )}
+          <p className="sr-text-body-sm text-[var(--sr-text-muted)]">
+            {pl.celebrationTapToContinue}
+          </p>
+        </div>
       </div>
 
       <style>{`
@@ -291,8 +340,10 @@ function StatCounter({
   const rafRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
-    if (!animate || value === 0) {
-      setDisplayValue(value)
+    // Guard against NaN/undefined — display 0 instead of "NaN"
+    const safeValue = Number.isFinite(value) ? value : 0
+    if (!animate || safeValue === 0) {
+      setDisplayValue(safeValue)
       return
     }
 
@@ -306,7 +357,7 @@ function StatCounter({
       const progress = Math.min(1, elapsed / duration)
       // Ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3)
-      setDisplayValue(Math.round(value * eased))
+      setDisplayValue(Math.round(safeValue * eased))
 
       if (progress < 1) {
         rafRef.current = requestAnimationFrame(tick)

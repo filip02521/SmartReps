@@ -535,6 +535,8 @@ const plDict = {
   celebrationPrBadge: 'Nowy rekord osobisty',
   celebrationAchievementBadge: 'Nowe osiągnięcie',
   celebrationTapToContinue: 'Dotknij, aby kontynuować',
+  celebrationShare: 'Udostępnij',
+  celebrationDayContext: (day: number, total: number) => `Dzień ${day} z ${total}`,
   celebrationStatReps: 'powtórzenia',
   celebrationStatSets: 'serie',
   celebrationStatExercises: 'ćwiczenia',
