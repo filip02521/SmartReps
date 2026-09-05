@@ -172,7 +172,6 @@ export default function SessionSummary() {
       const rl = checkRateLimit('post_workout')
       if (!rl.allowed) {
         // Silently use local fallback for auto-fire
-        usedInflight = false // local fallback doesn't need inflight
         try {
           const exercises = await listExercises()
           if (coachAbortRef.current?.signal.aborted) return

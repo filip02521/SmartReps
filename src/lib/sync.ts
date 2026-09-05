@@ -544,6 +544,7 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
           created_at: insight.createdAt,
           dismissed_at: insight.dismissedAt ?? null,
           read_at: insight.readAt ?? null,
+          metrics_json: insight.metricsJson ?? null,
         })
         if (error) throw error
       }
@@ -854,10 +855,21 @@ type RemoteAiInsightRow = {
   created_at: string
   dismissed_at: string | null
   read_at: string | null
+  metrics_json: string | null
 }
 
 export async function mergeAiInsightRemote(remote: RemoteAiInsightRow) {
   const existing = await db.aiInsights.get(remote.id)
+  // For weekly reports: if remote is AI and local has a different-id local
+  // report for the same weekKey, replace it (AI wins over local for same week)
+  if (remote.type === 'weekly_report' && remote.week_key && remote.source === 'ai') {
+    const sameWeekLocals = await db.aiInsights
+      .where('weekKey')
+      .equals(remote.week_key)
+      .filter((i) => i.type === 'weekly_report' && i.id !== remote.id && i.source !== 'ai')
+      .toArray()
+    await Promise.all(sameWeekLocals.map((r) => db.aiInsights.delete(r.id)))
+  }
   if (existing) {
     // LWW: remote wins if created later, OR if remote has state updates
     // (dismissed_at / read_at) that local doesn't have yet.
@@ -882,8 +894,8 @@ export async function mergeAiInsightRemote(remote: RemoteAiInsightRow) {
         // Preserve the latest dismiss/read timestamps (remote wins if it has them)
         dismissedAt: remote.dismissed_at ?? existing.dismissedAt,
         readAt: remote.read_at ?? existing.readAt,
-        // Preserve local-only display metrics (not synced to cloud)
-        metricsJson: existing.metricsJson,
+        // Use remote metrics_json if available, fall back to local
+        metricsJson: remote.metrics_json ?? existing.metricsJson,
       })
     }
     return
@@ -902,6 +914,7 @@ export async function mergeAiInsightRemote(remote: RemoteAiInsightRow) {
     createdAt: new Date(remote.created_at).toISOString(),
     dismissedAt: remote.dismissed_at ?? undefined,
     readAt: remote.read_at ?? undefined,
+    metricsJson: remote.metrics_json ?? undefined,
   })
 }
 

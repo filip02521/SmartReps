@@ -58,7 +58,7 @@ describe('mergeAiInsightRemote — LWW with dismiss', () => {
       source: 'local' as const,
       created_at: '2025-01-01T10:00:00Z',
       dismissed_at: null,
-      read_at: null,
+      read_at: null, metrics_json: null,
     }
     await mergeAiInsightRemote(remote)
     const stored = mockAiInsightsStore.get('insight-1')
@@ -95,7 +95,7 @@ describe('mergeAiInsightRemote — LWW with dismiss', () => {
       source: 'local' as const,
       created_at: '2025-01-01T10:00:00Z',
       dismissed_at: '2025-01-02T12:00:00Z',
-      read_at: null,
+      read_at: null, metrics_json: null,
     }
     await mergeAiInsightRemote(remote)
     const stored = mockAiInsightsStore.get('insight-1')
@@ -131,7 +131,7 @@ describe('mergeAiInsightRemote — LWW with dismiss', () => {
       source: 'local' as const,
       created_at: '2025-01-01T10:00:00Z',
       dismissed_at: null,
-      read_at: null,
+      read_at: null, metrics_json: null,
     }
     await mergeAiInsightRemote(remote)
     const stored = mockAiInsightsStore.get('insight-1')
@@ -167,7 +167,7 @@ describe('mergeAiInsightRemote — LWW with dismiss', () => {
       source: 'local' as const,
       created_at: '2025-01-01T10:00:00Z',
       dismissed_at: null,
-      read_at: null,
+      read_at: null, metrics_json: null,
     }
     await mergeAiInsightRemote(remote)
     const stored = mockAiInsightsStore.get('insight-1')

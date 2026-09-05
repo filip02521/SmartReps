@@ -151,13 +151,24 @@ export default function Dashboard() {
       // If any exists (even dismissed), don't regenerate — respect user's dismissal.
       // Exception: ?weekly_report=force bypasses cache (for testing/fixing stale reports).
       if (!forceRegenerate) {
-        const anyExisting = await db.aiInsights
+        const allExisting = await db.aiInsights
           .where('weekKey')
           .equals(weekKey)
           .filter((i) => i.type === 'weekly_report')
-          .first()
-        if (anyExisting) {
-          if (!cancelled && !anyExisting.dismissedAt) setWeeklyReport(anyExisting)
+          .toArray()
+        if (allExisting.length > 0) {
+          // Prefer AI source, then most recent createdAt
+          const best = allExisting.sort((a, b) => {
+            if (a.source === 'ai' && b.source !== 'ai') return -1
+            if (a.source !== 'ai' && b.source === 'ai') return 1
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          })[0]
+          // Clean up duplicate reports for the same week (keep only the best)
+          if (allExisting.length > 1) {
+            const duplicates = allExisting.filter((r) => r.id !== best.id)
+            await Promise.all(duplicates.map((r) => db.aiInsights.delete(r.id)))
+          }
+          if (!cancelled && !best.dismissedAt) setWeeklyReport(best)
           return
         }
       }

@@ -64,6 +64,13 @@ export function AiWorkoutAnalysis() {
   const model = settings.aiModel ?? 'gpt-4o-mini'
   const baseURL = settings.aiBaseUrl ?? ''
 
+  function formatAge(ms: number): string {
+    const hours = Math.floor(ms / (60 * 60 * 1000))
+    if (hours >= 1) return `${hours} h`
+    const minutes = Math.floor(ms / (60 * 1000))
+    return `${minutes} min`
+  }
+
   // Check if there are any completed sessions to analyze + load cached analysis
   useEffect(() => {
     void db.workoutSessions
@@ -93,13 +100,6 @@ export function AiWorkoutAnalysis() {
       })
       .catch(() => {})
   }, [])
-
-  function formatAge(ms: number): string {
-    const hours = Math.floor(ms / (60 * 60 * 1000))
-    if (hours >= 1) return `${hours} h`
-    const minutes = Math.floor(ms / (60 * 1000))
-    return `${minutes} min`
-  }
 
   function handleAnalyze() {
     if (!apiKey) {
