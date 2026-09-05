@@ -32,6 +32,12 @@ import { AchievementSummaryList } from '@/components/achievements/AchievementSum
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
 import { AiInsightCard } from '@/components/brand/AiInsightCard'
 import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
+import {
+  checkRateLimit,
+  acquireInflight,
+  releaseInflight,
+  recordCall,
+} from '@/lib/ai/rate-limiter'
 import { listExercises } from '@/lib/custom-plan-service'
 import type { LocalAiInsight } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
@@ -160,6 +166,41 @@ export default function SessionSummary() {
       ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined }
       : undefined
 
+    // Rate limit check — only for AI calls
+    let usedInflight = false
+    if (aiConfig) {
+      const rl = checkRateLimit('post_workout')
+      if (!rl.allowed) {
+        // Silently use local fallback for auto-fire
+        aiConfig && acquireInflight()
+        usedInflight = false // local fallback doesn't need inflight
+        try {
+          const exercises = await listExercises()
+          if (coachAbortRef.current?.signal.aborted) return
+          const controller = new AbortController()
+          coachAbortRef.current = controller
+          const insight = await generatePostWorkoutInsight({
+            session: currentSession,
+            previous: previousSession,
+            historicalSessions,
+            exercises,
+            aiConfig: undefined, // force local
+            signal: controller.signal,
+          })
+          if (currentSession.id !== currentSessionIdRef.current) return
+          if (coachAbortRef.current?.signal.aborted) return
+          await db.aiInsights.put(insight)
+          void enqueueSync('ai_insights', 'insert', insight)
+          setCoachInsight(insight)
+        } catch {
+          // Non-blocking
+        }
+        return
+      }
+      acquireInflight()
+      usedInflight = true
+    }
+
     try {
       const exercises = await listExercises()
       // Guard against unmount — don't start AI call if component is gone
@@ -178,11 +219,14 @@ export default function SessionSummary() {
       // Guard against stale state if user navigated away during async generation
       if (currentSession.id !== currentSessionIdRef.current) return
       if (coachAbortRef.current?.signal.aborted) return
+      if (insight.source === 'ai') recordCall('post_workout')
       await db.aiInsights.put(insight)
       void enqueueSync('ai_insights', 'insert', insight)
       setCoachInsight(insight)
     } catch {
       // Non-blocking — summary works without insight
+    } finally {
+      if (usedInflight) releaseInflight()
     }
   }
 

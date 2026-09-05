@@ -9,6 +9,13 @@ import { useAppStore } from '@/stores/app-store'
 import { showToast } from '@/stores/toast-store'
 import { listExercises } from '@/lib/custom-plan-service'
 import { generatePlan, commitGeneratedPlan, type PlanGenerationResult } from '@/lib/ai/plan-generator'
+import {
+  checkRateLimit,
+  acquireInflight,
+  releaseInflight,
+  recordCall,
+  formatCooldownRemaining,
+} from '@/lib/ai/rate-limiter'
 import { AiApiError } from '@/lib/ai/ai-client'
 import type { PlanGenerationInput } from '@/lib/ai/prompts'
 import type { MetricTarget, SetPrescription } from '@/lib/exercise-model'
@@ -84,6 +91,20 @@ export function AiPlanGenerator({
       return
     }
 
+    // Rate limit check
+    const rl = checkRateLimit('plan_generation')
+    if (!rl.allowed) {
+      if (rl.reason === 'cooldown') {
+        setError(pl.aiRateLimitCooldown(formatCooldownRemaining(rl.retryAfterMs)))
+      } else if (rl.reason === 'quota') {
+        setError(pl.aiRateLimitQuota(rl.quota - rl.dailyCount, rl.quota))
+      } else {
+        setError(pl.aiRateLimitInflight)
+      }
+      setStep('error')
+      return
+    }
+
     setStep('generating')
     setError('')
 
@@ -93,6 +114,7 @@ export function AiPlanGenerator({
     abortRef.current = controller
     // 90s timeout — plan generation is a large request, but still bounded
     const timeout = setTimeout(() => controller.abort(), 90_000)
+    acquireInflight()
 
     void (async () => {
       try {
@@ -109,6 +131,7 @@ export function AiPlanGenerator({
         const res = await generatePlan(input, { apiKey, model, library, baseURL: baseURL || undefined, signal: controller.signal })
         if (controller.signal.aborted) return
         clearTimeout(timeout)
+        recordCall('plan_generation')
         // Build exercise name lookup for preview
         const names = new Map<string, string>()
         for (const ex of library) names.set(ex.id, ex.name)
@@ -138,6 +161,8 @@ export function AiPlanGenerator({
           )
         }
         setStep('error')
+      } finally {
+        releaseInflight()
       }
     })()
   }

@@ -2054,6 +2054,16 @@ const plDict = {
   aiErrorParsePlan: 'AI nie zwróciło prawidłowego planu.',
   aiPlanFallbackName: 'Plan AI',
 
+  // ── AI rate limiting ──
+  aiRateLimitCooldown: (retryIn: string) =>
+    `Poczekaj ${retryIn} przed kolejnym zapytaniem do AI.`,
+  aiRateLimitQuota: (remaining: number, quota: number) =>
+    `Dzienny limit AI wyczerpany (${quota} zapytań/dzień). Pozostało: ${remaining}. Spróbuj jutro.`,
+  aiRateLimitInflight: 'AI już pracuje nad innym zapytaniem. Poczekaj na zakończenie.',
+  aiAnalysisCacheFresh: (age: string) =>
+    `Analiza z ${age} temu. Odśwież za chwilę, aby wygenerować nową.`,
+  aiAnalysisCacheStale: 'Analiza może być nieaktualna. Kliknij, aby odświeżyć.',
+
   // ── Plans toast ──
   plansRepairedToast: (plans: number, sets: number) =>
     `Naprawiono ${plans} plan(ów): ${sets} serii.`,

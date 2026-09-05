@@ -7,12 +7,20 @@ import { useAppStore } from '@/stores/app-store'
 import { listExercises } from '@/lib/custom-plan-service'
 import { analyzeWorkouts, type AnalysisResult } from '@/lib/ai/workout-analyzer'
 import { AiApiError } from '@/lib/ai/ai-client'
+import {
+  checkRateLimit,
+  acquireInflight,
+  releaseInflight,
+  recordCall,
+  formatCooldownRemaining,
+} from '@/lib/ai/rate-limiter'
 import { AiCoachHeader, AiCoachMessage } from '@/components/brand/AiCoachHeader'
 import { TrendingUp, AlertTriangle, Check, Lightbulb, RotateCcw } from 'lucide-react'
 import { db } from '@/lib/db'
 import { cn } from '@/lib/utils'
 
 const ANALYSIS_CACHE_ID = 'latest'
+const ANALYSIS_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours — analysis is expensive
 
 const PRIORITY_COLORS = {
   high: 'border-l-[var(--sr-error)]',
@@ -42,6 +50,7 @@ export function AiWorkoutAnalysis() {
   const [error, setError] = useState('')
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [hasSessions, setHasSessions] = useState<boolean | null>(null)
+  const [cacheAge, setCacheAge] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   // Abort any in-flight AI request on unmount
@@ -69,6 +78,13 @@ export function AiWorkoutAnalysis() {
       .then((cached) => {
         if (cached) {
           try {
+            const age = Date.now() - new Date(cached.createdAt).getTime()
+            // Show cache age if fresh (< 24h), mark stale otherwise
+            if (age < ANALYSIS_TTL_MS) {
+              setCacheAge(formatAge(age))
+            } else {
+              setCacheAge(pl.aiAnalysisCacheStale)
+            }
             setResult(JSON.parse(cached.resultJson))
           } catch {
             // Corrupted cache — ignore
@@ -78,9 +94,28 @@ export function AiWorkoutAnalysis() {
       .catch(() => {})
   }, [])
 
+  function formatAge(ms: number): string {
+    const hours = Math.floor(ms / (60 * 60 * 1000))
+    if (hours >= 1) return `${hours} h`
+    const minutes = Math.floor(ms / (60 * 1000))
+    return `${minutes} min`
+  }
+
   function handleAnalyze() {
     if (!apiKey) {
       setError(pl.aiCoachNoApiKey)
+      return
+    }
+    // Rate limit check
+    const rl = checkRateLimit('workout_analysis')
+    if (!rl.allowed) {
+      if (rl.reason === 'cooldown') {
+        setError(pl.aiRateLimitCooldown(formatCooldownRemaining(rl.retryAfterMs)))
+      } else if (rl.reason === 'quota') {
+        setError(pl.aiRateLimitQuota(rl.quota - rl.dailyCount, rl.quota))
+      } else {
+        setError(pl.aiRateLimitInflight)
+      }
       return
     }
     setLoading(true)
@@ -91,13 +126,16 @@ export function AiWorkoutAnalysis() {
     abortRef.current = controller
     // 60s timeout — analysis is a large request, but still bounded
     const timeout = setTimeout(() => controller.abort(), 60_000)
+    acquireInflight()
     void (async () => {
       try {
         const exercises = await listExercises()
         if (controller.signal.aborted) return
         const res = await analyzeWorkouts({ apiKey, model, exercises, baseURL: baseURL || undefined, signal: controller.signal })
         if (controller.signal.aborted) return
+        recordCall('workout_analysis')
         setResult(res)
+        setCacheAge(null)
         // Persist to cache so analysis survives refresh / tab switch
         void db.aiAnalysisCache.put({
           id: ANALYSIS_CACHE_ID,
@@ -126,6 +164,7 @@ export function AiWorkoutAnalysis() {
         }
       } finally {
         clearTimeout(timeout)
+        releaseInflight()
         if (!controller.signal.aborted) setLoading(false)
       }
     })()
@@ -194,6 +233,12 @@ export function AiWorkoutAnalysis() {
       {/* Results — coach conversation layout */}
       {result && !loading && (
         <div className="mt-3 flex flex-col gap-3">
+          {/* Cache age indicator */}
+          {cacheAge && (
+            <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
+              {cacheAge}
+            </p>
+          )}
           {/* Summary — coach's opening message */}
           <AiCoachMessage tone="insight">
             {result.summary}

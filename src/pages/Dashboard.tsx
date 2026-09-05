@@ -15,6 +15,7 @@ import { CommunityHomeTeaser } from '@/components/dashboard/CommunityHomeTeaser'
 import { InstallCoach } from '@/components/ux/InstallCoach'
 import { WeeklyReportCard } from '@/components/dashboard/WeeklyReportCard'
 import { pl } from '@/i18n/pl'
+import { showToast } from '@/stores/toast-store'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
@@ -23,6 +24,13 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { db, type LocalAiInsight } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
 import { generateWeeklyReport } from '@/lib/ai/proactive-coach'
+import {
+  checkRateLimit,
+  acquireInflight,
+  releaseInflight,
+  recordCall,
+  formatCooldownRemaining,
+} from '@/lib/ai/rate-limiter'
 import { listExercises } from '@/lib/custom-plan-service'
 import { getWeekKey, startOfLocalWeek } from '@/lib/stats-engine'
 import {
@@ -170,6 +178,43 @@ export default function Dashboard() {
         ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined }
         : undefined
 
+      // Rate limit check — only for AI calls (local fallback is free)
+      if (aiConfig) {
+        const rl = checkRateLimit('weekly_report')
+        if (!rl.allowed) {
+          // For auto-fire: silently use local fallback
+          // For force: show error via local fallback
+          if (forceRegenerate && rl.reason === 'cooldown') {
+            showToast(pl.aiRateLimitCooldown(formatCooldownRemaining(rl.retryAfterMs)), 'warning')
+          }
+          // Generate local report instead
+          try {
+            const [sessions, exercises] = await Promise.all([
+              db.workoutSessions.toArray(),
+              listExercises(),
+            ])
+            const report = await generateWeeklyReport({ sessions, exercises, aiConfig: undefined, signal: controller.signal })
+            if (cancelled) return
+            if (forceRegenerate) {
+              const old = await db.aiInsights.where('weekKey').equals(weekKey).filter((i) => i.type === 'weekly_report').toArray()
+              await Promise.all(old.map((r) => db.aiInsights.delete(r.id)))
+            }
+            await db.aiInsights.put(report)
+            void enqueueSync('ai_insights', 'insert', report)
+            setWeeklyReport(report)
+            if (forceRegenerate) {
+              const next = new URLSearchParams(searchParams)
+              next.delete('weekly_report')
+              setSearchParams(next, { replace: true })
+            }
+          } catch {
+            // Non-blocking
+          }
+          return
+        }
+        acquireInflight()
+      }
+
       try {
         const [sessions, exercises] = await Promise.all([
           db.workoutSessions.toArray(),
@@ -177,6 +222,10 @@ export default function Dashboard() {
         ])
         const report = await generateWeeklyReport({ sessions, exercises, aiConfig, signal: controller.signal })
         if (cancelled) return
+        // Record successful AI call
+        if (report.source === 'ai') {
+          recordCall('weekly_report')
+        }
         // When forcing with AI configured, don't overwrite AI report with local fallback
         if (forceRegenerate && aiConfig && report.source !== 'ai') {
           // AI failed — keep existing report if any, don't save local fallback
@@ -218,6 +267,8 @@ export default function Dashboard() {
         }
       } catch {
         // Non-blocking
+      } finally {
+        if (aiConfig) releaseInflight()
       }
     })()
     return () => { cancelled = true; controller.abort() }

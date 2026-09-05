@@ -2033,6 +2033,16 @@ export const en: Translation = {
   aiErrorParsePlan: 'AI did not return a valid plan.',
   aiPlanFallbackName: 'AI Plan',
 
+  // ── AI rate limiting ──
+  aiRateLimitCooldown: (retryIn: string) =>
+    `Wait ${retryIn} before another AI request.`,
+  aiRateLimitQuota: (remaining: number, quota: number) =>
+    `Daily AI limit reached (${quota} requests/day). Remaining: ${remaining}. Try tomorrow.`,
+  aiRateLimitInflight: 'AI is already processing another request. Please wait.',
+  aiAnalysisCacheFresh: (age: string) =>
+    `Analysis from ${age} ago. Refresh soon to generate a new one.`,
+  aiAnalysisCacheStale: 'Analysis may be outdated. Click to refresh.',
+
   // ── Plans toast ──
   plansRepairedToast: (plans: number, sets: number) =>
     `Repaired ${plans} plan(s): ${sets} sets.`,
