@@ -246,9 +246,9 @@ export async function detectPlateau(
   program: string,
   sessions: LocalWorkoutSession[],
 ): Promise<LocalAiInsight | null> {
-  // Get completed+passed sessions for this program, sorted chronologically
+  // Get completed sessions for this program, sorted chronologically
   const completed = sessions
-    .filter((s) => s.program === program && s.status === 'completed' && s.passed === true)
+    .filter((s) => s.program === program && s.status === 'completed')
     .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime())
 
   if (completed.length < 3) return null
