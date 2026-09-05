@@ -10,6 +10,15 @@ vi.mock('@/stores/app-store', () => ({
   },
 }))
 
+// Mock notifications to prevent EnvironmentTeardownError from dynamic import
+// racing with test environment teardown.
+vi.mock('@/lib/notifications', () => ({
+  scheduleDailyReminder: vi.fn(),
+  cancelReminder: vi.fn(),
+  requestWorkoutReminderPermission: vi.fn(),
+  showWorkoutReminder: vi.fn(),
+}))
+
 import {
   mergeEnabledProgramsFromProfile,
   mergeEnabledProgramsFromProgress,
