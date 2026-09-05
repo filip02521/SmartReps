@@ -32,7 +32,6 @@ export function AiCoachMark({
 }) {
   const uid = useId().replace(/[:]/g, '')
   const gradId = `sr-coach-grad-${uid}`
-  const glowId = `sr-coach-glow-${uid}`
   const dim = SIZE_MAP[size]
 
   return (
@@ -54,13 +53,6 @@ export function AiCoachMark({
             <stop offset="0.5" stopColor="var(--sr-brand-primary)" />
             <stop offset="1" stopColor="var(--sr-brand-secondary)" />
           </linearGradient>
-          <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="1.5" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
         </defs>
         {/* Outer ring */}
         <circle
@@ -80,19 +72,15 @@ export function AiCoachMark({
           opacity="0.4"
           fill="none"
         />
-        {/* R glyph */}
-        <text
-          x="32"
-          y="40"
-          textAnchor="middle"
-          fill={`url(#${gradId})`}
-          fontSize={dim.font}
-          fontWeight="800"
-          fontFamily="var(--sr-font)"
-          filter={`url(#${glowId})`}
-        >
-          R
-        </text>
+        {/* R glyph — drawn as path for consistent rendering */}
+        <path
+          d="M 26 22 L 26 42 M 26 22 L 34 22 Q 40 22 40 28 Q 40 33 34 33 L 26 33 M 33 33 L 40 42"
+          stroke={`url(#${gradId})`}
+          strokeWidth={dim.ring + 1}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
       </svg>
       {/* Sparkle indicator — top-right, signals AI */}
       <span
