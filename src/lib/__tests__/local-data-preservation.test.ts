@@ -36,6 +36,7 @@ vi.mock('@/stores/app-store', () => ({
     onboardingComplete: false,
     displayName: '',
     language: 'pl',
+    aiProactiveCoach: false,
   },
 }))
 
@@ -64,6 +65,7 @@ vi.mock('@/lib/db', () => ({
     exercises: { clear: vi.fn() },
     customPlans: { clear: vi.fn() },
     customProgramProgress: { clear: vi.fn() },
+    aiInsights: { clear: vi.fn() },
   },
 }))
 

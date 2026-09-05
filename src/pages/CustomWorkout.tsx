@@ -25,6 +25,7 @@ import {
   finalizeCustomDay,
   getLastExerciseLogs,
   getPreviousCustomSetResult,
+  getPreviousCustomSetActual,
   persistCustomActive,
   reconcileActiveCustomWorkout,
   type PreviousCustomSetResult,
@@ -58,6 +59,7 @@ import {
   getGroupForExercise,
   shouldStartAmrap,
 } from '@/lib/custom-workout-nav'
+import { getSmartRestSuggestion } from '@/lib/ai/proactive-coach'
 import {
   canJumpToExercise,
   findNextIncompletePosition,
@@ -151,6 +153,7 @@ export default function CustomWorkoutPage() {
   const [showPlanSheet, setShowPlanSheet] = useState(false)
   const [detailExercise, setDetailExercise] = useState<ExerciseDefinition | null>(null)
   const [previousResult, setPreviousResult] = useState<PreviousCustomSetResult | undefined>()
+  const [coachSuggestion, setCoachSuggestion] = useState<string | null>(null)
   const [pulseFlash, setPulseFlash] = useState(false)
   const [failedIndex, setFailedIndex] = useState<number | undefined>()
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -650,6 +653,7 @@ export default function CustomWorkoutPage() {
       onComplete: () => {
         onRestComplete({ sound: timerSound, vibration: timerVibration })
         useCustomWorkoutStore.getState().setRestTimer(skipRest())
+        setCoachSuggestion(null)
         void persistState()
         checklistRef.current
           ?.querySelector('[data-active-set="true"]')
@@ -782,6 +786,37 @@ export default function CustomWorkoutPage() {
 
     if (nav.restSec > 0) {
       store.setRestTimer(createRestTimer(nav.restSec, 'expanded'))
+      // Smart rest suggestion — compare next set target with previous session actual
+      if (nav.next && sessionRef.current) {
+        const nextEx = liveDay.exercises[nav.next.exerciseIndex]
+        if (nextEx) {
+          const nextSet = nextEx.sets[nav.next.setIndex]
+          const repsTarget = nextSet?.reps
+          const durTarget = nextSet?.durationSec
+          // Prefer reps target; fall back to duration target (timed exercises like plank)
+          const isTimed = !repsTarget && !!durTarget
+          const target = repsTarget
+            ? (repsTarget.kind === 'max' ? repsTarget.minValue : repsTarget.value)
+            : durTarget
+              ? (durTarget.kind === 'max' ? durTarget.minValue : durTarget.value)
+              : 0
+          if (target > 0) {
+            try {
+              const prevActual = await getPreviousCustomSetActual({
+                customPlanId: livePlan.id,
+                exerciseId: nextEx.exerciseId,
+                setNumber: nav.next.setIndex + 1,
+                currentDayNumber: store.dayNumber,
+                currentCycleAttempt: sessionRef.current.cycleAttempt,
+                excludeSessionId: sessionRef.current.id,
+              })
+              setCoachSuggestion(getSmartRestSuggestion(prevActual, target, isTimed ? 'seconds' : 'reps'))
+            } catch {
+              setCoachSuggestion(null)
+            }
+          }
+        }
+      }
     }
 
     let latest = useCustomWorkoutStore.getState()
@@ -1339,6 +1374,7 @@ export default function CustomWorkoutPage() {
 
   function mutateRestTimer(next: RestTimerState) {
     store.setRestTimer(next)
+    if (next.mode === 'idle') setCoachSuggestion(null)
     void persistState()
   }
 
@@ -1586,6 +1622,7 @@ export default function CustomWorkoutPage() {
         exerciseLogs={store.exerciseLogs}
         setResults={setResults}
         restTimer={restTimer}
+        coachSuggestion={coachSuggestion}
         actual={actual}
         previousResult={previousResult}
         failedIndex={failedIndex}

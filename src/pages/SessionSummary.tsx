@@ -12,6 +12,7 @@ import { LogoMark } from '@/components/brand/Logo'
 import { NoticeCard, LogIn } from '@/components/ux/NoticeCard'
 import { getProgramProgress } from '@/lib/program-service'
 import { db } from '@/lib/db'
+import type { LocalWorkoutSession } from '@/lib/db'
 import { getSessionComparison } from '@/lib/session-service'
 import { computeBuiltinSessionInsights, type BuiltinSessionInsights } from '@/lib/session-summary-insights'
 import { getSummaryActions, shouldShowLoginCloudPrompt } from '@/lib/summary-actions'
@@ -29,6 +30,11 @@ import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
 import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
+import { AiInsightCard } from '@/components/brand/AiInsightCard'
+import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
+import { listExercises } from '@/lib/custom-plan-service'
+import type { LocalAiInsight } from '@/lib/db'
+import { enqueueSync } from '@/lib/sync'
 
 export default function SessionSummary() {
   const { program: programParam } = useParams<{ program: Program }>()
@@ -50,6 +56,7 @@ export default function SessionSummary() {
   const [previous, setPrevious] = useState<Awaited<ReturnType<typeof getSessionComparison>>['previous']>()
   const [progress, setProgress] = useState<Awaited<ReturnType<typeof getProgramProgress>>>(undefined)
   const [insights, setInsights] = useState<BuiltinSessionInsights | undefined>()
+  const [coachInsight, setCoachInsight] = useState<LocalAiInsight | null>(null)
   const [sharing, setSharing] = useState(false)
   const [newAchievements, setNewAchievements] = useState<
     import('@/lib/achievements/types').LocalAchievementUnlock[]
@@ -109,6 +116,8 @@ export default function SessionSummary() {
             historicalSessions,
           }),
         )
+        // Proactive coach: load or generate post-workout insight
+        void loadOrGenerateCoachInsight(comparison.current, comparison.previous, historicalSessions)
       } else {
         setInsights(undefined)
       }
@@ -116,6 +125,44 @@ export default function SessionSummary() {
       setError(pl.errorLoadSummary)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadOrGenerateCoachInsight(
+    currentSession: LocalWorkoutSession,
+    previousSession: LocalWorkoutSession | undefined,
+    historicalSessions: LocalWorkoutSession[],
+  ) {
+    if (!currentSession) return
+    // Check if insight already exists for this session
+    const existing = await db.aiInsights.where('sessionId').equals(currentSession.id).first()
+    if (existing && !existing.dismissedAt) {
+      setCoachInsight(existing)
+      return
+    }
+    if (existing?.dismissedAt) return // user dismissed it
+
+    const settings = useAppStore.getState().settings
+    const aiConfig = settings.aiProactiveCoach && settings.aiApiKey
+      ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined }
+      : undefined
+
+    try {
+      const exercises = await listExercises()
+      const insight = await generatePostWorkoutInsight({
+        session: currentSession,
+        previous: previousSession,
+        historicalSessions,
+        exercises,
+        aiConfig,
+      })
+      // Guard against stale state if user navigated away during async generation
+      if (currentSession.id !== current?.id) return
+      await db.aiInsights.put(insight)
+      void enqueueSync('ai_insights', 'insert', insight)
+      setCoachInsight(insight)
+    } catch {
+      // Non-blocking — summary works without insight
     }
   }
 
@@ -255,6 +302,21 @@ export default function SessionSummary() {
           </p>
         </div>
       </div>
+
+      {/* Proactive coach insight */}
+      {coachInsight && (
+        <AiInsightCard
+          insight={coachInsight}
+          className="mb-6"
+          onDismiss={async () => {
+            const dismissed = { ...coachInsight, dismissedAt: new Date().toISOString() }
+            await db.aiInsights.put(dismissed)
+            void enqueueSync('ai_insights', 'update', dismissed)
+            setCoachInsight(null)
+            showToast(pl.coachPostWorkoutDismissed, 'info')
+          }}
+        />
+      )}
 
       {/* Cycle complete card with icon */}
       {!failed && progress?.status === 'test_pending' && (

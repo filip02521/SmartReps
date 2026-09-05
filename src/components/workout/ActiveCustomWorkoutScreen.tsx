@@ -870,6 +870,7 @@ export type ActiveCustomWorkoutScreenProps = {
   exerciseLogs: ExerciseLog[]
   setResults: SetLog[]
   restTimer: RestTimerState | null
+  coachSuggestion?: string | null
   actual: number
   previousResult?: PreviousCustomSetResult
   failedIndex?: number
@@ -955,6 +956,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     exerciseLogs,
     setResults,
     restTimer,
+    coachSuggestion,
     actual,
     previousResult,
     failedIndex,
@@ -1388,6 +1390,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           remainingSec={restTimer.remainingSec}
           totalSec={restTimer.totalSec}
           nextLabel={nextLabel}
+          coachSuggestion={coachSuggestion}
           onAdd15={onAddRest15}
           onAdd30={onAddRest30}
           onSetRest={onSetRest}

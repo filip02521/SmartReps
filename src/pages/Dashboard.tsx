@@ -13,12 +13,18 @@ import { ProgramHomeCard } from '@/components/dashboard/ProgramHomeCard'
 import { CustomPlansHomeSection } from '@/components/dashboard/CustomPlansHomeSection'
 import { CommunityHomeTeaser } from '@/components/dashboard/CommunityHomeTeaser'
 import { InstallCoach } from '@/components/ux/InstallCoach'
+import { WeeklyReportCard } from '@/components/dashboard/WeeklyReportCard'
 import { pl } from '@/i18n/pl'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { beginLevelChange } from '@/lib/setup-flow'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
+import { db, type LocalAiInsight } from '@/lib/db'
+import { enqueueSync } from '@/lib/sync'
+import { generateWeeklyReport } from '@/lib/ai/proactive-coach'
+import { listExercises } from '@/lib/custom-plan-service'
+import { getWeekKey } from '@/lib/stats-engine'
 import {
   loadHomeDashboard,
   localDayKey,
@@ -49,6 +55,7 @@ export default function Dashboard() {
   const hydrated = useStoreHydrated()
   const [reloadEpoch, setReloadEpoch] = useState(0)
   const [home, setHome] = useState<HomeLoadResult | null>(null)
+  const [weeklyReport, setWeeklyReport] = useState<LocalAiInsight | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [hasSession, setHasSession] = useState<boolean | null>(null)
@@ -124,6 +131,48 @@ export default function Dashboard() {
     setSearchParams({}, { replace: true })
   }, [hydrated, loading, home, searchParams, setSearchParams])
 
+  // Proactive coach: weekly report — generate on Sunday when user has completed workouts
+  useEffect(() => {
+    if (!hydrated || !hasCompletedFirstWorkout) return
+    let cancelled = false
+    void (async () => {
+      const weekKey = getWeekKey(new Date())
+      const existing = await db.aiInsights
+        .where('weekKey')
+        .equals(weekKey)
+        .filter((i) => i.type === 'weekly_report' && !i.dismissedAt)
+        .first()
+      if (existing) {
+        if (!cancelled) setWeeklyReport(existing)
+        return
+      }
+      // Only generate on Sundays (day 0) or when explicitly requested via search param
+      const isSunday = new Date().getDay() === 0
+      const hasReportParam = searchParams.get('weekly_report') === '1'
+      if (!isSunday && !hasReportParam) return
+
+      const settings = useAppStore.getState().settings
+      const aiConfig = settings.aiProactiveCoach && settings.aiApiKey
+        ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined }
+        : undefined
+
+      try {
+        const [sessions, exercises] = await Promise.all([
+          db.workoutSessions.toArray(),
+          listExercises(),
+        ])
+        const report = await generateWeeklyReport({ sessions, exercises, aiConfig })
+        if (cancelled) return
+        await db.aiInsights.put(report)
+        void enqueueSync('ai_insights', 'insert', report)
+        setWeeklyReport(report)
+      } catch {
+        // Non-blocking
+      }
+    })()
+    return () => { cancelled = true }
+  }, [hydrated, hasCompletedFirstWorkout, reloadEpoch, searchParams])
+
   if (!hydrated) {
     return (
       <div className={TAB_PAGE_SHELL}>
@@ -167,6 +216,14 @@ export default function Dashboard() {
 
           {/* Quick activity stats — visible immediately under today's status */}
           <HomeActivitySection summary={home.summary} />
+
+          {/* Proactive coach: weekly report card */}
+          {weeklyReport && !weeklyReport.dismissedAt && (
+            <WeeklyReportCard
+              insight={weeklyReport}
+              onDismissed={() => setWeeklyReport(null)}
+            />
+          )}
 
           <div className="mt-4">
             <InstallCoach demotePrimary onVisibilityChange={onInstallVisibility} />

@@ -109,6 +109,24 @@ export type LocalAchievementUnlockRow = {
   tierLevel?: number | null
 }
 
+export type AiInsightType = 'post_workout' | 'weekly_report' | 'plateau_warning'
+
+export type LocalAiInsight = {
+  id: string
+  type: AiInsightType
+  sessionId?: string
+  weekKey?: string
+  program?: string
+  customPlanId?: string
+  title: string
+  body: string
+  tone: 'insight' | 'warning' | 'success'
+  source: 'local' | 'ai'
+  createdAt: string
+  dismissedAt?: string
+  readAt?: string
+}
+
 class SmartRepsDB extends Dexie {
   programProgress!: EntityTable<LocalProgramProgress, 'id'>
   workoutSessions!: EntityTable<LocalWorkoutSession, 'id'>
@@ -121,6 +139,7 @@ class SmartRepsDB extends Dexie {
   customProgramProgress!: EntityTable<LocalCustomProgramProgress, 'id'>
   achievementUnlocks!: EntityTable<LocalAchievementUnlockRow, 'id'>
   bodyWeight!: EntityTable<BodyWeightEntry, 'id'>
+  aiInsights!: EntityTable<LocalAiInsight, 'id'>
 
   constructor() {
     super('SmartRepsDB')
@@ -213,6 +232,22 @@ class SmartRepsDB extends Dexie {
       customProgramProgress: '++id, &customPlanId, updatedAt',
       achievementUnlocks: 'id, unlockedAt',
       bodyWeight: 'id, measuredAt',
+    })
+
+    // v7: AI coach insights (post-workout, weekly reports, plateau warnings)
+    this.version(7).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, startedAt, [program+status], customPlanId',
+      activeWorkout: 'program',
+      activeCustomWorkout: 'customPlanId',
+      syncQueue: '++id, createdAt',
+      maxTests: '++id, program, testedAt, &[program+testedAt]',
+      exercises: 'id, updatedAt, archived',
+      customPlans: 'id, status, updatedAt',
+      customProgramProgress: '++id, &customPlanId, updatedAt',
+      achievementUnlocks: 'id, unlockedAt',
+      bodyWeight: 'id, measuredAt',
+      aiInsights: 'id, type, sessionId, weekKey, createdAt',
     })
   }
 }

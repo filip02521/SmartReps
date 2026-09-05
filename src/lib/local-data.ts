@@ -25,6 +25,7 @@ export async function clearAllLocalData(): Promise<void> {
     db.exercises.clear(),
     db.customPlans.clear(),
     db.customProgramProgress.clear(),
+    db.aiInsights.clear(),
   ])
   useWorkoutStore.getState().reset()
   try {
@@ -42,6 +43,7 @@ export async function clearAllLocalData(): Promise<void> {
       aiApiKey: prevSettings.aiApiKey,
       aiModel: prevSettings.aiModel,
       aiBaseUrl: prevSettings.aiBaseUrl,
+      aiProactiveCoach: prevSettings.aiProactiveCoach,
       language: prevSettings.language,
     },
     pendingTest: null,

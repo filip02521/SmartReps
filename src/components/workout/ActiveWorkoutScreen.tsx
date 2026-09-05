@@ -34,6 +34,7 @@ export type ActiveWorkoutScreenProps = {
   currentSetIndex: number
   setResults: SetResultDraft[]
   restTimer: RestTimerState | null
+  coachSuggestion?: string | null
   actual: number
   lastActual?: number
   failedIndex?: number
@@ -86,6 +87,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     currentSetIndex,
     setResults,
     restTimer,
+    coachSuggestion,
     actual,
     lastActual,
     failedIndex,
@@ -302,6 +304,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           remainingSec={restTimer.remainingSec}
           totalSec={restTimer.totalSec}
           nextLabel={nextLabel}
+          coachSuggestion={coachSuggestion}
           onAdd15={onAddRest15}
           onAdd30={onAddRest30}
           onSetRest={onSetRest}

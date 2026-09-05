@@ -152,6 +152,33 @@ export async function getPreviousSetActual(
   return session?.setResults.find((r) => r.setNumber === setNumber)?.actual
 }
 
+/**
+ * Get the most recent completed+passed set actual for a given day+set,
+ * regardless of cycle attempt. Used for smart rest suggestions where we
+ * want to compare with the user's latest performance, not just the same cycle.
+ */
+export async function getMostRecentSetActual(
+  program: Program,
+  dayNumber: number,
+  setNumber: number,
+  excludeSessionId?: string,
+): Promise<number | undefined> {
+  const sessions = await db.workoutSessions
+    .where('program')
+    .equals(program)
+    .filter(
+      (s) =>
+        s.status === 'completed' &&
+        s.passed === true &&
+        s.dayNumber === dayNumber &&
+        s.id !== excludeSessionId,
+    )
+    .toArray()
+  sessions.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+  const mostRecent = sessions[0]
+  return mostRecent?.setResults.find((r) => r.setNumber === setNumber)?.actual
+}
+
 export async function finalizeSuccessfulDay(
   session: LocalWorkoutSession,
   setResults: SetResultDraft[],

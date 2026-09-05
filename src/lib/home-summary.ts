@@ -7,11 +7,12 @@ import {
   isWorkoutAvailable,
 } from '@/lib/progress-engine'
 import { getProgramStats, type ProgramStats } from '@/lib/stats-engine'
-import { isStaleActiveWorkout } from '@/lib/sync'
+import { isStaleActiveWorkout, enqueueSync } from '@/lib/sync'
 import { reconcileActiveWorkout } from '@/lib/program-service'
 import { pl } from '@/i18n/pl'
 import { buildActivityInsights, daysSinceLastPassedSession, type ActivityInsights } from '@/lib/weekly-recap'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
+import { detectPlateau } from '@/lib/ai/proactive-coach'
 
 export type ProgramBucket =
   | 'resume_stale'
@@ -57,6 +58,7 @@ export type TipKind =
   | 'habit_zero'
   | 'habit_met'
   | 'achievement'
+  | 'plateau'
 
 export type HomeTipModel = {
   id: string
@@ -77,6 +79,8 @@ export type PickTipOpts = {
   showLoginBackup?: boolean
   dismissedHabitMetTip?: boolean
   unseenAchievements?: number
+  /** When set, a plateau warning tip is shown for this program. */
+  plateauProgram?: Program | null
 }
 
 export type TipSuppression = {
@@ -421,6 +425,20 @@ export function pickTip(
     }
   }
 
+  // Plateau warning — 3 sessions without progress (higher priority than achievements)
+  if (opts?.plateauProgram && !dismissed.has(`plateau-${opts.plateauProgram}`)) {
+    const programLabel = opts.plateauProgram === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+    return {
+      id: `plateau-${opts.plateauProgram}`,
+      kind: 'plateau',
+      title: pl.coachPlateauTitle,
+      message: pl.coachPlateauTip(programLabel),
+      dismissible: true,
+      actionLabel: pl.coachPlateauCta,
+      navigateTo: '/progress?tab=analysis',
+    }
+  }
+
   const unseenAch = opts?.unseenAchievements ?? 0
   if (unseenAch > 0 && !dismissed.has('achievement-unseen')) {
     return {
@@ -639,6 +657,19 @@ export async function loadHomeDashboard(
     })
   }
 
+  // Plateau detection — check each enabled program for 3-session stagnation
+  let plateauProgram: Program | null = null
+  for (const prog of enabledPrograms) {
+    const plateau = await detectPlateau(prog, allSessions)
+    if (plateau) {
+      plateauProgram = prog
+      // Persist the plateau insight so it syncs and isn't re-detected for 7 days
+      await db.aiInsights.put(plateau)
+      void enqueueSync('ai_insights', 'insert', plateau)
+      break
+    }
+  }
+
   const tip = pickTip(
     cards,
     sessions14d,
@@ -649,6 +680,7 @@ export async function loadHomeDashboard(
       enabledProgramCount: enabledPrograms.length,
       showLoginBackup: opts?.showLoginBackup,
       dismissedHabitMetTip: opts?.dismissedHabitMetTip,
+      plateauProgram,
       unseenAchievements: await import('@/lib/achievements/store').then((m) =>
         m.countUnseenUnlocks(),
       ),

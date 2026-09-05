@@ -1,4 +1,4 @@
-import { db, type LocalMaxTest, type LocalProgramProgress, type LocalWorkoutSession, type ActiveWorkoutState, type BodyWeightEntry } from './db'
+import { db, type LocalMaxTest, type LocalProgramProgress, type LocalWorkoutSession, type ActiveWorkoutState, type BodyWeightEntry, type LocalAiInsight } from './db'
 import { isSupabaseConfigured, supabase } from './supabase/client'
 import {
   mapRemoteSetRow,
@@ -192,6 +192,7 @@ async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
       weight_unit: settings.weightUnit ?? 'kg',
       high_contrast: settings.highContrast ?? false,
       language: settings.language ?? 'pl',
+      ai_proactive_coach: settings.aiProactiveCoach ?? false,
       ui_settings_updated_at: uiUpdatedAt,
     },
     { onConflict: 'id' },
@@ -217,7 +218,7 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, weight_unit, high_contrast, language, ui_settings_updated_at',
+        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, weight_unit, high_contrast, language, ai_proactive_coach, ui_settings_updated_at',
       )
       .eq('id', userId)
       .maybeSingle()
@@ -516,6 +517,36 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
       }
       break
     }
+    case 'ai_insights': {
+      const insight = payload as LocalAiInsight
+      if (action === 'delete') {
+        const { error } = await supabase
+          .from('ai_insights')
+          .delete()
+          .eq('user_id', userId)
+          .eq('id', insight.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('ai_insights').upsert({
+          id: insight.id,
+          user_id: userId,
+          type: insight.type,
+          session_id: insight.sessionId ?? null,
+          week_key: insight.weekKey ?? null,
+          program: insight.program ?? null,
+          custom_plan_id: insight.customPlanId ?? null,
+          title: insight.title,
+          body: insight.body,
+          tone: insight.tone,
+          source: insight.source,
+          created_at: insight.createdAt,
+          dismissed_at: insight.dismissedAt ?? null,
+          read_at: insight.readAt ?? null,
+        })
+        if (error) throw error
+      }
+      break
+    }
   }
 }
 
@@ -801,6 +832,69 @@ async function mergeBodyWeightRemote(remote: RemoteBodyWeightRow) {
   })
 }
 
+type RemoteAiInsightRow = {
+  id: string
+  type: 'post_workout' | 'weekly_report' | 'plateau_warning'
+  session_id: string | null
+  week_key: string | null
+  program: string | null
+  custom_plan_id: string | null
+  title: string
+  body: string
+  tone: 'insight' | 'warning' | 'success'
+  source: 'local' | 'ai'
+  created_at: string
+  dismissed_at: string | null
+  read_at: string | null
+}
+
+export async function mergeAiInsightRemote(remote: RemoteAiInsightRow) {
+  const existing = await db.aiInsights.get(remote.id)
+  if (existing) {
+    // LWW: remote wins if created later, OR if remote has state updates
+    // (dismissed_at / read_at) that local doesn't have yet.
+    const remoteMs = new Date(remote.created_at).getTime()
+    const localMs = new Date(existing.createdAt).getTime()
+    const remoteHasDismiss = remote.dismissed_at && !existing.dismissedAt
+    const remoteHasRead = remote.read_at && !existing.readAt
+    const remoteNewer = remoteMs > localMs
+    if (remoteNewer || remoteHasDismiss || remoteHasRead) {
+      await db.aiInsights.put({
+        id: remote.id,
+        type: remote.type,
+        sessionId: remote.session_id ?? undefined,
+        weekKey: remote.week_key ?? undefined,
+        program: remote.program ?? undefined,
+        customPlanId: remote.custom_plan_id ?? undefined,
+        title: remote.title,
+        body: remote.body,
+        tone: remote.tone,
+        source: remote.source,
+        createdAt: new Date(remoteMs).toISOString(),
+        // Preserve the latest dismiss/read timestamps (remote wins if it has them)
+        dismissedAt: remote.dismissed_at ?? existing.dismissedAt,
+        readAt: remote.read_at ?? existing.readAt,
+      })
+    }
+    return
+  }
+  await db.aiInsights.put({
+    id: remote.id,
+    type: remote.type,
+    sessionId: remote.session_id ?? undefined,
+    weekKey: remote.week_key ?? undefined,
+    program: remote.program ?? undefined,
+    customPlanId: remote.custom_plan_id ?? undefined,
+    title: remote.title,
+    body: remote.body,
+    tone: remote.tone,
+    source: remote.source,
+    createdAt: new Date(remote.created_at).toISOString(),
+    dismissedAt: remote.dismissed_at ?? undefined,
+    readAt: remote.read_at ?? undefined,
+  })
+}
+
 async function mergeEnabledProgramsLegacyFallback(remoteProgress: RemoteProgressRow[]) {
   const programs = remoteProgress
     .map((row) => row.program as Program)
@@ -877,6 +971,16 @@ export async function pullRemoteData(): Promise<SyncResult> {
 
     for (const remote of remoteBodyWeight ?? []) {
       await mergeBodyWeightRemote(remote as RemoteBodyWeightRow)
+    }
+
+    // Pull AI insights
+    const { data: remoteInsights, error: insightsError } = await supabase
+      .from('ai_insights')
+      .select('*')
+      .eq('user_id', userId)
+    if (insightsError) throw insightsError
+    for (const remote of remoteInsights ?? []) {
+      await mergeAiInsightRemote(remote as RemoteAiInsightRow)
     }
 
     const { pullCustomEntities } = await import('@/lib/custom-sync')

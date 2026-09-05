@@ -27,6 +27,7 @@ export type RemoteProfileSettings = {
   weight_unit?: string | null
   high_contrast?: boolean | null
   language?: string | null
+  ai_proactive_coach?: boolean | null
   ui_settings_updated_at?: string | null
 }
 
@@ -130,6 +131,7 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
   const highContrast = remote.high_contrast ?? settings.highContrast
   const language: UserSettings['language'] =
     remote.language === 'en' ? 'en' : remote.language === 'pl' ? 'pl' : settings.language
+  const aiProactiveCoach = remote.ai_proactive_coach ?? settings.aiProactiveCoach
 
   const unchanged =
     theme === settings.theme &&
@@ -139,7 +141,8 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     reminderHour === settings.reminderHour &&
     weightUnit === settings.weightUnit &&
     highContrast === settings.highContrast &&
-    language === settings.language
+    language === settings.language &&
+    aiProactiveCoach === settings.aiProactiveCoach
 
   if (unchanged) {
     useAppStore.setState({ uiSettingsUpdatedAt: remote.ui_settings_updated_at })
@@ -156,6 +159,7 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     weightUnit,
     highContrast,
     language,
+    aiProactiveCoach,
   }
   useAppStore.setState({
     settings: next,

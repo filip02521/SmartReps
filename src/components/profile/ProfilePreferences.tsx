@@ -33,6 +33,7 @@ export function ProfilePreferences({
   aiApiKey,
   aiModel,
   aiBaseUrl,
+  aiProactiveCoach,
   pushDescription,
   remindersDenied,
   pushDisabled,
@@ -52,6 +53,7 @@ export function ProfilePreferences({
   onAiApiKeySave,
   onAiModelSave,
   onAiBaseUrlSave,
+  onAiProactiveCoachChange,
 }: {
   theme: Theme
   highContrast: boolean
@@ -67,6 +69,7 @@ export function ProfilePreferences({
   aiApiKey: string
   aiModel: string
   aiBaseUrl: string
+  aiProactiveCoach: boolean
   pushDescription: string
   remindersDenied: boolean
   pushDisabled: boolean
@@ -86,6 +89,7 @@ export function ProfilePreferences({
   onAiApiKeySave: (key: string) => void
   onAiModelSave: (model: string) => void
   onAiBaseUrlSave: (url: string) => void
+  onAiProactiveCoachChange: (enabled: boolean) => void
 }) {
   const [nameDraft, setNameDraft] = useState(displayName)
   const [apiKeyDraft, setApiKeyDraft] = useState(aiApiKey)
@@ -318,6 +322,16 @@ export function ProfilePreferences({
         >
           {pl.aiCoachConfigSave}
         </Button>
+
+        {apiKeyDraft.trim() && (
+          <SwitchRow
+            id="ai-proactive-coach"
+            checked={aiProactiveCoach}
+            onChange={onAiProactiveCoachChange}
+            label={pl.coachSettingsProactive}
+            description={pl.coachSettingsProactiveDesc}
+          />
+        )}
       </PageSection>
     </>
   )

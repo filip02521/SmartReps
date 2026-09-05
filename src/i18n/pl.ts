@@ -1288,6 +1288,48 @@ const plDict = {
   aiCoachConfigTesting: 'Testuję…',
   aiCoachConfigTestOk: 'Połączenie działa — trener gotowy',
   aiCoachConfigTestFail: 'Nie udało się połączyć — sprawdź klucz i model',
+  // ── Proactive Coach: smart rest suggestions ──
+  coachRestSuggestionFirstTime: 'Pierwszy raz przy tym ćwiczeniu — zrób na czysto, tempo nad ruchem.',
+  coachRestSuggestionImproved: (prev: number) => `Ostatnio zrobiłeś ${prev} powt. w tej serii — spróbuj przebić.`,
+  coachRestSuggestionImprovedTime: (prev: number) => `Ostatnio wytrzymałeś ${prev}s — spróbuj przebić.`,
+  coachRestSuggestionUnchanged: 'Ostatnio tyle samo — czas na progres o 1 powtórzenie.',
+  coachRestSuggestionChallenge: (target: number, diff: number) => `Cel: ${target} powt. (o ${diff} więcej niż ostatnio). Skup się na tempie — dasz radę.`,
+  coachRestSuggestionChallengeTime: (target: number, diff: number) => `Cel: ${target}s (o ${diff}s dłużej niż ostatnio). Trzymaj pozycję — dasz radę.`,
+  // ── Proactive Coach: post-workout auto-insight ──
+  coachPostWorkoutTitle: 'Trener po treningu',
+  coachPostWorkoutLocalPr: 'Nowy rekord — super forma! Zrób 2 dni przerwy przed następnym treningiem.',
+  coachPostWorkoutLocalPrMulti: (count: number) => `${count} nowe rekordy w jednej sesji — wyjątkowa forma! Zrób 2 dni przerwy.`,
+  coachPostWorkoutLocalProgress: (delta: number) => `Progres o ${delta} powt. — dobra progresja. Utrzymaj tempo.`,
+  coachPostWorkoutLocalProgressAll: (delta: number, sets: number) => `Progres o ${delta} powt. we wszystkich ${sets} seriach — świetna sesja!`,
+  coachPostWorkoutLocalDown: (delta: number) => `Spadek o ${delta} powt. — może gorszy dzień. Zobacz, czy nie skracać przerw.`,
+  coachPostWorkoutLocalUnchanged: 'Bez zmian vs poprzednia sesja — rozważ +1 powtórzenie lub dodatkową serię.',
+  coachPostWorkoutLocalFailed: 'Nieudana sesja — to normalne. Skup się na czystej formie i spróbuj ponownie po przerwie.',
+  coachPostWorkoutGenerating: 'Trener analizuje sesję…',
+  coachPostWorkoutDismiss: 'Odrzuć',
+  coachPostWorkoutDismissed: 'Insight odrzucony',
+  coachPostWorkoutError: 'Nie udało się wygenerować insightu',
+  // ── Proactive Coach: plateau detector ──
+  coachPlateauTitle: 'Plateau wykryte',
+  coachPlateauBody: (programLabel: string, sessionCount: number, lastValue: number, bestValue: number, sessionsSinceBest: number) =>
+    `${programLabel}: ${sessionCount} sesje bez progresu (ostatni: ${lastValue}, najlepszy: ${bestValue}, ${sessionsSinceBest} sesje temu). Rozważ deload (−40% objętości) lub zmianę cyklu — badania Israetel sugerują tydzień lighter po 3-4 tyg. stagnacji.`,
+  coachPlateauCta: 'Zobacz rekomendację trenera',
+  coachPlateauTip: (programLabel: string) => `${programLabel}: 3 sesje bez progresu. Rozważ deload (−40% objętości) lub zmianę cyklu.`,
+  // ── Proactive Coach: weekly report ──
+  coachWeeklyReportTitle: 'Podsumowanie tygodnia',
+  coachWeeklyReportEmpty: 'Brak treningów w tym tygodniu. Zaplanuj sesję na jutro — mały krok buduje nawyk.',
+  coachWeeklyReportSessions: (count: number, reps: number) => `${count} sesje, ${reps} powt. łącznie.`,
+  coachWeeklyReportStreak: (weeks: number) => `Seria ${weeks} tyg. — tak trzymaj!`,
+  coachWeeklyReportUp: (pct: number) => `+${pct}% objętości vs poprzedni tydzień.`,
+  coachWeeklyReportDown: (pct: number) => `−${pct}% objętości vs poprzedni tydzień — rozważ dodatkową sesję.`,
+  coachWeeklyReportCta: 'Otwórz pełną analizę',
+  coachWeeklyReportGenerating: 'Trener przygotowuje raport…',
+  coachWeeklyReportDeloadSuggest: '4+ sesje/tyg. przez 4+ tyg. — rozważ tydzień deload (−40% objętości) dla regeneracji.',
+  coachWeeklyReportLowFreq: '1 sesja/tyg. to poniżej MEV (10 serii/grupę) — dodaj 1-2 sesje dla optymalnej hipertrofii.',
+  coachWeeklyReportFatigue: 'Spadek objętości >10% — możliwe zmęczenie. Rozważ dodatkowy dzień przerwy.',
+  coachWeeklyReportGreat: 'Świetny tydzień — objętość i progres w normie. Tak trzymaj!',
+  // ── Proactive Coach: settings ──
+  coachSettingsProactive: 'Proaktywny trener',
+  coachSettingsProactiveDesc: 'Automatyczne insights po treningu, tygodniowe raporty i wykrywanie plateau. Używa Twojego klucza AI.',
   // ── Profile hero & about redesign ──
   profileHeroLocal: 'Trenujesz lokalnie',
   profileHeroLocalHint: 'Zaloguj się, aby zapisać postęp w chmurze',
@@ -2323,6 +2365,7 @@ DOZWOLONE wartości muscleGroup: "chest", "back", "shoulders", "arms", "legs", "
   aiPromptRecentEmpty: '  (brak sesji)',
   aiPromptDateRangeNone: 'brak danych',
   aiPromptNoActivePlan: '',
+  aiPromptLanguageHint: 'Polish',
 
   // ── Delete session from history ──
   sessionDelete: 'Usuń trening',

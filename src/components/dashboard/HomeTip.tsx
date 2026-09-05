@@ -33,6 +33,8 @@ function tipMeta(kind: TipKind): { tone: NoticeTone; title: string; icon: ReactN
         title: pl.achievementsHomeTipTitle,
         icon: noticeIcon('brand'),
       }
+    case 'plateau':
+      return { tone: 'warning', title: pl.coachPlateauTitle, icon: <AlertTriangle size={20} strokeWidth={2.25} /> }
     default:
       return { tone: 'info', title: pl.homeTipTitleDefault, icon: noticeIcon('info') }
   }

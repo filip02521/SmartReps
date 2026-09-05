@@ -13,6 +13,7 @@ import { ProgressRing } from '@/components/ui/ProgressRing'
 import { NumericDraftInput } from '@/components/ui/NumericDraftInput'
 import { PreviousResultBadge } from '@/components/workout/PreviousResultBadge'
 import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
+import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { Z_REST_EXPANDED, Z_CELEBRATION, FOCUS_RING } from '@/lib/ui-chrome'
 
 export function WorkoutFailRetryRow({
@@ -354,6 +355,7 @@ export function RestTimerExpanded({
   remainingSec,
   totalSec,
   nextLabel,
+  coachSuggestion,
   onAdd15,
   onAdd30,
   onSkip,
@@ -363,6 +365,7 @@ export function RestTimerExpanded({
   remainingSec: number
   totalSec: number
   nextLabel: string
+  coachSuggestion?: string | null
   onAdd15: () => void
   onAdd30: () => void
   onSkip: () => void
@@ -406,6 +409,17 @@ export function RestTimerExpanded({
       </ProgressRing>
       {nextLabel ? (
         <p className="mt-6 px-4 text-center text-sm text-[var(--sr-text-secondary)]">{nextLabel}</p>
+      ) : null}
+      {coachSuggestion ? (
+        <div
+          aria-live="polite"
+          className="mt-4 flex max-w-sm items-start gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_60%,var(--sr-bg-elevated))] p-3"
+        >
+          <AiCoachMark size="sm" />
+          <p className="min-w-0 flex-1 text-sm leading-relaxed text-[var(--sr-text-secondary)]">
+            {coachSuggestion}
+          </p>
+        </div>
       ) : null}
       <div className="mt-8 flex flex-wrap justify-center gap-3 px-4">
         <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd15}>{pl.add15s}</Button>

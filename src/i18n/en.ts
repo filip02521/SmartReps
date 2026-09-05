@@ -1273,6 +1273,48 @@ export const en: Translation = {
   aiCoachConfigTesting: 'Testing…',
   aiCoachConfigTestOk: 'Connection works — coach ready',
   aiCoachConfigTestFail: 'Failed to connect — check key and model',
+  // ── Proactive Coach: smart rest suggestions ──
+  coachRestSuggestionFirstTime: 'First time on this exercise — focus on clean form, tempo over speed.',
+  coachRestSuggestionImproved: (prev: number) => `Last time you hit ${prev} reps on this set — try to beat it.`,
+  coachRestSuggestionImprovedTime: (prev: number) => `Last time you held ${prev}s — try to beat it.`,
+  coachRestSuggestionUnchanged: 'Same as last time — time to progress by 1 rep.',
+  coachRestSuggestionChallenge: (target: number, diff: number) => `Target: ${target} reps (${diff} more than last time). Focus on tempo — you've got this.`,
+  coachRestSuggestionChallengeTime: (target: number, diff: number) => `Target: ${target}s (${diff}s longer than last time). Hold the position — you've got this.`,
+  // ── Proactive Coach: post-workout auto-insight ──
+  coachPostWorkoutTitle: 'Post-workout coach',
+  coachPostWorkoutLocalPr: 'New record — great form! Take 2 days off before your next workout.',
+  coachPostWorkoutLocalPrMulti: (count: number) => `${count} new records in one session — exceptional form! Take 2 days off.`,
+  coachPostWorkoutLocalProgress: (delta: number) => `Progress by ${delta} reps — solid progression. Keep the pace.`,
+  coachPostWorkoutLocalProgressAll: (delta: number, sets: number) => `Progress by ${delta} reps across all ${sets} sets — excellent session!`,
+  coachPostWorkoutLocalDown: (delta: number) => `Down by ${delta} reps — maybe an off day. Check if you're cutting rest short.`,
+  coachPostWorkoutLocalUnchanged: 'No change vs last session — consider +1 rep or an extra set.',
+  coachPostWorkoutLocalFailed: 'Failed session — it happens. Focus on clean form and try again after rest.',
+  coachPostWorkoutGenerating: 'Coach is analyzing your session…',
+  coachPostWorkoutDismiss: 'Dismiss',
+  coachPostWorkoutDismissed: 'Insight dismissed',
+  coachPostWorkoutError: 'Failed to generate insight',
+  // ── Proactive Coach: plateau detector ──
+  coachPlateauTitle: 'Plateau detected',
+  coachPlateauBody: (programLabel: string, sessionCount: number, lastValue: number, bestValue: number, sessionsSinceBest: number) =>
+    `${programLabel}: ${sessionCount} sessions without progress (last: ${lastValue}, best: ${bestValue}, ${sessionsSinceBest} sessions ago). Consider a deload (−40% volume) or cycle change — Israetel's research suggests a lighter week after 3-4 weeks of stagnation.`,
+  coachPlateauCta: 'See coach recommendation',
+  coachPlateauTip: (programLabel: string) => `${programLabel}: 3 sessions without progress. Consider a deload (−40% volume) or cycle change.`,
+  // ── Proactive Coach: weekly report ──
+  coachWeeklyReportTitle: 'Weekly summary',
+  coachWeeklyReportEmpty: 'No workouts this week. Schedule a session for tomorrow — small steps build habits.',
+  coachWeeklyReportSessions: (count: number, reps: number) => `${count} sessions, ${reps} total reps.`,
+  coachWeeklyReportStreak: (weeks: number) => `${weeks}-week streak — keep it up!`,
+  coachWeeklyReportUp: (pct: number) => `+${pct}% volume vs last week.`,
+  coachWeeklyReportDown: (pct: number) => `−${pct}% volume vs last week — consider an extra session.`,
+  coachWeeklyReportCta: 'Open full analysis',
+  coachWeeklyReportGenerating: 'Coach is preparing the report…',
+  coachWeeklyReportDeloadSuggest: '4+ sessions/week for 4+ weeks — consider a deload week (−40% volume) for recovery.',
+  coachWeeklyReportLowFreq: '1 session/week is below MEV (10 sets/muscle group) — add 1-2 sessions for optimal hypertrophy.',
+  coachWeeklyReportFatigue: 'Volume drop >10% — possible fatigue. Consider an extra rest day.',
+  coachWeeklyReportGreat: 'Great week — volume and progress on track. Keep it up!',
+  // ── Proactive Coach: settings ──
+  coachSettingsProactive: 'Proactive coach',
+  coachSettingsProactiveDesc: 'Automatic post-workout insights, weekly reports, and plateau detection. Uses your AI key.',
   // ── Profile hero & about redesign ──
   profileHeroLocal: 'Training locally',
   profileHeroLocalHint: 'Log in to back up progress to the cloud',
@@ -2302,6 +2344,7 @@ ALLOWED muscleGroup values: "chest", "back", "shoulders", "arms", "legs", "core"
   aiPromptRecentEmpty: '  (no sessions)',
   aiPromptDateRangeNone: 'no data',
   aiPromptNoActivePlan: '',
+  aiPromptLanguageHint: 'English',
 
   // ── Delete session from history ──
   sessionDelete: 'Delete workout',

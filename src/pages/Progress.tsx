@@ -43,6 +43,7 @@ import {
 import { ExerciseDetailSheet } from '@/components/plans/ExerciseDetailSheet'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
 import { isCustomProgressHistorySession, isProgressHistorySession } from '@/lib/progress-history'
+import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import { AchievementGallery } from '@/components/achievements/AchievementGallery'
 import { getAllUnlocks } from '@/lib/achievements/store'
 import { buildAchievementSnapshot, emptyImpact } from '@/lib/achievements/snapshot'
@@ -128,9 +129,9 @@ export default function ProgressPage() {
         const initialProgram = settings.enabledPrograms[0] ?? 'pushups'
         await loadProgramData(initialProgram)
 
-        // All builtin sessions (pushups + pullups) for history tab
+        // All builtin sessions (pushups + pullups) for history tab — exclude custom
         const builtinHistory = (await db.workoutSessions.toArray())
-          .filter(isProgressHistorySession)
+          .filter((s) => isProgressHistorySession(s) && !isCustomWorkoutSession(s))
           .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
         setAllBuiltinSessions(builtinHistory)
 

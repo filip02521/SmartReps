@@ -26,8 +26,10 @@ import {
   cleanupEmptyInProgressSessions,
   ensureWorkoutSessionPersisted,
   getPreviousSetActual,
+  getMostRecentSetActual,
 } from '@/lib/session-service'
 import { getRestNextSetLabel } from '@/lib/workout-rest-label'
+import { getSmartRestSuggestion } from '@/lib/ai/proactive-coach'
 import { getProgramProgress, reconcileActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
 import { db } from '@/lib/db'
 import { isStaleActiveWorkout } from '@/lib/sync'
@@ -71,6 +73,7 @@ export default function WorkoutPage() {
   const [initialized, setInitialized] = useState(false)
   const [initError, setInitError] = useState<string | null>(null)
   const [lastActual, setLastActual] = useState<number | undefined>()
+  const [coachSuggestion, setCoachSuggestion] = useState<string | null>(null)
   const [restBlocked, setRestBlocked] = useState(false)
   const [testPendingBlocked, setTestPendingBlocked] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
@@ -440,6 +443,7 @@ export default function WorkoutPage() {
 
   const mutateRestTimer = (next: ReturnType<typeof skipRest>) => {
     useWorkoutStore.getState().setRestTimer(next)
+    setCoachSuggestion(null)
     void persistState()
   }
 
@@ -545,6 +549,10 @@ export default function WorkoutPage() {
       setActual(getTargetReps(day.sets[nextSetIndex]))
       await persistState()
       await loadPreviousActual(nextSetIndex, progress.cycleAttempt, progress.currentDay)
+      // Smart rest suggestion — compare next set target with most recent session actual
+      // (regardless of cycle attempt, to show progress across cycles)
+      const prevActual = await getMostRecentSetActual(program, progress.currentDay, nextSetIndex + 1)
+      setCoachSuggestion(getSmartRestSuggestion(prevActual, getTargetReps(day.sets[nextSetIndex])))
       finishingRef.current = false
     } catch {
       finishingRef.current = false
@@ -660,6 +668,7 @@ export default function WorkoutPage() {
       currentSetIndex={currentSetIndex}
       setResults={setResults}
       restTimer={restTimer}
+      coachSuggestion={coachSuggestion}
       actual={actual}
       lastActual={lastActual}
       failedIndex={failedIndex}

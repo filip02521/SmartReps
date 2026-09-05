@@ -50,6 +50,9 @@ import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
 import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
+import { AiInsightCard } from '@/components/brand/AiInsightCard'
+import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
+import type { LocalAiInsight } from '@/lib/db'
 
 export default function CustomSessionSummary() {
   const { planId } = useParams<{ planId: string }>()
@@ -69,6 +72,7 @@ export default function CustomSessionSummary() {
   const [progress, setProgress] = useState<CustomProgramProgress | null>(null)
   const [exerciseMap, setExerciseMap] = useState<Map<string, ExerciseDefinition>>(new Map())
   const [insights, setInsights] = useState<CustomSessionInsights | undefined>()
+  const [coachInsight, setCoachInsight] = useState<LocalAiInsight | null>(null)
   const [email, setEmail] = useState<string | null | undefined>(undefined)
   const [sharing, setSharing] = useState(false)
   const [offerPlanUpdate, setOfferPlanUpdate] = useState(false)
@@ -171,6 +175,8 @@ export default function CustomSessionSummary() {
               historicalSessions,
             }),
           )
+          // Proactive coach: load or generate post-workout insight
+          void loadOrGenerateCoachInsight(s, comparison.previous, historicalSessions, exercises)
         } else {
           setPlan(null)
           setOfferPlanUpdate(false)
@@ -180,7 +186,44 @@ export default function CustomSessionSummary() {
         setLoading(false)
       }
     })()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when summary identity changes
   }, [sessionId, planId])
+
+  async function loadOrGenerateCoachInsight(
+    current: LocalWorkoutSession,
+    previousSession: LocalWorkoutSession | undefined,
+    historicalSessions: LocalWorkoutSession[],
+    exercises: ExerciseDefinition[],
+  ) {
+    const existing = await db.aiInsights.where('sessionId').equals(current.id).first()
+    if (existing && !existing.dismissedAt) {
+      setCoachInsight(existing)
+      return
+    }
+    if (existing?.dismissedAt) return
+
+    const settings = useAppStore.getState().settings
+    const aiConfig = settings.aiProactiveCoach && settings.aiApiKey
+      ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined }
+      : undefined
+
+    try {
+      const insight = await generatePostWorkoutInsight({
+        session: current,
+        previous: previousSession,
+        historicalSessions,
+        exercises,
+        aiConfig,
+      })
+      // Guard against stale state if user navigated away during async generation
+      if (current.id !== session?.id) return
+      await db.aiInsights.put(insight)
+      void enqueueSync('ai_insights', 'insert', insight)
+      setCoachInsight(insight)
+    } catch {
+      // Non-blocking
+    }
+  }
 
   const sessionPassed = session?.passed !== false
   const showLoginPrompt =
@@ -355,6 +398,21 @@ export default function CustomSessionSummary() {
           </p>
         </div>
       </div>
+
+      {/* Proactive coach insight */}
+      {coachInsight && (
+        <AiInsightCard
+          insight={coachInsight}
+          className="mb-6"
+          onDismiss={async () => {
+            const dismissed = { ...coachInsight, dismissedAt: new Date().toISOString() }
+            await db.aiInsights.put(dismissed)
+            void enqueueSync('ai_insights', 'update', dismissed)
+            setCoachInsight(null)
+            showToast(pl.coachPostWorkoutDismissed, 'info')
+          }}
+        />
+      )}
 
       {!failed && progress?.nextWorkoutAfter && progress.status === 'rest' && (
         <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">

@@ -110,14 +110,18 @@ export function HistoryPanel({
     }
   }
 
-  // All completed sessions (builtin + custom).
-  const historyBase = useMemo(
-    () =>
-      allSessions
-        .filter((s) => isProgressHistorySession(s) || isCustomProgressHistorySession(s))
-        .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()),
-    [allSessions],
-  )
+  // All completed sessions (builtin + custom) — dedup by id as safeguard.
+  const historyBase = useMemo(() => {
+    const seen = new Set<string>()
+    return allSessions
+      .filter((s) => {
+        if (seen.has(s.id)) return false
+        if (!(isProgressHistorySession(s) || isCustomProgressHistorySession(s))) return false
+        seen.add(s.id)
+        return true
+      })
+      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+  }, [allSessions])
 
   const filtersActive =
     sourceFilter !== 'all' || resultFilter !== 'all' || dateFilter !== 'all' || cycleFilter !== 'all'
