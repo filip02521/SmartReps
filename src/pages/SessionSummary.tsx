@@ -431,6 +431,13 @@ export default function SessionSummary() {
         </div>
       </div>
 
+      {/* PR celebration — prominent position right after hero status */}
+      {prRecords.length > 0 && (
+        <div className="mb-6">
+          <PrCelebrationBanner records={prRecords} />
+        </div>
+      )}
+
       {/* Proactive coach insight */}
       {coachInsight && (
         <AiInsightCard
@@ -531,13 +538,6 @@ export default function SessionSummary() {
             {pl.summarySectionNotes}
           </h2>
           <SessionNoteCard sessionId={current.id} />
-        </div>
-      )}
-
-      {/* PR celebration banner */}
-      {prRecords.length > 0 && (
-        <div className="mt-6">
-          <PrCelebrationBanner records={prRecords} />
         </div>
       )}
 

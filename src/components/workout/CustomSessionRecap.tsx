@@ -27,7 +27,6 @@ import {
   type CustomSessionInsights,
 } from '@/lib/session-summary-insights'
 import {
-  SessionSummaryHighlights,
   SummaryInsightBadge,
 } from '@/components/workout/SessionSummaryHighlights'
 import { formatSessionElapsed, sessionCompletedWallClockSec } from '@/lib/session-elapsed'
@@ -92,8 +91,6 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
 
   return (
     <>
-      {insights && <SessionSummaryHighlights highlights={insights.highlights} />}
-
       <div
         className={cn(
           'mb-4 grid gap-2',

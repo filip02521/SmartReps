@@ -2,7 +2,6 @@ import { Card } from '@/components/ui/Card'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { TrendIndicator } from '@/components/ui/TrendIndicator'
 import {
-  SessionSummaryHighlights,
   SummaryInsightBadge,
 } from '@/components/workout/SessionSummaryHighlights'
 import { formatSetTarget, getTargetReps } from '@/lib/progress-engine'
@@ -53,8 +52,6 @@ export function SessionCompare({
 
   return (
     <>
-      {insights && <SessionSummaryHighlights highlights={insights.highlights} />}
-
       <div
         className={cn(
           'mb-4 grid gap-2',
