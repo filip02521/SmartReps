@@ -27,6 +27,8 @@ registerRoute(
 clientsClaim()
 
 self.addEventListener('message', (event) => {
+  // Origin check — accept only SKIP_WAITING from the same origin (our own app).
+  if (event.origin && event.origin !== self.origin) return
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting()
   }

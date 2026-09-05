@@ -350,9 +350,9 @@ Deno.serve(async (req) => {
       continue
     }
 
-    let title = 'SmartReps'
-    let body = 'Trening jest dostępny — czas trenować.'
-    let url = '/'
+    let title: string
+    let body: string
+    let url: string
     let program: string | null = null
 
     if (chosen.kind === 'builtin') {

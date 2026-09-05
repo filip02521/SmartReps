@@ -1550,30 +1550,27 @@ export default function CustomWorkoutPage() {
   const isDuration = exDef.primaryMetric === 'duration_sec'
   const actual = isDuration ? actualSec : actualReps
   const sessionHasProgress = customSessionHasProgress(store.exerciseLogs)
-  const canEditPreviousSet =
-    day != null &&
-    canUndoCustomSet(
-      day,
-      store.exerciseLogs,
-      store.currentExerciseIndex,
-      store.currentSetIndex,
-      restTimer,
-      failedIndex,
-      store.amrapEndAt,
-    )
+  const canEditPreviousSet = canUndoCustomSet(
+    day,
+    store.exerciseLogs,
+    store.currentExerciseIndex,
+    store.currentSetIndex,
+    restTimer,
+    failedIndex,
+    store.amrapEndAt,
+  )
   const failedRetryVisible = failedIndex === store.currentSetIndex
-  const activeGroup = day && planned ? getGroupForExercise(day, store.currentExerciseIndex) : null
+  const activeGroup = getGroupForExercise(day, store.currentExerciseIndex)
   const canAddSet =
-    day != null &&
     canAddSetToExercise(day, store.currentExerciseIndex) &&
     !(restTimer && restTimer.mode !== 'idle') &&
     !failedRetryVisible
-  const currentBaseline =
-    planned != null
-      ? baselineSetCountForExercise(baselineSets, planned.exerciseId, planned.sets.length)
-      : 0
+  const currentBaseline = baselineSetCountForExercise(
+    baselineSets,
+    planned.exerciseId,
+    planned.sets.length,
+  )
   const canRemoveSet =
-    day != null &&
     !activeGroup &&
     canRemoveSetFromExercise(
       day,
@@ -1584,13 +1581,11 @@ export default function CustomWorkoutPage() {
     !(restTimer && restTimer.mode !== 'idle') &&
     !failedRetryVisible
   const showSetAdjust =
-    day != null &&
     !activeGroup &&
     !(restTimer && restTimer.mode !== 'idle') &&
     !failedRetryVisible
-  const showRestAdjust = day != null && !activeGroup && !failedRetryVisible
+  const showRestAdjust = !activeGroup && !failedRetryVisible
   const canSwapExercise =
-    day != null &&
     !activeGroup &&
     !(restTimer && restTimer.mode !== 'idle') &&
     !failedRetryVisible

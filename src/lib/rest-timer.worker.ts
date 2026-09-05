@@ -37,6 +37,9 @@ function startTicking() {
 }
 
 self.onmessage = (event: MessageEvent<RestTimerWorkerIn>) => {
+  // Origin check — accept only messages from the same origin (our own app).
+  // Web Worker `self.origin` matches the page that spawned it.
+  if (event.origin && event.origin !== self.origin) return
   const data = event.data
   if (data.type === 'stop') {
     clearActiveInterval()

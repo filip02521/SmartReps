@@ -109,6 +109,9 @@ const body = {
   rate_limit_email_sent: Number(process.env.RATE_LIMIT_EMAIL_SENT || 30),
 }
 
+// Templates are read from this repo (supabase/templates/*.html) and pushed to Supabase Auth.
+// This is intentional — the script is run manually by an operator to configure SMTP/OTP.
+// lgtm[js/file-access-to-http]
 const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/config/auth`, {
   method: 'PATCH',
   headers: {
