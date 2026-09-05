@@ -234,7 +234,7 @@ export const useAppStore = create<AppStore>()(
     }),
     {
       name: 'smartreps-app',
-      version: 7,
+      version: 8,
       migrate: (persisted, fromVersion) => {
         const p = (persisted ?? {}) as Partial<AppStore> & { settings?: Partial<UserSettings> }
         const baseSettings: UserSettings = {
@@ -275,6 +275,11 @@ export const useAppStore = create<AppStore>()(
           dismissedHabitMetTip:
             fromVersion < 7 ? false : (p.dismissedHabitMetTip ?? false),
           lastSyncFailureReason: p.lastSyncFailureReason ?? null,
+          settings: {
+            ...baseSettings,
+            // v8: enable aiProactiveCoach by default for existing users
+            aiProactiveCoach: fromVersion < 8 ? true : (p.settings?.aiProactiveCoach ?? true),
+          },
         }
       },
       merge: (persisted, current) => {
