@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, XCircle, Trophy, PencilLine, Flame, Dumbbell } from 'lucide-react'
+import { CheckCircle2, XCircle, Trophy, PencilLine, Flame, Dumbbell, CalendarClock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -547,10 +547,69 @@ export default function CustomSessionSummary() {
         </div>
       </div>
 
+      {/* Primary CTA — right under hero, no need to scroll to bottom */}
+      <div className="mb-6 flex flex-col gap-2">
+        {failed && resolvedPlanId ? (
+          <Button size="touch" fullWidth onClick={() => navigate(`/workout/custom/${resolvedPlanId}`)}>
+            {pl.customFailRetryDay}
+          </Button>
+        ) : resolvedPlanId ? (
+          <Button size="touch" fullWidth onClick={() => navigate(`/plans?tab=mine`)}>
+            {pl.customSummaryBackToPlan}
+          </Button>
+        ) : (
+          <Button size="touch" fullWidth onClick={() => navigate('/')}>
+            {pl.backHome}
+          </Button>
+        )}
+        {!failed && planName && (
+          <Button
+            variant="secondary"
+            size="touch"
+            fullWidth
+            disabled={sharing}
+            onClick={() => {
+              void (async () => {
+                setSharing(true)
+                try {
+                  await shareCustomSessionCard({
+                    planName,
+                    dayNumber: session.dayNumber,
+                    exerciseCount,
+                    totalSets,
+                    passed: session.passed !== false,
+                    bestSetReps,
+                    volumeKg: volumeKg > 0 ? Math.round(volumeKg) : undefined,
+                  })
+                  trackShareCard('custom', true)
+                  showToast(pl.summaryShareDone, 'success')
+                } catch {
+                  showToast(pl.summaryShareFailed, 'error')
+                } finally {
+                  setSharing(false)
+                }
+              })()
+            }}
+          >
+            {pl.summaryShare}
+          </Button>
+        )}
+      </div>
+
       {/* PR celebration — prominent position right after hero status */}
       {prRecords.length > 0 && (
         <div className="mb-6">
           <PrCelebrationBanner records={prRecords} />
+        </div>
+      )}
+
+      {/* Achievements — celebration moment, keep near PR */}
+      {newAchievements.length > 0 && (
+        <div className="mb-6">
+          <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+            {pl.summarySectionAchievements}
+          </h2>
+          <AchievementSummaryList unlocks={newAchievements} />
         </div>
       )}
 
@@ -570,9 +629,12 @@ export default function CustomSessionSummary() {
       )}
 
       {!failed && progress?.nextWorkoutAfter && progress.status === 'rest' && (
-        <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">
-          {pl.nextWorkoutIn(daysLeft)}
-        </p>
+        <div className="mb-6 flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3">
+          <CalendarClock size={18} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
+          <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+            {pl.nextWorkoutIn(daysLeft)}
+          </p>
+        </div>
       )}
 
       {!failed && !(progress?.nextWorkoutAfter && progress.status === 'rest') && (
@@ -777,15 +839,6 @@ export default function CustomSessionSummary() {
         </div>
       )}
 
-      {newAchievements.length > 0 && (
-        <div className="mt-6">
-          <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-            {pl.summarySectionAchievements}
-          </h2>
-          <AchievementSummaryList unlocks={newAchievements} />
-        </div>
-      )}
-
       {showLoginPrompt && (
         <NoticeCard
           className="mt-6"
@@ -816,57 +869,8 @@ export default function CustomSessionSummary() {
         />
       )}
 
-      {/* Action buttons — at the bottom */}
+      {/* Secondary actions — at the bottom (primary CTA is at top) */}
       <div className="mt-8 flex flex-col gap-2">
-        {failed && resolvedPlanId ? (
-          <Button
-            size="touch"
-            fullWidth
-            onClick={() => navigate(`/workout/custom/${resolvedPlanId}`)}
-          >
-            {pl.customFailRetryDay}
-          </Button>
-        ) : resolvedPlanId ? (
-          <Button size="touch" fullWidth onClick={() => navigate(`/plans?tab=mine`)}>
-            {pl.customSummaryBackToPlan}
-          </Button>
-        ) : (
-          <Button size="touch" fullWidth onClick={() => navigate('/')}>
-            {pl.backHome}
-          </Button>
-        )}
-        {!failed && planName && (
-          <Button
-            variant="secondary"
-            size="touch"
-            fullWidth
-            disabled={sharing}
-            onClick={() => {
-              void (async () => {
-                setSharing(true)
-                try {
-                  await shareCustomSessionCard({
-                    planName,
-                    dayNumber: session.dayNumber,
-                    exerciseCount,
-                    totalSets,
-                    passed: session.passed !== false,
-                    bestSetReps,
-                    volumeKg: volumeKg > 0 ? Math.round(volumeKg) : undefined,
-                  })
-                  trackShareCard('custom', true)
-                  showToast(pl.summaryShareDone, 'success')
-                } catch {
-                  showToast(pl.summaryShareFailed, 'error')
-                } finally {
-                  setSharing(false)
-                }
-              })()
-            }}
-          >
-            {pl.summaryShare}
-          </Button>
-        )}
         {resolvedPlanId && (
           <Button variant="ghost" fullWidth onClick={() => navigate('/')}>
             {pl.backHome}

@@ -399,10 +399,10 @@ export default function SessionSummary() {
         }`}
       />
 
-      {/* Hero status banner */}
+      {/* Hero status banner — merged with cycle/attempt context */}
       <div
         className={cn(
-          'mb-6 flex items-center gap-3 rounded-[var(--sr-radius-lg)] border p-4',
+          'mb-4 flex items-center gap-3 rounded-[var(--sr-radius-lg)] border p-4',
           failed
             ? 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]'
             : 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
@@ -431,10 +431,58 @@ export default function SessionSummary() {
         </div>
       </div>
 
+      {/* Primary CTA — right under hero, no need to scroll to bottom */}
+      <div className="mb-6 flex flex-col gap-2">
+        <Button size="touch" fullWidth onClick={() => navigate('/', { replace: true })}>
+          {pl.backHome}
+        </Button>
+        {!failed && (
+          <Button
+            variant="secondary"
+            size="touch"
+            fullWidth
+            disabled={sharing}
+            onClick={() => {
+              void (async () => {
+                setSharing(true)
+                try {
+                  await shareSessionCard({
+                    program,
+                    dayNumber: current?.dayNumber ?? progress?.currentDay ?? 1,
+                    totalReps,
+                    passed: true,
+                    prCount: insights?.prCount,
+                    bestSetReps: rows.length > 0 ? Math.max(...rows.map((r) => r.actual)) : undefined,
+                  })
+                  trackShareCard(program, true)
+                  showToast(pl.summaryShareDone, 'success')
+                } catch {
+                  showToast(pl.summaryShareFailed, 'error')
+                } finally {
+                  setSharing(false)
+                }
+              })()
+            }}
+          >
+            {pl.summaryShare}
+          </Button>
+        )}
+      </div>
+
       {/* PR celebration — prominent position right after hero status */}
       {prRecords.length > 0 && (
         <div className="mb-6">
           <PrCelebrationBanner records={prRecords} />
+        </div>
+      )}
+
+      {/* Achievements — celebration moment, keep near PR */}
+      {newAchievements.length > 0 && (
+        <div className="mb-6">
+          <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+            {pl.summarySectionAchievements}
+          </h2>
+          <AchievementSummaryList unlocks={newAchievements} />
         </div>
       )}
 
@@ -541,16 +589,6 @@ export default function SessionSummary() {
         </div>
       )}
 
-      {/* Achievements section */}
-      {newAchievements.length > 0 && (
-        <div className="mt-6">
-          <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-            {pl.summarySectionAchievements}
-          </h2>
-          <AchievementSummaryList unlocks={newAchievements} />
-        </div>
-      )}
-
       {/* Login prompt */}
       {showLoginPrompt && (
         <NoticeCard
@@ -573,44 +611,10 @@ export default function SessionSummary() {
         />
       )}
 
-      {/* Action buttons — at the bottom */}
-      <div className="mt-8 flex flex-col gap-2">
-        <Button size="touch" fullWidth onClick={() => navigate('/', { replace: true })}>
-          {pl.backHome}
-        </Button>
-        {!failed && (
-          <Button
-            variant="secondary"
-            size="touch"
-            fullWidth
-            disabled={sharing}
-            onClick={() => {
-              void (async () => {
-                setSharing(true)
-                try {
-                  await shareSessionCard({
-                    program,
-                    dayNumber: current?.dayNumber ?? progress?.currentDay ?? 1,
-                    totalReps,
-                    passed: true,
-                    prCount: insights?.prCount,
-                    bestSetReps: rows.length > 0 ? Math.max(...rows.map((r) => r.actual)) : undefined,
-                  })
-                  trackShareCard(program, true)
-                  showToast(pl.summaryShareDone, 'success')
-                } catch {
-                  showToast(pl.summaryShareFailed, 'error')
-                } finally {
-                  setSharing(false)
-                }
-              })()
-            }}
-          >
-            {pl.summaryShare}
-          </Button>
-        )}
-        {summaryActions.secondary.length > 0 && progress?.status !== 'test_pending' &&
-          summaryActions.secondary.map((action) => (
+      {/* Secondary actions — at the bottom (primary CTA is at top) */}
+      {summaryActions.secondary.length > 0 && progress?.status !== 'test_pending' && (
+        <div className="mt-8 flex flex-col gap-2">
+          {summaryActions.secondary.map((action) => (
             <Button
               key={action.label}
               size="touch"
@@ -621,7 +625,8 @@ export default function SessionSummary() {
               {action.label}
             </Button>
           ))}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
