@@ -13,6 +13,7 @@
 import type { ExerciseDefinition, MuscleGroup } from '@/lib/exercise-model'
 import type { LocalWorkoutSession } from '@/lib/db'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
+import { customSessionTotalReps } from '@/lib/custom-session-comparison'
 import type { ActivityInsights } from '@/lib/weekly-recap'
 import { pl } from '@/i18n/pl'
 import type { ChatMessage } from './ai-client'
@@ -303,7 +304,7 @@ export function buildWeeklyReportPrompt(
       const exerciseNames = s.exerciseLogs
         .map((log) => exerciseMap.get(log.exerciseId)?.name ?? log.exerciseId)
         .join(', ')
-      return pl.aiPromptWeeklySessionEntry(date, s.totalReps ?? 0, exerciseNames)
+      return pl.aiPromptWeeklySessionEntry(date, customSessionTotalReps(s), exerciseNames)
     }
     return pl.aiPromptWeeklySessionEntryBuiltin(date, s.totalReps ?? 0, s.dayNumber)
   }).join('\n')

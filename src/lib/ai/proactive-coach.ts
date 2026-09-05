@@ -18,6 +18,7 @@ import type { LocalWorkoutSession, LocalAiInsight } from '@/lib/db'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
 import { computeBuiltinSessionInsights, computeCustomSessionInsights } from '@/lib/session-summary-insights'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
+import { customSessionTotalReps } from '@/lib/custom-session-comparison'
 import { chatCompletion, parseJsonResponse, AiApiError } from './ai-client'
 import { buildPostWorkoutPrompt, buildWeeklyReportPrompt } from './prompts'
 import type { ActivityInsights } from '@/lib/weekly-recap'
@@ -333,12 +334,18 @@ export async function generateWeeklyReport(params: {
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekStart.getDate() + 7) // exclusive upper bound
 
-  const weekSessions = sessions.filter(
-    (s) => s.status === 'completed' && new Date(s.startedAt) >= weekStart && new Date(s.startedAt) < weekEnd,
+  // Only completed sessions count toward weekly metrics
+  const completedSessions = sessions.filter((s) => s.status === 'completed')
+  const weekSessions = completedSessions.filter(
+    (s) => new Date(s.startedAt) >= weekStart && new Date(s.startedAt) < weekEnd,
   )
 
-  const activity = buildActivityInsights(sessions)
-  const totalReps = weekSessions.reduce((sum, s) => sum + (s.totalReps ?? 0), 0)
+  const activity = buildActivityInsights(completedSessions)
+  // Use customSessionTotalReps for custom sessions (exerciseLogs), totalReps for builtin
+  const totalReps = weekSessions.reduce((sum, s) => {
+    if (isCustomWorkoutSession(s)) return sum + customSessionTotalReps(s)
+    return sum + (s.totalReps ?? 0)
+  }, 0)
 
   // Structured metrics for card display
   const metrics = {
@@ -422,16 +429,14 @@ export async function generateWeeklyReport(params: {
 function buildLocalWeeklyReportBody(
   weekSessions: LocalWorkoutSession[],
   activity: ActivityInsights,
-  totalReps: number,
+  _totalReps: number,
 ): string {
   if (weekSessions.length === 0) {
     return pl.coachWeeklyReportEmpty
   }
   const parts: string[] = []
-  parts.push(pl.coachWeeklyReportSessions(weekSessions.length, totalReps))
-  if (activity.streakWeeks > 0) {
-    parts.push(pl.coachWeeklyReportStreak(activity.streakWeeks))
-  }
+
+  // Volume trend — only the direction, numbers are in the metrics grid
   if (activity.repsWeekChangePct != null) {
     const pct = Math.round(activity.repsWeekChangePct)
     if (pct > 0) {
