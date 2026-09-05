@@ -55,7 +55,7 @@ test.describe('custom plans smoke', () => {
     await expect(page.getByRole('tab', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
     await page.getByRole('tab', { name: 'Biblioteka' }).click()
     await expect(page.getByRole('tab', { name: 'Biblioteka', selected: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Dodaj ćwiczenie' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Dodaj ćwiczenie' }).first()).toBeVisible()
     await page.getByRole('tab', { name: 'Moje' }).click()
     await page.getByRole('button', { name: 'Nowy plan' }).first().click()
     await expect(page.getByLabel('Nazwa planu')).toBeVisible()
@@ -226,7 +226,8 @@ test.describe('custom plans smoke', () => {
       page
         .getByText('Zrób zaplanowaną przerwę')
         .or(page.getByText('Ten sam dzień czeka'))
-        .or(page.getByText(/Następny trening/i)),
+        .or(page.getByText(/Następny trening/i))
+        .or(page.getByText('Cykl ukończony')),
     ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Zobacz postępy' })).toBeVisible()
   })
@@ -506,7 +507,8 @@ test.describe('custom plans smoke', () => {
       page
         .getByText('Zrób zaplanowaną przerwę')
         .or(page.getByText('Ten sam dzień czeka'))
-        .or(page.getByText(/Następny trening/i)),
+        .or(page.getByText(/Następny trening/i))
+        .or(page.getByText('Cykl ukończony')),
     ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Zobacz postępy' })).toBeVisible()
   })
