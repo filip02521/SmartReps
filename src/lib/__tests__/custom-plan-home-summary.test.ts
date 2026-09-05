@@ -99,11 +99,14 @@ describe('custom-plan-home-summary', () => {
       },
       resume: { day: 1, set: 2, totalSets: 2, stale: false },
       exercises,
+      sessions: [],
     })
     expect(model.badge.label).toBe(pl.statusInProgress)
     expect(model.detailLine).toContain('seria 2/2')
     expect(model.ctaLabel).toContain('Kontynuuj')
     expect(model.ctaAction).toBe('train')
+    expect(model.totalDays).toBe(2)
+    expect(model.cycleDays).toHaveLength(2)
   })
 
   it('buildCustomPlanHomeCardModel offers unpause when plan paused', () => {
@@ -120,10 +123,12 @@ describe('custom-plan-home-summary', () => {
       },
       resume: null,
       exercises,
+      sessions: [],
     })
     expect(model.badge.label).toBe(pl.statusPaused)
     expect(model.ctaAction).toBe('unpause')
     expect(model.ctaLabel).toBe(pl.planResume)
+    expect(model.isPaused).toBe(true)
   })
 
   it('buildCustomPlanHomeCardModel shows rest detail when on break', () => {
@@ -143,8 +148,52 @@ describe('custom-plan-home-summary', () => {
       },
       resume: null,
       exercises,
+      sessions: [],
     })
     expect(model.badge.label).toBe(pl.statusRest)
     expect(model.detailLine).toContain('Następny trening')
+    expect(model.isResting).toBe(true)
+    expect(model.restDaysLeft).toBeGreaterThan(0)
+  })
+
+  it('buildCustomPlanHomeCardModel computes progress percent', () => {
+    const model = buildCustomPlanHomeCardModel({
+      plan,
+      progress: {
+        customPlanId: plan.id,
+        currentDay: 2,
+        status: 'active',
+        cycleAttempt: 1,
+        lastWorkoutAt: null,
+        nextWorkoutAfter: null,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      resume: null,
+      exercises,
+      sessions: [],
+    })
+    // Day 2 of 2 → completedDays = 1 → 50%
+    expect(model.completedDays).toBe(1)
+    expect(model.pct).toBe(50)
+  })
+
+  it('buildCustomPlanHomeCardModel marks cycle complete as 100%', () => {
+    const model = buildCustomPlanHomeCardModel({
+      plan,
+      progress: {
+        customPlanId: plan.id,
+        currentDay: 2,
+        status: 'cycle_complete',
+        cycleAttempt: 1,
+        lastWorkoutAt: null,
+        nextWorkoutAfter: null,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      resume: null,
+      exercises,
+      sessions: [],
+    })
+    expect(model.isCycleComplete).toBe(true)
+    expect(model.pct).toBe(100)
   })
 })

@@ -61,6 +61,7 @@ export const en: Translation = {
     level ? `Level ${level} · Day ${day} of ${total}` : `Day ${day} of ${total}`,
   homeCycleRestart: (n: number) => `Cycle attempt ${n}`,
   homeTodaySession: 'Today\'s plan',
+  homeCustomTodaySession: 'Today\'s workout',
   homeInProgressSets: (set: number, total: number, day: number) =>
     `Set ${set}/${total} · Day ${day}`,
   homeNowDay: (n: number) => `Now: day ${n}`,
@@ -358,6 +359,7 @@ export const en: Translation = {
   attemptLabel: (n: number) => `Attempt ${n}`,
   pickLevelCta: 'Pick this level',
   menuProgram: 'Program menu',
+  menuCustomPlan: 'Plan menu',
   menuWorkout: 'Workout menu',
   errorSaveSet: 'Failed to save the set. Try again.',
   errorLoadProgram: 'Failed to load the program. Try again.',

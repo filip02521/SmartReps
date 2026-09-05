@@ -67,6 +67,7 @@ const plDict = {
     level ? `Poziom ${level} · Dzień ${day} z ${total}` : `Dzień ${day} z ${total}`,
   homeCycleRestart: (n: number) => `${n}. podejście do cyklu`,
   homeTodaySession: 'Plan na dziś',
+  homeCustomTodaySession: 'Dzisiejszy trening',
   homeInProgressSets: (set: number, total: number, day: number) =>
     `Seria ${set}/${total} · Dzień ${day}`,
   homeNowDay: (n: number) => `Teraz: dzień ${n}`,
@@ -371,6 +372,7 @@ const plDict = {
   attemptLabel: (n: number) => `Próba ${n}`,
   pickLevelCta: 'Wybierz ten poziom',
   menuProgram: 'Menu programu',
+  menuCustomPlan: 'Menu planu',
   menuWorkout: 'Menu treningu',
   errorSaveSet: 'Nie udało się zapisać serii. Spróbuj ponownie.',
   errorLoadProgram: 'Nie udało się wczytać programu. Spróbuj ponownie.',

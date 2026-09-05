@@ -69,6 +69,7 @@ export function CustomPlansHomeSection({
               progress,
               resume,
               exercises,
+              sessions: planSessions,
               lastFailed,
             }),
           )

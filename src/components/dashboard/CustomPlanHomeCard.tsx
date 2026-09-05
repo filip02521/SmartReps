@@ -8,11 +8,12 @@ import { getCustomPlanDisplayDay } from '@/lib/custom-plan-home-summary'
 import { CustomWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
 import { CustomPlanCycleRail } from '@/components/progress/CustomPlanCycleRail'
 import type { CustomPlan, ExerciseDefinition, PlanDay } from '@/lib/exercise-model'
-import type { CustomPlanHomeCardModel } from '@/lib/custom-plan-home-summary'
+import type { CustomPlanHomeCardModel, CustomPlanCycleDay } from '@/lib/custom-plan-home-summary'
+import type { CustomCycleDayStatus } from '@/lib/custom-plan-cycle-rail'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { pl } from '@/i18n/pl'
-import { Dumbbell, Pause, Play, CheckCircle2, Clock, AlertCircle, Map as MapIcon } from 'lucide-react'
+import { Dumbbell, MoreVertical, Pause, Play, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 const statusIcon: Record<string, { icon: ReactNode; accent: string; muted: string }> = {
@@ -43,6 +44,55 @@ const statusIcon: Record<string, { icon: ReactNode; accent: string; muted: strin
   },
 }
 
+// Mini cycle rail — non-interactive dots/bars showing day status.
+// Mirrors the builtin CycleDayRail visual language but with custom plan statuses.
+function MiniCustomCycleRail({ days, totalDays }: { days: CustomPlanCycleDay[]; totalDays: number }) {
+  const tone: Record<CustomCycleDayStatus, string> = {
+    passed: 'bg-[var(--sr-success)]',
+    failed: 'bg-[var(--sr-error)]',
+    current: 'bg-[var(--sr-brand-primary)]',
+    upcoming: 'bg-[var(--sr-bg-surface)]',
+    rest: 'bg-[var(--sr-border-subtle)]',
+  }
+  const ariaLabel: Record<CustomCycleDayStatus, string> = {
+    passed: pl.customCycleDayPassed,
+    failed: pl.customCycleDayFailed,
+    current: pl.customCycleDayCurrent,
+    upcoming: pl.customCycleDayUpcoming,
+    rest: pl.customCycleDayRest,
+  }
+  return (
+    <div
+      className="flex items-end gap-1.5"
+      role="list"
+      aria-label={pl.progressCustomPlanMapTitle}
+    >
+      {days.map((d) => {
+        const isCurrent = d.status === 'current'
+        return (
+          <div
+            key={d.dayNumber}
+            role="listitem"
+            aria-current={isCurrent ? 'step' : undefined}
+            aria-label={`${pl.dayOfTotal(d.dayNumber, totalDays)} — ${ariaLabel[d.status]}`}
+            className={cn(
+              'flex h-7 flex-1 items-center justify-center rounded-[var(--sr-radius-sm)] text-[10px] font-semibold tabular-nums leading-none transition-colors',
+              tone[d.status],
+              isCurrent && 'ring-2 ring-[var(--sr-brand-primary)]/35',
+              d.status === 'passed' && 'text-[var(--sr-text-inverse)]',
+              d.status === 'failed' && 'text-[var(--sr-text-inverse)]',
+              d.status === 'current' && 'text-[var(--sr-text-inverse)]',
+              (d.status === 'upcoming' || d.status === 'rest') && 'text-[var(--sr-text-muted)]',
+            )}
+          >
+            {d.dayNumber}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export function CustomPlanHomeCard({
   model,
   onUpdated,
@@ -52,6 +102,7 @@ export function CustomPlanHomeCard({
 }) {
   const navigate = useNavigate()
   const chrome = statusIcon[model.badge.variant] ?? statusIcon.default!
+  const [showMenu, setShowMenu] = useState(false)
   const [preview, setPreview] = useState<{
     plan: CustomPlan
     day: PlanDay
@@ -101,97 +152,190 @@ export function CustomPlanHomeCard({
     setPlanMap({ plan, progress: progress ?? null, exercises: exMap, sessions: planSessions })
   }
 
+  const showPreviewSection =
+    !model.isPaused && !model.isCycleComplete && model.previewLine.length > 0
+
   return (
     <article
       className={cn(
-        'relative overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)]',
-        'bg-[var(--sr-bg-elevated)] p-4 transition-colors hover:border-[var(--sr-border-strong)]',
+        'relative overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] border-l-4 p-5 shadow-[var(--sr-shadow-card)] transition-colors hover:border-l-[var(--sr-border-strong)]',
       )}
       style={{
-        backgroundImage: `linear-gradient(135deg, ${chrome.muted} 0%, var(--sr-bg-elevated) 50%)`,
+        borderLeftColor: 'var(--sr-brand-primary)',
+        backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 12%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 42%)`,
       }}
     >
-      {/* Accent bar — left edge */}
-      <div
-        className="absolute inset-y-0 left-0 w-1"
-        style={{ background: chrome.accent }}
-        aria-hidden
-      />
-
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-start gap-2.5">
           <div
-            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
-            style={{ background: chrome.muted, color: chrome.accent }}
+            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)] text-[var(--sr-brand-primary)]"
             aria-hidden
           >
-            <Dumbbell size={18} strokeWidth={2.25} />
+            <Dumbbell size={22} strokeWidth={2.25} />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="truncate font-semibold text-[var(--sr-text-primary)]">
+            <h3 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
               {model.planName}
             </h3>
-            <p className="mt-0.5 text-sm text-[var(--sr-text-secondary)]">{model.dayLine}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge variant={model.badge.variant}>
+                <span className="flex items-center gap-1">
+                  {chrome.icon}
+                  {model.badge.label}
+                </span>
+              </Badge>
+              <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+                {model.dayLine}
+              </span>
+            </div>
           </div>
         </div>
-        <Badge variant={model.badge.variant} className="shrink-0">
-          <span className="flex items-center gap-1">
-            {chrome.icon}
-            {model.badge.label}
-          </span>
-        </Badge>
+        <button
+          type="button"
+          aria-label={pl.menuCustomPlan}
+          aria-haspopup="dialog"
+          aria-expanded={showMenu}
+          className={cn(
+            'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+            FOCUS_RING,
+          )}
+          onClick={() => setShowMenu(true)}
+        >
+          <MoreVertical size={20} />
+        </button>
       </div>
 
-      <p
-        className="mt-3 truncate text-sm text-[var(--sr-text-primary)]"
-        title={model.previewLine}
-      >
-        {model.previewLine}
-      </p>
+      <Sheet open={showMenu} onClose={() => setShowMenu(false)} title={pl.menuCustomPlan}>
+        <div className="flex flex-col gap-1 pb-2">
+          <Button
+            variant="ghost"
+            fullWidth
+            className="justify-start px-3"
+            onClick={() => {
+              setShowMenu(false)
+              void openPlanMap()
+            }}
+          >
+            {pl.menuPlanMap}
+          </Button>
+          <Button
+            variant="ghost"
+            fullWidth
+            className="justify-start px-3"
+            onClick={() => {
+              setShowMenu(false)
+              navigate('/progress?tab=history')
+            }}
+          >
+            {pl.menuHistory}
+          </Button>
+          {!model.isPaused && !model.isCycleComplete && (
+            <Button
+              variant="ghost"
+              fullWidth
+              className="justify-start px-3"
+              onClick={() => {
+                setShowMenu(false)
+                void setCustomPlanPaused(model.planId, true).then(() => onUpdated?.())
+              }}
+            >
+              {pl.planPause}
+            </Button>
+          )}
+          {model.isPaused && (
+            <Button
+              variant="ghost"
+              fullWidth
+              className="justify-start px-3"
+              onClick={() => {
+                setShowMenu(false)
+                void setCustomPlanPaused(model.planId, false).then(() => onUpdated?.())
+              }}
+            >
+              {pl.planResume}
+            </Button>
+          )}
+        </div>
+      </Sheet>
 
-      {model.detailLine ? (
-        <p className="mt-1 text-sm text-[var(--sr-text-muted)]">{model.detailLine}</p>
-      ) : null}
+      {/* Progress bar + cycle rail */}
+      {model.totalDays > 0 && (
+        <div className="mt-4">
+          <div className="mb-2.5 flex items-center justify-between gap-2">
+            <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+              {model.isCycleComplete
+                ? pl.homeCustomStatusCycleComplete
+                : pl.homeCustomDayOf(model.completedDays + (model.isResting ? 0 : 1), model.totalDays)}
+            </p>
+            <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
+              {model.pct}%
+            </p>
+          </div>
+          <div
+            className="mb-3 h-1.5 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
+            role="progressbar"
+            aria-valuenow={model.pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div
+              className="h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none"
+              style={{ width: `${model.pct}%`, background: 'var(--sr-brand-primary)' }}
+            />
+          </div>
+          {model.cycleDays && (
+            <MiniCustomCycleRail days={model.cycleDays} totalDays={model.totalDays} />
+          )}
+        </div>
+      )}
 
-      <Button
-        type="button"
-        size="touch"
-        fullWidth
-        className={cn('mt-5', model.resume && 'sr-pulse-cta')}
-        onClick={() => {
-          if (model.ctaAction === 'unpause') {
-            void setCustomPlanPaused(model.planId, false).then(() => onUpdated?.())
-            return
-          }
-          // Resume → go directly (workout already in progress).
-          if (model.resume) {
-            navigate(`/workout/custom/${model.planId}`)
-            return
-          }
-          // Fresh start → preview first.
-          void openPreview()
-        }}
-      >
-        <span className="flex items-center justify-center gap-2">
-          {model.resume && <Play size={18} className="fill-current" />}
-          {model.ctaLabel}
-        </span>
-      </Button>
+      {/* Session preview */}
+      {showPreviewSection && (
+        <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
+          <div className="mb-1.5 flex items-baseline justify-between gap-2">
+            <p className="sr-text-overline text-[var(--sr-text-muted)]">
+              {pl.homeCustomTodaySession}
+            </p>
+          </div>
+          <p
+            className="text-sm text-[var(--sr-text-primary)]"
+            title={model.previewLine}
+          >
+            {model.previewLine}
+          </p>
+          {model.detailLine && (
+            <p className="mt-1 text-sm text-[var(--sr-text-muted)]">{model.detailLine}</p>
+          )}
+        </div>
+      )}
 
-      <button
-        type="button"
-        className={cn(
-          'mt-2 flex min-h-11 w-full items-center justify-center gap-2',
-          'sr-text-body-sm text-[var(--sr-text-muted)] transition-colors',
-          'hover:text-[var(--sr-text-primary)]',
-          FOCUS_RING,
-          'rounded-[var(--sr-radius-md)]',
-        )}
-        onClick={() => void openPlanMap()}
-      >
-        <MapIcon size={16} aria-hidden />
-        {pl.menuPlanMap}
-      </button>
+      {/* CTA */}
+      <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-5">
+        <Button
+          type="button"
+          size="touch"
+          fullWidth
+          className={cn(model.resume && 'sr-pulse-cta')}
+          onClick={() => {
+            if (model.ctaAction === 'unpause') {
+              void setCustomPlanPaused(model.planId, false).then(() => onUpdated?.())
+              return
+            }
+            // Resume → go directly (workout already in progress).
+            if (model.resume) {
+              navigate(`/workout/custom/${model.planId}`)
+              return
+            }
+            // Fresh start → preview first.
+            void openPreview()
+          }}
+        >
+          <span className="flex items-center justify-center gap-2">
+            {model.resume && <Play size={18} className="fill-current" />}
+            {model.ctaLabel}
+          </span>
+        </Button>
+      </div>
 
       {preview && (
         <CustomWorkoutPreviewSheet
