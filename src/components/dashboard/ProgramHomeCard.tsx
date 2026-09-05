@@ -103,8 +103,25 @@ export function ProgramHomeCard({
   if (model.loadError) {
     return (
       <ProgramAccentCard program={program}>
-        <p className="mb-3 font-semibold text-[var(--sr-text-primary)]">{model.label}</p>
-        <ErrorBanner message={model.loadError} onRetry={onReload} />
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
+            style={{
+              background: program === 'pushups'
+                ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
+                : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
+            }}
+            aria-hidden
+          >
+            <ProgramIcon program={program} size={20} />
+          </div>
+          <h2 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
+            {model.label}
+          </h2>
+        </div>
+        <div className="mt-3">
+          <ErrorBanner message={model.loadError} onRetry={onReload} />
+        </div>
       </ProgramAccentCard>
     )
   }
@@ -112,26 +129,30 @@ export function ProgramHomeCard({
   if (bucket === 'unconfigured' || !progress) {
     return (
       <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
               style={{
                 background: program === 'pushups'
                   ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
-                  : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
+                : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
               }}
               aria-hidden
             >
-              <ProgramIcon program={program} size={22} />
+              <ProgramIcon program={program} size={20} />
             </div>
-            <p className="font-semibold text-[var(--sr-text-primary)]">{model.label}</p>
+            <div className="min-w-0 flex-1">
+              <h2 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
+                {model.label}
+              </h2>
+            </div>
           </div>
           <Badge variant="info">{pl.notConfigured}</Badge>
         </div>
-        <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">{pl.notConfiguredHint}</p>
+        <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.notConfiguredHint}</p>
         <Button
-          className="mt-5"
+          className="mt-4"
           size="touch"
           fullWidth
           onClick={() => navigate(`/setup/test/${program}`)}
