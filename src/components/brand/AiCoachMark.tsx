@@ -3,20 +3,20 @@ import { cn } from '@/lib/utils'
 
 type Size = 'sm' | 'md' | 'lg' | 'xl'
 
-const SIZE_MAP: Record<Size, { box: number; ring: number; font: number; sparkle: number }> = {
-  sm: { box: 28, ring: 2, font: 11, sparkle: 8 },
-  md: { box: 36, ring: 2.5, font: 14, sparkle: 10 },
-  lg: { box: 48, ring: 3, font: 18, sparkle: 12 },
-  xl: { box: 64, ring: 3.5, font: 24, sparkle: 14 },
+const SIZE_MAP: Record<Size, { box: number; ring: number; sparkle: number }> = {
+  sm: { box: 28, ring: 2.5, sparkle: 9 },
+  md: { box: 36, ring: 3, sparkle: 11 },
+  lg: { box: 48, ring: 3.5, sparkle: 14 },
+  xl: { box: 64, ring: 4, sparkle: 17 },
 }
 
 /**
- * SmartReps AI Coach mark — brand gradient ring with "R" glyph
- * and a subtle sparkle indicator distinguishing it as the AI persona.
+ * SmartReps AI Coach mark — gradient circle with "R" glyph
+ * and a sparkle dot distinguishing it as the AI persona.
  *
  * Visual language:
- *  - Gradient ring (indigo → cyan) ties to SmartReps brand
- *  - "R" mark = SmartReps identity
+ *  - Filled gradient circle (indigo → cyan) = SmartReps brand
+ *  - White "R" = SmartReps identity
  *  - Sparkle dot = AI intelligence layer
  *  - Optional pulse animation when the coach is "thinking"
  */
@@ -48,35 +48,20 @@ export function AiCoachMark({
         className={cn(pulse && 'animate-[sr-coach-pulse_2s_ease-in-out_infinite]')}
       >
         <defs>
-          <linearGradient id={gradId} x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
+          <linearGradient id={gradId} x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
             <stop stopColor="var(--sr-brand-primary)" />
-            <stop offset="0.5" stopColor="var(--sr-brand-primary)" />
             <stop offset="1" stopColor="var(--sr-brand-secondary)" />
           </linearGradient>
         </defs>
-        {/* Outer ring */}
-        <circle
-          cx="32"
-          cy="32"
-          r="27"
-          stroke={`url(#${gradId})`}
+        {/* Filled gradient circle */}
+        <circle cx="32" cy="32" r="26" fill={`url(#${gradId})`} />
+        {/* Subtle inner highlight — top-left light source */}
+        <circle cx="24" cy="22" r="14" fill="white" opacity="0.08" />
+        {/* "R" glyph — white, bold, centered */}
+        <path
+          d="M 23 18 L 23 46 M 23 18 L 33 18 Q 41 18 41 26 Q 41 33 33 33 L 23 33 M 31 33 L 41 46"
+          stroke="white"
           strokeWidth={dim.ring}
-          strokeLinecap="round"
-        />
-        {/* Inner accent arc */}
-        <path
-          d="M 32 7 A 25 25 0 0 1 57 32"
-          stroke="var(--sr-brand-secondary)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          opacity="0.4"
-          fill="none"
-        />
-        {/* R glyph — drawn as path for consistent rendering */}
-        <path
-          d="M 26 22 L 26 42 M 26 22 L 34 22 Q 40 22 40 28 Q 40 33 34 33 L 26 33 M 33 33 L 40 42"
-          stroke={`url(#${gradId})`}
-          strokeWidth={dim.ring + 1}
           strokeLinecap="round"
           strokeLinejoin="round"
           fill="none"
@@ -84,22 +69,24 @@ export function AiCoachMark({
       </svg>
       {/* Sparkle indicator — top-right, signals AI */}
       <span
-        className="absolute -right-0.5 -top-0.5 flex items-center justify-center rounded-full"
+        className="absolute flex items-center justify-center rounded-full ring-2 ring-[var(--sr-bg-elevated)]"
         style={{
           width: dim.sparkle,
           height: dim.sparkle,
+          right: -1,
+          top: -1,
           background: 'var(--sr-brand-secondary)',
-          boxShadow: '0 0 6px var(--sr-brand-secondary-muted)',
+          boxShadow: '0 0 8px var(--sr-brand-secondary-muted)',
         }}
       >
         <svg
-          width={dim.sparkle * 0.6}
-          height={dim.sparkle * 0.6}
+          width={Math.round(dim.sparkle * 0.55)}
+          height={Math.round(dim.sparkle * 0.55)}
           viewBox="0 0 10 10"
           fill="none"
         >
           <path
-            d="M5 0.5L6.2 3.8L9.5 5L6.2 6.2L5 9.5L3.8 6.2L0.5 5L3.8 3.8L5 0.5Z"
+            d="M5 0.8L6 3.8L9.2 5L6 6.2L5 9.2L4 6.2L0.8 5L4 3.8L5 0.8Z"
             fill="white"
           />
         </svg>
