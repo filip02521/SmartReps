@@ -163,6 +163,20 @@
       <div class="wordmark">Smart<span class="accent">Reps</span></div>
     </div>
     <div id="root"></div>
+    <script>
+      // Self-healing: unregister stale service workers that serve removed chunks
+      // after deploys. This runs before the app loads so it can recover even
+      // when the old SW is blocking the main bundle.
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          // If there's a waiting or active SW, force unregister it so the
+          // new autoUpdate SW can take over cleanly.
+          regs.forEach(function(reg) {
+            reg.unregister().catch(function() {})
+          })
+        }).catch(function() {})
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
