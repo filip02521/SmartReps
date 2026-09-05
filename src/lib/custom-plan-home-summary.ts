@@ -30,6 +30,7 @@ export type CustomPlanHomeCardModel = {
   isCycleComplete: boolean
   isResting: boolean
   restDaysLeft: number
+  cycleAttempt: number
 }
 
 function sortedDayNumbers(plan: CustomPlan): number[] {
@@ -162,5 +163,6 @@ export function buildCustomPlanHomeCardModel(params: {
     isCycleComplete,
     isResting,
     restDaysLeft,
+    cycleAttempt: attempt,
   }
 }

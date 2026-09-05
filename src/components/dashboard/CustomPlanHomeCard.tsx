@@ -203,11 +203,6 @@ export function CustomPlanHomeCard({
         </div>
       </div>
 
-      {/* Day line — subtle subtitle */}
-      <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
-        {model.dayLine}
-      </p>
-
       <Sheet open={showMenu} onClose={() => setShowMenu(false)} title={pl.menuCustomPlan}>
         <div className="flex flex-col gap-1 pb-2">
           <Button
@@ -272,6 +267,12 @@ export function CustomPlanHomeCard({
                     Math.max(1, Math.min(model.completedDays + (model.isResting ? 0 : 1), model.totalDays)),
                     model.totalDays,
                   )}
+              {(model.cycleAttempt ?? 1) >= 2 && (
+                <>
+                  {' · '}
+                  {pl.attemptShort(model.cycleAttempt)}
+                </>
+              )}
             </p>
             <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
               {model.pct}%
