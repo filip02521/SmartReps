@@ -113,8 +113,8 @@ export function computeBestStreakWeeks(passedSessions: LocalWorkoutSession[]): n
 
 export async function loadActivityInsights(now = new Date()): Promise<ActivityInsights> {
   const allSessions = await db.workoutSessions.toArray()
-  const passed = allSessions.filter((s) => s.status === 'completed' && s.passed)
-  return buildActivityInsights(passed, now)
+  const completed = allSessions.filter((s) => s.status === 'completed')
+  return buildActivityInsights(completed, now)
 }
 
 export function daysSinceLastPassedSession(

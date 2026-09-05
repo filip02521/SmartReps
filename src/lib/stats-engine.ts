@@ -64,13 +64,13 @@ export async function getProgramStats(
   progress: LocalProgramProgress,
 ): Promise<ProgramStats> {
   const sessions = await db.workoutSessions.where('program').equals(program).toArray()
-  const passed = sessions.filter((s) => s.status === 'completed' && s.passed)
-  passed.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+  const completed = sessions.filter((s) => s.status === 'completed')
+  completed.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
 
-  const lastSession = passed[0]
+  const lastSession = completed[0]
   const cycle = getCycleById(progress.cycleId)
   const day = cycle?.days.find((d) => d.dayNumber === (lastSession?.dayNumber ?? progress.currentDay))
-  const trend = getMaxSetTrend(passed)
+  const trend = getMaxSetTrend(completed)
   // Preview day target only when there is no real last-set actual (do not overwrite 0 reps).
   const lastSetActual = lastSession ? getLastSetActual(lastSession) : null
   if (lastSetActual == null && day) {
@@ -80,8 +80,8 @@ export async function getProgramStats(
   const tests = await db.maxTests.where('program').equals(program).toArray()
   const maxTestRecord = tests.length ? Math.max(...tests.map((t) => t.reps)) : null
 
-  const totalRepsAllTime = passed.reduce((sum, s) => sum + (s.totalReps ?? 0), 0)
-  const streakWeeks = computeStreakWeeks(passed)
+  const totalRepsAllTime = completed.reduce((sum, s) => sum + (s.totalReps ?? 0), 0)
+  const streakWeeks = computeStreakWeeks(completed)
 
   let nextWorkoutLabel: string = pl.today
   if (progress.nextWorkoutAfter) {
@@ -98,7 +98,7 @@ export async function getProgramStats(
     nextWorkoutLabel,
     lastTotalReps: lastSession?.totalReps ?? null,
     maxLastSetTrend: trend,
-    passedSessionCount: passed.length,
+    passedSessionCount: completed.length,
     totalRepsAllTime,
     streakWeeks,
     maxTestRecord,
@@ -160,7 +160,7 @@ export async function getProgramRecords(program: Program): Promise<{
   const sessions = await db.workoutSessions
     .where('program')
     .equals(program)
-    .filter((s) => s.status === 'completed' && s.passed === true)
+    .filter((s) => s.status === 'completed')
     .toArray()
 
   const bestTest = tests.length ? Math.max(...tests.map((t) => t.reps)) : null
@@ -200,8 +200,7 @@ export async function getMaxSetPerDay(
       (s) =>
         s.cycleId === cycleId &&
         s.cycleAttempt === cycleAttempt &&
-        s.status === 'completed' &&
-        s.passed === true,
+        s.status === 'completed',
     )
     .toArray()
 
@@ -229,7 +228,7 @@ export async function getMaxSetPerSession(program: Program): Promise<SessionChar
   const sessions = await db.workoutSessions
     .where('program')
     .equals(program)
-    .filter((s) => s.status === 'completed' && s.passed === true)
+    .filter((s) => s.status === 'completed')
     .toArray()
 
   const points: SessionChartPoint[] = []
@@ -263,7 +262,7 @@ export async function getProgramRecordsWithDates(program: Program): Promise<Prog
   const sessions = await db.workoutSessions
     .where('program')
     .equals(program)
-    .filter((s) => s.status === 'completed' && s.passed === true)
+    .filter((s) => s.status === 'completed')
     .toArray()
 
   let bestTest: number | null = null
@@ -335,7 +334,7 @@ export async function getProgramVolumeStats(program: Program): Promise<ProgramVo
   const sessions = await db.workoutSessions
     .where('program')
     .equals(program)
-    .filter((s) => s.status === 'completed' && s.passed === true)
+    .filter((s) => s.status === 'completed')
     .toArray()
 
   const now = Date.now()
@@ -404,8 +403,7 @@ export async function getDayCycleTrend(
       (s) =>
         s.cycleId === cycleId &&
         (s.cycleAttempt === cycleAttempt || s.cycleAttempt === cycleAttempt - 1) &&
-        s.status === 'completed' &&
-        s.passed === true,
+        s.status === 'completed',
     )
     .toArray()
 

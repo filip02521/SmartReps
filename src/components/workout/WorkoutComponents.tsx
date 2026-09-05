@@ -131,7 +131,10 @@ export function RepCounter({
         )}
       />
       {lastActual !== undefined && (
-        <PreviousResultBadge actual={lastActual} target={targetReps} />
+        <PreviousResultBadge
+          actual={lastActual}
+          target={targetReps}
+        />
       )}
       {disabled && disabledHint && (
         <p className="text-center text-sm text-[var(--sr-text-secondary)]">{disabledHint}</p>
@@ -192,6 +195,7 @@ export function SetRow({
   target,
   state,
   actual,
+  previousActual,
   editable,
   onClick,
 }: {
@@ -199,11 +203,20 @@ export function SetRow({
   target: SetTarget
   state: 'pending' | 'active' | 'done' | 'failed'
   actual?: number
+  /** Previous session's actual for this set — used for delta indicator. */
+  previousActual?: number
   /** Last completed set can be tapped to correct reps. */
   editable?: boolean
   onClick?: () => void
 }) {
   const canPress = Boolean(onClick) && (state !== 'done' || editable)
+  // Delta vs previous session — only show for completed sets with data
+  const showDelta =
+    state === 'done' &&
+    actual !== undefined &&
+    previousActual !== undefined &&
+    previousActual > 0
+  const delta = showDelta ? actual - previousActual : 0
   return (
     <button
       type="button"
@@ -237,22 +250,47 @@ export function SetRow({
         <SetStatusIcon state={state} />
         {pl.setColumn} {setNumber}
       </span>
-      <span
-        className={cn(
-          'tabular-nums text-base font-semibold',
-          state === 'done' && 'text-[var(--sr-text-primary)]',
-          state === 'failed' && 'text-[var(--sr-error)]',
-          state === 'pending' && 'text-[var(--sr-text-primary)]',
-          state === 'active' && 'text-[var(--sr-text-primary)]',
+      <span className="flex items-center gap-2">
+        <span
+          className={cn(
+            'tabular-nums text-base font-semibold',
+            state === 'done' && 'text-[var(--sr-text-primary)]',
+            state === 'failed' && 'text-[var(--sr-error)]',
+            state === 'pending' && 'text-[var(--sr-text-primary)]',
+            state === 'active' && 'text-[var(--sr-text-primary)]',
+          )}
+        >
+          {state === 'done' && actual !== undefined
+            ? editable
+              ? `${actual} / ${formatSetTarget(target)} · ${pl.editShort}`
+              : `${actual} / ${formatSetTarget(target)}`
+            : state === 'failed' && actual !== undefined
+              ? `${actual} / ${formatSetTarget(target)}`
+              : formatSetTarget(target)}
+        </span>
+        {showDelta && (
+          <span
+            className={cn(
+              'shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums',
+              delta > 0 && 'bg-[var(--sr-success-muted)] text-[var(--sr-success)]',
+              delta < 0 && 'bg-[var(--sr-error-muted)] text-[var(--sr-error)]',
+              delta === 0 && 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
+            )}
+            aria-label={
+              delta > 0
+                ? pl.setDeltaUp(delta)
+                : delta < 0
+                  ? pl.setDeltaDown(Math.abs(delta))
+                  : pl.setDeltaEqual
+            }
+          >
+            {delta > 0
+              ? pl.setDeltaUp(delta)
+              : delta < 0
+                ? pl.setDeltaDown(Math.abs(delta))
+                : pl.setDeltaEqual}
+          </span>
         )}
-      >
-        {state === 'done' && actual !== undefined
-          ? editable
-            ? `${actual} / ${formatSetTarget(target)} · ${pl.editShort}`
-            : `${actual} / ${formatSetTarget(target)}`
-          : state === 'failed' && actual !== undefined
-            ? `${actual} / ${formatSetTarget(target)}`
-            : formatSetTarget(target)}
       </span>
     </button>
   )
@@ -265,6 +303,7 @@ export function SetChecklist({
   failedIndex,
   dimmed,
   onEditLastSet,
+  previousResults,
 }: {
   sets: SetTarget[]
   currentIndex: number
@@ -272,6 +311,8 @@ export function SetChecklist({
   failedIndex?: number
   dimmed?: boolean
   onEditLastSet?: () => void
+  /** Map of setNumber → actual from the previous session, for delta indicators. */
+  previousResults?: Map<number, number>
 }) {
   return (
     <div className={cn('flex flex-col gap-2 overflow-y-auto transition-opacity', dimmed && 'opacity-40')}>
@@ -291,6 +332,7 @@ export function SetChecklist({
             target={target}
             state={state}
             actual={result?.actual}
+            previousActual={previousResults?.get(setNumber)}
             editable={editable}
             onClick={editable ? onEditLastSet : undefined}
           />

@@ -223,13 +223,13 @@ export function buildPostWorkoutPrompt(
       }).join(', ')
       return `  ${name}: ${sets}`
     }).join('\n')
-    currentSummary = `Day ${session.dayNumber}, ${session.totalReps ?? 0} total reps:\n${logs}`
+    currentSummary = pl.aiPromptPostWorkoutDaySummary(session.dayNumber, session.totalReps ?? 0, logs)
   } else {
     const sets = session.setResults.map((r) => {
       const target = r.target.kind === 'max' ? `${r.target.minReps}+` : `${r.target.reps}`
-      return `Set ${r.setNumber}: ${r.actual} reps (target: ${target})`
+      return pl.aiPromptPostWorkoutSetResult(r.setNumber, r.actual, target)
     }).join(', ')
-    currentSummary = `Day ${session.dayNumber}, ${session.totalReps ?? 0} total reps. ${sets}`
+    currentSummary = pl.aiPromptPostWorkoutDayBrief(session.dayNumber, session.totalReps ?? 0, sets)
   }
 
   // Build previous session summary if available
@@ -240,11 +240,11 @@ export function buildPostWorkoutPrompt(
         const def = exerciseMap.get(log.exerciseId)
         const name = def?.name ?? log.exerciseId
         const totalReps = log.sets.reduce((s, set) => s + (set.actual.reps ?? 0), 0)
-        return `  ${name}: ${totalReps} reps`
+        return pl.aiPromptPostWorkoutPrevExercise(name, totalReps)
       }).join('\n')
-      previousSummary = `Day ${previous.dayNumber}, ${previous.totalReps ?? 0} total reps:\n${prevLogs}`
+      previousSummary = pl.aiPromptPostWorkoutDaySummary(previous.dayNumber, previous.totalReps ?? 0, prevLogs)
     } else {
-      previousSummary = `Day ${previous.dayNumber}, ${previous.totalReps ?? 0} total reps`
+      previousSummary = pl.aiPromptPostWorkoutDayBrief(previous.dayNumber, previous.totalReps ?? 0, '')
     }
   }
 
@@ -253,7 +253,7 @@ export function buildPostWorkoutPrompt(
     .filter((s) => s.program === session.program && s.status === 'completed')
     .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
     .slice(0, 5)
-    .map((s) => `${s.startedAt.split('T')[0]}: ${s.totalReps ?? 0} reps (day ${s.dayNumber})`)
+    .map((s) => pl.aiPromptPostWorkoutTrendEntry(s.startedAt.split('T')[0] ?? '', s.totalReps ?? 0, s.dayNumber))
     .join(', ')
 
   // Detect PRs (personal records) in current session vs history
@@ -267,32 +267,18 @@ export function buildPostWorkoutPrompt(
         0,
       )
       if (set.actual > prevBest && prevBest > 0) {
-        prSets.push(`Set ${set.setNumber}: ${set.actual} reps (previous best: ${prevBest})`)
+        prSets.push(pl.aiPromptPostWorkoutPrSet(set.setNumber, set.actual, prevBest))
       }
     }
   }
-  const prInfo = prSets.length ? `\nPERSONAL RECORDS this session:\n${prSets.join('\n')}` : ''
+  const prInfo = prSets.length ? pl.aiPromptPostWorkoutPrHeader(prSets.join('\n')) : ''
 
-  const userPrompt = `Analyze this completed workout session and give ONE actionable insight (max 2 sentences).
-
-CURRENT SESSION:
-${currentSummary}
-${prInfo}
-
-PREVIOUS SESSION (same day):
-${previousSummary}
-
-RECENT TREND:
-${recentTrend || 'First session'}
-
-Guidelines for the insight:
-- If the user hit a PR, celebrate it specifically with the number
-- If progress is stalling (same reps across 2-3 sessions), suggest a concrete change: +1 rep, slightly longer rest, or a deload week
-- Reference RIR (reps in reserve) when relevant — if all sets felt easy (RIR 3+), suggest progression; if sets were grinded (RIR 0-1), suggest recovery
-- Be specific with numbers from the session, not generic advice
-
-Respond in JSON: {"insight": "your 1-2 sentence insight here"}
-Write in ${pl.aiPromptLanguageHint}.`
+  const userPrompt = pl.aiPromptPostWorkoutBuild(
+    currentSummary,
+    prInfo,
+    previousSummary,
+    recentTrend || pl.aiPromptPostWorkoutFirstSession,
+  )
 
   return {
     system: { role: 'system', content: RESEARCH_CONTEXT() },
@@ -312,14 +298,14 @@ export function buildWeeklyReportPrompt(
   const exerciseMap = new Map(exercises.map((e) => [e.id, e]))
 
   const weekSummary = weekSessions.map((s) => {
-    const date = s.startedAt.split('T')[0]
+    const date = s.startedAt.split('T')[0] ?? ''
     if (isCustomWorkoutSession(s) && s.exerciseLogs) {
       const exerciseNames = s.exerciseLogs
         .map((log) => exerciseMap.get(log.exerciseId)?.name ?? log.exerciseId)
         .join(', ')
-      return `${date}: ${s.totalReps ?? 0} reps (${exerciseNames})`
+      return pl.aiPromptWeeklySessionEntry(date, s.totalReps ?? 0, exerciseNames)
     }
-    return `${date}: ${s.totalReps ?? 0} reps (day ${s.dayNumber})`
+    return pl.aiPromptWeeklySessionEntryBuiltin(date, s.totalReps ?? 0, s.dayNumber)
   }).join('\n')
 
   // Compute weekly sets per muscle group for volume assessment
@@ -339,41 +325,17 @@ export function buildWeeklyReportPrompt(
     }
   }
   const volumeByMuscle = [...muscleGroupSets.entries()]
-    .map(([mg, sets]) => `  ${mg}: ${sets} sets`)
+    .map(([mg, sets]) => pl.aiPromptWeeklyVolumeEntry(mg, sets))
     .join('\n')
 
-  const userPrompt = `Create a weekly workout report for the user.
-
-THIS WEEK'S SESSIONS (${weekSessions.length}):
-${weekSummary || 'No sessions this week.'}
-
-TOTAL REPS THIS WEEK: ${totalReps}
-STREAK: ${activity.streakWeeks} weeks
-REPS WEEK CHANGE %: ${activity.repsWeekChangePct ?? 'N/A'}
-
-WEEKLY SETS BY MUSCLE GROUP:
-${volumeByMuscle || 'No data'}
-
-Volume landmarks for reference (Israetel & Hoffmann):
-- MEV (Minimum Effective Volume): 10 sets/muscle group/week
-- MAV (Maximum Adaptive Volume): 15-25 sets/muscle group/week
-- MRV (Maximum Recoverable Volume): 20-30+ sets/muscle group/week
-
-Guidelines:
-- In "improvements", flag any muscle group below MEV (10 sets) as undertrained
-- In "improvements", flag any muscle group above MRV (30 sets) as potential overtraining
-- In "recommendation", suggest a concrete next-week adjustment based on volume vs landmarks
-- If streak is 0, encourage consistency; if streak is 4+ weeks, consider a deload
-
-Respond in JSON:
-{
-  "summary": "1 sentence overview",
-  "strengths": ["1-2 positive observations"],
-  "improvements": ["1-2 areas to improve"],
-  "recommendation": "1 actionable recommendation for next week"
-}
-
-Write in ${pl.aiPromptLanguageHint}. Be specific and encouraging.`
+  const userPrompt = pl.aiPromptWeeklyReportBuild(
+    weekSessions.length,
+    weekSummary || pl.aiPromptWeeklyNoSessions,
+    totalReps,
+    activity.streakWeeks,
+    activity.repsWeekChangePct ?? 'N/A',
+    volumeByMuscle || pl.aiPromptWeeklyNoData,
+  )
 
   return {
     system: { role: 'system', content: RESEARCH_CONTEXT() },

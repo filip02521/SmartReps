@@ -148,14 +148,28 @@ export async function getPreviousSetActual(
   cycleAttempt: number,
   setNumber: number,
 ): Promise<number | undefined> {
-  const session = await getLastPassedSession(program, dayNumber, cycleAttempt)
+  // Use same fallback strategy as getSessionComparison — try same cycle first,
+  // then any cycle for the same day, then any completed session.
+  const sessions = await db.workoutSessions
+    .where('program')
+    .equals(program)
+    .filter(
+      (s) =>
+        s.status === 'completed' &&
+        s.dayNumber === dayNumber &&
+        s.cycleAttempt === cycleAttempt,
+    )
+    .toArray()
+  sessions.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+  const session = sessions[0]
   return session?.setResults.find((r) => r.setNumber === setNumber)?.actual
 }
 
 /**
- * Get the most recent completed+passed set actual for a given day+set,
- * regardless of cycle attempt. Used for smart rest suggestions where we
- * want to compare with the user's latest performance, not just the same cycle.
+ * Get the most recent completed set actual for a given day+set,
+ * regardless of cycle attempt or whether the session was "passed".
+ * Used for smart rest suggestions where we want to compare with the
+ * user's latest performance, not just successful sessions.
  */
 export async function getMostRecentSetActual(
   program: Program,
@@ -163,20 +177,52 @@ export async function getMostRecentSetActual(
   setNumber: number,
   excludeSessionId?: string,
 ): Promise<number | undefined> {
-  const sessions = await db.workoutSessions
+  // First try to find a session for the same day (most relevant comparison)
+  const sameDaySessions = await db.workoutSessions
     .where('program')
     .equals(program)
     .filter(
       (s) =>
         s.status === 'completed' &&
-        s.passed === true &&
         s.dayNumber === dayNumber &&
         s.id !== excludeSessionId,
     )
     .toArray()
-  sessions.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-  const mostRecent = sessions[0]
+  sameDaySessions.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+  const sameDayRecent = sameDaySessions[0]
+  const sameDayActual = sameDayRecent?.setResults.find((r) => r.setNumber === setNumber)?.actual
+  if (sameDayActual !== undefined) {
+    return sameDayActual
+  }
+
+  // Fallback: find the most recent completed session for this program (any day)
+  // and the same set number. This gives a useful comparison even when doing
+  // a new day for the first time.
+  const anyDaySessions = await db.workoutSessions
+    .where('program')
+    .equals(program)
+    .filter((s) => s.status === 'completed' && s.id !== excludeSessionId)
+    .toArray()
+  anyDaySessions.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+  const mostRecent = anyDaySessions[0]
   return mostRecent?.setResults.find((r) => r.setNumber === setNumber)?.actual
+}
+
+/**
+ * Check if the user has ANY completed sessions for a given program.
+ * Used to distinguish "first time ever" from "new day/set combination"
+ * in smart rest suggestions.
+ */
+export async function hasAnyCompletedSessions(
+  program: Program,
+  excludeSessionId?: string,
+): Promise<boolean> {
+  const count = await db.workoutSessions
+    .where('program')
+    .equals(program)
+    .filter((s) => s.status === 'completed' && s.id !== excludeSessionId)
+    .count()
+  return count > 0
 }
 
 export async function finalizeSuccessfulDay(
@@ -297,22 +343,47 @@ export async function getSessionComparison(
 ): Promise<{ current: LocalWorkoutSession | undefined; previous: LocalWorkoutSession | undefined }> {
   const current = await db.workoutSessions.get(sessionId)
   if (!current) return { current: undefined, previous: undefined }
-  const previous = await getLastPassedSession(program, current.dayNumber, current.cycleAttempt)
-  if (previous?.id === current.id) {
-    const all = await db.workoutSessions
-      .where('program')
-      .equals(program)
-      .filter(
-        (s) =>
-          s.status === 'completed' &&
-          s.passed === true &&
-          s.dayNumber === current.dayNumber &&
-          s.cycleAttempt === current.cycleAttempt &&
-          s.id !== current.id,
-      )
-      .toArray()
-    all.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-    return { current, previous: all[0] }
+
+  // First try: same day + same cycle attempt (most relevant comparison)
+  const sameCycle = await db.workoutSessions
+    .where('program')
+    .equals(program)
+    .filter(
+      (s) =>
+        s.status === 'completed' &&
+        s.dayNumber === current.dayNumber &&
+        s.cycleAttempt === current.cycleAttempt &&
+        s.id !== current.id,
+    )
+    .toArray()
+  sameCycle.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+  if (sameCycle[0]) {
+    return { current, previous: sameCycle[0] }
   }
-  return { current, previous }
+
+  // Second try: same day, any cycle attempt
+  const sameDay = await db.workoutSessions
+    .where('program')
+    .equals(program)
+    .filter(
+      (s) =>
+        s.status === 'completed' &&
+        s.dayNumber === current.dayNumber &&
+        s.id !== current.id,
+    )
+    .toArray()
+  sameDay.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+  if (sameDay[0]) {
+    return { current, previous: sameDay[0] }
+  }
+
+  // Third try: most recent completed session for this program (any day)
+  // Gives some context even when doing a new day for the first time
+  const anyDay = await db.workoutSessions
+    .where('program')
+    .equals(program)
+    .filter((s) => s.status === 'completed' && s.id !== current.id)
+    .toArray()
+  anyDay.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+  return { current, previous: anyDay[0] }
 }

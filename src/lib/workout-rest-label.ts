@@ -8,9 +8,14 @@ export function getRestNextSetLabel(
   sets: SetTarget[],
   unit: string,
   isResting: boolean,
+  previousActual?: number,
 ): string {
   if (!isResting) return ''
   const next = sets[currentSetIndex]
   if (!next) return ''
-  return pl.nextSet(currentSetIndex + 1, getTargetReps(next), unit)
+  const targetReps = getTargetReps(next)
+  if (previousActual !== undefined && previousActual > 0) {
+    return pl.nextSetWithPrevious(currentSetIndex + 1, targetReps, unit, previousActual)
+  }
+  return pl.nextSet(currentSetIndex + 1, targetReps, unit)
 }

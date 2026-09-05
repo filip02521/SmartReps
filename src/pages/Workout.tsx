@@ -27,6 +27,7 @@ import {
   ensureWorkoutSessionPersisted,
   getPreviousSetActual,
   getMostRecentSetActual,
+  hasAnyCompletedSessions,
 } from '@/lib/session-service'
 import { getRestNextSetLabel } from '@/lib/workout-rest-label'
 import { getSmartRestSuggestion } from '@/lib/ai/proactive-coach'
@@ -73,6 +74,7 @@ export default function WorkoutPage() {
   const [initialized, setInitialized] = useState(false)
   const [initError, setInitError] = useState<string | null>(null)
   const [lastActual, setLastActual] = useState<number | undefined>()
+  const [previousResults, setPreviousResults] = useState<Map<number, number>>(new Map())
   const [coachSuggestion, setCoachSuggestion] = useState<string | null>(null)
   const [restBlocked, setRestBlocked] = useState(false)
   const [testPendingBlocked, setTestPendingBlocked] = useState(false)
@@ -119,6 +121,19 @@ export default function WorkoutPage() {
     async (setIndex: number, cycleAttempt: number, dayNumber: number) => {
       const prev = await getPreviousSetActual(program, dayNumber, cycleAttempt, setIndex + 1)
       setLastActual(prev)
+    },
+    [program],
+  )
+
+  /** Load previous session's set results for all sets of the current day (for delta indicators). */
+  const loadAllPreviousResults = useCallback(
+    async (dayNumber: number, totalSets: number, excludeSessionId?: string) => {
+      const map = new Map<number, number>()
+      for (let i = 1; i <= totalSets; i++) {
+        const prev = await getMostRecentSetActual(program, dayNumber, i, excludeSessionId)
+        if (prev !== undefined) map.set(i, prev)
+      }
+      setPreviousResults(map)
     },
     [program],
   )
@@ -299,6 +314,7 @@ export default function WorkoutPage() {
       const setIdx = active?.currentSetIndex ?? 0
       setActual(getTargetReps(d.sets[setIdx]))
       await loadPreviousActual(setIdx, prog.cycleAttempt, prog.currentDay)
+      void loadAllPreviousResults(prog.currentDay, d.sets.length, session.id)
       setInitialized(true)
 
       const { settings: appSettings, setSettings: patchSettings } = useAppStore.getState()
@@ -311,7 +327,7 @@ export default function WorkoutPage() {
       setInitError(pl.errorStartWorkout)
       setInitialized(true)
     }
-  }, [program, navigate, forceStart, loadPreviousActual])
+  }, [program, navigate, forceStart, loadPreviousActual, loadAllPreviousResults])
 
   useEffect(() => {
     const generation = ++initGenerationRef.current
@@ -552,7 +568,12 @@ export default function WorkoutPage() {
       // Smart rest suggestion — compare next set target with most recent session actual
       // (regardless of cycle attempt, to show progress across cycles)
       const prevActual = await getMostRecentSetActual(program, progress.currentDay, nextSetIndex + 1)
-      setCoachSuggestion(getSmartRestSuggestion(prevActual, getTargetReps(day.sets[nextSetIndex])))
+      // If no history for this specific set+day, check if user has ANY completed
+      // sessions for this program — to distinguish "first time ever" from "new day/set"
+      const hasHistory = prevActual === undefined
+        ? await hasAnyCompletedSessions(program, sessionMeta?.id)
+        : true
+      setCoachSuggestion(getSmartRestSuggestion(prevActual, getTargetReps(day.sets[nextSetIndex]), 'reps', hasHistory))
       finishingRef.current = false
     } catch {
       finishingRef.current = false
@@ -655,7 +676,13 @@ export default function WorkoutPage() {
   }
 
   const isResting = restTimer !== null && restTimer.mode !== 'idle'
-  const nextLabel = getRestNextSetLabel(currentSetIndex, day.sets, unit, isResting)
+  const nextLabel = getRestNextSetLabel(
+    currentSetIndex,
+    day.sets,
+    unit,
+    isResting,
+    previousResults.get(currentSetIndex + 1),
+  )
 
   const hasSessionProgress = setResults.length > 0
 
@@ -671,6 +698,7 @@ export default function WorkoutPage() {
       coachSuggestion={coachSuggestion}
       actual={actual}
       lastActual={lastActual}
+      previousResults={previousResults}
       failedIndex={failedIndex}
       showHint={showHint}
       showMenu={showMenu}

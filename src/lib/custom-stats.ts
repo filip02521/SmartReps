@@ -143,7 +143,7 @@ function sessionTotalVolume(s: { exerciseLogs?: ExerciseLog[]; totalReps?: numbe
 export async function getCustomVolumeStats(): Promise<CustomVolumeStats> {
   const { isCustomWorkoutSession } = await import('@/lib/custom-session-utils')
   const sessions = (await db.workoutSessions.toArray())
-    .filter((s) => isCustomWorkoutSession(s) && s.status === 'completed' && s.passed === true)
+    .filter((s) => isCustomWorkoutSession(s) && s.status === 'completed')
 
   const now = Date.now()
   const windowMs = 14 * 86400000
@@ -198,7 +198,7 @@ export async function getCustomSessionChart(): Promise<CustomSessionChartPoint[]
   const { pl: plLocale } = await import('date-fns/locale')
   const { isCustomWorkoutSession } = await import('@/lib/custom-session-utils')
   const sessions = (await db.workoutSessions.toArray())
-    .filter((s) => isCustomWorkoutSession(s) && s.status === 'completed' && s.passed === true)
+    .filter((s) => isCustomWorkoutSession(s) && s.status === 'completed')
 
   const points: CustomSessionChartPoint[] = []
   for (const s of sessions) {
@@ -225,7 +225,7 @@ export type CustomOverviewStats = {
 export async function getCustomOverviewStats(): Promise<CustomOverviewStats> {
   const { isCustomWorkoutSession } = await import('@/lib/custom-session-utils')
   const sessions = (await db.workoutSessions.toArray())
-    .filter((s) => isCustomWorkoutSession(s) && s.status === 'completed' && s.passed === true)
+    .filter((s) => isCustomWorkoutSession(s) && s.status === 'completed')
 
   let totalVolume = 0
   const exerciseIds = new Set<string>()

@@ -135,15 +135,18 @@ export default function Dashboard() {
   useEffect(() => {
     if (!hydrated || !hasCompletedFirstWorkout) return
     let cancelled = false
+    const controller = new AbortController()
     void (async () => {
       const weekKey = getWeekKey(new Date())
-      const existing = await db.aiInsights
+      // Check for ANY existing report this week (including dismissed).
+      // If any exists (even dismissed), don't regenerate — respect user's dismissal.
+      const anyExisting = await db.aiInsights
         .where('weekKey')
         .equals(weekKey)
-        .filter((i) => i.type === 'weekly_report' && !i.dismissedAt)
+        .filter((i) => i.type === 'weekly_report')
         .first()
-      if (existing) {
-        if (!cancelled) setWeeklyReport(existing)
+      if (anyExisting) {
+        if (!cancelled && !anyExisting.dismissedAt) setWeeklyReport(anyExisting)
         return
       }
       // Only generate on Sundays (day 0) or when explicitly requested via search param
@@ -161,7 +164,7 @@ export default function Dashboard() {
           db.workoutSessions.toArray(),
           listExercises(),
         ])
-        const report = await generateWeeklyReport({ sessions, exercises, aiConfig })
+        const report = await generateWeeklyReport({ sessions, exercises, aiConfig, signal: controller.signal })
         if (cancelled) return
         await db.aiInsights.put(report)
         void enqueueSync('ai_insights', 'insert', report)
@@ -170,7 +173,7 @@ export default function Dashboard() {
         // Non-blocking
       }
     })()
-    return () => { cancelled = true }
+    return () => { cancelled = true; controller.abort() }
   }, [hydrated, hasCompletedFirstWorkout, reloadEpoch, searchParams])
 
   if (!hydrated) {

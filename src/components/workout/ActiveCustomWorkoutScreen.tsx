@@ -186,6 +186,7 @@ function CustomSetRow({
   metric,
   state,
   result,
+  previousResult,
   editable,
   isExtra,
   onClick,
@@ -196,6 +197,8 @@ function CustomSetRow({
   metric: PrimaryMetric
   state: 'pending' | 'active' | 'done' | 'failed'
   result?: SetLog
+  /** Previous session's result for this set — for delta indicator. */
+  previousResult?: { reps?: number; durationSec?: number; weightKg?: number }
   editable?: boolean
   isExtra?: boolean
   onClick?: () => void
@@ -205,6 +208,13 @@ function CustomSetRow({
   const targetLabel = formatPrescriptionTarget(prescription, metric, weightUnit)
   const actualLabel =
     result != null ? formatSetActualDisplay(result.actual, metric, weightUnit) : null
+
+  // Delta vs previous session — only for completed sets with same metric
+  const showDelta =
+    state === 'done' &&
+    result != null &&
+    previousResult != null
+  const delta = showDelta ? computeCustomDelta(result.actual, previousResult, metric) : 0
 
   return (
     <button
@@ -248,25 +258,58 @@ function CustomSetRow({
           ) : null}
         </span>
       </span>
-      <span
-        className={cn(
-          'shrink-0 tabular-nums text-base font-semibold',
-          state === 'done' && 'text-[var(--sr-text-primary)]',
-          state === 'failed' && 'text-[var(--sr-error)]',
-          state === 'pending' && 'text-[var(--sr-text-primary)]',
-          state === 'active' && 'text-[var(--sr-text-primary)]',
+      <span className="flex items-center gap-2">
+        <span
+          className={cn(
+            'shrink-0 tabular-nums text-base font-semibold',
+            state === 'done' && 'text-[var(--sr-text-primary)]',
+            state === 'failed' && 'text-[var(--sr-error)]',
+            state === 'pending' && 'text-[var(--sr-text-primary)]',
+            state === 'active' && 'text-[var(--sr-text-primary)]',
+          )}
+        >
+          {state === 'done' && actualLabel != null
+            ? editable
+              ? `${actualLabel} / ${targetLabel} · ${pl.editShort}`
+              : `${actualLabel} / ${targetLabel}`
+            : state === 'failed' && actualLabel != null
+              ? `${actualLabel} / ${targetLabel}`
+              : targetLabel}
+        </span>
+        {showDelta && delta !== null && (
+          <span
+            className={cn(
+              'shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums',
+              delta > 0 && 'bg-[var(--sr-success-muted)] text-[var(--sr-success)]',
+              delta < 0 && 'bg-[var(--sr-error-muted)] text-[var(--sr-error)]',
+              delta === 0 && 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
+            )}
+          >
+            {delta > 0
+              ? pl.setDeltaUp(delta)
+              : delta < 0
+                ? pl.setDeltaDown(Math.abs(delta))
+                : pl.setDeltaEqual}
+          </span>
         )}
-      >
-        {state === 'done' && actualLabel != null
-          ? editable
-            ? `${actualLabel} / ${targetLabel} · ${pl.editShort}`
-            : `${actualLabel} / ${targetLabel}`
-          : state === 'failed' && actualLabel != null
-            ? `${actualLabel} / ${targetLabel}`
-            : targetLabel}
       </span>
     </button>
   )
+}
+
+/** Compute delta between current and previous set result based on metric type. */
+export function computeCustomDelta(
+  current: { reps?: number; durationSec?: number; weightKg?: number | null },
+  previous: { reps?: number; durationSec?: number; weightKg?: number | null },
+  metric: PrimaryMetric,
+): number | null {
+  if (metric === 'duration_sec') {
+    if (current.durationSec == null || previous.durationSec == null) return null
+    return current.durationSec - previous.durationSec
+  }
+  // reps_weight and reps both use reps for delta
+  if (current.reps == null || previous.reps == null) return null
+  return current.reps - previous.reps
 }
 
 function CustomSetChecklist({
@@ -278,6 +321,7 @@ function CustomSetChecklist({
   baselineSetCount,
   onEditLastSet,
   weightUnit = 'kg',
+  previousResults,
 }: {
   sets: SetPrescription[]
   metric: PrimaryMetric
@@ -288,6 +332,8 @@ function CustomSetChecklist({
   baselineSetCount?: number
   onEditLastSet?: () => void
   weightUnit?: 'kg' | 'lb'
+  /** Map of setNumber → previous result, for delta indicators. */
+  previousResults?: Map<number, { reps?: number; durationSec?: number; weightKg?: number }>
 }) {
   const baseline = baselineSetCount ?? sets.length
   const lastLoggedSetNumber =
@@ -315,6 +361,7 @@ function CustomSetChecklist({
             metric={metric}
             state={state}
             result={result}
+            previousResult={previousResults?.get(setNumber)}
             editable={editable}
             isExtra={i >= baseline}
             onClick={editable ? onEditLastSet : undefined}
@@ -873,6 +920,8 @@ export type ActiveCustomWorkoutScreenProps = {
   coachSuggestion?: string | null
   actual: number
   previousResult?: PreviousCustomSetResult
+  /** Map of setNumber → previous result, for SetChecklist delta indicators. */
+  previousResults?: Map<number, { reps?: number; durationSec?: number; weightKg?: number }>
   failedIndex?: number
   showHint: boolean
   showMenu: boolean
@@ -959,6 +1008,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     coachSuggestion,
     actual,
     previousResult,
+    previousResults,
     failedIndex,
     showHint,
     showMenu,
@@ -1367,6 +1417,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           baselineSetCount={baselineSetCount}
           onEditLastSet={canEditPreviousSet ? onEditPreviousSet : undefined}
           weightUnit={weightUnit}
+          previousResults={previousResults}
         />
       </div>
 

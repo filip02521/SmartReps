@@ -13,7 +13,6 @@ export async function getLastPassedCustomSession(
       (s) =>
         isCustomWorkoutSession(s) &&
         s.status === 'completed' &&
-        s.passed === true &&
         s.dayNumber === dayNumber &&
         s.cycleAttempt < cycleAttempt &&
         s.id !== excludeSessionId,
@@ -22,7 +21,7 @@ export async function getLastPassedCustomSession(
   return candidates[0]
 }
 
-/** Current session + previous passed session for same plan/day (prior attempt). */
+/** Current session + previous completed session for same plan/day (prior attempt). */
 export async function getCustomSessionComparison(
   customPlanId: string,
   sessionId: string,
@@ -32,6 +31,7 @@ export async function getCustomSessionComparison(
     return { current: undefined, previous: undefined }
   }
 
+  // First try: same day, prior cycle attempt
   let previous = await getLastPassedCustomSession(
     customPlanId,
     current.dayNumber,
@@ -39,6 +39,7 @@ export async function getCustomSessionComparison(
     current.id,
   )
 
+  // Second try: same day, same cycle attempt
   if (!previous) {
     const sameAttempt = await db.workoutSessions
       .where('customPlanId')
@@ -47,7 +48,6 @@ export async function getCustomSessionComparison(
         (s) =>
           isCustomWorkoutSession(s) &&
           s.status === 'completed' &&
-          s.passed === true &&
           s.dayNumber === current.dayNumber &&
           s.cycleAttempt === current.cycleAttempt &&
           s.id !== current.id,
@@ -55,6 +55,39 @@ export async function getCustomSessionComparison(
       .toArray()
     sameAttempt.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
     previous = sameAttempt[0]
+  }
+
+  // Third try: same day, any cycle attempt
+  if (!previous) {
+    const sameDay = await db.workoutSessions
+      .where('customPlanId')
+      .equals(customPlanId)
+      .filter(
+        (s) =>
+          isCustomWorkoutSession(s) &&
+          s.status === 'completed' &&
+          s.dayNumber === current.dayNumber &&
+          s.id !== current.id,
+      )
+      .toArray()
+    sameDay.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+    previous = sameDay[0]
+  }
+
+  // Fourth try: most recent completed session for this plan (any day)
+  if (!previous) {
+    const anyDay = await db.workoutSessions
+      .where('customPlanId')
+      .equals(customPlanId)
+      .filter(
+        (s) =>
+          isCustomWorkoutSession(s) &&
+          s.status === 'completed' &&
+          s.id !== current.id,
+      )
+      .toArray()
+    anyDay.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+    previous = anyDay[0]
   }
 
   return { current, previous }

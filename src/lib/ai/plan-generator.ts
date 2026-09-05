@@ -155,12 +155,13 @@ export async function generatePlan(
     const exercises: PlannedExercise[] = []
 
     // Clamp exercises per day
-    const aiExercises = aiDay.exercises.slice(0, MAX_EXERCISES_PER_DAY)
+    const aiExercises = (aiDay.exercises ?? []).slice(0, MAX_EXERCISES_PER_DAY)
 
     for (let exIdx = 0; exIdx < aiExercises.length; exIdx++) {
       const aiEx = aiExercises[exIdx]!
-      const nameKey = aiEx.exerciseName.toLowerCase().trim()
-      const cleanName = aiEx.exerciseName.trim().slice(0, 80)
+      const rawName = aiEx.exerciseName ?? ''
+      const nameKey = rawName.toLowerCase().trim()
+      const cleanName = rawName.trim().slice(0, 80)
 
       if (!cleanName) continue
 
@@ -189,7 +190,7 @@ export async function generatePlan(
       }
 
       // Build sets with validation — targets MUST match the exercise's primaryMetric
-      const rawSets = aiEx.sets.slice(0, MAX_SETS_PER_EXERCISE)
+      const rawSets = (aiEx.sets ?? []).slice(0, MAX_SETS_PER_EXERCISE)
       const sets: SetPrescription[] = rawSets.map((s) => {
         const sp: SetPrescription = {}
 
@@ -278,8 +279,8 @@ export async function generatePlan(
 
   const plan: CustomPlan = {
     id: generateId(),
-    name: parsed.plan.name.trim().slice(0, 100) || pl.aiPlanFallbackName,
-    description: parsed.plan.description.trim().slice(0, 500),
+    name: (parsed.plan.name ?? '').trim().slice(0, 100) || pl.aiPlanFallbackName,
+    description: (parsed.plan.description ?? '').trim().slice(0, 500),
     status: 'draft',
     source: 'user',
     days,

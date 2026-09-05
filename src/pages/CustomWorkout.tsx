@@ -26,6 +26,7 @@ import {
   getLastExerciseLogs,
   getPreviousCustomSetResult,
   getPreviousCustomSetActual,
+  hasAnyCompletedCustomSessions,
   persistCustomActive,
   reconcileActiveCustomWorkout,
   type PreviousCustomSetResult,
@@ -153,6 +154,7 @@ export default function CustomWorkoutPage() {
   const [showPlanSheet, setShowPlanSheet] = useState(false)
   const [detailExercise, setDetailExercise] = useState<ExerciseDefinition | null>(null)
   const [previousResult, setPreviousResult] = useState<PreviousCustomSetResult | undefined>()
+  const [previousResults, setPreviousResults] = useState<Map<number, { reps?: number; durationSec?: number; weightKg?: number }>>(new Map())
   const [coachSuggestion, setCoachSuggestion] = useState<string | null>(null)
   const [pulseFlash, setPulseFlash] = useState(false)
   const [failedIndex, setFailedIndex] = useState<number | undefined>()
@@ -238,6 +240,33 @@ export default function CustomWorkoutPage() {
         excludeSessionId,
       })
       setPreviousResult(prev)
+    },
+    [],
+  )
+
+  /** Load previous session's set results for all sets of the current exercise (for delta indicators). */
+  const loadAllPreviousResults = useCallback(
+    async (
+      customPlanId: string,
+      currentDayNumber: number,
+      currentCycleAttempt: number,
+      exerciseId: string,
+      totalSets: number,
+      excludeSessionId?: string,
+    ) => {
+      const map = new Map<number, { reps?: number; durationSec?: number; weightKg?: number }>()
+      for (let i = 1; i <= totalSets; i++) {
+        const prev = await getPreviousCustomSetResult({
+          customPlanId,
+          exerciseId,
+          setNumber: i,
+          currentDayNumber,
+          currentCycleAttempt,
+          excludeSessionId,
+        })
+        if (prev) map.set(i, { reps: prev.reps, durationSec: prev.durationSec, weightKg: prev.weightKg })
+      }
+      setPreviousResults(map)
     },
     [],
   )
@@ -609,6 +638,9 @@ export default function CustomWorkoutPage() {
     }
     setTimerRunning(false)
     setFailedIndex(undefined)
+    // Clear previous-result state to avoid stale data from prior exercise
+    setPreviousResult(undefined)
+    setPreviousResults(new Map())
     if (exDef.primaryMetric === 'duration_sec' && prescription.durationSec) {
       setActualSec(metricTargetDisplayValue(prescription.durationSec))
     } else if (prescription.reps) {
@@ -627,6 +659,14 @@ export default function CustomWorkoutPage() {
       store.currentSetIndex + 1,
       sessionRef.current?.id,
     )
+    void loadAllPreviousResults(
+      plan.id,
+      store.dayNumber,
+      store.cycleAttempt,
+      planned.exerciseId,
+      planned.sets.length,
+      sessionRef.current?.id,
+    )
   }, [
     prescription,
     exDef,
@@ -636,6 +676,7 @@ export default function CustomWorkoutPage() {
     store.dayNumber,
     store.cycleAttempt,
     loadPreviousActual,
+    loadAllPreviousResults,
   ])
 
   useEffect(() => {
@@ -733,10 +774,26 @@ export default function CustomWorkoutPage() {
     if (nextExerciseIndex !== store.currentExerciseIndex) {
       return pl.customWorkoutNextExercise(nextDef.name)
     }
-    return pl.customNextSet(
+    const baseLabel = pl.customNextSet(
       nextSetIndex + 1,
       formatPrescriptionSetLabel(nextPrescription, nextDef.primaryMetric, nextDef.name),
     )
+    // Append "Ostatnio: X" if we have previous data for this set
+    const prev = previousResults.get(nextSetIndex + 1)
+    if (prev) {
+      let prevValue: string | undefined
+      if (nextDef.primaryMetric === 'duration_sec' && prev.durationSec != null) {
+        prevValue = `${prev.durationSec}s`
+      } else if (prev.reps != null) {
+        prevValue = prev.weightKg
+          ? `${prev.reps}×${prev.weightKg}kg`
+          : `${prev.reps}`
+      }
+      if (prevValue) {
+        return `${baseLabel} · ${pl.lastTimeOnly(prevValue)}`
+      }
+    }
+    return baseLabel
   }
 
   const isResting = restTimer !== null && restTimer.mode !== 'idle'
@@ -810,7 +867,13 @@ export default function CustomWorkoutPage() {
                 currentCycleAttempt: sessionRef.current.cycleAttempt,
                 excludeSessionId: sessionRef.current.id,
               })
-              setCoachSuggestion(getSmartRestSuggestion(prevActual, target, isTimed ? 'seconds' : 'reps'))
+              // If no history for this specific set+day, check if user has ANY
+              // completed sessions for this plan — to distinguish "first time ever"
+              // from "new day/set combination"
+              const hasHistory = prevActual === undefined
+                ? await hasAnyCompletedCustomSessions(livePlan.id, sessionRef.current.id)
+                : true
+              setCoachSuggestion(getSmartRestSuggestion(prevActual, target, isTimed ? 'seconds' : 'reps', hasHistory))
             } catch {
               setCoachSuggestion(null)
             }
@@ -1620,6 +1683,7 @@ export default function CustomWorkoutPage() {
         coachSuggestion={coachSuggestion}
         actual={actual}
         previousResult={previousResult}
+        previousResults={previousResults}
         failedIndex={failedIndex}
         showHint={showHint}
         showMenu={showMenu}

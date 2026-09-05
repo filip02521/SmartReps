@@ -95,6 +95,7 @@ export function ProfilePreferences({
   const [apiKeyDraft, setApiKeyDraft] = useState(aiApiKey)
   const [modelDraft, setModelDraft] = useState(aiModel)
   const [baseUrlDraft, setBaseUrlDraft] = useState(aiBaseUrl)
+  const [baseUrlError, setBaseUrlError] = useState('')
   useEffect(() => {
     setNameDraft(displayName)
   }, [displayName])
@@ -315,13 +316,28 @@ export function ProfilePreferences({
           className="mt-3"
           size="sm"
           onClick={() => {
+            const trimmedUrl = baseUrlDraft.trim()
+            // Validate URL if provided
+            if (trimmedUrl) {
+              try {
+                const u = new URL(trimmedUrl)
+                if (!u.protocol.startsWith('http')) throw new Error('invalid protocol')
+              } catch {
+                setBaseUrlError(pl.aiBaseUrlInvalid)
+                return
+              }
+            }
+            setBaseUrlError('')
             onAiApiKeySave(apiKeyDraft.trim())
             onAiModelSave(modelDraft.trim() || 'gpt-4o-mini')
-            onAiBaseUrlSave(baseUrlDraft.trim())
+            onAiBaseUrlSave(trimmedUrl)
           }}
         >
           {pl.aiCoachConfigSave}
         </Button>
+        {baseUrlError && (
+          <p className="mt-1.5 text-xs text-[var(--sr-error)]">{baseUrlError}</p>
+        )}
 
         {apiKeyDraft.trim() && (
           <SwitchRow

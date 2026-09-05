@@ -48,6 +48,18 @@ export default function SessionSummary() {
   const setHasSeenLoginCloudPrompt = useAppStore((s) => s.setHasSeenLoginCloudPrompt)
   const processedRef = useRef(false)
   const loginPromptTrackedRef = useRef(false)
+  /** Ref to track the current session ID for stale-closure-safe checks in async AI calls. */
+  const currentSessionIdRef = useRef<string | undefined>(undefined)
+  /** AbortController for in-flight AI insight generation — aborted on unmount. */
+  const coachAbortRef = useRef<AbortController | null>(null)
+
+  // Abort any in-flight AI request on unmount
+  useEffect(() => {
+    const ref = coachAbortRef
+    return () => {
+      ref.current?.abort()
+    }
+  }, [])
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -103,12 +115,13 @@ export default function SessionSummary() {
         db.workoutSessions
           .where('program')
           .equals(program)
-          .filter((s) => s.status === 'completed' && s.passed === true)
+          .filter((s) => s.status === 'completed')
           .toArray(),
       ])
       setCurrent(comparison.current)
       setPrevious(comparison.previous)
       if (comparison.current) {
+        currentSessionIdRef.current = comparison.current.id
         setInsights(
           computeBuiltinSessionInsights({
             current: comparison.current,
@@ -149,15 +162,22 @@ export default function SessionSummary() {
 
     try {
       const exercises = await listExercises()
+      // Guard against unmount — don't start AI call if component is gone
+      if (coachAbortRef.current?.signal.aborted) return
+      // Create abort controller for this AI call — aborted on component unmount
+      const controller = new AbortController()
+      coachAbortRef.current = controller
       const insight = await generatePostWorkoutInsight({
         session: currentSession,
         previous: previousSession,
         historicalSessions,
         exercises,
         aiConfig,
+        signal: controller.signal,
       })
       // Guard against stale state if user navigated away during async generation
-      if (currentSession.id !== current?.id) return
+      if (currentSession.id !== currentSessionIdRef.current) return
+      if (coachAbortRef.current?.signal.aborted) return
       await db.aiInsights.put(insight)
       void enqueueSync('ai_insights', 'insert', insight)
       setCoachInsight(insight)
@@ -458,6 +478,8 @@ export default function SessionSummary() {
                     dayNumber: current?.dayNumber ?? progress?.currentDay ?? 1,
                     totalReps,
                     passed: true,
+                    prCount: insights?.prCount,
+                    bestSetReps: rows.length > 0 ? Math.max(...rows.map((r) => r.actual)) : undefined,
                   })
                   trackShareCard(program, true)
                   showToast(pl.summaryShareDone, 'success')

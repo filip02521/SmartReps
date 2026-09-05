@@ -3,6 +3,33 @@ import { pl as plLocale } from 'date-fns/locale'
 import type { Program } from '@/data/plans/types'
 import { pl } from '@/i18n/pl'
 
+/**
+ * Draw a rounded rectangle — polyfill for older browsers that don't support
+ * CanvasRenderingContext2D.roundRect() (Safari < 16, Firefox < 112).
+ */
+function drawRoundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, r)
+    return
+  }
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  ctx.lineTo(x + r, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+  ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y)
+}
+
 export type ShareCardCustomInput = {
   planName: string
   dayNumber: number
@@ -10,6 +37,10 @@ export type ShareCardCustomInput = {
   totalSets: number
   passed: boolean
   date?: Date
+  prCount?: number
+  streak?: number
+  volumeKg?: number
+  bestSetReps?: number
 }
 
 export type ShareCardInput = {
@@ -18,10 +49,13 @@ export type ShareCardInput = {
   totalReps: number
   passed: boolean
   date?: Date
+  prCount?: number
+  streak?: number
+  bestSetReps?: number
 }
 
 const W = 600
-const H = 340
+const H = 380
 
 function renderShareCanvas(
   ctx: CanvasRenderingContext2D,
@@ -29,6 +63,7 @@ function renderShareCanvas(
     subtitle: string
     headline: string
     statLine: string
+    badges: string[]
     passed: boolean
     date?: Date
   },
@@ -53,9 +88,44 @@ function renderShareCanvas(
   ctx.fillStyle = '#d4d4d8'
   ctx.font = '600 22px "Plus Jakarta Sans", system-ui, sans-serif'
   ctx.fillText(opts.statLine, 32, 196)
+
+  // Badges row — PR count, streak, best set, volume
+  let badgeX = 32
+  const badgeY = 230
+  const badgeGap = 12
+  ctx.font = '600 13px "Plus Jakarta Sans", system-ui, sans-serif'
+  for (const badge of opts.badges) {
+    const metrics = ctx.measureText(badge)
+    const badgeW = Math.ceil(metrics.width) + 20
+    // Badge background
+    ctx.fillStyle = 'rgba(99, 102, 241, 0.15)'
+    ctx.beginPath()
+    drawRoundRect(ctx, badgeX, badgeY, badgeW, 28, 14)
+    ctx.fill()
+    // Badge text
+    ctx.fillStyle = '#a5b4fc'
+    ctx.fillText(badge, badgeX + 10, badgeY + 19)
+    badgeX += badgeW + badgeGap
+    if (badgeX > W - 100) break // wrap protection
+  }
+
   ctx.fillStyle = '#71717a'
   ctx.font = '500 14px "Plus Jakarta Sans", system-ui, sans-serif'
   ctx.fillText(dateLabel, 32, H - 32)
+}
+
+function buildBadges(input: {
+  prCount?: number
+  streak?: number
+  bestSetReps?: number
+  volumeKg?: number
+}): string[] {
+  const badges: string[] = []
+  if (input.prCount && input.prCount > 0) badges.push(pl.shareCardPrCount(input.prCount))
+  if (input.streak && input.streak > 0) badges.push(pl.shareCardStreak(input.streak))
+  if (input.bestSetReps != null && input.bestSetReps > 0) badges.push(pl.shareCardBestSet(input.bestSetReps))
+  if (input.volumeKg != null && input.volumeKg > 0) badges.push(pl.shareCardVolume(input.volumeKg))
+  return badges
 }
 
 export async function renderShareCardPng(input: ShareCardInput): Promise<Blob> {
@@ -73,6 +143,7 @@ export async function renderShareCardPng(input: ShareCardInput): Promise<Blob> {
     subtitle: programLabel,
     headline,
     statLine: `${pl.totalReps}: ${input.totalReps}`,
+    badges: buildBadges(input),
     passed: input.passed,
     date: input.date,
   })
@@ -96,6 +167,7 @@ export async function renderCustomShareCardPng(input: ShareCardCustomInput): Pro
     subtitle: input.planName,
     headline: `${pl.dayLabel(input.dayNumber)}`,
     statLine: pl.customShareStatLine(input.exerciseCount, input.totalSets),
+    badges: buildBadges(input),
     passed: input.passed,
     date: input.date,
   })

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MoreVertical } from 'lucide-react'
+import { MoreVertical, Play } from 'lucide-react'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -520,12 +520,16 @@ export function ProgramHomeCard({
               size="touch"
               fullWidth
               disabled={busy}
+              className="sr-pulse-cta"
               onClick={() => {
                 if (resume.stale && !resting) setShowStaleConfirm(true)
                 else navigate(`/workout/${program}?force=1`)
               }}
             >
-              {pl.continueWorkout(resume.day, resume.set, resume.total)}
+              <span className="flex items-center justify-center gap-2">
+                <Play size={18} className="fill-current" />
+                {pl.continueWorkout(resume.day, resume.set, resume.total)}
+              </span>
             </Button>
             {resume.stale && !resting && (
               <Button

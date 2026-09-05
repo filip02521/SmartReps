@@ -25,6 +25,7 @@ import TermsPage from '@/pages/legal/Terms'
 import { ToastHost } from '@/components/ux/Toast'
 import { AccountSwitchGate } from '@/components/ux/AccountSwitchGate'
 import { AchievementHost } from '@/components/achievements/AchievementHost'
+import { ResumeWorkoutPrompt } from '@/components/workout/ResumeWorkoutPrompt'
 
 const ProgressPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Progress')))
 const PlansPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Plans')))
@@ -57,6 +58,7 @@ export default function App() {
       <AuthBridge />
       <AccountSwitchGate />
       <AchievementHost />
+      <ResumeWorkoutPrompt />
       <GlobalOfflineBar />
       <Routes>
         <Route path="/privacy" element={<PrivacyPage />} />

@@ -54,7 +54,7 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
     throw new AiApiError(pl.aiErrorNoApiKey, undefined, 'auth')
   }
 
-  const baseURL = opts.baseURL?.trim() || DEFAULT_BASE_URL
+  const baseURL = (opts.baseURL?.trim() || DEFAULT_BASE_URL).replace(/\/+$/, '')
   const url = `${baseURL}/chat/completions`
 
   let resp: Response
@@ -113,7 +113,12 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
     )
   }
 
-  const data = await resp.json()
+  let data: { choices?: { message?: { content?: unknown } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } }
+  try {
+    data = await resp.json()
+  } catch {
+    throw new AiApiError(pl.aiErrorInvalidResponse, undefined, 'parse')
+  }
   const content = data?.choices?.[0]?.message?.content
   if (typeof content !== 'string') {
     throw new AiApiError(pl.aiErrorInvalidResponse, undefined, 'parse')
@@ -137,11 +142,13 @@ export function parseJsonResponse<T>(content: string): T {
   try {
     return JSON.parse(cleaned) as T
   } catch {
-    // Try to extract JSON object from surrounding text
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
+    // Try to extract a JSON object or array from surrounding text.
+    // Use a brace-matching approach instead of greedy regex to avoid
+    // capturing multiple objects or trailing text.
+    const extracted = extractFirstJson(cleaned)
+    if (extracted) {
       try {
-        return JSON.parse(jsonMatch[0]) as T
+        return JSON.parse(extracted) as T
       } catch {
         // fall through
       }
@@ -152,4 +159,49 @@ export function parseJsonResponse<T>(content: string): T {
       'parse',
     )
   }
+}
+
+/**
+ * Extract the first balanced JSON object or array from a string.
+ * Handles nested braces/brackets and string literals (with escape sequences).
+ * Returns null if no valid JSON fragment is found.
+ */
+function extractFirstJson(text: string): string | null {
+  const start = text.indexOf('{')
+  const arrStart = text.indexOf('[')
+  const realStart = start === -1 ? arrStart : arrStart === -1 ? start : Math.min(start, arrStart)
+  if (realStart === -1) return null
+
+  const open = text[realStart]
+  const close = open === '{' ? '}' : ']'
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let i = realStart; i < text.length; i++) {
+    const ch = text[i]
+    if (inString) {
+      if (escaped) {
+        escaped = false
+      } else if (ch === '\\') {
+        escaped = true
+      } else if (ch === '"') {
+        inString = false
+      }
+      continue
+    }
+    if (ch === '"') {
+      inString = true
+      continue
+    }
+    if (ch === open) {
+      depth++
+    } else if (ch === close) {
+      depth--
+      if (depth === 0) {
+        return text.slice(realStart, i + 1)
+      }
+    }
+  }
+  return null
 }

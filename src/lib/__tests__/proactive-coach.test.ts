@@ -81,10 +81,34 @@ vi.mock('@/lib/custom-session-utils', () => ({
 }))
 
 describe('getSmartRestSuggestion', () => {
-  it('returns firstTime message when no previous actual', () => {
+  it('returns firstTime message when no previous actual and no history', () => {
     const result = getSmartRestSuggestion(undefined, 10)
     expect(result).toBeTruthy()
-    expect(result).toContain('Pierwszy raz')
+    expect(result).toContain('Pierwsza seria')
+  })
+
+  it('returns newCombination message when no previous actual but has history', () => {
+    const result = getSmartRestSuggestion(undefined, 10, 'reps', true)
+    expect(result).toBeTruthy()
+    expect(result).toContain('Nowa kombinacja')
+  })
+
+  it('returns firstTime message when previous actual is 0 and no history', () => {
+    const result = getSmartRestSuggestion(0, 10)
+    expect(result).toBeTruthy()
+    expect(result).toContain('Pierwsza seria')
+  })
+
+  it('returns newCombination message when previous actual is 0 but has history', () => {
+    const result = getSmartRestSuggestion(0, 10, 'reps', true)
+    expect(result).toBeTruthy()
+    expect(result).toContain('Nowa kombinacja')
+  })
+
+  it('returns firstTime message when previous actual is negative and no history', () => {
+    const result = getSmartRestSuggestion(-1, 10)
+    expect(result).toBeTruthy()
+    expect(result).toContain('Pierwsza seria')
   })
 
   it('returns improved message when previous > target', () => {

@@ -377,6 +377,23 @@ export async function getPreviousCustomSetActual(params: {
 }
 
 /**
+ * Check if the user has ANY completed sessions for a given custom plan.
+ * Used to distinguish "first time ever" from "new day/set combination"
+ * in smart rest suggestions.
+ */
+export async function hasAnyCompletedCustomSessions(
+  customPlanId: string,
+  excludeSessionId?: string,
+): Promise<boolean> {
+  const count = await db.workoutSessions
+    .where('customPlanId')
+    .equals(customPlanId)
+    .filter((s) => s.status === 'completed' && s.id !== excludeSessionId)
+    .count()
+  return count > 0
+}
+
+/**
  * All sets from the most recent completed session for the given exercise in a plan.
  * Used when swapping an exercise mid-workout to prefill sets/reps/weight from history.
  */

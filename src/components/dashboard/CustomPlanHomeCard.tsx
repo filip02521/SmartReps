@@ -157,7 +157,7 @@ export function CustomPlanHomeCard({
         type="button"
         size="touch"
         fullWidth
-        className="mt-5"
+        className={cn('mt-5', model.resume && 'sr-pulse-cta')}
         onClick={() => {
           if (model.ctaAction === 'unpause') {
             void setCustomPlanPaused(model.planId, false).then(() => onUpdated?.())
@@ -172,7 +172,10 @@ export function CustomPlanHomeCard({
           void openPreview()
         }}
       >
-        {model.ctaLabel}
+        <span className="flex items-center justify-center gap-2">
+          {model.resume && <Play size={18} className="fill-current" />}
+          {model.ctaLabel}
+        </span>
       </Button>
 
       <button

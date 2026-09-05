@@ -91,6 +91,8 @@ export function AiPlanGenerator({
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
+    // 90s timeout — plan generation is a large request, but still bounded
+    const timeout = setTimeout(() => controller.abort(), 90_000)
 
     void (async () => {
       try {
@@ -106,6 +108,7 @@ export function AiPlanGenerator({
         }
         const res = await generatePlan(input, { apiKey, model, library, baseURL: baseURL || undefined, signal: controller.signal })
         if (controller.signal.aborted) return
+        clearTimeout(timeout)
         // Build exercise name lookup for preview
         const names = new Map<string, string>()
         for (const ex of library) names.set(ex.id, ex.name)
@@ -115,6 +118,7 @@ export function AiPlanGenerator({
         setStep('result')
       } catch (e) {
         if (controller.signal.aborted) return
+        clearTimeout(timeout)
         if (e instanceof AiApiError) {
           setError(
             e.kind === 'offline'

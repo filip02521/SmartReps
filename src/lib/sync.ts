@@ -882,6 +882,8 @@ export async function mergeAiInsightRemote(remote: RemoteAiInsightRow) {
         // Preserve the latest dismiss/read timestamps (remote wins if it has them)
         dismissedAt: remote.dismissed_at ?? existing.dismissedAt,
         readAt: remote.read_at ?? existing.readAt,
+        // Preserve local-only display metrics (not synced to cloud)
+        metricsJson: existing.metricsJson,
       })
     }
     return

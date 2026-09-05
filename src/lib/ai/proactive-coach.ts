@@ -35,9 +35,13 @@ export function getSmartRestSuggestion(
   previousActual: number | undefined,
   currentTarget: number,
   unit: 'reps' | 'seconds' = 'reps',
+  hasHistory = false,
 ): string | null {
-  if (previousActual === undefined) {
-    return pl.coachRestSuggestionFirstTime
+  // Treat undefined or 0 as "no meaningful history for this set" —
+  // 0 reps likely means the set was skipped or failed, not a baseline.
+  if (previousActual === undefined || previousActual <= 0) {
+    // Distinguish "first time ever" from "new day/set combination"
+    return hasHistory ? pl.coachRestSuggestionNewCombination : pl.coachRestSuggestionFirstTime
   }
   if (previousActual > currentTarget) {
     return unit === 'seconds'
@@ -109,6 +113,7 @@ async function buildAiPostWorkoutInsight(
   historicalSessions: LocalWorkoutSession[],
   exercises: ExerciseDefinition[],
   aiConfig: { apiKey: string; model: string; baseURL?: string },
+  externalSignal?: AbortSignal,
 ): Promise<string> {
   const { system, user } = buildPostWorkoutPrompt(session, previous, historicalSessions, exercises)
   const isGemini = aiConfig.baseURL?.includes('gemini') || aiConfig.baseURL?.includes('googleapis')
@@ -116,6 +121,11 @@ async function buildAiPostWorkoutInsight(
   // 15s timeout — post-workout insight should be fast, fall back to local if AI is slow
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 15_000)
+  // If external signal aborts (e.g. component unmount), also abort our request
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort()
+    else externalSignal.addEventListener('abort', () => controller.abort(), { once: true })
+  }
 
   try {
     const result = await chatCompletion({
@@ -150,15 +160,16 @@ export async function generatePostWorkoutInsight(params: {
   historicalSessions: LocalWorkoutSession[]
   exercises: ExerciseDefinition[]
   aiConfig?: { apiKey: string; model: string; baseURL?: string }
+  signal?: AbortSignal
 }): Promise<LocalAiInsight> {
-  const { session, previous, historicalSessions, exercises, aiConfig } = params
+  const { session, previous, historicalSessions, exercises, aiConfig, signal } = params
   const id = crypto.randomUUID()
   const createdAt = new Date().toISOString()
 
   // Try AI path when configured
   if (aiConfig?.apiKey) {
     try {
-      const aiBody = await buildAiPostWorkoutInsight(session, previous, historicalSessions, exercises, aiConfig)
+      const aiBody = await buildAiPostWorkoutInsight(session, previous, historicalSessions, exercises, aiConfig, signal)
       return {
         id,
         type: 'post_workout',
@@ -206,8 +217,15 @@ function sessionProgressionMetric(session: LocalWorkoutSession): number {
       for (const set of log.sets) {
         const reps = set.actual.reps ?? 0
         const weight = set.actual.weightKg ?? 0
-        // Volume = reps × weight; for bodyweight/duration, count reps or duration as volume
-        volume += reps * Math.max(weight, 1)
+        const duration = set.actual.durationSec ?? 0
+        // Volume = reps × weight for weighted exercises
+        // For bodyweight (reps only, no weight): count reps
+        // For duration-only exercises (plank, etc.): count duration seconds as volume
+        if (reps > 0) {
+          volume += reps * Math.max(weight, 1)
+        } else if (duration > 0) {
+          volume += duration
+        }
       }
     }
     return volume
@@ -305,8 +323,9 @@ export async function generateWeeklyReport(params: {
   sessions: LocalWorkoutSession[]
   exercises: ExerciseDefinition[]
   aiConfig?: { apiKey: string; model: string; baseURL?: string }
+  signal?: AbortSignal
 }): Promise<LocalAiInsight> {
-  const { sessions, exercises, aiConfig } = params
+  const { sessions, exercises, aiConfig, signal } = params
   const now = new Date()
   const weekKey = getWeekKey(now)
   // Use ISO-week boundaries (Monday→Sunday) for consistency with getWeekKey
@@ -321,6 +340,17 @@ export async function generateWeeklyReport(params: {
   const activity = buildActivityInsights(sessions)
   const totalReps = weekSessions.reduce((sum, s) => sum + (s.totalReps ?? 0), 0)
 
+  // Structured metrics for card display
+  const metrics = {
+    sessions: weekSessions.length,
+    totalReps,
+    streakWeeks: activity.streakWeeks,
+    repsWeekChangePct: activity.repsWeekChangePct,
+    weekStart: weekStart.toISOString(),
+    weekEnd: weekEnd.toISOString(),
+  }
+  const metricsJson = JSON.stringify(metrics)
+
   // Try AI path when configured
   if (aiConfig?.apiKey) {
     try {
@@ -329,6 +359,11 @@ export async function generateWeeklyReport(params: {
       // 20s timeout — weekly report can be slightly longer but still bounded
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 20_000)
+      // If external signal aborts (e.g. component unmount), also abort our request
+      if (signal) {
+        if (signal.aborted) controller.abort()
+        else signal.addEventListener('abort', () => controller.abort(), { once: true })
+      }
       try {
         const result = await chatCompletion({
           apiKey: aiConfig.apiKey,
@@ -358,6 +393,7 @@ export async function generateWeeklyReport(params: {
             tone: weekSessions.length === 0 ? 'warning' : 'insight',
             source: 'ai',
             createdAt: new Date().toISOString(),
+            metricsJson,
           }
         }
       } finally {
@@ -379,6 +415,7 @@ export async function generateWeeklyReport(params: {
     tone: weekSessions.length === 0 ? 'warning' : 'insight',
     source: 'local',
     createdAt: new Date().toISOString(),
+    metricsJson,
   }
 }
 

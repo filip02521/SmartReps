@@ -111,6 +111,14 @@ export type LocalAchievementUnlockRow = {
 
 export type AiInsightType = 'post_workout' | 'weekly_report' | 'plateau_warning'
 
+/** Cached AI workout analysis result — persisted so it survives page refresh / tab switch. */
+export type AiAnalysisCache = {
+  id: string
+  /** Serialized AnalysisResult JSON (strengths, weaknesses, volume, suggestions). */
+  resultJson: string
+  createdAt: string
+}
+
 export type LocalAiInsight = {
   id: string
   type: AiInsightType
@@ -125,6 +133,8 @@ export type LocalAiInsight = {
   createdAt: string
   dismissedAt?: string
   readAt?: string
+  /** Optional structured metrics for display (e.g. weekly report stats). */
+  metricsJson?: string
 }
 
 /** Tombstone for a deleted session — prevents resurrection by cross-device sync. */
@@ -146,6 +156,7 @@ class SmartRepsDB extends Dexie {
   achievementUnlocks!: EntityTable<LocalAchievementUnlockRow, 'id'>
   bodyWeight!: EntityTable<BodyWeightEntry, 'id'>
   aiInsights!: EntityTable<LocalAiInsight, 'id'>
+  aiAnalysisCache!: EntityTable<AiAnalysisCache, 'id'>
   sessionTombstones!: EntityTable<SessionTombstone, 'sessionId'>
 
   constructor() {
@@ -271,6 +282,23 @@ class SmartRepsDB extends Dexie {
       bodyWeight: 'id, measuredAt',
       aiInsights: 'id, type, sessionId, weekKey, createdAt',
       sessionTombstones: 'sessionId, deletedAt',
+    })
+    // v9: AI analysis cache — persists workout analysis results across refresh/tab switch
+    this.version(9).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, startedAt, [program+status], customPlanId',
+      activeWorkout: 'program',
+      activeCustomWorkout: 'customPlanId',
+      syncQueue: '++id, createdAt',
+      maxTests: '++id, program, testedAt, &[program+testedAt]',
+      exercises: 'id, updatedAt, archived',
+      customPlans: 'id, status, updatedAt',
+      customProgramProgress: '++id, &customPlanId, updatedAt',
+      achievementUnlocks: 'id, unlockedAt',
+      bodyWeight: 'id, measuredAt',
+      aiInsights: 'id, type, sessionId, weekKey, createdAt',
+      sessionTombstones: 'sessionId, deletedAt',
+      aiAnalysisCache: 'id, createdAt',
     })
   }
 }

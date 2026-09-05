@@ -63,6 +63,18 @@ export default function CustomSessionSummary() {
   const setHasSeenLoginCloudPrompt = useAppStore((s) => s.setHasSeenLoginCloudPrompt)
   const weightUnit = useAppStore((s) => s.settings.weightUnit)
   const loginPromptTrackedRef = useRef(false)
+  /** Ref to track the current session ID for stale-closure-safe checks in async AI calls. */
+  const currentSessionIdRef = useRef<string | undefined>(undefined)
+  /** AbortController for in-flight AI insight generation — aborted on unmount. */
+  const coachAbortRef = useRef<AbortController | null>(null)
+
+  // Abort any in-flight AI request on unmount
+  useEffect(() => {
+    const ref = coachAbortRef
+    return () => {
+      ref.current?.abort()
+    }
+  }, [])
 
   const [loading, setLoading] = useState(true)
   const [session, setSession] = useState<LocalWorkoutSession | null>(null)
@@ -137,6 +149,7 @@ export default function CustomSessionSummary() {
           return
         }
         setSession(s)
+        currentSessionIdRef.current = s.id
         const resolvedPlanId = s.customPlanId ?? planId
         if (resolvedPlanId) {
           const [plan, prog, exercises, comparison, historicalSessions] = await Promise.all([
@@ -148,8 +161,7 @@ export default function CustomSessionSummary() {
               .filter(
                 (row) =>
                   isCustomWorkoutSession(row) &&
-                  row.status === 'completed' &&
-                  row.passed === true,
+                  row.status === 'completed',
               )
               .toArray(),
           ])
@@ -186,7 +198,6 @@ export default function CustomSessionSummary() {
         setLoading(false)
       }
     })()
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when summary identity changes
   }, [sessionId, planId])
 
   async function loadOrGenerateCoachInsight(
@@ -208,15 +219,22 @@ export default function CustomSessionSummary() {
       : undefined
 
     try {
+      // Guard against unmount — don't start AI call if component is gone
+      if (coachAbortRef.current?.signal.aborted) return
+      // Create abort controller for this AI call — aborted on component unmount
+      const controller = new AbortController()
+      coachAbortRef.current = controller
       const insight = await generatePostWorkoutInsight({
         session: current,
         previous: previousSession,
         historicalSessions,
         exercises,
         aiConfig,
+        signal: controller.signal,
       })
       // Guard against stale state if user navigated away during async generation
-      if (current.id !== session?.id) return
+      if (current.id !== currentSessionIdRef.current) return
+      if (coachAbortRef.current?.signal.aborted) return
       await db.aiInsights.put(insight)
       void enqueueSync('ai_insights', 'insert', insight)
       setCoachInsight(insight)
@@ -335,6 +353,17 @@ export default function CustomSessionSummary() {
   const belowTarget = customSessionHasBelowTarget(session)
   const totalSets = sessionTotalSets(session)
   const exerciseCount = session.exerciseLogs?.length ?? 0
+  // Compute share-card enrichment metrics from session logs
+  const allLogs = session.exerciseLogs ?? []
+  const allSetLogs = allLogs.flatMap((l) => l.sets ?? [])
+  const bestSetReps = allSetLogs.length > 0
+    ? Math.max(...allSetLogs.map((s) => s.actual.reps ?? 0))
+    : undefined
+  const volumeKg = allSetLogs.reduce((sum, s) => {
+    const reps = s.actual.reps ?? 0
+    const kg = s.actual.weightKg ?? 0
+    return sum + (kg > 0 ? reps * kg : 0)
+  }, 0)
   const cycleComplete =
     !failed &&
     (progress?.status === 'cycle_complete' || !!session.progressionDiffJson)
@@ -696,6 +725,8 @@ export default function CustomSessionSummary() {
                     exerciseCount,
                     totalSets,
                     passed: session.passed !== false,
+                    bestSetReps,
+                    volumeKg: volumeKg > 0 ? Math.round(volumeKg) : undefined,
                   })
                   trackShareCard('custom', true)
                   showToast(pl.summaryShareDone, 'success')

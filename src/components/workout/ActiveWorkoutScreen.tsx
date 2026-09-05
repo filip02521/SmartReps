@@ -37,6 +37,8 @@ export type ActiveWorkoutScreenProps = {
   coachSuggestion?: string | null
   actual: number
   lastActual?: number
+  /** Map of setNumber → actual from previous session, for SetChecklist delta. */
+  previousResults?: Map<number, number>
   failedIndex?: number
   showHint: boolean
   showMenu: boolean
@@ -90,6 +92,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     coachSuggestion,
     actual,
     lastActual,
+    previousResults,
     failedIndex,
     showHint,
     showMenu,
@@ -253,7 +256,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           actual={actual}
           onActualChange={onActualChange}
           onDone={onDone}
-          lastActual={lastActual}
+          lastActual={lastActual ?? previousResults?.get(currentSetIndex + 1)}
           pulseFlash={pulseFlash}
           disabled={counterLocked}
           disabledHint={isResting ? pl.restInProgress : preparingNegative ? pl.negativeCountdown(negativeCountdown!) : undefined}
@@ -281,6 +284,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           failedIndex={failedIndex}
           dimmed={false}
           onEditLastSet={canEditPreviousSet ? onEditPreviousSet : undefined}
+          previousResults={previousResults}
         />
       </div>
 

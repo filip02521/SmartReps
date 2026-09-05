@@ -58,7 +58,7 @@ function detectComeback(sortedAsc: LocalWorkoutSession[], now: Date): boolean {
 function computeBuiltinPrRepeatMax(sessions: LocalWorkoutSession[]): number {
   const byProgramDay = new Map<string, number>()
   const sorted = [...sessions]
-    .filter((s) => !isCustomWorkoutSession(s) && s.passed === true)
+    .filter((s) => !isCustomWorkoutSession(s) && s.status === 'completed')
     .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime())
 
   const prSessionKeys = new Set<string>()

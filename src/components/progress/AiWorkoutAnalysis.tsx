@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { FeedbackBanner } from '@/components/ux/Feedback'
 import { PageSection } from '@/components/ui/PageSection'
@@ -11,6 +11,8 @@ import { AiCoachHeader, AiCoachMessage } from '@/components/brand/AiCoachHeader'
 import { TrendingUp, AlertTriangle, Check, Lightbulb, RotateCcw } from 'lucide-react'
 import { db } from '@/lib/db'
 import { cn } from '@/lib/utils'
+
+const ANALYSIS_CACHE_ID = 'latest'
 
 const PRIORITY_COLORS = {
   high: 'border-l-[var(--sr-error)]',
@@ -40,18 +42,40 @@ export function AiWorkoutAnalysis() {
   const [error, setError] = useState('')
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [hasSessions, setHasSessions] = useState<boolean | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  // Abort any in-flight AI request on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [])
 
   const apiKey = settings.aiApiKey ?? ''
   const model = settings.aiModel ?? 'gpt-4o-mini'
   const baseURL = settings.aiBaseUrl ?? ''
 
-  // Check if there are any completed sessions to analyze
+  // Check if there are any completed sessions to analyze + load cached analysis
   useEffect(() => {
     void db.workoutSessions
       .filter((s) => s.status === 'completed')
       .count()
       .then((n) => setHasSessions(n > 0))
       .catch(() => setHasSessions(false))
+
+    // Load cached analysis result so it survives page refresh / tab switch
+    void db.aiAnalysisCache
+      .get(ANALYSIS_CACHE_ID)
+      .then((cached) => {
+        if (cached) {
+          try {
+            setResult(JSON.parse(cached.resultJson))
+          } catch {
+            // Corrupted cache — ignore
+          }
+        }
+      })
+      .catch(() => {})
   }, [])
 
   function handleAnalyze() {
@@ -61,12 +85,27 @@ export function AiWorkoutAnalysis() {
     }
     setLoading(true)
     setError('')
+    // Cancel any previous request
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    // 60s timeout — analysis is a large request, but still bounded
+    const timeout = setTimeout(() => controller.abort(), 60_000)
     void (async () => {
       try {
         const exercises = await listExercises()
-        const res = await analyzeWorkouts({ apiKey, model, exercises, baseURL: baseURL || undefined })
+        if (controller.signal.aborted) return
+        const res = await analyzeWorkouts({ apiKey, model, exercises, baseURL: baseURL || undefined, signal: controller.signal })
+        if (controller.signal.aborted) return
         setResult(res)
+        // Persist to cache so analysis survives refresh / tab switch
+        void db.aiAnalysisCache.put({
+          id: ANALYSIS_CACHE_ID,
+          resultJson: JSON.stringify(res),
+          createdAt: new Date().toISOString(),
+        }).catch(() => {})
       } catch (e) {
+        if (controller.signal.aborted) return
         if (e instanceof AiApiError) {
           setError(
             e.kind === 'offline'
@@ -86,7 +125,8 @@ export function AiWorkoutAnalysis() {
           )
         }
       } finally {
-        setLoading(false)
+        clearTimeout(timeout)
+        if (!controller.signal.aborted) setLoading(false)
       }
     })()
   }
@@ -200,6 +240,8 @@ export function AiWorkoutAnalysis() {
                 {result.volumeAssessment.map((v, i) => {
                   const label = result.muscleGroupLabels[v.muscleGroup] ?? v.muscleGroup
                   const status = v.status as keyof typeof STATUS_COLORS
+                  const statusColor = STATUS_COLORS[status] ?? 'text-[var(--sr-text-muted)]'
+                  const statusLabel = STATUS_LABELS[status] ?? v.status
                   return (
                     <li
                       key={i}
@@ -209,8 +251,8 @@ export function AiWorkoutAnalysis() {
                         <span className="font-medium text-[var(--sr-text-primary)]">
                           {label}
                         </span>
-                        <span className={cn('text-xs font-semibold', STATUS_COLORS[status])}>
-                          {v.weeklySets} {pl.setsShort}/tyg — {STATUS_LABELS[status]}
+                        <span className={cn('text-xs font-semibold', statusColor)}>
+                          {v.weeklySets} {pl.setsShort}/tyg — {statusLabel}
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
@@ -236,7 +278,7 @@ export function AiWorkoutAnalysis() {
                     key={i}
                     className={cn(
                       'rounded-[var(--sr-radius-sm)] border border-[var(--sr-border-subtle)] border-l-4 bg-[var(--sr-bg-surface)] p-3',
-                      PRIORITY_COLORS[s.priority],
+                      PRIORITY_COLORS[s.priority] ?? 'border-l-[var(--sr-border-subtle)]',
                     )}
                   >
                     <p className="font-medium text-[var(--sr-text-primary)]">
@@ -262,7 +304,10 @@ export function AiWorkoutAnalysis() {
             type="button"
             variant="ghost"
             fullWidth
-            onClick={() => setResult(null)}
+            onClick={() => {
+              setResult(null)
+              void db.aiAnalysisCache.delete(ANALYSIS_CACHE_ID).catch(() => {})
+            }}
             className="mt-1 gap-2"
           >
             <RotateCcw size={16} aria-hidden />

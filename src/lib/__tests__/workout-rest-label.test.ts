@@ -23,4 +23,26 @@ describe('getRestNextSetLabel', () => {
   it('returns empty when no next set exists', () => {
     expect(getRestNextSetLabel(5, sets, 'pompek', true)).toBe('')
   })
+
+  it('includes previous result when previousActual is provided', () => {
+    expect(getRestNextSetLabel(1, sets, 'pompek', true, 6)).toBe(
+      'Następnie: Seria 2 · 7 pompek · Ostatnio: 6 pompek',
+    )
+  })
+
+  it('does not include previous when previousActual is 0', () => {
+    expect(getRestNextSetLabel(1, sets, 'pompek', true, 0)).toBe('Następnie: Seria 2 · 7 pompek')
+  })
+
+  it('does not include previous when previousActual is undefined', () => {
+    expect(getRestNextSetLabel(1, sets, 'pompek', true, undefined)).toBe(
+      'Następnie: Seria 2 · 7 pompek',
+    )
+  })
+
+  it('includes previous for max-type sets', () => {
+    expect(getRestNextSetLabel(3, sets, 'pompek', true, 12)).toBe(
+      'Następnie: Seria 4 · 11 pompek · Ostatnio: 12 pompek',
+    )
+  })
 })

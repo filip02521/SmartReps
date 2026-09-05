@@ -126,6 +126,13 @@ const plDict = {
   startDay: (n: number) => `Rozpocznij Dzień ${n}`,
   continueWorkout: (day: number, set: number, total: number) =>
     `Kontynuuj Dzień ${day} — seria ${set}/${total}`,
+  resumePromptTitle: 'Masz nieukończony trening',
+  resumePromptBodyBuiltin: (day: number, set: number, total: number) =>
+    `Dzień ${day} · seria ${set}/${total}. Wznowić?`,
+  resumePromptBodyCustom: (planName: string, day: number) =>
+    `${planName} · Dzień ${day}. Wznowić?`,
+  resumePromptResume: 'Wznów',
+  resumePromptSkip: 'Pomiń',
   restIn: (days: number) =>
     days === 0 ? 'dziś' : days === 1 ? 'jutro' : `za ${days} dni`,
   restBlocked: (when: string) => `Jeszcze za wcześnie · trening dostępny ${when}`,
@@ -176,9 +183,15 @@ const plDict = {
   leaveWorkoutTitle: 'Wyjść z treningu?',
   leaveWorkoutConfirmAction: 'Wyjdź i zapisz',
   lastTime: (actual: number, target: number) => `Ostatnio: ${actual}/${target}`,
+  lastTimeOnly: (actual: number | string) => `Ostatnio: ${actual}`,
+  setDeltaUp: (delta: number) => `+${delta} ▲`,
+  setDeltaDown: (delta: number) => `−${delta} ▼`,
+  setDeltaEqual: '= ▬',
   restLabel: 'Przerwa',
   nextSet: (n: number, reps: number, unit: string) =>
     `Następnie: Seria ${n} · ${reps} ${unit}`,
+  nextSetWithPrevious: (n: number, reps: number, unit: string, prev: number) =>
+    `Następnie: Seria ${n} · ${reps} ${unit} · Ostatnio: ${prev} ${unit}`,
   workoutHint:
     'Ustaw liczbę powtórzeń, potem naciśnij Zrobione. Cel = sukces; mniej niż cel = nieudana seria. Serie „równo N” wymagają dokładnie N.',
   workoutFailBanner: (actual: number, target: number) =>
@@ -696,6 +709,10 @@ const plDict = {
     n === 1 ? '… i 1 zmiana więcej' : `… i ${n} zmian więcej`,
   customShareStatLine: (exercises: number, sets: number) =>
     `${exercises} ćw. · ${sets} serii`,
+  shareCardPrCount: (n: number) => (n === 1 ? '1 rekord PR' : `${n} rekordy PR`),
+  shareCardStreak: (n: number) => (n === 1 ? '1 dzień z rzędu' : `${n} dni z rzędu`),
+  shareCardVolume: (kg: number) => `Tonaż: ${kg} kg`,
+  shareCardBestSet: (reps: number) => `Najlepsza seria: ${reps}`,
   customPreviousRepsWeight: (reps: number, kg: number) => `Wcześniej: ${reps} × ${kg} kg`,
   customPreviousLabel: 'Ostatnio',
   customPreviousFromDay: (day: number) => `D${day}`,
@@ -1284,12 +1301,14 @@ const plDict = {
   aiCoachConfigDisconnected: 'Brak klucza — trener offline',
   aiCoachConfigSave: 'Zapisz połączenie',
   aiCoachConfigSaved: 'Ustawienia trenera zapisane',
+  aiBaseUrlInvalid: 'Adres API musi być poprawnym URL (np. https://api.openai.com/v1)',
   aiCoachConfigTest: 'Testuj połączenie',
   aiCoachConfigTesting: 'Testuję…',
   aiCoachConfigTestOk: 'Połączenie działa — trener gotowy',
   aiCoachConfigTestFail: 'Nie udało się połączyć — sprawdź klucz i model',
   // ── Proactive Coach: smart rest suggestions ──
-  coachRestSuggestionFirstTime: 'Pierwszy raz przy tym ćwiczeniu — zrób na czysto, tempo nad ruchem.',
+  coachRestSuggestionFirstTime: 'Pierwsza seria tego ćwiczenia — zrób solidnie, jakość nad ilość.',
+  coachRestSuggestionNewCombination: 'Nowa kombinacja dnia i serii — zrób solidnie, poczuj ruch.',
   coachRestSuggestionImproved: (prev: number) => `Ostatnio zrobiłeś ${prev} powt. w tej serii — spróbuj przebić.`,
   coachRestSuggestionImprovedTime: (prev: number) => `Ostatnio wytrzymałeś ${prev}s — spróbuj przebić.`,
   coachRestSuggestionUnchanged: 'Ostatnio tyle samo — czas na progres o 1 powtórzenie.',
@@ -1327,6 +1346,11 @@ const plDict = {
   coachWeeklyReportLowFreq: '1 sesja/tyg. to poniżej MEV (10 serii/grupę) — dodaj 1-2 sesje dla optymalnej hipertrofii.',
   coachWeeklyReportFatigue: 'Spadek objętości >10% — możliwe zmęczenie. Rozważ dodatkowy dzień przerwy.',
   coachWeeklyReportGreat: 'Świetny tydzień — objętość i progres w normie. Tak trzymaj!',
+  coachWeeklyMetricSessions: 'Sesje',
+  coachWeeklyMetricReps: 'Powt.',
+  coachWeeklyMetricStreak: 'Seria',
+  coachWeeklyMetricChange: 'Zmiana',
+  coachSourceAi: 'AI',
   // ── Proactive Coach: settings ──
   coachSettingsProactive: 'Proaktywny trener',
   coachSettingsProactiveDesc: 'Automatyczne insights po treningu, tygodniowe raporty i wykrywanie plateau. Używa Twojego klucza AI.',
@@ -2366,6 +2390,100 @@ DOZWOLONE wartości muscleGroup: "chest", "back", "shoulders", "arms", "legs", "
   aiPromptDateRangeNone: 'brak danych',
   aiPromptNoActivePlan: '',
   aiPromptLanguageHint: 'Polish',
+
+  // ── AI post-workout prompt building blocks ──
+  aiPromptPostWorkoutDaySummary: (day: number, totalReps: number, logs: string) =>
+    `Dzień ${day}, ${totalReps} powtórzeń łącznie:\n${logs}`,
+  aiPromptPostWorkoutDayBrief: (day: number, totalReps: number, sets: string) =>
+    sets ? `Dzień ${day}, ${totalReps} powtórzeń łącznie. ${sets}` : `Dzień ${day}, ${totalReps} powtórzeń łącznie`,
+  aiPromptPostWorkoutSetResult: (setNumber: number, actual: number, target: string) =>
+    `Seria ${setNumber}: ${actual} powt. (cel: ${target})`,
+  aiPromptPostWorkoutPrevExercise: (name: string, totalReps: number) =>
+    `  ${name}: ${totalReps} powt.`,
+  aiPromptPostWorkoutTrendEntry: (date: string, totalReps: number, day: number) =>
+    `${date}: ${totalReps} powt. (dzień ${day})`,
+  aiPromptPostWorkoutPrSet: (setNumber: number, actual: number, prevBest: number) =>
+    `Seria ${setNumber}: ${actual} powt. (poprzedni rekord: ${prevBest})`,
+  aiPromptPostWorkoutPrHeader: (entries: string) =>
+    `\nREKORDY ŻYCIOWE w tej sesji:\n${entries}`,
+  aiPromptPostWorkoutFirstSession: 'Pierwsza sesja',
+
+  // ── AI post-workout full prompt ──
+  aiPromptPostWorkoutBuild: (
+    currentSummary: string,
+    prInfo: string,
+    previousSummary: string,
+    recentTrend: string,
+  ) => `Przeanalizuj tę ukończoną sesję treningową i daj JEDNĄ konkretną sugestię (max 2 zdania).
+
+AKTUALNA SESJA:
+${currentSummary}
+${prInfo}
+
+POPRZEDNIA SESJA (ten sam dzień):
+${previousSummary}
+
+OSTATNI TREND:
+${recentTrend}
+
+Wytyczne dla sugestii:
+- Jeśli użytkownik pobił rekord, celebruj to konkretnie z liczbą
+- Jeśli postęp stagnuje (te same powt. przez 2-3 sesje), zaproponuj konkretną zmianę: +1 powt., nieco dłuższa przerwa, lub tydzień deloadu
+- Odnoś się do RIR (powt. w rezerwie) gdy istotne — jeśli wszystkie serie były łatwe (RIR 3+), zaproponuj progresję; jeśli serie były na maksa (RIR 0-1), zaproponuj regenerację
+- Bądź konkretny z liczbami z sesji, nie ogólnik
+
+Odpowiedz w JSON: {"insight": "twoja 1-2 zdaniowa sugestia"}
+Napisz po ${pl.aiPromptLanguageHint}.`,
+
+  // ── AI weekly report prompt building blocks ──
+  aiPromptWeeklySessionEntry: (date: string, totalReps: number, exerciseNames: string) =>
+    `${date}: ${totalReps} powt. (${exerciseNames})`,
+  aiPromptWeeklySessionEntryBuiltin: (date: string, totalReps: number, day: number) =>
+    `${date}: ${totalReps} powt. (dzień ${day})`,
+  aiPromptWeeklyVolumeEntry: (mg: string, sets: number) => `  ${mg}: ${sets} serii`,
+  aiPromptWeeklyNoSessions: 'Brak sesji w tym tygodniu.',
+  aiPromptWeeklyNoData: 'Brak danych',
+
+  // ── AI weekly report full prompt ──
+  aiPromptWeeklyReportBuild: (
+    weekCount: number,
+    weekSummary: string,
+    totalReps: number,
+    streakWeeks: number,
+    repsChangePct: string | number,
+    volumeByMuscle: string,
+  ) => `Stwórz cotygodniowy raport treningowy dla użytkownika.
+
+SESIONJE W TYM TYGODNIU (${weekCount}):
+${weekSummary}
+
+POWTÓRZENIA łącznie W TYM TYGODNIU: ${totalReps}
+SERIA: ${streakWeeks} tygodni
+ZMIANA POWT. TYGODNIOWO %: ${repsChangePct}
+
+SERIE TYGODNIOWO WG GRUPY MIĘŚNIOWEJ:
+${volumeByMuscle}
+
+Punkty odniesienia objętości (Israetel & Hoffmann):
+- MEV (Minimalna Efektywna Objętość): 10 serii/grupę mięśniową/tydzień
+- MAV (Maksymalna Adaptacyjna Objętość): 15-25 serii/grupę mięśniową/tydzień
+- MRV (Maksymalna Odzyskiwalna Objętość): 20-30+ serii/grupę mięśniową/tydzień
+
+Wytyczne:
+- W "improvements" oznacz grupy mięśniowe poniżej MEV (10 serii) jako niedotrenowane
+- W "improvements" oznacz grupy mięśniowe powyżej MRV (30 serii) jako potencjalne przetrenowanie
+- W "recommendation" zaproponuj konkretną korektę na następny tydzień na podstawie objętości vs punkty odniesienia
+- Jeśli seria wynosi 0, zachęć do konsekwencji; jeśli seria to 4+ tygodni, rozważ deload
+
+Odpowiedz w JSON:
+{
+  "summary": "1 zdanie podsumowania",
+  "strengths": ["1-2 pozytywne obserwacje"],
+  "improvements": ["1-2 obszary do poprawy"],
+  "recommendation": "1 konkretna rekomendacja na następny tydzień"
+}
+
+Napisz po ${pl.aiPromptLanguageHint}. Bądź konkretny i zachęcający.`,
 
   // ── Delete session from history ──
   sessionDelete: 'Usuń trening',

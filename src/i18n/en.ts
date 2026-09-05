@@ -120,6 +120,13 @@ export const en: Translation = {
   startDay: (n: number) => `Start Day ${n}`,
   continueWorkout: (day: number, set: number, total: number) =>
     `Continue Day ${day} — set ${set}/${total}`,
+  resumePromptTitle: 'You have an unfinished workout',
+  resumePromptBodyBuiltin: (day: number, set: number, total: number) =>
+    `Day ${day} · set ${set}/${total}. Resume?`,
+  resumePromptBodyCustom: (planName: string, day: number) =>
+    `${planName} · Day ${day}. Resume?`,
+  resumePromptResume: 'Resume',
+  resumePromptSkip: 'Dismiss',
   restIn: (days: number) =>
     days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`,
   restBlocked: (when: string) => `Too soon · workout available ${when}`,
@@ -170,9 +177,15 @@ export const en: Translation = {
   leaveWorkoutTitle: 'Leave workout?',
   leaveWorkoutConfirmAction: 'Leave and save',
   lastTime: (actual: number, target: number) => `Last time: ${actual}/${target}`,
+  lastTimeOnly: (actual: number | string) => `Last time: ${actual}`,
+  setDeltaUp: (delta: number) => `+${delta} ▲`,
+  setDeltaDown: (delta: number) => `−${delta} ▼`,
+  setDeltaEqual: '= ▬',
   restLabel: 'Rest',
   nextSet: (n: number, reps: number, unit: string) =>
     `Next: Set ${n} · ${reps} ${unit}`,
+  nextSetWithPrevious: (n: number, reps: number, unit: string, prev: number) =>
+    `Next: Set ${n} · ${reps} ${unit} · Last: ${prev} ${unit}`,
   workoutHint:
     'Set your rep count, then press Done. Target = success; below target = failed set. "Exactly N" sets require exactly N.',
   workoutFailBanner: (actual: number, target: number) =>
@@ -683,6 +696,10 @@ export const en: Translation = {
     n === 1 ? '… and 1 more change' : `… and ${n} more changes`,
   customShareStatLine: (exercises: number, sets: number) =>
     `${exercises} ex. · ${sets} sets`,
+  shareCardPrCount: (n: number) => (n === 1 ? '1 PR record' : `${n} PR records`),
+  shareCardStreak: (n: number) => (n === 1 ? '1 day streak' : `${n} day streak`),
+  shareCardVolume: (kg: number) => `Volume: ${kg} kg`,
+  shareCardBestSet: (reps: number) => `Best set: ${reps}`,
   customPreviousRepsWeight: (reps: number, kg: number) => `Previously: ${reps} × ${kg} kg`,
   customPreviousLabel: 'Last time',
   customPreviousFromDay: (day: number) => `D${day}`,
@@ -1269,12 +1286,14 @@ export const en: Translation = {
   aiCoachConfigDisconnected: 'No key — coach offline',
   aiCoachConfigSave: 'Save connection',
   aiCoachConfigSaved: 'Coach settings saved',
+  aiBaseUrlInvalid: 'API URL must be valid (e.g. https://api.openai.com/v1)',
   aiCoachConfigTest: 'Test connection',
   aiCoachConfigTesting: 'Testing…',
   aiCoachConfigTestOk: 'Connection works — coach ready',
   aiCoachConfigTestFail: 'Failed to connect — check key and model',
   // ── Proactive Coach: smart rest suggestions ──
-  coachRestSuggestionFirstTime: 'First time on this exercise — focus on clean form, tempo over speed.',
+  coachRestSuggestionFirstTime: 'First set of this exercise — do it solidly, quality over quantity.',
+  coachRestSuggestionNewCombination: 'New day and set combination — do it solidly, feel the movement.',
   coachRestSuggestionImproved: (prev: number) => `Last time you hit ${prev} reps on this set — try to beat it.`,
   coachRestSuggestionImprovedTime: (prev: number) => `Last time you held ${prev}s — try to beat it.`,
   coachRestSuggestionUnchanged: 'Same as last time — time to progress by 1 rep.',
@@ -1312,6 +1331,11 @@ export const en: Translation = {
   coachWeeklyReportLowFreq: '1 session/week is below MEV (10 sets/muscle group) — add 1-2 sessions for optimal hypertrophy.',
   coachWeeklyReportFatigue: 'Volume drop >10% — possible fatigue. Consider an extra rest day.',
   coachWeeklyReportGreat: 'Great week — volume and progress on track. Keep it up!',
+  coachWeeklyMetricSessions: 'Sessions',
+  coachWeeklyMetricReps: 'Reps',
+  coachWeeklyMetricStreak: 'Streak',
+  coachWeeklyMetricChange: 'Change',
+  coachSourceAi: 'AI',
   // ── Proactive Coach: settings ──
   coachSettingsProactive: 'Proactive coach',
   coachSettingsProactiveDesc: 'Automatic post-workout insights, weekly reports, and plateau detection. Uses your AI key.',
@@ -2345,6 +2369,100 @@ ALLOWED muscleGroup values: "chest", "back", "shoulders", "arms", "legs", "core"
   aiPromptDateRangeNone: 'no data',
   aiPromptNoActivePlan: '',
   aiPromptLanguageHint: 'English',
+
+  // ── AI post-workout prompt building blocks ──
+  aiPromptPostWorkoutDaySummary: (day: number, totalReps: number, logs: string) =>
+    `Day ${day}, ${totalReps} total reps:\n${logs}`,
+  aiPromptPostWorkoutDayBrief: (day: number, totalReps: number, sets: string) =>
+    sets ? `Day ${day}, ${totalReps} total reps. ${sets}` : `Day ${day}, ${totalReps} total reps`,
+  aiPromptPostWorkoutSetResult: (setNumber: number, actual: number, target: string) =>
+    `Set ${setNumber}: ${actual} reps (target: ${target})`,
+  aiPromptPostWorkoutPrevExercise: (name: string, totalReps: number) =>
+    `  ${name}: ${totalReps} reps`,
+  aiPromptPostWorkoutTrendEntry: (date: string, totalReps: number, day: number) =>
+    `${date}: ${totalReps} reps (day ${day})`,
+  aiPromptPostWorkoutPrSet: (setNumber: number, actual: number, prevBest: number) =>
+    `Set ${setNumber}: ${actual} reps (previous best: ${prevBest})`,
+  aiPromptPostWorkoutPrHeader: (entries: string) =>
+    `\nPERSONAL RECORDS this session:\n${entries}`,
+  aiPromptPostWorkoutFirstSession: 'First session',
+
+  // ── AI post-workout full prompt ──
+  aiPromptPostWorkoutBuild: (
+    currentSummary: string,
+    prInfo: string,
+    previousSummary: string,
+    recentTrend: string,
+  ) => `Analyze this completed workout session and give ONE actionable insight (max 2 sentences).
+
+CURRENT SESSION:
+${currentSummary}
+${prInfo}
+
+PREVIOUS SESSION (same day):
+${previousSummary}
+
+RECENT TREND:
+${recentTrend}
+
+Guidelines for the insight:
+- If the user hit a PR, celebrate it specifically with the number
+- If progress is stalling (same reps across 2-3 sessions), suggest a concrete change: +1 rep, slightly longer rest, or a deload week
+- Reference RIR (reps in reserve) when relevant — if all sets felt easy (RIR 3+), suggest progression; if sets were grinded (RIR 0-1), suggest recovery
+- Be specific with numbers from the session, not generic advice
+
+Respond in JSON: {"insight": "your 1-2 sentence insight here"}
+Write in English.`,
+
+  // ── AI weekly report prompt building blocks ──
+  aiPromptWeeklySessionEntry: (date: string, totalReps: number, exerciseNames: string) =>
+    `${date}: ${totalReps} reps (${exerciseNames})`,
+  aiPromptWeeklySessionEntryBuiltin: (date: string, totalReps: number, day: number) =>
+    `${date}: ${totalReps} reps (day ${day})`,
+  aiPromptWeeklyVolumeEntry: (mg: string, sets: number) => `  ${mg}: ${sets} sets`,
+  aiPromptWeeklyNoSessions: 'No sessions this week.',
+  aiPromptWeeklyNoData: 'No data',
+
+  // ── AI weekly report full prompt ──
+  aiPromptWeeklyReportBuild: (
+    weekCount: number,
+    weekSummary: string,
+    totalReps: number,
+    streakWeeks: number,
+    repsChangePct: string | number,
+    volumeByMuscle: string,
+  ) => `Create a weekly workout report for the user.
+
+THIS WEEK'S SESSIONS (${weekCount}):
+${weekSummary}
+
+TOTAL REPS THIS WEEK: ${totalReps}
+STREAK: ${streakWeeks} weeks
+REPS WEEK CHANGE %: ${repsChangePct}
+
+WEEKLY SETS BY MUSCLE GROUP:
+${volumeByMuscle}
+
+Volume landmarks for reference (Israetel & Hoffmann):
+- MEV (Minimum Effective Volume): 10 sets/muscle group/week
+- MAV (Maximum Adaptive Volume): 15-25 sets/muscle group/week
+- MRV (Maximum Recoverable Volume): 20-30+ sets/muscle group/week
+
+Guidelines:
+- In "improvements", flag any muscle group below MEV (10 sets) as undertrained
+- In "improvements", flag any muscle group above MRV (30 sets) as potential overtraining
+- In "recommendation", suggest a concrete next-week adjustment based on volume vs landmarks
+- If streak is 0, encourage consistency; if streak is 4+ weeks, consider a deload
+
+Respond in JSON:
+{
+  "summary": "1 sentence overview",
+  "strengths": ["1-2 positive observations"],
+  "improvements": ["1-2 areas to improve"],
+  "recommendation": "1 actionable recommendation for next week"
+}
+
+Write in English. Be specific and encouraging.`,
 
   // ── Delete session from history ──
   sessionDelete: 'Delete workout',

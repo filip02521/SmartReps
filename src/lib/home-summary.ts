@@ -530,11 +530,11 @@ export async function loadHomeDashboard(
   const builtinSessions = allSessions.filter(
     (s) => (s.programKind ?? 'builtin') !== 'custom' && s.program !== 'custom',
   )
-  const passedAll = builtinSessions.filter((s) => s.status === 'completed' && s.passed)
-  const activity = buildActivityInsights(passedAll)
+  const completedAll = builtinSessions.filter((s) => s.status === 'completed')
+  const activity = buildActivityInsights(completedAll)
   const sessions14d = activity.sessions14d
   const reps14d = activity.reps14d
-  const daysSince = daysSinceLastPassedSession(passedAll)
+  const daysSince = daysSinceLastPassedSession(completedAll)
 
   const cardModels = await Promise.all(
     enabledPrograms.map(async (program): Promise<ProgramCardModel> => {

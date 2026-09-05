@@ -57,8 +57,19 @@ export async function analyzeWorkouts(
     throw new AiApiError(pl.aiErrorParseAnalysis, undefined, 'parse')
   }
 
+  // Ensure all arrays exist — AI may omit empty arrays
+  const analysis = parsed.analysis
+  const safeAnalysis = {
+    ...analysis,
+    summary: analysis.summary ?? '',
+    strengths: analysis.strengths ?? [],
+    weaknesses: analysis.weaknesses ?? [],
+    suggestions: analysis.suggestions ?? [],
+    volumeAssessment: analysis.volumeAssessment ?? [],
+  }
+
   return {
-    ...parsed.analysis,
+    ...safeAnalysis,
     muscleGroupLabels: MUSCLE_GROUP_LABELS,
   }
 }
