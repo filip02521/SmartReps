@@ -127,6 +127,12 @@ export type LocalAiInsight = {
   readAt?: string
 }
 
+/** Tombstone for a deleted session — prevents resurrection by cross-device sync. */
+export type SessionTombstone = {
+  sessionId: string
+  deletedAt: string
+}
+
 class SmartRepsDB extends Dexie {
   programProgress!: EntityTable<LocalProgramProgress, 'id'>
   workoutSessions!: EntityTable<LocalWorkoutSession, 'id'>
@@ -140,6 +146,7 @@ class SmartRepsDB extends Dexie {
   achievementUnlocks!: EntityTable<LocalAchievementUnlockRow, 'id'>
   bodyWeight!: EntityTable<BodyWeightEntry, 'id'>
   aiInsights!: EntityTable<LocalAiInsight, 'id'>
+  sessionTombstones!: EntityTable<SessionTombstone, 'sessionId'>
 
   constructor() {
     super('SmartRepsDB')
@@ -248,6 +255,22 @@ class SmartRepsDB extends Dexie {
       achievementUnlocks: 'id, unlockedAt',
       bodyWeight: 'id, measuredAt',
       aiInsights: 'id, type, sessionId, weekKey, createdAt',
+    })
+    // v8: Session tombstones — prevent deleted sessions from being resurrected by sync
+    this.version(8).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, startedAt, [program+status], customPlanId',
+      activeWorkout: 'program',
+      activeCustomWorkout: 'customPlanId',
+      syncQueue: '++id, createdAt',
+      maxTests: '++id, program, testedAt, &[program+testedAt]',
+      exercises: 'id, updatedAt, archived',
+      customPlans: 'id, status, updatedAt',
+      customProgramProgress: '++id, &customPlanId, updatedAt',
+      achievementUnlocks: 'id, unlockedAt',
+      bodyWeight: 'id, measuredAt',
+      aiInsights: 'id, type, sessionId, weekKey, createdAt',
+      sessionTombstones: 'sessionId, deletedAt',
     })
   }
 }

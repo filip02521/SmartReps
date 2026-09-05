@@ -32,19 +32,64 @@
 
 ## Sync rules (MANDATORY)
 
-- **Every user-owned data entity must sync to Supabase.** If you add a new field to a synced entity (session, plan, exercise, profile, settings), you MUST:
+### Core principle: cross-device consistency
+
+**Every piece of user data must be identical across all devices after sync.** No exceptions. If a user deletes a workout on their phone, it must disappear on their tablet. If they change a setting on their tablet, it must update on their phone.
+
+### What must sync
+
+- **All user-owned data entities** must sync to Supabase. If you add a new field to a synced entity (session, plan, exercise, profile, settings), you MUST:
   1. Add it to the Supabase upsert/pull in `src/lib/sync.ts` or the relevant sync file
   2. Add it to the local Dexie schema if needed (`src/lib/db.ts`)
   3. Ensure it survives `clearAllLocalData()` if it's a setting (`src/lib/local-data.ts`)
   4. Add it to profile sync if it's a profile/settings field (`src/lib/enabled-programs-sync.ts`)
-- **AI API keys are LOCAL-ONLY.** Never sync `aiApiKey`, `aiModel`, `aiBaseUrl` to Supabase.
-- **New settings fields** must be added to `defaultSettings` in `src/stores/app-store.ts` AND preserved in `clearAllLocalData()` in `src/lib/local-data.ts`. Test `local-data-preservation.test.ts` will fail otherwise.
-- **Comments must reflect reality.** If a field is synced, don't comment "not synced" — this caused confusion with the `language` field.
-- **Before shipping sync changes**, verify:
-  - The field persists across reload
-  - The field survives logout/clear-local-data (if it's a setting)
-  - The field syncs to cloud when logged in
-  - The field pulls from cloud on a fresh device
+  5. Create a Supabase migration (`supabase/migrations/NNN_*.sql`) if a new column/table is needed
+
+### What must NOT sync
+
+- **`aiApiKey` is LOCAL-ONLY.** Never sync the API key to Supabase — it's a security risk. Each device must enter its own key.
+- **`aiModel` and `aiBaseUrl` DO sync** — they're not secrets and users expect the same AI configuration across devices.
+
+### Deletion sync (tombstone pattern)
+
+**Hard deletes are forbidden for synced entities.** When a user deletes a session, plan, or other synced data:
+1. Store a **tombstone** locally (`db.sessionTombstones` for sessions) — this persists across syncs
+2. Enqueue a sync delete (cloud row is removed)
+3. Delete the local row
+
+**Why tombstones?** Without them, device B (which still has the session locally) will push it back to the cloud on its next sync. Device A then pulls and the deleted session is resurrected. Tombstones prevent this:
+- `mergeSessionRemote()` checks tombstones before inserting
+- `syncAllLocalData()` skips tombstoned sessions when pushing
+- Tombstones are pulled from cloud so deletions propagate to all devices
+
+**When adding a new deletable synced entity:**
+1. Add a tombstone table to Dexie (`db.{entity}Tombstones`)
+2. Add a tombstone table to Supabase (migration)
+3. On delete: store tombstone + enqueue sync delete + delete local
+4. On pull: check tombstones before merging remote rows
+5. On push: skip tombstoned rows
+6. Pull tombstones from cloud and apply locally
+
+### New settings fields
+
+Must be added to:
+1. `defaultSettings` in `src/stores/app-store.ts`
+2. `UI_SYNC_KEYS` array if it should sync to cloud
+3. `mergeUiSettingsFromProfile()` in `src/lib/enabled-programs-sync.ts`
+4. `upsertProfile` in `src/lib/sync.ts` (push to cloud)
+5. `pullProfileEnabledPrograms` in `src/lib/sync.ts` (pull from cloud)
+6. Preserved in `clearAllLocalData()` in `src/lib/local-data.ts`
+7. Test `local-data-preservation.test.ts` must pass
+
+### Before shipping sync changes
+
+Verify:
+- The field persists across reload
+- The field survives logout/clear-local-data (if it's a setting)
+- The field syncs to cloud when logged in
+- The field pulls from cloud on a fresh device
+- **Deletions propagate**: delete on device A → sync → check device B → session is gone
+- **No resurrection**: after deletion + sync, a subsequent pull does NOT bring the data back
 
 ## Recurring pitfalls (from project history)
 

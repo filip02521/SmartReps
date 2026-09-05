@@ -63,9 +63,9 @@ export function ProfileHero({
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-lg font-bold leading-tight text-[var(--sr-text-primary)]">
+          <h1 className="truncate text-lg font-bold leading-tight text-[var(--sr-text-primary)]">
             {title}
-          </p>
+          </h1>
           {email && displayName && (
             <p className="mt-0.5 truncate text-sm text-[var(--sr-text-secondary)]">
               {email}

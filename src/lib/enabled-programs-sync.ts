@@ -28,6 +28,8 @@ export type RemoteProfileSettings = {
   high_contrast?: boolean | null
   language?: string | null
   ai_proactive_coach?: boolean | null
+  ai_model?: string | null
+  ai_base_url?: string | null
   ui_settings_updated_at?: string | null
 }
 
@@ -132,6 +134,9 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
   const language: UserSettings['language'] =
     remote.language === 'en' ? 'en' : remote.language === 'pl' ? 'pl' : settings.language
   const aiProactiveCoach = remote.ai_proactive_coach ?? settings.aiProactiveCoach
+  // Sync AI model and base URL (NOT api key — that stays local-only)
+  const aiModel = remote.ai_model ?? settings.aiModel
+  const aiBaseUrl = remote.ai_base_url ?? settings.aiBaseUrl
 
   const unchanged =
     theme === settings.theme &&
@@ -142,7 +147,9 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     weightUnit === settings.weightUnit &&
     highContrast === settings.highContrast &&
     language === settings.language &&
-    aiProactiveCoach === settings.aiProactiveCoach
+    aiProactiveCoach === settings.aiProactiveCoach &&
+    aiModel === settings.aiModel &&
+    aiBaseUrl === settings.aiBaseUrl
 
   if (unchanged) {
     useAppStore.setState({ uiSettingsUpdatedAt: remote.ui_settings_updated_at })
@@ -160,6 +167,8 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     highContrast,
     language,
     aiProactiveCoach,
+    aiModel,
+    aiBaseUrl,
   }
   useAppStore.setState({
     settings: next,

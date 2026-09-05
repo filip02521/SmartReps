@@ -32,11 +32,11 @@ export type UserSettings = {
   displayName?: string
   /** Weight unit preference: 'kg' (default) or 'lb'. Backend always stores kg. */
   weightUnit: 'kg' | 'lb'
-  /** AI API key for plan generator/analysis (user-provided, stored locally). */
+  /** AI API key — LOCAL-ONLY, never synced to cloud. Each device enters its own. */
   aiApiKey?: string
-  /** AI model to use for AI features. */
+  /** AI model to use — synced to cloud so AI config is consistent across devices. */
   aiModel?: string
-  /** Base URL for OpenAI-compatible API endpoint (e.g. Google Gemini, Groq). */
+  /** Base URL for OpenAI-compatible API — synced to cloud (not a secret). */
   aiBaseUrl?: string
   /** When true, AI coach generates proactive insights (post-workout, weekly, plateau). Local-only. */
   aiProactiveCoach: boolean

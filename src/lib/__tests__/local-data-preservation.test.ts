@@ -66,6 +66,7 @@ vi.mock('@/lib/db', () => ({
     customPlans: { clear: vi.fn() },
     customProgramProgress: { clear: vi.fn() },
     aiInsights: { clear: vi.fn() },
+    sessionTombstones: { clear: vi.fn() },
   },
 }))
 

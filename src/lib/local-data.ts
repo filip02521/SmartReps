@@ -26,6 +26,7 @@ export async function clearAllLocalData(): Promise<void> {
     db.customPlans.clear(),
     db.customProgramProgress.clear(),
     db.aiInsights.clear(),
+    db.sessionTombstones.clear(),
   ])
   useWorkoutStore.getState().reset()
   try {

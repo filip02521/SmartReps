@@ -253,12 +253,20 @@ export async function finalizeFailedDay(
 
 /** Delete a completed session from history (local + cloud sync).
  *  Enqueues sync delete BEFORE local delete to prevent pull from
- *  resurrecting the session in the narrow window between Dexie delete
- *  and queue enqueue. */
+ *  resurrecting the session. Also stores a tombstone locally so that
+ *  even after the sync queue is flushed, the session won't be
+ *  resurrected by another device pushing it back to the cloud. */
 export async function deleteWorkoutSession(sessionId: string): Promise<void> {
   const session = await db.workoutSessions.get(sessionId)
   if (!session) return
+  // 1. Enqueue cloud delete
   await enqueueSync('workout_sessions', 'delete', { id: sessionId })
+  // 2. Store tombstone locally (persists across syncs — prevents resurrection)
+  await db.sessionTombstones.put({
+    sessionId,
+    deletedAt: new Date().toISOString(),
+  })
+  // 3. Delete locally
   await db.workoutSessions.delete(sessionId)
   track('session_deleted', { program: session.program })
 }

@@ -193,6 +193,8 @@ async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
       high_contrast: settings.highContrast ?? false,
       language: settings.language ?? 'pl',
       ai_proactive_coach: settings.aiProactiveCoach ?? false,
+      ai_model: settings.aiModel ?? null,
+      ai_base_url: settings.aiBaseUrl ?? null,
       ui_settings_updated_at: uiUpdatedAt,
     },
     { onConflict: 'id' },
@@ -218,7 +220,7 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, weight_unit, high_contrast, language, ai_proactive_coach, ui_settings_updated_at',
+        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, weight_unit, high_contrast, language, ai_proactive_coach, ai_model, ai_base_url, ui_settings_updated_at',
       )
       .eq('id', userId)
       .maybeSingle()
@@ -619,7 +621,10 @@ export async function syncAllLocalData(): Promise<SyncResult> {
     errors += await pushCustomEntities(userId)
 
     const sessions = await db.workoutSessions.toArray()
+    // Skip sessions that have a tombstone — they were deleted on this device
+    const tombstonedIds = new Set((await db.sessionTombstones.toArray()).map((t) => t.sessionId))
     for (const session of sessions) {
+      if (tombstonedIds.has(session.id)) continue
       try {
         await upsertSession(userId, session)
       } catch (err) {
@@ -685,8 +690,11 @@ async function mergeProgressRemote(userId: string, remote: RemoteProgressRow) {
 }
 
 async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
-  // Don't resurrect a session that was deleted locally and is pending sync.
+  // Don't resurrect a session that was deleted locally — check both
+  // pending sync queue (narrow window) and persistent tombstones (cross-device).
   if (await hasPendingSessionDelete(remote.id)) return
+  const tombstone = await db.sessionTombstones.get(remote.id)
+  if (tombstone) return
 
   const local = await db.workoutSessions.get(remote.id)
 
@@ -981,6 +989,39 @@ export async function pullRemoteData(): Promise<SyncResult> {
     if (insightsError) throw insightsError
     for (const remote of remoteInsights ?? []) {
       await mergeAiInsightRemote(remote as RemoteAiInsightRow)
+    }
+
+    // Pull session tombstones — delete any local sessions that were
+    // deleted on another device, and store tombstones locally.
+    const { data: remoteTombstones, error: tombstoneError } = await supabase
+      .from('session_tombstones')
+      .select('session_id, deleted_at')
+      .eq('user_id', userId)
+    if (tombstoneError) throw tombstoneError
+    for (const row of remoteTombstones ?? []) {
+      const r = row as { session_id: string; deleted_at: string }
+      await db.sessionTombstones.put({ sessionId: r.session_id, deletedAt: r.deleted_at })
+      // Delete local session if it still exists (resurrected by earlier sync)
+      const localSession = await db.workoutSessions.get(r.session_id)
+      if (localSession) {
+        await db.workoutSessions.delete(r.session_id)
+      }
+    }
+
+    // Push local tombstones to cloud (that haven't been pushed yet)
+    const localTombstones = await db.sessionTombstones.toArray()
+    for (const tombstone of localTombstones) {
+      try {
+        await supabase
+          .from('session_tombstones')
+          .upsert({
+            user_id: userId,
+            session_id: tombstone.sessionId,
+            deleted_at: tombstone.deletedAt,
+          }, { onConflict: 'user_id,session_id' })
+      } catch {
+        // Non-fatal — will retry on next sync
+      }
     }
 
     const { pullCustomEntities } = await import('@/lib/custom-sync')
