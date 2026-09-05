@@ -153,10 +153,11 @@ export function ProgramHomeCard({
 
   return (
     <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-start gap-2.5">
+      {/* Header — compact: icon + title + badge inline, menu button right */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <div
-            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
             style={{
               background: program === 'pushups'
                 ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
@@ -164,36 +165,38 @@ export function ProgramHomeCard({
             }}
             aria-hidden
           >
-            <ProgramIcon program={program} size={22} />
+            <ProgramIcon program={program} size={20} />
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
               {model.label}
             </h2>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge variant={displayBadge.variant}>{displayBadge.label}</Badge>
-              {model.cycleNameShort && (
-                <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-                  {model.cycleNameShort}
-                </span>
-              )}
-            </div>
           </div>
         </div>
-        <button
-          type="button"
-          aria-label={pl.menuProgram}
-          aria-haspopup="dialog"
-          aria-expanded={showMenu}
-          className={cn(
-            'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
-            FOCUS_RING,
-          )}
-          onClick={() => setShowMenu(true)}
-        >
-          <MoreVertical size={20} />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant={displayBadge.variant}>{displayBadge.label}</Badge>
+          <button
+            type="button"
+            aria-label={pl.menuProgram}
+            aria-haspopup="dialog"
+            aria-expanded={showMenu}
+            className={cn(
+              'flex min-h-9 min-w-9 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              FOCUS_RING,
+            )}
+            onClick={() => setShowMenu(true)}
+          >
+            <MoreVertical size={18} />
+          </button>
+        </div>
       </div>
+
+      {/* Cycle name — subtle subtitle below title */}
+      {model.cycleNameShort && (
+        <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
+          {model.cycleNameShort}
+        </p>
+      )}
 
       <Sheet open={showMenu} onClose={() => setShowMenu(false)} title={pl.menuProgram}>
         <div className="flex flex-col gap-1 pb-2">
@@ -283,8 +286,8 @@ export function ProgramHomeCard({
       </Sheet>
 
       {cycle && (
-        <div className="mt-4">
-          <div className="mb-2.5 flex items-center justify-between gap-2">
+        <div className="mt-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
             <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
               {isTestPending
                 ? pl.cycleDoneTestLabel
@@ -305,9 +308,9 @@ export function ProgramHomeCard({
             </p>
           </div>
 
-          {/* Progress bar */}
+          {/* Progress bar — accent-colored, subtle */}
           <div
-            className="mb-3 h-1.5 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
+            className="mb-2.5 h-1.5 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
             role="progressbar"
             aria-valuenow={pct}
             aria-valuemin={0}
@@ -331,32 +334,25 @@ export function ProgramHomeCard({
               status: getCycleDayStatus(progress, d.dayNumber, cycle.days.length),
             }))}
           />
-          {!isTestPending &&
-            cycle.days.some(
-              (d) => getCycleDayStatus(progress, d.dayNumber, cycle.days.length) === 'current',
-            ) && (
-              <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
-                {pl.homeNowDay(progress.currentDay)}
-              </p>
-            )}
         </div>
       )}
 
-      {/* Session preview */}
+      {/* Session preview — compact, unified style */}
       {(() => {
         if (hasResume && resume) {
           return (
-            <NestedStat
-              className="mt-4"
-              size="md"
-              overline={pl.statusInProgress}
-              value={pl.homeInProgressSets(resume.set, resume.total, resume.day)}
-            >
-              <div className="mt-3 flex gap-1.5" aria-hidden>
+            <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[color-mix(in_srgb,var(--sr-brand-primary)_8%,var(--sr-bg-surface))] px-3.5 py-3">
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <p className="sr-text-overline text-[var(--sr-text-muted)]">{pl.statusInProgress}</p>
+                <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
+                  {pl.homeInProgressSets(resume.set, resume.total, resume.day)}
+                </p>
+              </div>
+              <div className="flex gap-1.5" aria-hidden>
                 {Array.from({ length: resume.total }, (_, i) => (
                   <span
                     key={i}
-                    className="h-2.5 flex-1 rounded-full"
+                    className="h-2 flex-1 rounded-full transition-colors"
                     style={{
                       background:
                         i < resume.currentSetIndex
@@ -368,40 +364,42 @@ export function ProgramHomeCard({
                   />
                 ))}
               </div>
-            </NestedStat>
+            </div>
           )
         }
         if (bucket === 'paused') {
           return (
-            <NestedStat className="mt-4" size="md" value={pl.homeProgramPaused} />
+            <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
+              <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.homeProgramPaused}</p>
+            </div>
           )
         }
         if (bucket === 'test_pending_ready') return null
         if (bucket === 'resting' || bucket === 'test_pending_rest') {
           if (hideRestPreview) return null
           return (
-            <NestedStat
-              className="mt-4"
-              size="md"
-              value={pl.restPrimaryLabel(stats?.nextWorkoutLabel ?? pl.restIn(daysLeft))}
-              hint={
-                bucket === 'resting'
+            <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
+              <p className="sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+                {pl.restPrimaryLabel(stats?.nextWorkoutLabel ?? pl.restIn(daysLeft))}
+              </p>
+              <p className="mt-0.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
+                {bucket === 'resting'
                   ? pl.restGateHint(waitingRestDays)
-                  : pl.homeCardTestRestHint(stats?.nextWorkoutLabel ?? pl.today)
-              }
-            />
+                  : pl.homeCardTestRestHint(stats?.nextWorkoutLabel ?? pl.today)}
+              </p>
+            </div>
           )
         }
         if (bucket === 'ready' && model.currentDaySets && model.setsTargetTotal != null) {
           return (
-            <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
-              <div className="mb-2.5 flex items-baseline justify-between gap-2">
+            <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
+              <div className="mb-2 flex items-baseline justify-between gap-2">
                 <p className="sr-text-overline text-[var(--sr-text-muted)]">{pl.homeTodaySession}</p>
                 <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
                   {pl.plansDayReps(model.currentDaySets.length, model.setsTargetTotal)}
                 </p>
               </div>
-              <SetTargetsRow sets={model.currentDaySets} size="md" />
+              <SetTargetsRow sets={model.currentDaySets} size="sm" />
             </div>
           )
         }
@@ -412,22 +410,22 @@ export function ProgramHomeCard({
         (stats.lastSession ||
           stats.lastTotalReps !== null ||
           stats.maxLastSetTrend.delta !== null) && (
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-2.5 grid grid-cols-2 gap-2">
           {stats.lastSession && (
             <NestedStat
-              size="md"
+              size="sm"
               overline={pl.lastWorkout}
               value={pl.dayDoneCheck(stats.lastSession.dayNumber)}
             />
           )}
           <NestedStat
-            size="md"
+            size="sm"
             className={!stats.lastSession ? 'col-span-2' : undefined}
             overline={pl.nextWorkout}
             value={stats.nextWorkoutLabel}
           />
           {(stats.lastTotalReps !== null || stats.maxLastSetTrend.delta !== null) && (
-            <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
+            <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
               {stats.lastTotalReps !== null && (
                 <span>
                   {pl.totalRepsLastSession(stats.lastTotalReps)}
@@ -447,26 +445,26 @@ export function ProgramHomeCard({
         </div>
       )}
 
-      {/* Local banners with tip exclusivity */}
+      {/* Banners — subtle, compact */}
       {(() => {
         if (hasResume && resume?.stale && !tipSuppression.stale) {
           return (
-            <div className="mt-4">
-              <FeedbackBanner variant="warning" message={pl.staleSession} />
+            <div className="mt-2.5">
+              <FeedbackBanner variant="warning" message={pl.staleSession} density="compact" />
             </div>
           )
         }
         if (isTestPending && !tipSuppression.test) {
           return (
-            <div className="mt-4">
-              <FeedbackBanner variant="info" message={pl.cycleCompleteHint} />
+            <div className="mt-2.5">
+              <FeedbackBanner variant="info" message={pl.cycleCompleteHint} density="compact" />
             </div>
           )
         }
         if (hasResume && resting && !tipSuppression.stale) {
           return (
-            <div className="mt-4">
-              <FeedbackBanner variant="info" message={pl.resumeDespiteRestHint} />
+            <div className="mt-2.5">
+              <FeedbackBanner variant="info" message={pl.resumeDespiteRestHint} density="compact" />
             </div>
           )
         }
@@ -479,14 +477,14 @@ export function ProgramHomeCard({
           model.lastFailed &&
           !tipSuppression.level
         ) {
-          // Preview already shows rest timing; banner only for level nudge.
           return (
-            <div className="mt-4">
+            <div className="mt-2.5">
               <FeedbackBanner
                 variant="info"
                 message={pl.considerLowerLevel}
                 actionLabel={pl.menuChangeLevel}
                 onAction={() => void beginLevelChange(navigate, program)}
+                density="compact"
               />
             </div>
           )
@@ -499,12 +497,13 @@ export function ProgramHomeCard({
           model.lastFailed
         ) {
           return (
-            <div className="mt-4">
+            <div className="mt-2.5">
               <FeedbackBanner
                 variant="info"
                 message={pl.considerLowerLevel}
                 actionLabel={pl.menuChangeLevel}
                 onAction={() => void beginLevelChange(navigate, program)}
+                density="compact"
               />
             </div>
           )
@@ -513,7 +512,7 @@ export function ProgramHomeCard({
       })()}
 
       {/* CTA */}
-      <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-5">
+      <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-4">
         {hasResume && resume && (
           <div className="flex flex-col gap-2">
             <Button

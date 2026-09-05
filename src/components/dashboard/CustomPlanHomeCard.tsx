@@ -165,45 +165,48 @@ export function CustomPlanHomeCard({
         backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 12%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 42%)`,
       }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-start gap-2.5">
+      {/* Header — compact, matching ProgramHomeCard */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <div
-            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)] text-[var(--sr-brand-primary)]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)] text-[var(--sr-brand-primary)]"
             aria-hidden
           >
-            <Dumbbell size={22} strokeWidth={2.25} />
+            <Dumbbell size={20} strokeWidth={2.25} />
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
               {model.planName}
             </h3>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge variant={model.badge.variant}>
-                <span className="flex items-center gap-1">
-                  {chrome.icon}
-                  {model.badge.label}
-                </span>
-              </Badge>
-              <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-                {model.dayLine}
-              </span>
-            </div>
           </div>
         </div>
-        <button
-          type="button"
-          aria-label={pl.menuCustomPlan}
-          aria-haspopup="dialog"
-          aria-expanded={showMenu}
-          className={cn(
-            'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
-            FOCUS_RING,
-          )}
-          onClick={() => setShowMenu(true)}
-        >
-          <MoreVertical size={20} />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant={model.badge.variant}>
+            <span className="flex items-center gap-1">
+              {chrome.icon}
+              {model.badge.label}
+            </span>
+          </Badge>
+          <button
+            type="button"
+            aria-label={pl.menuCustomPlan}
+            aria-haspopup="dialog"
+            aria-expanded={showMenu}
+            className={cn(
+              'flex min-h-9 min-w-9 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              FOCUS_RING,
+            )}
+            onClick={() => setShowMenu(true)}
+          >
+            <MoreVertical size={18} />
+          </button>
+        </div>
       </div>
+
+      {/* Day line — subtle subtitle */}
+      <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
+        {model.dayLine}
+      </p>
 
       <Sheet open={showMenu} onClose={() => setShowMenu(false)} title={pl.menuCustomPlan}>
         <div className="flex flex-col gap-1 pb-2">
@@ -260,7 +263,7 @@ export function CustomPlanHomeCard({
 
       {/* Progress bar + cycle rail */}
       {model.totalDays > 0 && (
-        <div className="mt-4">
+        <div className="mt-3">
           <div className="mb-2.5 flex items-center justify-between gap-2">
             <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
               {model.isCycleComplete
@@ -294,7 +297,7 @@ export function CustomPlanHomeCard({
 
       {/* Session preview */}
       {showPreviewSection && (
-        <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
+        <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
           <div className="mb-1.5 flex items-baseline justify-between gap-2">
             <p className="sr-text-overline text-[var(--sr-text-muted)]">
               {pl.homeCustomTodaySession}
@@ -313,7 +316,7 @@ export function CustomPlanHomeCard({
       )}
 
       {/* CTA */}
-      <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-5">
+      <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-4">
         <Button
           type="button"
           size="touch"
