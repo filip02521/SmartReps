@@ -252,7 +252,7 @@ export default function CustomSessionSummary() {
         }
         return
       }
-      acquireInflight()
+      acquireInflight('post_workout')
       usedInflight = true
     }
 
@@ -280,7 +280,7 @@ export default function CustomSessionSummary() {
     } catch {
       // Non-blocking
     } finally {
-      if (usedInflight) releaseInflight()
+      if (usedInflight) releaseInflight('post_workout')
     }
   }
 

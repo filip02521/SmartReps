@@ -114,7 +114,7 @@ export function AiPlanGenerator({
     abortRef.current = controller
     // 90s timeout — plan generation is a large request, but still bounded
     const timeout = setTimeout(() => controller.abort(), 90_000)
-    acquireInflight()
+    acquireInflight('plan_generation')
 
     void (async () => {
       try {
@@ -162,7 +162,7 @@ export function AiPlanGenerator({
         }
         setStep('error')
       } finally {
-        releaseInflight()
+        releaseInflight('plan_generation')
       }
     })()
   }

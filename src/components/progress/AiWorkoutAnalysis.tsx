@@ -126,7 +126,7 @@ export function AiWorkoutAnalysis() {
     abortRef.current = controller
     // 60s timeout — analysis is a large request, but still bounded
     const timeout = setTimeout(() => controller.abort(), 60_000)
-    acquireInflight()
+    acquireInflight('workout_analysis')
     void (async () => {
       try {
         const exercises = await listExercises()
@@ -164,7 +164,7 @@ export function AiWorkoutAnalysis() {
         }
       } finally {
         clearTimeout(timeout)
-        releaseInflight()
+        releaseInflight('workout_analysis')
         if (!controller.signal.aborted) setLoading(false)
       }
     })()

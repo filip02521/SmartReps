@@ -172,7 +172,6 @@ export default function SessionSummary() {
       const rl = checkRateLimit('post_workout')
       if (!rl.allowed) {
         // Silently use local fallback for auto-fire
-        aiConfig && acquireInflight()
         usedInflight = false // local fallback doesn't need inflight
         try {
           const exercises = await listExercises()
@@ -197,7 +196,7 @@ export default function SessionSummary() {
         }
         return
       }
-      acquireInflight()
+      acquireInflight('post_workout')
       usedInflight = true
     }
 
@@ -226,7 +225,7 @@ export default function SessionSummary() {
     } catch {
       // Non-blocking — summary works without insight
     } finally {
-      if (usedInflight) releaseInflight()
+      if (usedInflight) releaseInflight('post_workout')
     }
   }
 

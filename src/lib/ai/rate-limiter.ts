@@ -1,12 +1,16 @@
 /**
- * AI Rate Limiter — client-side quota, cooldown, and in-flight mutex.
+ * AI Rate Limiter — client-side quota, cooldown, and per-feature in-flight mutex.
  *
  * Design goals:
  * 1. Prevent API cost abuse — users cannot spam AI calls
  * 2. Per-feature cooldowns — each feature has a minimum interval
  * 3. Global daily quota — hard cap on total AI calls per day
- * 4. In-flight mutex — only one AI call at a time across the app
+ * 4. Per-feature in-flight mutex — prevents double-clicks on same feature,
+ *    but allows concurrent calls across different features (e.g. auto weekly
+ *    report + manual plan generation)
  * 5. Transparent — users see clear errors when rate limited
+ * 6. Comfortable — cooldowns are short enough for normal use, long enough
+ *    to prevent spam
  *
  * Storage: localStorage (simple, synchronous, no Dexie overhead).
  * Quota resets at local midnight.
@@ -15,7 +19,7 @@
 const STORAGE_KEY = 'sr-ai-usage'
 const INFLIGHT_KEY = 'sr-ai-inflight'
 
-/** Feature identifiers — each has its own cooldown. */
+/** Feature identifiers — each has its own cooldown and inflight slot. */
 export type AiFeature =
   | 'weekly_report'
   | 'post_workout'
@@ -31,19 +35,36 @@ type UsageRecord = {
   lastCall: Partial<Record<AiFeature, string>>
 }
 
-/** Per-feature cooldown in milliseconds. */
+/**
+ * Per-feature cooldown in milliseconds.
+ *
+ * Tuned for comfort + spam protection:
+ * - weekly_report: 30 min — user might want fresh after a workout; weekKey
+ *   cache already prevents auto-regeneration, cooldown only limits force
+ * - post_workout: 2 min — race protection only; sessionId cache prevents
+ *   duplicates for the same session
+ * - workout_analysis: 30 min — user might want fresh after completing a
+ *   workout; 24h TTL cache shows old result meanwhile
+ * - plan_generation: 3 min — user might want to try different parameters;
+ *   no cache, but 3 min is enough to prevent rapid spam
+ */
 const COOLDOWNS: Record<AiFeature, number> = {
-  // Weekly report: cached by weekKey, force cooldown 1h
-  weekly_report: 60 * 60 * 1000,
-  // Post-workout: cached by sessionId, cooldown 5 min (race protection)
-  post_workout: 5 * 60 * 1000,
-  // Workout analysis: 24h TTL cache, cooldown 1h
-  workout_analysis: 60 * 60 * 1000,
-  // Plan generation: no cache, cooldown 10 min
-  plan_generation: 10 * 60 * 1000,
+  weekly_report: 30 * 60 * 1000,
+  post_workout: 2 * 60 * 1000,
+  workout_analysis: 30 * 60 * 1000,
+  plan_generation: 3 * 60 * 1000,
 }
 
-/** Global daily quota — generous but prevents abuse. */
+/**
+ * Global daily quota — generous but prevents runaway costs.
+ *
+ * Realistic daily usage:
+ * - 1-2 weekly reports (auto + maybe 1 force)
+ * - 1-5 post-workout insights (depends on workouts/day)
+ * - 1-3 workout analyses (manual, 24h cache)
+ * - 1-5 plan generations (manual, experimenting)
+ * Total realistic max: ~15/day. Quota is 3x that for headroom.
+ */
 const DAILY_QUOTA = 50
 
 function todayKey(): string {
@@ -81,40 +102,72 @@ export type RateLimitResult =
   | { allowed: true }
   | { allowed: false; reason: 'cooldown'; feature: AiFeature; retryAfterMs: number }
   | { allowed: false; reason: 'quota'; dailyCount: number; quota: number }
-  | { allowed: false; reason: 'inflight' }
+  | { allowed: false; reason: 'inflight'; feature: AiFeature }
 
-/** In-flight check using a simple flag (cleared on page unload). */
-let inflightFlag = false
+// ─── Per-feature in-flight tracking ─────────────────────────────────────────
+// Uses in-memory Set + localStorage for cross-tab safety.
+// Each feature can have one concurrent call, but different features can run
+// in parallel (e.g. auto weekly report + manual plan generation).
 
-function isInflight(): boolean {
-  // Check both in-memory flag and localStorage (for cross-tab)
-  if (inflightFlag) return true
+const inflightSet = new Set<AiFeature>()
+
+function loadInflightFeatures(): Set<AiFeature> {
   try {
-    const ts = localStorage.getItem(INFLIGHT_KEY)
-    if (!ts) return false
+    const raw = localStorage.getItem(INFLIGHT_KEY)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw) as { features: AiFeature[]; ts: number }
     // Stale inflight after 2 minutes (safety net for crashes)
-    const age = Date.now() - parseInt(ts, 10)
-    if (age > 120_000) {
+    if (Date.now() - parsed.ts > 120_000) {
       localStorage.removeItem(INFLIGHT_KEY)
-      return false
+      return new Set()
     }
-    return true
+    return new Set(parsed.features)
   } catch {
-    return false
+    return new Set()
   }
 }
 
-function setInflight(value: boolean): void {
-  inflightFlag = value
+function saveInflightFeatures(features: Set<AiFeature>): void {
   try {
-    if (value) {
-      localStorage.setItem(INFLIGHT_KEY, String(Date.now()))
-    } else {
+    if (features.size === 0) {
       localStorage.removeItem(INFLIGHT_KEY)
+    } else {
+      localStorage.setItem(INFLIGHT_KEY, JSON.stringify({
+        features: [...features],
+        ts: Date.now(),
+      }))
     }
   } catch {
     // non-blocking
   }
+}
+
+function isInflight(feature: AiFeature): boolean {
+  if (inflightSet.has(feature)) return true
+  // Check localStorage for cross-tab inflight
+  const stored = loadInflightFeatures()
+  if (stored.has(feature)) {
+    // Sync in-memory set
+    for (const f of stored) inflightSet.add(f)
+    return true
+  }
+  return false
+}
+
+function setInflight(feature: AiFeature, value: boolean): void {
+  if (value) {
+    inflightSet.add(feature)
+  } else {
+    inflightSet.delete(feature)
+  }
+  // Also sync to localStorage (merge with any existing cross-tab entries)
+  const stored = loadInflightFeatures()
+  if (value) {
+    stored.add(feature)
+  } else {
+    stored.delete(feature)
+  }
+  saveInflightFeatures(stored)
 }
 
 /**
@@ -122,9 +175,9 @@ function setInflight(value: boolean): void {
  * Does NOT consume the quota — call `recordCall()` after a successful call.
  */
 export function checkRateLimit(feature: AiFeature): RateLimitResult {
-  // 1. In-flight mutex — only one AI call at a time
-  if (isInflight()) {
-    return { allowed: false, reason: 'inflight' }
+  // 1. Per-feature in-flight mutex — prevents double-click on same feature
+  if (isInflight(feature)) {
+    return { allowed: false, reason: 'inflight', feature }
   }
 
   const usage = loadUsage()
@@ -153,16 +206,16 @@ export function checkRateLimit(feature: AiFeature): RateLimitResult {
 }
 
 /**
- * Mark an AI call as started — sets in-flight mutex.
- * Call `releaseInflight()` when the call completes (success or failure).
+ * Mark an AI call as started — sets per-feature in-flight mutex.
+ * Call `releaseInflight(feature)` when the call completes (success or failure).
  */
-export function acquireInflight(): void {
-  setInflight(true)
+export function acquireInflight(feature: AiFeature): void {
+  setInflight(feature, true)
 }
 
-/** Release the in-flight mutex. */
-export function releaseInflight(): void {
-  setInflight(false)
+/** Release the per-feature in-flight mutex. */
+export function releaseInflight(feature: AiFeature): void {
+  setInflight(feature, false)
 }
 
 /**
@@ -209,7 +262,7 @@ export function formatCooldownRemaining(ms: number): string {
 
 /** Clear all usage data — for testing or reset. */
 export function resetRateLimit(): void {
-  inflightFlag = false
+  inflightSet.clear()
   try {
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(INFLIGHT_KEY)
@@ -221,12 +274,17 @@ export function resetRateLimit(): void {
 // Safety: clear inflight on page unload (handles crashes/navigation)
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
-    setInflight(false)
+    inflightSet.clear()
+    try {
+      localStorage.removeItem(INFLIGHT_KEY)
+    } catch {
+      // non-blocking
+    }
   })
   // Cross-tab: listen for storage changes
   window.addEventListener('storage', (e) => {
     if (e.key === INFLIGHT_KEY && e.newValue === null) {
-      inflightFlag = false
+      inflightSet.clear()
     }
   })
 }

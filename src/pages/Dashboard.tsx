@@ -212,7 +212,7 @@ export default function Dashboard() {
           }
           return
         }
-        acquireInflight()
+        acquireInflight('weekly_report')
       }
 
       try {
@@ -268,7 +268,7 @@ export default function Dashboard() {
       } catch {
         // Non-blocking
       } finally {
-        if (aiConfig) releaseInflight()
+        if (aiConfig) releaseInflight('weekly_report')
       }
     })()
     return () => { cancelled = true; controller.abort() }
