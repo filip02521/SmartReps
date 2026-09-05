@@ -155,7 +155,7 @@ export default function Dashboard() {
       }
       // Generate on Sundays, on explicit request, or when user has completed workouts
       const isSunday = new Date().getDay() === 0
-      const hasReportParam = searchParams.get('weekly_report') === '1' || forceRegenerate
+      const hasReportParam = forceRegenerate
       // Check if user has any completed sessions this week
       const weekStart = startOfLocalWeek(new Date())
       const weekEnd = new Date(weekStart)
@@ -177,6 +177,27 @@ export default function Dashboard() {
         ])
         const report = await generateWeeklyReport({ sessions, exercises, aiConfig, signal: controller.signal })
         if (cancelled) return
+        // When forcing with AI configured, don't overwrite AI report with local fallback
+        if (forceRegenerate && aiConfig && report.source !== 'ai') {
+          // AI failed — keep existing report if any, don't save local fallback
+          const existing = await db.aiInsights
+            .where('weekKey')
+            .equals(weekKey)
+            .filter((i) => i.type === 'weekly_report' && !i.dismissedAt)
+            .first()
+          if (existing) {
+            setWeeklyReport(existing)
+          } else {
+            // No existing report — save local as last resort
+            await db.aiInsights.put(report)
+            void enqueueSync('ai_insights', 'insert', report)
+            setWeeklyReport(report)
+          }
+          const next = new URLSearchParams(searchParams)
+          next.delete('weekly_report')
+          setSearchParams(next, { replace: true })
+          return
+        }
         // When forcing, delete old reports for this week first
         if (forceRegenerate) {
           const old = await db.aiInsights
@@ -189,12 +210,18 @@ export default function Dashboard() {
         await db.aiInsights.put(report)
         void enqueueSync('ai_insights', 'insert', report)
         setWeeklyReport(report)
+        // Clear force param after report is saved so re-entry doesn't regenerate
+        if (forceRegenerate) {
+          const next = new URLSearchParams(searchParams)
+          next.delete('weekly_report')
+          setSearchParams(next, { replace: true })
+        }
       } catch {
         // Non-blocking
       }
     })()
     return () => { cancelled = true; controller.abort() }
-  }, [hydrated, hasCompletedFirstWorkout, reloadEpoch, searchParams])
+  }, [hydrated, hasCompletedFirstWorkout, reloadEpoch, searchParams, setSearchParams])
 
   if (!hydrated) {
     return (
