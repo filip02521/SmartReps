@@ -46,6 +46,7 @@ export async function clearAllLocalData(): Promise<void> {
       aiModel: prevSettings.aiModel,
       aiBaseUrl: prevSettings.aiBaseUrl,
       aiProactiveCoach: prevSettings.aiProactiveCoach,
+      aiReasoningEffort: prevSettings.aiReasoningEffort,
       language: prevSettings.language,
     },
     pendingTest: null,

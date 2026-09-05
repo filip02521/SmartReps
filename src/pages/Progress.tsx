@@ -14,14 +14,14 @@ import { db } from '@/lib/db'
 import { getProgramProgress } from '@/lib/program-service'
 import {
   getProgramStats,
-  getMaxSetPerSession,
   getProgramRecordsWithDates,
   getProgramVolumeStats,
   getDayCycleTrend,
-  type SessionChartPoint,
+  getWeeklyVolumeChart,
   type ProgramRecordsWithDates,
   type ProgramVolumeStats,
   type DayCycleTrend,
+  type WeeklyVolumePoint,
 } from '@/lib/stats-engine'
 import { buildActivityInsights } from '@/lib/weekly-recap'
 import { useAppStore } from '@/stores/app-store'
@@ -35,10 +35,12 @@ import {
   getCustomVolumeStats,
   getCustomSessionChart,
   getCustomOverviewStats,
+  getCustomWeeklyVolumeChart,
   type ExercisePr,
   type CustomVolumeStats,
   type CustomSessionChartPoint,
   type CustomOverviewStats,
+  type CustomWeeklyVolumePoint,
 } from '@/lib/custom-stats'
 import { ExerciseDetailSheet } from '@/components/plans/ExerciseDetailSheet'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
@@ -93,10 +95,10 @@ export default function ProgressPage() {
   const [allBuiltinSessions, setAllBuiltinSessions] = useState<LocalWorkoutSession[]>([])
   const [progress, setProgress] = useState<LocalProgramProgress | undefined>(undefined)
   const [stats, setStats] = useState<ProgramStats | null>(null)
-  const [sessionChart, setSessionChart] = useState<SessionChartPoint[]>([])
   const [recordsWithDates, setRecordsWithDates] = useState<ProgramRecordsWithDates | null>(null)
   const [volumeStats, setVolumeStats] = useState<ProgramVolumeStats | null>(null)
   const [dayCycleTrend, setDayCycleTrend] = useState<DayCycleTrend[]>([])
+  const [weeklyVolumeChart, setWeeklyVolumeChart] = useState<WeeklyVolumePoint[]>([])
 
   // Custom data
   const [customPrs, setCustomPrs] = useState<ExercisePr[]>([])
@@ -105,6 +107,7 @@ export default function ProgressPage() {
   const [customVolumeStats, setCustomVolumeStats] = useState<CustomVolumeStats | null>(null)
   const [customSessionChart, setCustomSessionChart] = useState<CustomSessionChartPoint[]>([])
   const [customOverviewStats, setCustomOverviewStats] = useState<CustomOverviewStats | null>(null)
+  const [customWeeklyVolumeChart, setCustomWeeklyVolumeChart] = useState<CustomWeeklyVolumePoint[]>([])
 
   // Achievements
   const [achievementUnlocks, setAchievementUnlocks] = useState<LocalAchievementUnlock[]>([])
@@ -140,6 +143,7 @@ export default function ProgressPage() {
         setCustomVolumeStats(await getCustomVolumeStats())
         setCustomSessionChart(await getCustomSessionChart())
         setCustomOverviewStats(await getCustomOverviewStats())
+        setCustomWeeklyVolumeChart(await getCustomWeeklyVolumeChart())
         const customHistory = (await db.workoutSessions.toArray())
           .filter(isCustomProgressHistorySession)
           .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
@@ -197,9 +201,9 @@ export default function ProgressPage() {
     const sess = await db.workoutSessions.where('program').equals(prog).toArray()
     sess.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
     setSessions(sess)
-    setSessionChart(await getMaxSetPerSession(prog))
     setRecordsWithDates(await getProgramRecordsWithDates(prog))
     setVolumeStats(await getProgramVolumeStats(prog))
+    setWeeklyVolumeChart(await getWeeklyVolumeChart(prog))
   }
 
   // URL sync + legacy redirect
@@ -323,7 +327,6 @@ export default function ProgressPage() {
             tests={tests}
             activity={activityInsights}
             hasAnyData={hasAnyData}
-            sessionChart={sessionChart}
             volumeStats={volumeStats}
             dayCycleTrend={dayCycleTrend}
             allSessions={allSessions}
@@ -334,6 +337,8 @@ export default function ProgressPage() {
             customOverviewStats={customOverviewStats}
             customPlanNames={customPlanNames}
             recordsWithDates={recordsWithDates}
+            weeklyVolumeChart={weeklyVolumeChart}
+            customWeeklyVolumeChart={customWeeklyVolumeChart}
             onOpenExercise={(id) => void openExerciseDetail(id)}
             navigate={navigate}
           />

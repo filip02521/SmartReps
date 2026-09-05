@@ -14,7 +14,7 @@ type Theme = UserSettings['theme']
 
 const AI_PRESETS = {
   openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-  gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash' },
+  gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash-lite' },
   groq: { baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
 } as const
 
@@ -34,6 +34,7 @@ export function ProfilePreferences({
   aiModel,
   aiBaseUrl,
   aiProactiveCoach,
+  aiReasoningEffort,
   pushDescription,
   remindersDenied,
   pushDisabled,
@@ -54,6 +55,7 @@ export function ProfilePreferences({
   onAiModelSave,
   onAiBaseUrlSave,
   onAiProactiveCoachChange,
+  onAiReasoningEffortChange,
 }: {
   theme: Theme
   highContrast: boolean
@@ -70,6 +72,7 @@ export function ProfilePreferences({
   aiModel: string
   aiBaseUrl: string
   aiProactiveCoach: boolean
+  aiReasoningEffort: 'auto' | 'low' | 'medium' | 'high'
   pushDescription: string
   remindersDenied: boolean
   pushDisabled: boolean
@@ -90,6 +93,7 @@ export function ProfilePreferences({
   onAiModelSave: (model: string) => void
   onAiBaseUrlSave: (url: string) => void
   onAiProactiveCoachChange: (enabled: boolean) => void
+  onAiReasoningEffortChange: (effort: 'auto' | 'low' | 'medium' | 'high') => void
 }) {
   const [nameDraft, setNameDraft] = useState(displayName)
   const [apiKeyDraft, setApiKeyDraft] = useState(aiApiKey)
@@ -311,6 +315,30 @@ export function ProfilePreferences({
           placeholder="https://api.openai.com/v1"
         />
         <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.aiBaseUrlHint}</p>
+
+        {/* Reasoning effort — controls thinking depth for Gemini models only */}
+        {baseUrlDraft.includes('googleapis') && (
+          <div className="mt-4">
+            <p className="sr-text-overline text-[var(--sr-text-muted)]">
+              {pl.aiReasoningEffortLabel}
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
+              {pl.aiReasoningEffortHint}
+            </p>
+            <SegmentedControl
+              className="mt-2"
+              value={aiReasoningEffort}
+              onChange={(v) => onAiReasoningEffortChange(v as 'auto' | 'low' | 'medium' | 'high')}
+              options={[
+                { value: 'auto', label: pl.aiReasoningEffortAuto },
+                { value: 'low', label: pl.aiReasoningEffortLow },
+                { value: 'medium', label: pl.aiReasoningEffortMedium },
+                { value: 'high', label: pl.aiReasoningEffortHigh },
+              ]}
+            />
+          </div>
+        )}
+
         <Button
           type="button"
           className="mt-3"

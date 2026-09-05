@@ -131,7 +131,7 @@ export function AiWorkoutAnalysis() {
       try {
         const exercises = await listExercises()
         if (controller.signal.aborted) return
-        const res = await analyzeWorkouts({ apiKey, model, exercises, baseURL: baseURL || undefined, signal: controller.signal })
+        const res = await analyzeWorkouts({ apiKey, model, exercises, baseURL: baseURL || undefined, reasoningEffort: settings.aiReasoningEffort, signal: controller.signal })
         if (controller.signal.aborted) return
         recordCall('workout_analysis')
         setResult(res)

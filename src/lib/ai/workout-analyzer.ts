@@ -5,7 +5,7 @@
 import { db } from '@/lib/db'
 import type { ExerciseDefinition, MuscleGroup } from '@/lib/exercise-model'
 import { pl } from '@/i18n/pl'
-import { chatCompletion, parseJsonResponse, AiApiError } from './ai-client'
+import { chatCompletion, parseJsonResponse, AiApiError, resolveReasoningEffort } from './ai-client'
 import { buildWorkoutAnalysisPrompt, type AiAnalysisResponse, type WorkoutHistorySummary } from './prompts'
 
 const DEFAULT_MODEL = 'gpt-4o-mini'
@@ -32,6 +32,7 @@ export async function analyzeWorkouts(
     model?: string
     exercises: ExerciseDefinition[]
     baseURL?: string
+    reasoningEffort?: 'auto' | 'low' | 'medium' | 'high'
     signal?: AbortSignal
   },
 ): Promise<AnalysisResult> {
@@ -47,7 +48,7 @@ export async function analyzeWorkouts(
     jsonMode: true,
     temperature: 0.5,
     maxTokens: isGemini ? 12000 : 6000,
-    reasoningEffort: isGemini ? 'none' : undefined,
+    reasoningEffort: resolveReasoningEffort(context.model || DEFAULT_MODEL, context.reasoningEffort),
     baseURL: context.baseURL,
     signal: context.signal,
   })

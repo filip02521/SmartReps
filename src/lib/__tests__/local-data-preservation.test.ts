@@ -5,6 +5,7 @@ const mockState = {
     aiApiKey: 'sk-test-key',
     aiModel: 'gpt-4o-mini',
     aiBaseUrl: 'https://api.openai.com/v1',
+    aiReasoningEffort: 'high' as const,
     language: 'en' as const,
     theme: 'dark' as const,
     weightUnit: 'lb' as const,
@@ -37,6 +38,7 @@ vi.mock('@/stores/app-store', () => ({
     displayName: '',
     language: 'pl',
     aiProactiveCoach: true,
+    aiReasoningEffort: 'auto' as const,
   },
 }))
 
@@ -86,6 +88,7 @@ describe('clearAllLocalData preserves local-only settings', () => {
     expect(newState.settings.aiApiKey).toBe('sk-test-key')
     expect(newState.settings.aiModel).toBe('gpt-4o-mini')
     expect(newState.settings.aiBaseUrl).toBe('https://api.openai.com/v1')
+    expect(newState.settings.aiReasoningEffort).toBe('high')
   })
 
   it('preserves language preference after clear', async () => {

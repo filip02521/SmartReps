@@ -128,7 +128,7 @@ export function AiPlanGenerator({
           goal,
           sessionDurationMin: durNum,
         }
-        const res = await generatePlan(input, { apiKey, model, library, baseURL: baseURL || undefined, signal: controller.signal })
+        const res = await generatePlan(input, { apiKey, model, library, baseURL: baseURL || undefined, reasoningEffort: settings.aiReasoningEffort, signal: controller.signal })
         if (controller.signal.aborted) return
         clearTimeout(timeout)
         recordCall('plan_generation')

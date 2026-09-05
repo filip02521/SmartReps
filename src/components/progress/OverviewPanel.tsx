@@ -1,7 +1,9 @@
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
 import { ActivityCalendar } from '@/components/progress/ActivityCalendar'
+import { StreakHeatmap } from '@/components/progress/StreakHeatmap'
+import { MuscleBalanceHeatmap } from '@/components/progress/MuscleBalanceHeatmap'
 import { UnifiedRecordsSection } from '@/components/progress/UnifiedRecordsSection'
 import { AccessibleChart } from '@/components/ui/AccessibleChart'
 import { LogoMark } from '@/components/brand/Logo'
@@ -12,13 +14,13 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { useMemo, useState } from 'react'
 import { pl } from '@/i18n/pl'
 import type { LocalProgramProgress, LocalWorkoutSession } from '@/lib/db'
-import type { ProgramStats, SessionChartPoint, ProgramVolumeStats, DayCycleTrend, ProgramRecordsWithDates } from '@/lib/stats-engine'
+import type { ProgramStats, ProgramVolumeStats, DayCycleTrend, ProgramRecordsWithDates, WeeklyVolumePoint } from '@/lib/stats-engine'
 import type { ActivityInsights } from '@/lib/weekly-recap'
 import { navigateToTrain } from '@/lib/setup-flow'
 import type { Program } from '@/data/plans/types'
 import type { NavigateFunction } from 'react-router-dom'
 import { PROGRESS_CHART_TOOLTIP_STYLE } from '@/components/progress/chart-style'
-import type { ExercisePr, CustomVolumeStats, CustomSessionChartPoint, CustomOverviewStats } from '@/lib/custom-stats'
+import type { ExercisePr, CustomVolumeStats, CustomSessionChartPoint, CustomOverviewStats, CustomWeeklyVolumePoint } from '@/lib/custom-stats'
 
 export function OverviewPanel({
   program,
@@ -29,7 +31,6 @@ export function OverviewPanel({
   tests,
   activity,
   hasAnyData,
-  sessionChart,
   volumeStats,
   dayCycleTrend,
   allSessions,
@@ -40,6 +41,8 @@ export function OverviewPanel({
   customOverviewStats,
   customPlanNames,
   recordsWithDates,
+  weeklyVolumeChart,
+  customWeeklyVolumeChart,
   onOpenExercise,
   navigate,
 }: {
@@ -51,7 +54,6 @@ export function OverviewPanel({
   tests: { date: string; dateLabel: string; reps: number }[]
   activity: ActivityInsights | null
   hasAnyData: boolean
-  sessionChart: SessionChartPoint[]
   volumeStats: ProgramVolumeStats | null
   dayCycleTrend: DayCycleTrend[]
   allSessions: LocalWorkoutSession[]
@@ -62,6 +64,8 @@ export function OverviewPanel({
   customOverviewStats: CustomOverviewStats | null
   customPlanNames: Record<string, string>
   recordsWithDates: ProgramRecordsWithDates | null
+  weeklyVolumeChart: WeeklyVolumePoint[]
+  customWeeklyVolumeChart: CustomWeeklyVolumePoint[]
   onOpenExercise: (exerciseId: string) => void
   navigate: NavigateFunction
 }) {
@@ -294,6 +298,65 @@ export function OverviewPanel({
               </ResponsiveContainer>
             </AccessibleChart>
           )}
+
+          {/* Wykres objętości tygodniowej — plany własne (w sekcji custom) */}
+          {customWeeklyVolumeChart.length >= 2 && customWeeklyVolumeChart.some((p) => p.volume > 0) && (
+            <div className="mt-4">
+              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+                {pl.progressWeeklyVolumeTitle}
+              </p>
+              <AccessibleChart
+                label={pl.progressWeeklyVolumeAria(customWeeklyVolumeChart.length)}
+                data={customWeeklyVolumeChart.map((p) => ({ week: p.weekLabel, volume: p.volume }))}
+                columns={[
+                  { key: 'week', header: pl.dateColumn },
+                  { key: 'volume', header: pl.progressWeeklyVolumeAxisLabel },
+                ]}
+                className="h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={customWeeklyVolumeChart}>
+                    <XAxis
+                      dataKey="weekLabel"
+                      tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }}
+                      stroke="var(--sr-border-subtle)"
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                      stroke="var(--sr-border-subtle)"
+                      width={36}
+                    />
+                    <Tooltip
+                      contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
+                      formatter={(value) => [value ?? 0, pl.progressWeeklyVolumeTooltip]}
+                      labelFormatter={(label) => String(label)}
+                    />
+                    <Bar
+                      dataKey="volume"
+                      fill="var(--sr-brand-primary)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={32}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </AccessibleChart>
+            </div>
+          )}
+        </ProgressSection>
+      )}
+
+      {/* Seria treningowa — streak heatmap */}
+      {allSessions.length > 0 && (
+        <ProgressSection title={pl.streakHeatmapTitle} hint={pl.streakHeatmapHint}>
+          <StreakHeatmap sessions={allSessions} showHeader={false} />
+        </ProgressSection>
+      )}
+
+      {/* Balans mięśniowy — heatmapa */}
+      {allSessions.length > 0 && (
+        <ProgressSection title={pl.muscleBalanceTitle} hint={pl.muscleBalanceHint}>
+          <MuscleBalanceHeatmap sessions={allSessions} />
         </ProgressSection>
       )}
 
@@ -352,55 +415,46 @@ export function OverviewPanel({
         </ProgressSection>
       )}
 
-      {/* Wykres najlepszej serii */}
-      {sessionChart.length >= 2 && (
+      {/* Wykres objętości tygodniowej — zastąpił wykres najlepszej serii */}
+      {weeklyVolumeChart.length >= 2 && weeklyVolumeChart.some((p) => p.volume > 0) && (
         <ProgressSection
-          title={pl.progressSessionChartTitle}
-          hint={pl.progressSessionChartHint}
+          title={pl.progressWeeklyVolumeTitle}
+          hint={pl.progressWeeklyVolumeHint}
         >
           <AccessibleChart
-            label={pl.progressSessionChartAria(sessionChart.length)}
-            data={sessionChart.map((p) => ({ date: p.dateLabel, value: p.value, day: pl.dayLabel(p.dayNumber) }))}
+            label={pl.progressWeeklyVolumeAria(weeklyVolumeChart.length)}
+            data={weeklyVolumeChart.map((p) => ({ week: p.weekLabel, volume: p.volume }))}
             columns={[
-              { key: 'date', header: pl.dateColumn },
-              { key: 'value', header: pl.repsUnit },
-              { key: 'day', header: pl.dayLabelShort },
+              { key: 'week', header: pl.dateColumn },
+              { key: 'volume', header: pl.progressWeeklyVolumeAxisLabel },
             ]}
             className="h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
           >
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={sessionChart}>
+              <BarChart data={weeklyVolumeChart}>
                 <XAxis
-                  dataKey="dateLabel"
-                  tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                  dataKey="weekLabel"
+                  tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }}
                   stroke="var(--sr-border-subtle)"
                   interval="preserveStartEnd"
                 />
                 <YAxis
                   tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
                   stroke="var(--sr-border-subtle)"
-                  width={28}
+                  width={36}
                 />
                 <Tooltip
                   contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
-                  formatter={(value, _name, item) => {
-                    const row = item.payload as SessionChartPoint
-                    return [
-                      `${value ?? 0} ${pl.repsUnit} · ${pl.dayLabel(row.dayNumber)}`,
-                      pl.progressSessionChartTooltip,
-                    ]
-                  }}
+                  formatter={(value) => [value ?? 0, pl.progressWeeklyVolumeTooltip]}
                   labelFormatter={(label) => String(label)}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="var(--sr-brand-primary)"
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: 'var(--sr-brand-primary)' }}
-                  activeDot={{ r: 5 }}
+                <Bar
+                  dataKey="volume"
+                  fill="var(--sr-brand-primary)"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={32}
                 />
-              </LineChart>
+              </BarChart>
             </ResponsiveContainer>
           </AccessibleChart>
         </ProgressSection>

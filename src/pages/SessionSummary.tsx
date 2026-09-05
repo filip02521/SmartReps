@@ -29,6 +29,8 @@ import { showToast } from '@/stores/toast-store'
 import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
 import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
+import { PrCelebrationBanner } from '@/components/progress/PrCelebrationBanner'
+import { detectPersonalRecords, type PersonalRecord } from '@/lib/pr-detector'
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
 import { AiInsightCard } from '@/components/brand/AiInsightCard'
 import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
@@ -79,6 +81,7 @@ export default function SessionSummary() {
   const [newAchievements, setNewAchievements] = useState<
     import('@/lib/achievements/types').LocalAchievementUnlock[]
   >([])
+  const [prRecords, setPrRecords] = useState<PersonalRecord[]>([])
   const achievementQueue = useAchievementUiStore((s) => s.queue)
   const clearQueue = useAchievementUiStore((s) => s.clearQueue)
   const setSummaryMode = useAchievementUiStore((s) => s.setSummaryMode)
@@ -128,6 +131,13 @@ export default function SessionSummary() {
       setPrevious(comparison.previous)
       if (comparison.current) {
         currentSessionIdRef.current = comparison.current.id
+        // Detect personal records for celebration banner
+        try {
+          const records = await detectPersonalRecords(comparison.current)
+          setPrRecords(records)
+        } catch {
+          setPrRecords([])
+        }
         setInsights(
           computeBuiltinSessionInsights({
             current: comparison.current,
@@ -163,7 +173,7 @@ export default function SessionSummary() {
 
     const settings = useAppStore.getState().settings
     const aiConfig = settings.aiProactiveCoach && settings.aiApiKey
-      ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined }
+      ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined, reasoningEffort: settings.aiReasoningEffort }
       : undefined
 
     // Rate limit check — only for AI calls
@@ -465,6 +475,13 @@ export default function SessionSummary() {
             {pl.summarySectionNotes}
           </h2>
           <SessionNoteCard sessionId={current.id} />
+        </div>
+      )}
+
+      {/* PR celebration banner */}
+      {prRecords.length > 0 && (
+        <div className="mt-6">
+          <PrCelebrationBanner records={prRecords} />
         </div>
       )}
 

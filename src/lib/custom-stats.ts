@@ -215,6 +215,58 @@ export async function getCustomSessionChart(): Promise<CustomSessionChartPoint[]
   return points.sort((a, b) => a.date.localeCompare(b.date))
 }
 
+export type CustomWeeklyVolumePoint = {
+  weekKey: string
+  weekLabel: string
+  volume: number
+}
+
+/**
+ * Weekly volume chart data for custom sessions — total volume per week for the last 12 weeks.
+ * Volume = reps×weight for weighted, reps for bodyweight, 1/sec for time-based.
+ */
+export async function getCustomWeeklyVolumeChart(
+  weeks = 12,
+): Promise<CustomWeeklyVolumePoint[]> {
+  const { format } = await import('date-fns')
+  const { pl: plLocale } = await import('date-fns/locale')
+  const { isCustomWorkoutSession } = await import('@/lib/custom-session-utils')
+  const { startOfLocalWeek, getWeekKey } = await import('@/lib/stats-engine')
+
+  const sessions = (await db.workoutSessions.toArray())
+    .filter((s) => isCustomWorkoutSession(s) && s.status === 'completed')
+
+  const now = new Date()
+  const currentWeekStart = startOfLocalWeek(now)
+  const points: CustomWeeklyVolumePoint[] = []
+
+  for (let i = weeks - 1; i >= 0; i--) {
+    const weekStart = new Date(currentWeekStart)
+    weekStart.setDate(weekStart.getDate() - i * 7)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekEnd.getDate() + 7)
+
+    const weekStartMs = weekStart.getTime()
+    const weekEndMs = weekEnd.getTime()
+
+    let volume = 0
+    for (const s of sessions) {
+      const t = new Date(s.startedAt).getTime()
+      if (t >= weekStartMs && t < weekEndMs) {
+        volume += sessionTotalVolume(s)
+      }
+    }
+
+    points.push({
+      weekKey: getWeekKey(weekStart),
+      weekLabel: format(weekStart, 'd MMM', { locale: plLocale }),
+      volume,
+    })
+  }
+
+  return points
+}
+
 export type CustomOverviewStats = {
   totalSessions: number
   totalVolume: number

@@ -19,7 +19,7 @@ import type { ExerciseDefinition } from '@/lib/exercise-model'
 import { computeBuiltinSessionInsights, computeCustomSessionInsights } from '@/lib/session-summary-insights'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import { customSessionTotalReps } from '@/lib/custom-session-comparison'
-import { chatCompletion, parseJsonResponse, AiApiError } from './ai-client'
+import { chatCompletion, parseJsonResponse, AiApiError, resolveReasoningEffort } from './ai-client'
 import { buildPostWorkoutPrompt, buildWeeklyReportPrompt } from './prompts'
 import type { ActivityInsights } from '@/lib/weekly-recap'
 
@@ -113,7 +113,7 @@ async function buildAiPostWorkoutInsight(
   previous: LocalWorkoutSession | undefined,
   historicalSessions: LocalWorkoutSession[],
   exercises: ExerciseDefinition[],
-  aiConfig: { apiKey: string; model: string; baseURL?: string },
+  aiConfig: { apiKey: string; model: string; baseURL?: string; reasoningEffort?: 'auto' | 'low' | 'medium' | 'high' },
   externalSignal?: AbortSignal,
 ): Promise<string> {
   const { system, user } = buildPostWorkoutPrompt(session, previous, historicalSessions, exercises)
@@ -136,7 +136,7 @@ async function buildAiPostWorkoutInsight(
       jsonMode: true,
       temperature: 0.6,
       maxTokens: isGemini ? 1000 : 300,
-      reasoningEffort: isGemini ? 'none' : undefined,
+      reasoningEffort: resolveReasoningEffort(aiConfig.model, aiConfig.reasoningEffort),
       baseURL: aiConfig.baseURL,
       signal: controller.signal,
     })
@@ -160,7 +160,7 @@ export async function generatePostWorkoutInsight(params: {
   previous?: LocalWorkoutSession
   historicalSessions: LocalWorkoutSession[]
   exercises: ExerciseDefinition[]
-  aiConfig?: { apiKey: string; model: string; baseURL?: string }
+  aiConfig?: { apiKey: string; model: string; baseURL?: string; reasoningEffort?: 'auto' | 'low' | 'medium' | 'high' }
   signal?: AbortSignal
 }): Promise<LocalAiInsight> {
   const { session, previous, historicalSessions, exercises, aiConfig, signal } = params
@@ -323,7 +323,7 @@ import { getWeekKey, startOfLocalWeek } from '@/lib/stats-engine'
 export async function generateWeeklyReport(params: {
   sessions: LocalWorkoutSession[]
   exercises: ExerciseDefinition[]
-  aiConfig?: { apiKey: string; model: string; baseURL?: string }
+  aiConfig?: { apiKey: string; model: string; baseURL?: string; reasoningEffort?: 'auto' | 'low' | 'medium' | 'high' }
   signal?: AbortSignal
 }): Promise<LocalAiInsight> {
   const { sessions, exercises, aiConfig, signal } = params
@@ -379,7 +379,7 @@ export async function generateWeeklyReport(params: {
           jsonMode: true,
           temperature: 0.5,
           maxTokens: isGemini ? 1500 : 600,
-          reasoningEffort: isGemini ? 'none' : undefined,
+          reasoningEffort: resolveReasoningEffort(aiConfig.model, aiConfig.reasoningEffort),
           baseURL: aiConfig.baseURL,
           signal: controller.signal,
         })
@@ -429,14 +429,23 @@ export async function generateWeeklyReport(params: {
 function buildLocalWeeklyReportBody(
   weekSessions: LocalWorkoutSession[],
   activity: ActivityInsights,
-  _totalReps: number,
+  totalReps: number,
 ): string {
   if (weekSessions.length === 0) {
     return pl.coachWeeklyReportEmpty
   }
   const parts: string[] = []
 
-  // Volume trend — only the direction, numbers are in the metrics grid
+  // Sessions + reps summary line (accessible, skim-friendly)
+  parts.push(pl.coachWeeklyReportSessions(weekSessions.length, totalReps))
+
+  // Streak acknowledgment — key motivator, only when there's an active streak
+  if (activity.streakWeeks > 0) {
+    parts.push(pl.coachWeeklyReportStreak(activity.streakWeeks))
+  }
+
+  // Volume trend — only the direction, numbers are in the metrics grid.
+  // When there's no previous week to compare against, say so explicitly.
   if (activity.repsWeekChangePct != null) {
     const pct = Math.round(activity.repsWeekChangePct)
     if (pct > 0) {
@@ -444,6 +453,8 @@ function buildLocalWeeklyReportBody(
     } else if (pct < 0) {
       parts.push(pl.coachWeeklyReportDown(Math.abs(pct)))
     }
+  } else {
+    parts.push(pl.coachWeeklyReportFirstWeek)
   }
 
   // Add research-based recommendation

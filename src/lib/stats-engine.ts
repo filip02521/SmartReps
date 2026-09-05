@@ -383,6 +383,61 @@ export async function getProgramVolumeStats(program: Program): Promise<ProgramVo
   }
 }
 
+export type WeeklyVolumePoint = {
+  /** Week start date (YYYY-MM-DD, local Monday). */
+  weekKey: string
+  /** Short label for chart axis (e.g. "12 sie"). */
+  weekLabel: string
+  /** Total volume for this week (reps for builtin). */
+  volume: number
+}
+
+/**
+ * Weekly volume chart data — total reps per week for the last 12 weeks.
+ * Volume = totalReps for builtin programs (bodyweight reps).
+ */
+export async function getWeeklyVolumeChart(
+  program: Program,
+  weeks = 12,
+): Promise<WeeklyVolumePoint[]> {
+  const sessions = await db.workoutSessions
+    .where('program')
+    .equals(program)
+    .filter((s) => s.status === 'completed')
+    .toArray()
+
+  const now = new Date()
+  const currentWeekStart = startOfLocalWeek(now)
+  const points: WeeklyVolumePoint[] = []
+
+  for (let i = weeks - 1; i >= 0; i--) {
+    const weekStart = new Date(currentWeekStart)
+    weekStart.setDate(weekStart.getDate() - i * 7)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekEnd.getDate() + 7)
+
+    const weekStartMs = weekStart.getTime()
+    const weekEndMs = weekEnd.getTime()
+
+    let volume = 0
+    for (const s of sessions) {
+      const t = new Date(s.startedAt).getTime()
+      if (t >= weekStartMs && t < weekEndMs) {
+        volume += s.totalReps ?? 0
+      }
+    }
+
+    const label = format(weekStart, 'd MMM', { locale: plLocale })
+    points.push({
+      weekKey: getWeekKey(weekStart),
+      weekLabel: label,
+      volume,
+    })
+  }
+
+  return points
+}
+
 export type DayCycleTrend = {
   dayNumber: number
   current: number | null

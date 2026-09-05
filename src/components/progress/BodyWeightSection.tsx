@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from 'recharts'
 import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { Plus, Trash2 } from 'lucide-react'
@@ -17,11 +17,17 @@ import {
   deleteBodyWeightEntry,
 } from '@/lib/body-weight'
 import type { BodyWeightEntry } from '@/lib/db'
+import {
+  getBodyWeightPerformanceCorrelation,
+  formatCorrelationLabel,
+  type BodyWeightCorrelation,
+} from '@/lib/body-weight-correlation'
 import { useAppStore } from '@/stores/app-store'
 import { kgToDisplay, displayToKg, weightUnitLabel } from '@/lib/weight-units'
 
 export function BodyWeightSection() {
   const [entries, setEntries] = useState<BodyWeightEntry[]>([])
+  const [correlation, setCorrelation] = useState<BodyWeightCorrelation | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [weightInput, setWeightInput] = useState('')
@@ -36,8 +42,11 @@ export function BodyWeightSection() {
     try {
       const data = await listBodyWeightEntries()
       setEntries(data)
+      const corr = await getBodyWeightPerformanceCorrelation()
+      setCorrelation(corr)
     } catch {
       setEntries([])
+      setCorrelation(null)
     } finally {
       setLoading(false)
     }
@@ -224,6 +233,97 @@ export function BodyWeightSection() {
           </Button>
         </div>
       </Sheet>
+
+      {/* Body weight × performance correlation */}
+      {correlation && !correlation.insufficientData && correlation.points.length >= 3 && (
+        <div className="mt-6">
+          <p className="sr-text-overline text-[var(--sr-text-muted)]">
+            {pl.bodyWeightCorrelationTitle}
+          </p>
+          <p className="mt-0.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
+            {pl.bodyWeightCorrelationHint}
+          </p>
+          <p className="mt-2 sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
+            {formatCorrelationLabel(correlation, pl)}
+          </p>
+          <AccessibleChart
+            label={pl.bodyWeightCorrelationChartAria(correlation.points.length)}
+            data={correlation.points.map((p) => ({
+              date: format(new Date(p.date), 'd MMM', { locale: plLocale }),
+              weight: p.weight,
+              performance: p.performance,
+            }))}
+            columns={[
+              { key: 'date', header: pl.dateColumn },
+              { key: 'weight', header: pl.bodyWeightAxisLabel },
+              { key: 'performance', header: pl.performanceAxisLabel },
+            ]}
+            className="mt-3 h-48 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={correlation.points.map((p) => ({
+                  dateLabel: format(new Date(p.date), 'd MMM', { locale: plLocale }),
+                  weight: p.weight,
+                  performance: p.performance,
+                }))}
+              >
+                <XAxis
+                  dataKey="dateLabel"
+                  tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }}
+                  stroke="var(--sr-border-subtle)"
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  yAxisId="weight"
+                  orientation="left"
+                  tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }}
+                  stroke="var(--sr-border-subtle)"
+                  width={36}
+                />
+                <YAxis
+                  yAxisId="performance"
+                  orientation="right"
+                  tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }}
+                  stroke="var(--sr-border-subtle)"
+                  width={36}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'var(--sr-bg-elevated)',
+                    border: '1px solid var(--sr-border-subtle)',
+                    borderRadius: 'var(--sr-radius-md)',
+                    fontSize: '12px',
+                  }}
+                  formatter={(value, name) => {
+                    if (name === 'weight') return [`${value} ${weightUnitLabel(weightUnit)}`, pl.bodyWeightAxisLabel]
+                    return [value, pl.performanceAxisLabel]
+                  }}
+                />
+                <ReferenceLine y={0} stroke="transparent" />
+                <Line
+                  yAxisId="weight"
+                  type="monotone"
+                  dataKey="weight"
+                  stroke="var(--sr-brand-primary)"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: 'var(--sr-brand-primary)' }}
+                  name="weight"
+                />
+                <Line
+                  yAxisId="performance"
+                  type="monotone"
+                  dataKey="performance"
+                  stroke="var(--sr-pushups-accent)"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: 'var(--sr-pushups-accent)' }}
+                  name="performance"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </AccessibleChart>
+        </div>
+      )}
     </PageSection>
   )
 }

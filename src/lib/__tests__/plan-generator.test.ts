@@ -25,6 +25,8 @@ vi.mock('@/lib/utils', () => ({
 vi.mock('@/lib/ai/ai-client', () => ({
   chatCompletion: vi.fn(),
   parseJsonResponse: vi.fn(),
+  canDisableReasoning: () => false,
+  resolveReasoningEffort: () => undefined,
   AiApiError: class extends Error {
     kind?: string
     constructor(msg: string, _status: number | undefined, kind: string) {

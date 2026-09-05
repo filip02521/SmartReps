@@ -33,6 +33,50 @@ export type ChatCompletionResult = {
   }
 }
 
+/**
+ * Check if reasoning_effort: 'none' is supported for a given model.
+ * Per Gemini docs: only Gemini 2.5 Flash and 2.5 Flash-Lite support disabling reasoning.
+ * Gemini 2.5 Pro and all Gemini 3.x models do NOT support 'none' (returns 400).
+ */
+export function canDisableReasoning(model: string): boolean {
+  const m = model.toLowerCase()
+  // Gemini 2.5 Flash and Flash-Lite support reasoning_effort: 'none'
+  if (m.includes('gemini-2.5-flash')) return true
+  // Gemini 2.5 Pro does NOT support 'none'
+  if (m.includes('gemini-2.5-pro')) return false
+  // Gemini 3.x models do NOT support 'none'
+  if (m.match(/gemini-3/)) return false
+  // Non-Gemini models: 'none' is not a standard OpenAI parameter, skip
+  if (!m.includes('gemini')) return false
+  // Other Gemini models (2.0, 1.5): don't support reasoning_effort at all
+  return false
+}
+
+/**
+ * Check if the endpoint is a Gemini OpenAI-compatible endpoint.
+ */
+export function isGeminiEndpoint(baseURL?: string): boolean {
+  return !!baseURL && (baseURL.includes('gemini') || baseURL.includes('googleapis'))
+}
+
+/**
+ * Resolve reasoning effort for a given model and user preference.
+ * - 'auto': disable reasoning when possible (fastest, cheapest)
+ * - 'low'/'medium'/'high': explicitly set reasoning level (works for all Gemini models that support reasoning)
+ * Returns undefined if reasoning should not be sent (non-Gemini models, or 'auto' on unsupported models).
+ */
+export function resolveReasoningEffort(
+  model: string,
+  preference?: 'auto' | 'low' | 'medium' | 'high',
+): 'none' | 'low' | 'medium' | 'high' | undefined {
+  if (!preference || preference === 'auto') {
+    return canDisableReasoning(model) ? 'none' : undefined
+  }
+  // For non-Gemini models, reasoning_effort is not a standard OpenAI parameter — skip
+  if (!model.toLowerCase().includes('gemini')) return undefined
+  return preference
+}
+
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1'
 
 export class AiApiError extends Error {
@@ -59,6 +103,11 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
 
   let resp: Response
   try {
+    // Only send reasoning_effort if the model supports it
+    const shouldSendReasoning =
+      opts.reasoningEffort &&
+      (opts.reasoningEffort !== 'none' || canDisableReasoning(opts.model))
+
     resp = await fetch(url, {
       method: 'POST',
       headers: {
@@ -71,7 +120,7 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
         temperature: opts.temperature ?? 0.7,
         ...(opts.maxTokens ? { max_tokens: opts.maxTokens } : {}),
         ...(opts.jsonMode ? { response_format: { type: 'json_object' } } : {}),
-        ...(opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
+        ...(shouldSendReasoning ? { reasoning_effort: opts.reasoningEffort } : {}),
       }),
       signal: opts.signal,
     })
@@ -97,6 +146,20 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
         pl.aiErrorInvalidKey(detail),
         resp.status,
         'auth',
+      )
+    }
+    if (resp.status === 404) {
+      throw new AiApiError(
+        pl.aiErrorModelNotFound(opts.model),
+        resp.status,
+        'server',
+      )
+    }
+    if (resp.status === 400) {
+      throw new AiApiError(
+        pl.aiErrorBadRequest(detail || opts.model),
+        resp.status,
+        'server',
       )
     }
     if (resp.status === 429) {

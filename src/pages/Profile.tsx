@@ -521,6 +521,7 @@ export default function ProfilePage() {
         onAiModelSave={(model) => setSettings({ aiModel: model })}
         onAiBaseUrlSave={(url) => setSettings({ aiBaseUrl: url })}
         onAiProactiveCoachChange={(enabled) => setSettings({ aiProactiveCoach: enabled })}
+        onAiReasoningEffortChange={(effort) => setSettings({ aiReasoningEffort: effort })}
         onDisplayNameSave={async (name) => {
           if (!name) {
             showToast(pl.communityPublishNeedName, 'error')

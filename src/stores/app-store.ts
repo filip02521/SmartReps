@@ -40,6 +40,8 @@ export type UserSettings = {
   aiBaseUrl?: string
   /** When true, AI coach generates proactive insights (post-workout, weekly, plateau). Synced to cloud via UI_SYNC_KEYS. */
   aiProactiveCoach: boolean
+  /** AI reasoning effort: 'auto' (disable when possible), 'low'/'medium'/'high' (enable thinking). Synced to cloud. */
+  aiReasoningEffort: 'auto' | 'low' | 'medium' | 'high'
   /** UI language. Defaults to 'pl'. Synced to cloud via UI_SYNC_KEYS. */
   language: 'pl' | 'en'
 }
@@ -140,6 +142,7 @@ const UI_SYNC_KEYS: (keyof UserSettings)[] = [
   'weightUnit',
   'language',
   'aiProactiveCoach',
+  'aiReasoningEffort',
 ]
 
 export const defaultSettings: UserSettings = {
@@ -161,6 +164,7 @@ export const defaultSettings: UserSettings = {
   displayName: '',
   language: 'pl',
   aiProactiveCoach: true,
+  aiReasoningEffort: 'auto',
 }
 
 export const useAppStore = create<AppStore>()(

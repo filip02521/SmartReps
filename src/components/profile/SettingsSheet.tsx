@@ -38,6 +38,7 @@ type SettingsSheetProps = {
   onAiModelSave: (model: string) => void
   onAiBaseUrlSave: (url: string) => void
   onAiProactiveCoachChange: (enabled: boolean) => void
+  onAiReasoningEffortChange: (effort: 'auto' | 'low' | 'medium' | 'high') => void
   // Data
   showDeleteAccount: boolean
   onImport: () => void
@@ -90,6 +91,7 @@ export function SettingsSheet({
   onAiModelSave,
   onAiBaseUrlSave,
   onAiProactiveCoachChange,
+  onAiReasoningEffortChange,
   showDeleteAccount,
   onImport,
   onExportJson,
@@ -133,6 +135,7 @@ export function SettingsSheet({
           aiModel={settings.aiModel ?? 'gpt-4o-mini'}
           aiBaseUrl={settings.aiBaseUrl ?? ''}
           aiProactiveCoach={settings.aiProactiveCoach}
+          aiReasoningEffort={settings.aiReasoningEffort}
           pushDescription={pushDescription}
           remindersDenied={remindersDenied}
           pushDisabled={pushDisabled}
@@ -153,6 +156,7 @@ export function SettingsSheet({
           onAiModelSave={onAiModelSave}
           onAiBaseUrlSave={onAiBaseUrlSave}
           onAiProactiveCoachChange={onAiProactiveCoachChange}
+          onAiReasoningEffortChange={onAiReasoningEffortChange}
         />
 
         {/* Group: Data & backup */}

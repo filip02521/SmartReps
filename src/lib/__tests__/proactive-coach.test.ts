@@ -37,6 +37,8 @@ vi.mock('@/lib/session-summary-insights', () => ({
 vi.mock('@/lib/ai/ai-client', () => ({
   chatCompletion: vi.fn(),
   parseJsonResponse: vi.fn(),
+  canDisableReasoning: () => false,
+  resolveReasoningEffort: () => undefined,
   AiApiError: class extends Error {},
 }))
 

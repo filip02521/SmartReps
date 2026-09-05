@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
 import { showToast } from '@/stores/toast-store'
 import type { LocalAiInsight } from '@/lib/db'
-import { X, Calendar, Flame, TrendingUp, TrendingDown, Minus, Dumbbell } from 'lucide-react'
+import { X, Calendar, Flame, TrendingUp, TrendingDown, Minus, Dumbbell, Sparkles } from 'lucide-react'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
@@ -66,9 +66,11 @@ function MetricTile({
 export function WeeklyReportCard({
   insight,
   onDismissed,
+  onConnectAi,
 }: {
   insight: LocalAiInsight
   onDismissed?: () => void
+  onConnectAi?: () => void
 }) {
   if (insight.dismissedAt) return null
 
@@ -167,10 +169,19 @@ export function WeeklyReportCard({
         <p className="whitespace-pre-line text-sm leading-relaxed text-[var(--sr-text-secondary)]">
           {insight.body}
         </p>
-        {insight.source === 'ai' && (
-          <p className="mt-2 text-[10px] font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
-            {pl.coachSourceAi}
-          </p>
+        <p className="mt-2 text-[10px] font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
+          {insight.source === 'ai' ? pl.coachSourceAi : pl.coachSourceLocal}
+        </p>
+        {/* Local report — upsell to connect AI for a richer analysis */}
+        {insight.source !== 'ai' && onConnectAi && (
+          <button
+            type="button"
+            onClick={onConnectAi}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-[var(--sr-radius-sm)] border border-[var(--sr-brand-primary-muted)] bg-[color-mix(in_srgb,var(--sr-brand-primary)_8%,transparent)] px-3 py-2 text-xs font-semibold text-[var(--sr-brand-primary)] transition-colors hover:bg-[color-mix(in_srgb,var(--sr-brand-primary)_16%,transparent)]"
+          >
+            <Sparkles size={13} aria-hidden />
+            {pl.coachWeeklyReportConnectAiHint}
+          </button>
         )}
       </div>
     </section>

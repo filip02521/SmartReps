@@ -49,6 +49,8 @@ import { showToast } from '@/stores/toast-store'
 import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
 import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
+import { PrCelebrationBanner } from '@/components/progress/PrCelebrationBanner'
+import { detectPersonalRecords, type PersonalRecord } from '@/lib/pr-detector'
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
 import { AiInsightCard } from '@/components/brand/AiInsightCard'
 import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
@@ -101,6 +103,7 @@ export default function CustomSessionSummary() {
   const [newAchievements, setNewAchievements] = useState<
     import('@/lib/achievements/types').LocalAchievementUnlock[]
   >([])
+  const [prRecords, setPrRecords] = useState<PersonalRecord[]>([])
   const achievementQueue = useAchievementUiStore((s) => s.queue)
   const clearQueue = useAchievementUiStore((s) => s.clearQueue)
   const setSummaryMode = useAchievementUiStore((s) => s.setSummaryMode)
@@ -156,6 +159,13 @@ export default function CustomSessionSummary() {
         }
         setSession(s)
         currentSessionIdRef.current = s.id
+        // Detect personal records for celebration banner
+        try {
+          const records = await detectPersonalRecords(s)
+          setPrRecords(records)
+        } catch {
+          setPrRecords([])
+        }
         const resolvedPlanId = s.customPlanId ?? planId
         if (resolvedPlanId) {
           const [plan, prog, exercises, comparison, historicalSessions] = await Promise.all([
@@ -193,12 +203,20 @@ export default function CustomSessionSummary() {
               historicalSessions,
             }),
           )
+          // Detect personal records for celebration banner
+          try {
+            const records = await detectPersonalRecords(s)
+            setPrRecords(records)
+          } catch {
+            setPrRecords([])
+          }
           // Proactive coach: load or generate post-workout insight
           void loadOrGenerateCoachInsight(s, comparison.previous, historicalSessions, exercises)
         } else {
           setPlan(null)
           setOfferPlanUpdate(false)
           setInsights(undefined)
+          setPrRecords([])
         }
       } finally {
         setLoading(false)
@@ -221,7 +239,7 @@ export default function CustomSessionSummary() {
 
     const settings = useAppStore.getState().settings
     const aiConfig = settings.aiProactiveCoach && settings.aiApiKey
-      ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined }
+      ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined, reasoningEffort: settings.aiReasoningEffort }
       : undefined
 
     // Rate limit check — only for AI calls
@@ -689,6 +707,13 @@ export default function CustomSessionSummary() {
             {pl.summarySectionNotes}
           </h2>
           <SessionNoteCard sessionId={session.id} />
+        </div>
+      )}
+
+      {/* PR celebration banner */}
+      {prRecords.length > 0 && (
+        <div className="mt-6">
+          <PrCelebrationBanner records={prRecords} />
         </div>
       )}
 

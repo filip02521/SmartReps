@@ -21,7 +21,7 @@ import { saveCustomPlan } from '@/lib/custom-plan-service'
 import { generateId } from '@/lib/utils'
 import { db } from '@/lib/db'
 import { pl } from '@/i18n/pl'
-import { chatCompletion, parseJsonResponse, AiApiError } from './ai-client'
+import { chatCompletion, parseJsonResponse, AiApiError, resolveReasoningEffort } from './ai-client'
 import { buildPlanGenerationPrompt, type AiPlanResponse, type PlanGenerationInput } from './prompts'
 
 const DEFAULT_MODEL = 'gpt-4o-mini'
@@ -110,6 +110,7 @@ export async function generatePlan(
     model?: string
     library: ExerciseDefinition[]
     baseURL?: string
+    reasoningEffort?: 'auto' | 'low' | 'medium' | 'high'
     signal?: AbortSignal
   },
 ): Promise<PlanGenerationResult> {
@@ -124,7 +125,7 @@ export async function generatePlan(
     jsonMode: true,
     temperature: 0.7,
     maxTokens: isGemini ? 16000 : 8000,
-    reasoningEffort: isGemini ? 'none' : undefined,
+    reasoningEffort: resolveReasoningEffort(context.model || DEFAULT_MODEL, context.reasoningEffort),
     baseURL: context.baseURL,
     signal: context.signal,
   })

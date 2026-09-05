@@ -14,6 +14,7 @@ import { CustomPlansHomeSection } from '@/components/dashboard/CustomPlansHomeSe
 import { CommunityHomeTeaser } from '@/components/dashboard/CommunityHomeTeaser'
 import { InstallCoach } from '@/components/ux/InstallCoach'
 import { WeeklyReportCard } from '@/components/dashboard/WeeklyReportCard'
+import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { pl } from '@/i18n/pl'
 import { showToast } from '@/stores/toast-store'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
@@ -21,7 +22,7 @@ import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { beginLevelChange } from '@/lib/setup-flow'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
-import { db, type LocalAiInsight } from '@/lib/db'
+import { db, type LocalAiInsight, type LocalWorkoutSession } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
 import { generateWeeklyReport } from '@/lib/ai/proactive-coach'
 import {
@@ -64,9 +65,11 @@ export default function Dashboard() {
   const [reloadEpoch, setReloadEpoch] = useState(0)
   const [home, setHome] = useState<HomeLoadResult | null>(null)
   const [weeklyReport, setWeeklyReport] = useState<LocalAiInsight | null>(null)
+  const [weeklyReportGenerating, setWeeklyReportGenerating] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [hasSession, setHasSession] = useState<boolean | null>(null)
+  const [heatmapSessions, setHeatmapSessions] = useState<LocalWorkoutSession[]>([])
   /** null = InstallCoach not yet reported — tip withheld to avoid dual attention. */
   const [installVisible, setInstallVisible] = useState<boolean | null>(null)
 
@@ -100,10 +103,17 @@ export default function Dashboard() {
       showLoginBackup,
       dismissedHabitMetTip,
     })
-      .then((result) => {
+      .then(async (result) => {
         if (!cancelled) {
           setHome(result)
           setLoading(false)
+          // Load sessions for streak heatmap
+          try {
+            const sessions = await db.workoutSessions.toArray()
+            if (!cancelled) setHeatmapSessions(sessions)
+          } catch {
+            /* ignore — heatmap is non-critical */
+          }
         }
       })
       .catch(() => {
@@ -184,9 +194,12 @@ export default function Dashboard() {
         .count()
       if (!isSunday && !hasReportParam && weekSessions === 0) return
 
+      // Generation starts here — show placeholder until report is ready
+      setWeeklyReportGenerating(true)
+
       const settings = useAppStore.getState().settings
       const aiConfig = settings.aiProactiveCoach && settings.aiApiKey
-        ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined }
+        ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined, reasoningEffort: settings.aiReasoningEffort }
         : undefined
 
       // Rate limit check — only for AI calls (local fallback is free)
@@ -205,7 +218,7 @@ export default function Dashboard() {
               listExercises(),
             ])
             const report = await generateWeeklyReport({ sessions, exercises, aiConfig: undefined, signal: controller.signal })
-            if (cancelled) return
+            if (cancelled) { setWeeklyReportGenerating(false); return }
             if (forceRegenerate) {
               const old = await db.aiInsights.where('weekKey').equals(weekKey).filter((i) => i.type === 'weekly_report').toArray()
               await Promise.all(old.map((r) => db.aiInsights.delete(r.id)))
@@ -213,12 +226,14 @@ export default function Dashboard() {
             await db.aiInsights.put(report)
             void enqueueSync('ai_insights', 'insert', report)
             setWeeklyReport(report)
+            setWeeklyReportGenerating(false)
             if (forceRegenerate) {
               const next = new URLSearchParams(searchParams)
               next.delete('weekly_report')
               setSearchParams(next, { replace: true })
             }
           } catch {
+            setWeeklyReportGenerating(false)
             // Non-blocking
           }
           return
@@ -232,7 +247,7 @@ export default function Dashboard() {
           listExercises(),
         ])
         const report = await generateWeeklyReport({ sessions, exercises, aiConfig, signal: controller.signal })
-        if (cancelled) return
+        if (cancelled) { setWeeklyReportGenerating(false); return }
         // Record successful AI call
         if (report.source === 'ai') {
           recordCall('weekly_report')
@@ -277,8 +292,10 @@ export default function Dashboard() {
           setSearchParams(next, { replace: true })
         }
       } catch {
+        setWeeklyReportGenerating(false)
         // Non-blocking
       } finally {
+        setWeeklyReportGenerating(false)
         if (aiConfig) releaseInflight('weekly_report')
       }
     })()
@@ -326,14 +343,34 @@ export default function Dashboard() {
         <>
           <HomeStatusHeader summary={home.summary} />
 
-          {/* Quick activity stats — visible immediately under today's status */}
-          <HomeActivitySection summary={home.summary} />
+          {/* Quick activity stats + streak heatmap — visible immediately under today's status */}
+          <HomeActivitySection summary={home.summary} sessions={heatmapSessions} />
 
           {/* Proactive coach: weekly report card */}
+          {weeklyReportGenerating && !weeklyReport && (
+            <section
+              aria-busy
+              aria-live="polite"
+              className="sr-coach-msg-in mb-6 overflow-hidden rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]"
+            >
+              <div className="flex items-center gap-2.5 border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)] px-4 py-3">
+                <AiCoachMark size="sm" />
+                <h3 className="text-sm font-bold leading-tight text-[var(--sr-text-primary)]">
+                  {pl.coachWeeklyReportTitle}
+                </h3>
+              </div>
+              <div className="px-4 py-3">
+                <p className="animate-pulse text-sm text-[var(--sr-text-muted)]">
+                  {pl.coachWeeklyReportGenerating}
+                </p>
+              </div>
+            </section>
+          )}
           {weeklyReport && !weeklyReport.dismissedAt && (
             <WeeklyReportCard
               insight={weeklyReport}
               onDismissed={() => setWeeklyReport(null)}
+              onConnectAi={() => navigate('/profile')}
             />
           )}
 
