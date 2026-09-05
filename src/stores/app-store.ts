@@ -38,7 +38,7 @@ export type UserSettings = {
   aiModel?: string
   /** Base URL for OpenAI-compatible API — synced to cloud (not a secret). */
   aiBaseUrl?: string
-  /** When true, AI coach generates proactive insights (post-workout, weekly, plateau). Local-only. */
+  /** When true, AI coach generates proactive insights (post-workout, weekly, plateau). Synced to cloud via UI_SYNC_KEYS. */
   aiProactiveCoach: boolean
   /** UI language. Defaults to 'pl'. Synced to cloud via UI_SYNC_KEYS. */
   language: 'pl' | 'en'
