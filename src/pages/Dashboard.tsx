@@ -138,20 +138,24 @@ export default function Dashboard() {
     const controller = new AbortController()
     void (async () => {
       const weekKey = getWeekKey(new Date())
+      const forceRegenerate = searchParams.get('weekly_report') === 'force'
       // Check for ANY existing report this week (including dismissed).
       // If any exists (even dismissed), don't regenerate — respect user's dismissal.
-      const anyExisting = await db.aiInsights
-        .where('weekKey')
-        .equals(weekKey)
-        .filter((i) => i.type === 'weekly_report')
-        .first()
-      if (anyExisting) {
-        if (!cancelled && !anyExisting.dismissedAt) setWeeklyReport(anyExisting)
-        return
+      // Exception: ?weekly_report=force bypasses cache (for testing/fixing stale reports).
+      if (!forceRegenerate) {
+        const anyExisting = await db.aiInsights
+          .where('weekKey')
+          .equals(weekKey)
+          .filter((i) => i.type === 'weekly_report')
+          .first()
+        if (anyExisting) {
+          if (!cancelled && !anyExisting.dismissedAt) setWeeklyReport(anyExisting)
+          return
+        }
       }
       // Generate on Sundays, on explicit request, or when user has completed workouts
       const isSunday = new Date().getDay() === 0
-      const hasReportParam = searchParams.get('weekly_report') === '1'
+      const hasReportParam = searchParams.get('weekly_report') === '1' || forceRegenerate
       // Check if user has any completed sessions this week
       const weekStart = startOfLocalWeek(new Date())
       const weekEnd = new Date(weekStart)
@@ -173,6 +177,15 @@ export default function Dashboard() {
         ])
         const report = await generateWeeklyReport({ sessions, exercises, aiConfig, signal: controller.signal })
         if (cancelled) return
+        // When forcing, delete old reports for this week first
+        if (forceRegenerate) {
+          const old = await db.aiInsights
+            .where('weekKey')
+            .equals(weekKey)
+            .filter((i) => i.type === 'weekly_report')
+            .toArray()
+          await Promise.all(old.map((r) => db.aiInsights.delete(r.id)))
+        }
         await db.aiInsights.put(report)
         void enqueueSync('ai_insights', 'insert', report)
         setWeeklyReport(report)
