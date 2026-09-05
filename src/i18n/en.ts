@@ -1751,6 +1751,8 @@ export const en: Translation = {
     `To finish: set ${set}/${total}`,
   homeCustomStatusCycleComplete: 'Cycle complete',
   homeCustomCycleRestartHint: 'After rest you\u2019ll start from day 1.',
+  customCycleCompleteHint: 'You completed all days of the plan. You can start a new cycle from day 1.',
+  customCycleCompleteCta: 'Start new cycle',
   noValue: '\u2014',
   weightUnit: 'kg',
   durationUnitShort: 's',

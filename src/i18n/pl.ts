@@ -1777,6 +1777,8 @@ const plDict = {
     `Do dokończenia: seria ${set}/${total}`,
   homeCustomStatusCycleComplete: 'Cykl ukończony',
   homeCustomCycleRestartHint: 'Po przerwie zaczniesz od dnia 1.',
+  customCycleCompleteHint: 'Ukończyłeś wszystkie dni planu. Możesz zacząć nowy cykl od dnia 1.',
+  customCycleCompleteCta: 'Rozpocznij nowy cykl',
   noValue: '—',
   weightUnit: 'kg',
   durationUnitShort: 's',

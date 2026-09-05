@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, XCircle, Trophy, PencilLine, Flame, Dumbbell, CalendarClock } from 'lucide-react'
+import { CheckCircle2, XCircle, Trophy, PencilLine, Flame, Dumbbell, CalendarClock, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -637,14 +637,13 @@ export default function CustomSessionSummary() {
         </div>
       )}
 
-      {!failed && !(progress?.nextWorkoutAfter && progress.status === 'rest') && (
-        <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.customSummaryRecSuccess}</p>
-      )}
-
       {belowTarget && (
-        <p className="mt-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
-          {pl.customSummaryBelowTarget}
-        </p>
+        <div className="mb-6 flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/30 bg-[var(--sr-warning-muted)] px-4 py-3">
+          <AlertCircle size={18} className="shrink-0 text-[var(--sr-warning)]" aria-hidden />
+          <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+            {pl.customSummaryBelowTarget}
+          </p>
+        </div>
       )}
 
       {offerPlanUpdate && planChanges.length > 0 && (
@@ -804,10 +803,24 @@ export default function CustomSessionSummary() {
       )}
 
       {cycleComplete && (
-        <div className="mt-3 flex items-center gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)] px-4 py-3">
-          <Trophy size={18} className="shrink-0 text-[var(--sr-success)]" aria-hidden />
-          <p className="text-sm font-medium text-[var(--sr-text-primary)]">{pl.cycleComplete}</p>
-        </div>
+        <Card className="mb-6 border border-[var(--sr-brand-primary)]/40 bg-[var(--sr-brand-primary-muted)]">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)]/15 text-[var(--sr-brand-primary)]" aria-hidden>
+              <Trophy size={20} strokeWidth={2.25} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-[var(--sr-text-primary)]">{pl.cycleComplete}</p>
+              <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.customCycleCompleteHint}</p>
+            </div>
+          </div>
+          {resolvedPlanId && (
+            <div className="mt-4">
+              <Button size="touch" fullWidth onClick={() => navigate(`/workout/custom/${resolvedPlanId}`)}>
+                {pl.customCycleCompleteCta}
+              </Button>
+            </div>
+          )}
+        </Card>
       )}
 
       {session.progressionDiffJson && resolvedPlanId && (
