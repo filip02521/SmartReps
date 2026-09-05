@@ -10,6 +10,7 @@ import {
   achievementRarityLabel,
 } from '@/lib/achievements/copy'
 import { playAchievementUnlockSequence, playTrophyFeedback, initAchievementAudio } from '@/lib/achievements/feedback'
+import { trophyTierFor, type TrophyTier } from '@/lib/achievements/trophy-tier'
 import { markUnlockSeen } from '@/lib/achievements/store'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
@@ -40,16 +41,19 @@ export function AchievementSummaryList({ unlocks }: { unlocks: LocalAchievementU
           return resolveDisplayRarity(def, null, u.tierLevel)
         })
         .filter((r): r is NonNullable<typeof r> => r !== null)
-      // Check if any unlock reached a trophy tier (gold/diamond/legendary non-tiered)
-      const hasTrophy = unlocks.some((u) => {
+      // Use shared trophy tier resolver — ensures consistency with AchievementTile
+      // Play the highest-tier fanfare across all unlocks in this batch
+      const tierOrder: Record<TrophyTier, number> = { bronze: 0, silver: 1, gold: 2, diamond: 3 }
+      let highestTrophyTier: TrophyTier | null = null
+      for (const u of unlocks) {
         const def = ACHIEVEMENT_BY_ID[u.id]
-        if (!def) return false
-        const tierLevel = u.tierLevel ?? 0
-        if (tierLevel >= 3) return true // gold or diamond
-        if (def.rarity === 'legendary' && tierLevel <= 1) return true
-        return false
-      })
-      if (hasTrophy) playTrophyFeedback()
+        if (!def) continue
+        const tier = trophyTierFor(def, true, u.tierLevel)
+        if (tier && (!highestTrophyTier || tierOrder[tier] > tierOrder[highestTrophyTier])) {
+          highestTrophyTier = tier
+        }
+      }
+      if (highestTrophyTier) playTrophyFeedback(highestTrophyTier)
       else playAchievementUnlockSequence(rarities)
     })()
   }, [unlocks])

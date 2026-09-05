@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { AchievementTile } from './AchievementTile'
+import { ConfettiCanvas } from '@/components/ux/ConfettiCanvas'
 import { ACHIEVEMENT_BY_ID } from '@/lib/achievements/catalog'
 import type { AchievementId, LocalAchievementUnlock } from '@/lib/achievements/types'
 import {
@@ -13,6 +14,7 @@ import {
 import { resolveDisplayRarity } from '@/lib/achievements/catalog'
 import { markUnlockSeen } from '@/lib/achievements/store'
 import { playTrophyFeedback, initAchievementAudio } from '@/lib/achievements/feedback'
+import { trophyTierFor } from '@/lib/achievements/trophy-tier'
 import { track } from '@/lib/analytics'
 import { pl } from '@/i18n/pl'
 
@@ -26,19 +28,22 @@ export function AchievementUnlockSheet({
   onDone: () => void
 }) {
   const def = achievementId ? ACHIEVEMENT_BY_ID[achievementId] : null
+  const [showConfetti, setShowConfetti] = useState(false)
 
   useEffect(() => {
     if (!achievementId || !def) return
     track('achievement_unlock', { id: achievementId, rarity: def.rarity, tier: unlock?.tierLevel })
-    // Play trophy fanfare for gold/diamond/legendary-non-tiered unlocks
-    const tierLevel = unlock?.tierLevel ?? 0
-    const isTrophy =
-      tierLevel >= 3 || (def.rarity === 'legendary' && tierLevel <= 1)
-    if (isTrophy) {
+    // Use shared trophy tier resolver — ensures consistency with AchievementTile
+    const trophyTier = trophyTierFor(def, true, unlock?.tierLevel)
+    if (trophyTier) {
       void (async () => {
         await initAchievementAudio()
-        playTrophyFeedback()
+        playTrophyFeedback(trophyTier)
       })()
+      // Trigger confetti burst for trophy unlocks
+      setShowConfetti(true)
+      const t = window.setTimeout(() => setShowConfetti(false), 3000)
+      return () => window.clearTimeout(t)
     }
   }, [achievementId, def, unlock?.tierLevel])
 
@@ -61,6 +66,12 @@ export function AchievementUnlockSheet({
       title={isTierUpgrade ? pl.achievementsTierUpgradeTitle : pl.achievementsUnlockTitle}
       showClose={false}
     >
+      {/* Confetti burst for trophy-tier unlocks */}
+      {showConfetti && (
+        <div className="pointer-events-none fixed inset-0 z-[60]" aria-hidden>
+          <ConfettiCanvas active={showConfetti} durationMs={2500} particleCount={90} origin={{ x: 0.5, y: 0.25 }} />
+        </div>
+      )}
       <div className="sr-ach-in flex flex-col items-center gap-3">
         <AchievementTile
           def={def}

@@ -6,6 +6,8 @@ import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState, PageLoader } from '@/components/ux/Feedback'
 import { WorkoutCelebrationOverlay } from '@/components/ux/WorkoutCelebrationOverlay'
+import { ACHIEVEMENT_BY_ID } from '@/lib/achievements/catalog'
+import { trophyTierFor } from '@/lib/achievements/trophy-tier'
 import { LogoMark } from '@/components/brand/Logo'
 import {
   CustomProgressionDiffList,
@@ -498,6 +500,16 @@ export default function CustomSessionSummary() {
         }
         hasPr={prRecords.length > 0}
         hasNewAchievement={newAchievements.length > 0}
+        achievementTrophyTier={
+          newAchievements.length > 0
+            ? (() => {
+                const u = newAchievements[0]!
+                const def = ACHIEVEMENT_BY_ID[u.id]
+                if (!def) return null
+                return trophyTierFor(def, true, u.tierLevel)
+              })()
+            : null
+        }
         stats={[
           { icon: Dumbbell, value: totalSets, label: pl.celebrationStatSets, animate: true },
           ...(volumeKg > 0

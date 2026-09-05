@@ -28,9 +28,10 @@ import { cn } from '@/lib/utils'
 import type { AchievementDef, AchievementRarity } from '@/lib/achievements/types'
 import { achievementTitle } from '@/lib/achievements/copy'
 import { resolveDisplayGlyph, resolveDisplayRarity } from '@/lib/achievements/catalog'
+import { trophyTierFor, lockedTrophyTierFor, tierVisual } from '@/lib/achievements/trophy-tier'
 import { pl } from '@/i18n/pl'
 import { FOCUS_RING } from '@/lib/ui-chrome'
-import { TrophyShape, type TrophyTier } from './TrophyShape'
+import { TrophyShape } from './TrophyShape'
 
 export const GLYPHS: Record<string, LucideIcon> = {
   dumbbell: Dumbbell,
@@ -70,41 +71,6 @@ export const GLYPHS: Record<string, LucideIcon> = {
   'bar-chart-gold': BarChart3,
   'bar-chart-diamond': BarChart3,
   'flag-diamond': Flag,
-}
-
-/** Visual tier level — determines ring, glow, and animation treatment. */
-type TierVisual = 'none' | 'bronze' | 'silver' | 'gold' | 'diamond'
-
-function tierVisual(rarity: AchievementRarity, tierLevel: number | null | undefined): TierVisual {
-  if (!tierLevel || tierLevel <= 0) return 'none'
-  // Tier 1: use rarity-based visual (don't override with bronze)
-  if (tierLevel === 1) return 'none'
-  // Diamond = highest tier in any multi-tier achievement
-  if (tierLevel >= 4) return 'diamond'
-  if (tierLevel === 3) return 'gold'
-  // Tier 2: silver for common/rare, gold for legendary
-  return rarity === 'legendary' ? 'gold' : 'silver'
-}
-
-/**
- * Resolve which trophy shape (if any) to render for this achievement.
- * Returns null for common/rare/locked — those keep the Lucide icon.
- * Legendary non-tiered → gold cup. Higher tiers → their metallic trophy.
- */
-function trophyTierFor(
-  rarity: AchievementRarity,
-  unlocked: boolean,
-  tierLevel: number | null | undefined,
-): TrophyTier | null {
-  if (!unlocked) return null
-  const tv = tierVisual(rarity, tierLevel)
-  if (tv === 'diamond') return 'diamond'
-  if (tv === 'gold') return 'gold'
-  if (tv === 'silver') return 'silver'
-  if (tv === 'bronze') return 'bronze'
-  // Non-tiered legendary → gold cup trophy
-  if (rarity === 'legendary') return 'gold'
-  return null
 }
 
 type VisualStyle = {
@@ -190,18 +156,6 @@ function resolveVisual(
     }
   }
 
-  // Bronze tier — subtle brand ring, no glow
-  if (tv === 'bronze') {
-    return {
-      ...base,
-      outerClass: 'sr-ach-ring-bronze',
-      innerClass: 'bg-[var(--sr-bg-elevated)]',
-      glowClass: '',
-      animClass: '',
-      iconClass: 'text-[var(--sr-text-primary)]',
-    }
-  }
-
   // Rare (non-tiered) — brand-tinted ring + subtle glow
   if (rarity === 'rare') {
     return {
@@ -264,8 +218,10 @@ export function AchievementTile({
   const hasTiers = Boolean(def.tiers && def.tiers.length > 0)
   const maxTier = def.tiers?.length ?? 0
   const isMaxTier = hasTiers && (tierLevel ?? 0) >= maxTier && maxTier > 1
-  const trophyTier = trophyTierFor(displayRarity, unlocked, tierLevel)
+  const trophyTier = trophyTierFor(def, unlocked, tierLevel)
   const showTrophyBounce = pulse && unlocked && Boolean(trophyTier)
+  // For locked achievements that would unlock a trophy, show silhouette hint
+  const lockedTrophyTier = !unlocked ? lockedTrophyTierFor(def) : null
 
   return (
     <button
@@ -306,6 +262,13 @@ export function AchievementTile({
               tier={trophyTier}
               size={size}
               className={cn('sr-trophy-shine', vs.iconClass)}
+              ariaHidden
+            />
+          ) : lockedTrophyTier ? (
+            <TrophyShape
+              tier={lockedTrophyTier}
+              size={size}
+              silhouette
               ariaHidden
             />
           ) : (

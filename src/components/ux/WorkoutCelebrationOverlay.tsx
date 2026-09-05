@@ -3,6 +3,7 @@ import { CheckCircle2, Flame, Trophy, Share2 } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { ConfettiCanvas } from '@/components/ux/ConfettiCanvas'
+import { TrophyShape, type TrophyTier } from '@/components/achievements/TrophyShape'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { Z_CELEBRATION, FOCUS_RING } from '@/lib/ui-chrome'
 import { playCelebrationSound } from '@/lib/celebration-feedback'
@@ -33,6 +34,7 @@ export function WorkoutCelebrationOverlay({
   contextLabel,
   hasPr = false,
   hasNewAchievement = false,
+  achievementTrophyTier = null,
   durationMs = 2000,
 }: {
   active: boolean
@@ -44,6 +46,8 @@ export function WorkoutCelebrationOverlay({
   contextLabel?: string
   hasPr?: boolean
   hasNewAchievement?: boolean
+  /** Trophy tier for the achievement badge — shows metallic trophy instead of generic icon. */
+  achievementTrophyTier?: TrophyTier | null
   durationMs?: number
 }) {
   const [visible, setVisible] = useState(false)
@@ -255,6 +259,13 @@ export function WorkoutCelebrationOverlay({
                 <Trophy size={16} className="text-[var(--sr-brand-primary)]" />
                 <span className="sr-text-body-sm font-semibold text-[var(--sr-brand-primary)]">
                   {pl.celebrationPrBadge}
+                </span>
+              </>
+            ) : achievementTrophyTier ? (
+              <>
+                <TrophyShape tier={achievementTrophyTier} px={16} className="sr-trophy-shine" ariaHidden />
+                <span className="sr-text-body-sm font-semibold text-[var(--sr-warning)]">
+                  {pl.celebrationAchievementBadge}
                 </span>
               </>
             ) : (

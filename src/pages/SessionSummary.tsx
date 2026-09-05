@@ -8,6 +8,8 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { SessionCompare } from '@/components/workout/SessionCompare'
 import { ErrorBanner, EmptyState, PageLoader } from '@/components/ux/Feedback'
 import { WorkoutCelebrationOverlay } from '@/components/ux/WorkoutCelebrationOverlay'
+import { ACHIEVEMENT_BY_ID } from '@/lib/achievements/catalog'
+import { trophyTierFor } from '@/lib/achievements/trophy-tier'
 import { LogoMark } from '@/components/brand/Logo'
 import { NoticeCard, LogIn } from '@/components/ux/NoticeCard'
 import { getProgramProgress } from '@/lib/program-service'
@@ -383,6 +385,16 @@ export default function SessionSummary() {
         }
         hasPr={prRecords.length > 0}
         hasNewAchievement={newAchievements.length > 0}
+        achievementTrophyTier={
+          newAchievements.length > 0
+            ? (() => {
+                const u = newAchievements[0]!
+                const def = ACHIEVEMENT_BY_ID[u.id]
+                if (!def) return null
+                return trophyTierFor(def, true, u.tierLevel)
+              })()
+            : null
+        }
         stats={[
           { icon: Flame, value: totalReps, label: pl.celebrationStatReps, animate: true },
           { icon: Dumbbell, value: rows.length, label: pl.celebrationStatSets, animate: true },

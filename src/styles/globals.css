@@ -364,6 +364,14 @@ html[data-offline='1'] .safe-header {
   color: #b87333;
 }
 
+/* Silhouette — locked trophy hint, no shine animation */
+.sr-trophy--silhouette {
+  color: var(--sr-text-muted);
+}
+.sr-trophy--silhouette.sr-trophy-shine {
+  animation: none;
+}
+
 /* Profile achievement showcase (gablotka) */
 .sr-ach-case {
   position: relative;
