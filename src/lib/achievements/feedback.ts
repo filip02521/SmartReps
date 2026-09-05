@@ -24,12 +24,23 @@ const CHIMES = {
     { frequency: 1046.5, startOffset: 0.38, duration: 0.3, gain: 0.22 },
     { frequency: 1318.5, startOffset: 0.54, duration: 0.45, gain: 0.2 },
   ] satisfies ToneSpec[],
+  /** Trophy (gold/diamond tier): triumphant seven-note fanfare with shimmer. */
+  trophy: [
+    { frequency: 523.25, startOffset: 0, duration: 0.14, gain: 0.2 },
+    { frequency: 659.25, startOffset: 0.1, duration: 0.14, gain: 0.2 },
+    { frequency: 783.99, startOffset: 0.2, duration: 0.16, gain: 0.22 },
+    { frequency: 1046.5, startOffset: 0.3, duration: 0.2, gain: 0.24 },
+    { frequency: 1318.5, startOffset: 0.42, duration: 0.24, gain: 0.24 },
+    { frequency: 1567.98, startOffset: 0.56, duration: 0.3, gain: 0.22 },
+    { frequency: 2093, startOffset: 0.72, duration: 0.5, gain: 0.18 },
+  ] satisfies ToneSpec[],
 } as const
 
 const VIBRATION = {
   common: 60,
   rare: [60, 40, 80] as const,
   legendary: [80, 50, 80, 50, 120] as const,
+  trophy: [60, 40, 80, 40, 80, 40, 160] as const,
 } as const
 
 function getFeedbackPrefs(): { sound: boolean; vibration: boolean } {
@@ -53,6 +64,16 @@ export function playAchievementUnlockFeedback(rarity: AchievementRarity) {
     else if (rarity === 'rare') vibrate([...VIBRATION.rare])
     else vibrate(VIBRATION.common)
   }
+}
+
+/**
+ * Play trophy feedback for gold/diamond tier unlocks — richer fanfare than legendary.
+ * Use when an achievement reaches a trophy-tier milestone (gold/diamond/legendary non-tiered).
+ */
+export function playTrophyFeedback() {
+  const { sound, vibration } = getFeedbackPrefs()
+  if (sound) playTones(CHIMES.trophy)
+  if (vibration) vibrate([...VIBRATION.trophy])
 }
 
 /**

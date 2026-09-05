@@ -12,6 +12,7 @@ import {
 } from '@/lib/achievements/copy'
 import { resolveDisplayRarity } from '@/lib/achievements/catalog'
 import { markUnlockSeen } from '@/lib/achievements/store'
+import { playTrophyFeedback, initAchievementAudio } from '@/lib/achievements/feedback'
 import { track } from '@/lib/analytics'
 import { pl } from '@/i18n/pl'
 
@@ -29,6 +30,16 @@ export function AchievementUnlockSheet({
   useEffect(() => {
     if (!achievementId || !def) return
     track('achievement_unlock', { id: achievementId, rarity: def.rarity, tier: unlock?.tierLevel })
+    // Play trophy fanfare for gold/diamond/legendary-non-tiered unlocks
+    const tierLevel = unlock?.tierLevel ?? 0
+    const isTrophy =
+      tierLevel >= 3 || (def.rarity === 'legendary' && tierLevel <= 1)
+    if (isTrophy) {
+      void (async () => {
+        await initAchievementAudio()
+        playTrophyFeedback()
+      })()
+    }
   }, [achievementId, def, unlock?.tierLevel])
 
   if (!def || !achievementId) return null

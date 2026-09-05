@@ -30,6 +30,7 @@ import { achievementTitle } from '@/lib/achievements/copy'
 import { resolveDisplayGlyph, resolveDisplayRarity } from '@/lib/achievements/catalog'
 import { pl } from '@/i18n/pl'
 import { FOCUS_RING } from '@/lib/ui-chrome'
+import { TrophyShape, type TrophyTier } from './TrophyShape'
 
 export const GLYPHS: Record<string, LucideIcon> = {
   dumbbell: Dumbbell,
@@ -83,6 +84,27 @@ function tierVisual(rarity: AchievementRarity, tierLevel: number | null | undefi
   if (tierLevel === 3) return 'gold'
   // Tier 2: silver for common/rare, gold for legendary
   return rarity === 'legendary' ? 'gold' : 'silver'
+}
+
+/**
+ * Resolve which trophy shape (if any) to render for this achievement.
+ * Returns null for common/rare/locked — those keep the Lucide icon.
+ * Legendary non-tiered → gold cup. Higher tiers → their metallic trophy.
+ */
+function trophyTierFor(
+  rarity: AchievementRarity,
+  unlocked: boolean,
+  tierLevel: number | null | undefined,
+): TrophyTier | null {
+  if (!unlocked) return null
+  const tv = tierVisual(rarity, tierLevel)
+  if (tv === 'diamond') return 'diamond'
+  if (tv === 'gold') return 'gold'
+  if (tv === 'silver') return 'silver'
+  if (tv === 'bronze') return 'bronze'
+  // Non-tiered legendary → gold cup trophy
+  if (rarity === 'legendary') return 'gold'
+  return null
 }
 
 type VisualStyle = {
@@ -242,6 +264,8 @@ export function AchievementTile({
   const hasTiers = Boolean(def.tiers && def.tiers.length > 0)
   const maxTier = def.tiers?.length ?? 0
   const isMaxTier = hasTiers && (tierLevel ?? 0) >= maxTier && maxTier > 1
+  const trophyTier = trophyTierFor(displayRarity, unlocked, tierLevel)
+  const showTrophyBounce = pulse && unlocked && Boolean(trophyTier)
 
   return (
     <button
@@ -265,6 +289,8 @@ export function AchievementTile({
           highlight && 'ring-2 ring-[var(--sr-brand-primary)] ring-offset-2 ring-offset-[var(--sr-bg-base)]',
           // One-shot pulse on unlock for max-tier or legendary
           pulse && unlocked && (isMaxTier || (maxTier <= 1 && displayRarity === 'legendary')) && 'sr-ach-pulse',
+          // Trophy bounce entrance on unlock
+          showTrophyBounce && 'sr-trophy-bounce',
         )}
         style={vs.outerStyle}
       >
@@ -275,12 +301,21 @@ export function AchievementTile({
             vs.innerClass,
           )}
         >
-          <Icon
-            size={iconSize}
-            strokeWidth={1.75}
-            className={vs.iconClass}
-            aria-hidden
-          />
+          {trophyTier ? (
+            <TrophyShape
+              tier={trophyTier}
+              size={size}
+              className={cn('sr-trophy-shine', vs.iconClass)}
+              ariaHidden
+            />
+          ) : (
+            <Icon
+              size={iconSize}
+              strokeWidth={1.75}
+              className={vs.iconClass}
+              aria-hidden
+            />
+          )}
         </span>
         {/* Tier pips — small dots showing progress through tiers (all sizes) */}
         {hasTiers && unlocked && maxTier > 1 && (

@@ -9,7 +9,7 @@ import {
   achievementTitle,
   achievementRarityLabel,
 } from '@/lib/achievements/copy'
-import { playAchievementUnlockSequence, initAchievementAudio } from '@/lib/achievements/feedback'
+import { playAchievementUnlockSequence, playTrophyFeedback, initAchievementAudio } from '@/lib/achievements/feedback'
 import { markUnlockSeen } from '@/lib/achievements/store'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
@@ -40,7 +40,17 @@ export function AchievementSummaryList({ unlocks }: { unlocks: LocalAchievementU
           return resolveDisplayRarity(def, null, u.tierLevel)
         })
         .filter((r): r is NonNullable<typeof r> => r !== null)
-      playAchievementUnlockSequence(rarities)
+      // Check if any unlock reached a trophy tier (gold/diamond/legendary non-tiered)
+      const hasTrophy = unlocks.some((u) => {
+        const def = ACHIEVEMENT_BY_ID[u.id]
+        if (!def) return false
+        const tierLevel = u.tierLevel ?? 0
+        if (tierLevel >= 3) return true // gold or diamond
+        if (def.rarity === 'legendary' && tierLevel <= 1) return true
+        return false
+      })
+      if (hasTrophy) playTrophyFeedback()
+      else playAchievementUnlockSequence(rarities)
     })()
   }, [unlocks])
 
