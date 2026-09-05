@@ -180,6 +180,13 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
         'server',
       )
     }
+    if (resp.status === 503) {
+      throw new AiApiError(
+        pl.aiErrorServiceUnavailable,
+        resp.status,
+        'server',
+      )
+    }
     if (resp.status === 429) {
       throw new AiApiError(
         pl.aiErrorRateLimited,

@@ -110,6 +110,7 @@ export default function SessionSummary() {
     setLoading(true)
     setError(null)
     setInsights(undefined)
+    setShowCelebration(false)
     try {
       useWorkoutStore.getState().reset()
 

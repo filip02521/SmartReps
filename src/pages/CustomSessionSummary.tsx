@@ -152,6 +152,7 @@ export default function CustomSessionSummary() {
       setLoading(true)
       setInsights(undefined)
       setPrevious(undefined)
+      setShowCelebration(false)
       try {
         const s = await db.workoutSessions.get(sessionId)
         if (!s) {

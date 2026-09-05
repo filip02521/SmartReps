@@ -2105,6 +2105,7 @@ export const en: Translation = {
   aiErrorBadRequest: (detail: string) =>
     `Invalid API request. ${detail}`.trim(),
   aiErrorLoopDetected: 'AI model entered a loop. Try again or use a different model.',
+  aiErrorServiceUnavailable: 'AI server is temporarily unavailable. Try again in a moment.',
   aiErrorGenericStatus: (status: number, detail: string) =>
     `API error (${status}). ${detail}`.trim(),
   aiErrorInvalidResponse: 'Invalid API response.',

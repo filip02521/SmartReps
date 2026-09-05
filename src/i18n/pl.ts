@@ -2131,6 +2131,7 @@ const plDict = {
   aiErrorBadRequest: (detail: string) =>
     `Nieprawidłowe zapytanie do API. ${detail}`.trim(),
   aiErrorLoopDetected: 'Model AI wpadł w pętlę. Spróbuj ponownie lub użyj innego modelu.',
+  aiErrorServiceUnavailable: 'Serwer AI jest tymczasowo niedostępny. Spróbuj ponownie za chwilę.',
   aiErrorGenericStatus: (status: number, detail: string) =>
     `Błąd API (${status}). ${detail}`.trim(),
   aiErrorInvalidResponse: 'Nieprawidłowa odpowiedź API.',

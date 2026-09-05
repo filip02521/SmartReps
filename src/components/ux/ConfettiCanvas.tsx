@@ -63,6 +63,8 @@ export function ConfettiCanvas({
       canvas.height = window.innerHeight * dpr
       canvas.style.width = `${window.innerWidth}px`
       canvas.style.height = `${window.innerHeight}px`
+      // Reset transform before scaling — ctx.scale is cumulative
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.scale(dpr, dpr)
     }
     resize()
@@ -101,7 +103,8 @@ export function ConfettiCanvas({
 
     const animate = (now: number) => {
       const elapsed = now - startTimeRef.current
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      // Clear in CSS pixels (transform already applies DPR scale)
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
 
       const particles = particlesRef.current
       let alive = 0
@@ -143,7 +146,7 @@ export function ConfettiCanvas({
         animationRef.current = requestAnimationFrame(animate)
       } else {
         // Clear canvas when done
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
         if (animationRef.current) {
           cancelAnimationFrame(animationRef.current)
           animationRef.current = undefined
@@ -159,18 +162,22 @@ export function ConfettiCanvas({
         cancelAnimationFrame(animationRef.current)
         animationRef.current = undefined
       }
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
     }
   }, [active, durationMs, particleCount, origin.x, origin.y])
 
   if (!active) return null
 
+  // Don't render canvas at all if reduced motion is preferred
+  const prefersReducedRender = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (prefersReducedRender) return null
+
   return (
     <canvas
       ref={canvasRef}
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-[100]"
-      style={{ width: '100vw', height: '100vh' }}
+      className="pointer-events-none fixed inset-0"
+      style={{ width: '100vw', height: '100vh', zIndex: 100 }}
     />
   )
 }

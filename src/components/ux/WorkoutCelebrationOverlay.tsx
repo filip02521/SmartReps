@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Flame, Trophy } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { ConfettiCanvas } from '@/components/ux/ConfettiCanvas'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
+import { Z_CELEBRATION } from '@/lib/ui-chrome'
 
 type StatItem = {
   icon: typeof Flame
@@ -39,6 +41,18 @@ export function WorkoutCelebrationOverlay({
 }) {
   const [visible, setVisible] = useState(false)
   const dismissTimerRef = useRef<number | undefined>(undefined)
+  const trapRef = useFocusTrap(active)
+  const hasPrRef = useRef(hasPr)
+  const onDismissRef = useRef(onDismiss)
+
+  useEffect(() => {
+    hasPrRef.current = hasPr
+    onDismissRef.current = onDismiss
+  })
+
+  const handleDismiss = useCallback(() => {
+    onDismissRef.current()
+  }, [])
 
   useEffect(() => {
     if (!active) {
@@ -51,14 +65,14 @@ export function WorkoutCelebrationOverlay({
     // Haptic feedback (vibration) — respects user settings implicitly
     if (navigator.vibrate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       try {
-        navigator.vibrate(hasPr ? [60, 40, 80] : 80)
+        navigator.vibrate(hasPrRef.current ? [60, 40, 80] : 80)
       } catch {
         // ignore — vibration not supported
       }
     }
 
     // Auto-dismiss
-    dismissTimerRef.current = window.setTimeout(onDismiss, durationMs)
+    dismissTimerRef.current = window.setTimeout(handleDismiss, durationMs)
 
     return () => {
       cancelAnimationFrame(raf)
@@ -67,7 +81,7 @@ export function WorkoutCelebrationOverlay({
         dismissTimerRef.current = undefined
       }
     }
-  }, [active, onDismiss, durationMs, hasPr])
+  }, [active, handleDismiss, durationMs])
 
   if (!active) return null
 
@@ -82,16 +96,24 @@ export function WorkoutCelebrationOverlay({
 
   return (
     <div
+      ref={trapRef}
       role="dialog"
       aria-modal="true"
       aria-label={headline}
-      onClick={onDismiss}
+      onClick={handleDismiss}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' || e.key === 'Enter') {
+          e.preventDefault()
+          handleDismiss()
+        }
+      }}
       className={cn(
-        'fixed inset-0 z-[90] flex flex-col items-center justify-center',
+        'fixed inset-0 flex flex-col items-center justify-center',
         'transition-opacity duration-300',
         visible ? 'opacity-100' : 'opacity-0',
         'bg-gradient-to-br from-[color-mix(in_srgb,var(--sr-brand-primary)_20%,var(--sr-bg-base))] via-[var(--sr-bg-base)] to-[color-mix(in_srgb,var(--sr-success)_15%,var(--sr-bg-base))]',
       )}
+      style={{ zIndex: Z_CELEBRATION }}
     >
       {/* Confetti layer */}
       <ConfettiCanvas active={active && !prefersReduced} durationMs={2500} particleCount={100} />
@@ -109,7 +131,6 @@ export function WorkoutCelebrationOverlay({
           className={cn(
             'mb-6 flex h-24 w-24 items-center justify-center rounded-full',
             'bg-[color-mix(in_srgb,var(--sr-success)_20%,transparent)]',
-            !prefersReduced && 'animate-[sr-celebration-pop_0.6s_ease-out]',
           )}
           style={
             !prefersReduced
@@ -247,13 +268,6 @@ export function WorkoutCelebrationOverlay({
         @keyframes srCelebrationFadeUp {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .sr-celebration-pop,
-          .sr-celebration-check,
-          .sr-celebration-fade-up {
-            animation: none !important;
-          }
         }
       `}</style>
     </div>
