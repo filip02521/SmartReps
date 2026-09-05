@@ -1398,7 +1398,7 @@ const plDict = {
   coachPostWorkoutLocalPr: 'Nowy rekord — super forma! Zrób 2 dni przerwy przed następnym treningiem.',
   coachPostWorkoutLocalPrMulti: (count: number) => `${count} nowe rekordy w jednej sesji — wyjątkowa forma! Zrób 2 dni przerwy.`,
   coachPostWorkoutLocalProgress: (delta: number) => `Progres o ${delta} powt. — dobra progresja. Utrzymaj tempo.`,
-  coachPostWorkoutLocalProgressAll: (delta: number, sets: number) => `Progres o ${delta} powt. we wszystkich ${sets} seriach — świetna sesja!`,
+  coachPostWorkoutLocalProgressAll: (delta: number, sets: number) => `Progres we wszystkich ${sets} seriach (do +${delta} powt.) — świetna sesja!`,
   coachPostWorkoutLocalDown: (delta: number) => `Spadek o ${delta} powt. — może gorszy dzień. Zobacz, czy nie skracać przerw.`,
   coachPostWorkoutLocalUnchanged: 'Bez zmian vs poprzednia sesja — rozważ +1 powtórzenie lub dodatkową serię.',
   coachPostWorkoutLocalFailed: 'Nieudana sesja — to normalne. Skup się na czystej formie i spróbuj ponownie po przerwie.',

@@ -1378,7 +1378,7 @@ export const en: Translation = {
   coachPostWorkoutLocalPr: 'New record — great form! Take 2 days off before your next workout.',
   coachPostWorkoutLocalPrMulti: (count: number) => `${count} new records in one session — exceptional form! Take 2 days off.`,
   coachPostWorkoutLocalProgress: (delta: number) => `Progress by ${delta} reps — solid progression. Keep the pace.`,
-  coachPostWorkoutLocalProgressAll: (delta: number, sets: number) => `Progress by ${delta} reps across all ${sets} sets — excellent session!`,
+  coachPostWorkoutLocalProgressAll: (delta: number, sets: number) => `Progress across all ${sets} sets (up to +${delta} reps) — excellent session!`,
   coachPostWorkoutLocalDown: (delta: number) => `Down by ${delta} reps — maybe an off day. Check if you're cutting rest short.`,
   coachPostWorkoutLocalUnchanged: 'No change vs last session — consider +1 rep or an extra set.',
   coachPostWorkoutLocalFailed: 'Failed session — it happens. Focus on clean form and try again after rest.',
