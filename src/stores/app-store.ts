@@ -160,7 +160,7 @@ export const defaultSettings: UserSettings = {
   onboardingComplete: false,
   displayName: '',
   language: 'pl',
-  aiProactiveCoach: false,
+  aiProactiveCoach: true,
 }
 
 export const useAppStore = create<AppStore>()(

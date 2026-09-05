@@ -36,7 +36,7 @@ vi.mock('@/stores/app-store', () => ({
     onboardingComplete: false,
     displayName: '',
     language: 'pl',
-    aiProactiveCoach: false,
+    aiProactiveCoach: true,
   },
 }))
 
