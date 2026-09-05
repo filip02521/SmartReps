@@ -63,7 +63,7 @@ function MiniCustomCycleRail({ days, totalDays }: { days: CustomPlanCycleDay[]; 
   }
   return (
     <div
-      className="flex items-end gap-1.5"
+      className="flex items-end gap-1"
       role="list"
       aria-label={pl.progressCustomPlanMapTitle}
     >
@@ -265,7 +265,10 @@ export function CustomPlanHomeCard({
             <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
               {model.isCycleComplete
                 ? pl.homeCustomStatusCycleComplete
-                : pl.homeCustomDayOf(model.completedDays + (model.isResting ? 0 : 1), model.totalDays)}
+                : pl.homeCustomDayOf(
+                    Math.max(1, Math.min(model.completedDays + (model.isResting ? 0 : 1), model.totalDays)),
+                    model.totalDays,
+                  )}
             </p>
             <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
               {model.pct}%

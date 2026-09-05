@@ -134,9 +134,10 @@ export function buildCustomPlanHomeCardModel(params: {
   const pct =
     totalDays > 0 ? Math.min(100, Math.round((completedDays / totalDays) * 100)) : 0
 
-  // Cycle rail: render only for plans with <= 14 days (longer plans get just the bar).
+  // Cycle rail: render only for plans with <= 10 days (longer plans get just the bar).
+  // At 375px width with p-5 padding, 10 cells + gaps fit comfortably; more would be cramped.
   const cycleDays =
-    totalDays > 0 && totalDays <= 14
+    totalDays > 0 && totalDays <= 10
       ? plan.days.map((d) => ({
           dayNumber: d.dayNumber,
           status: resolveCustomCycleDayStatus(d.dayNumber, progress, sessions),

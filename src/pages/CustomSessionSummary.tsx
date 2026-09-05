@@ -628,6 +628,28 @@ export default function CustomSessionSummary() {
         />
       )}
 
+      {/* Cycle complete — prominent celebration card */}
+      {cycleComplete && (
+        <Card className="mb-6 border border-[var(--sr-brand-primary)]/40 bg-[var(--sr-brand-primary-muted)]">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)]/15 text-[var(--sr-brand-primary)]" aria-hidden>
+              <Trophy size={20} strokeWidth={2.25} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-[var(--sr-text-primary)]">{pl.cycleComplete}</p>
+              <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.customCycleCompleteHint}</p>
+            </div>
+          </div>
+          {resolvedPlanId && progress?.status === 'cycle_complete' && (
+            <div className="mt-4">
+              <Button size="touch" fullWidth onClick={() => navigate(`/workout/custom/${resolvedPlanId}`)}>
+                {pl.customCycleCompleteCta}
+              </Button>
+            </div>
+          )}
+        </Card>
+      )}
+
       {!failed && progress?.nextWorkoutAfter && progress.status === 'rest' && (
         <div className="mb-6 flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3">
           <CalendarClock size={18} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
@@ -800,27 +822,6 @@ export default function CustomSessionSummary() {
             {pl.customSummaryUpdatePlanDone}
           </p>
         </div>
-      )}
-
-      {cycleComplete && (
-        <Card className="mb-6 border border-[var(--sr-brand-primary)]/40 bg-[var(--sr-brand-primary-muted)]">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)]/15 text-[var(--sr-brand-primary)]" aria-hidden>
-              <Trophy size={20} strokeWidth={2.25} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-[var(--sr-text-primary)]">{pl.cycleComplete}</p>
-              <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.customCycleCompleteHint}</p>
-            </div>
-          </div>
-          {resolvedPlanId && (
-            <div className="mt-4">
-              <Button size="touch" fullWidth onClick={() => navigate(`/workout/custom/${resolvedPlanId}`)}>
-                {pl.customCycleCompleteCta}
-              </Button>
-            </div>
-          )}
-        </Card>
       )}
 
       {session.progressionDiffJson && resolvedPlanId && (
