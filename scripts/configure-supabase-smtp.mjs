@@ -111,13 +111,13 @@ const body = {
 
 // Templates are read from this repo (supabase/templates/*.html) and pushed to Supabase Auth.
 // This is intentional — the script is run manually by an operator to configure SMTP/OTP.
-// lgtm[js/file-access-to-http]
 const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/config/auth`, {
   method: 'PATCH',
   headers: {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   },
+  // lgtm[js/file-access-to-http] — templates are trusted local files, not user input
   body: JSON.stringify(body),
 })
 
