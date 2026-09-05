@@ -11,6 +11,12 @@ declare let self: ServiceWorkerGlobalScope
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
+// Activate new SW immediately on install — prevents stale chunk cache
+// after deploys. Without this, users get stuck on old SW serving removed chunks.
+self.addEventListener('install', () => {
+  self.skipWaiting()
+})
+
 // HTML navigations: network-first so deploys never serve stale index.html + missing chunks.
 registerRoute(
   ({ request }) => request.mode === 'navigate',
