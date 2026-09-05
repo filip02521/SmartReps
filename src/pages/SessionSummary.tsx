@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, XCircle, Trophy, AlertTriangle, CalendarClock, Flame, Dumbbell } from 'lucide-react'
+import { Trophy, AlertTriangle, CalendarClock, Flame, Dumbbell, BarChart3, StickyNote, Award } from 'lucide-react'
 import { pl } from '@/i18n/pl'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -30,11 +29,11 @@ import { showToast } from '@/stores/toast-store'
 import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
 import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
-import { PrCelebrationBanner } from '@/components/progress/PrCelebrationBanner'
+import { WorkoutResultCard } from '@/components/workout/WorkoutResultCard'
 import { detectPersonalRecords, type PersonalRecord } from '@/lib/pr-detector'
 import { initCelebrationAudio } from '@/lib/celebration-feedback'
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
-import { AiInsightCard } from '@/components/brand/AiInsightCard'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
 import {
   checkRateLimit,
@@ -399,119 +398,66 @@ export default function SessionSummary() {
         }`}
       />
 
-      {/* Hero status banner — merged with cycle/attempt context */}
-      <div
-        className={cn(
-          'mb-4 flex items-center gap-3 rounded-[var(--sr-radius-lg)] border p-4',
-          failed
-            ? 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]'
-            : 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
-        )}
-      >
-        <span
-          className={cn(
-            'flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]',
-            failed
-              ? 'bg-[var(--sr-error)]/15 text-[var(--sr-error)]'
-              : 'bg-[var(--sr-success)]/15 text-[var(--sr-success)]',
-          )}
-          aria-hidden
-        >
-          {failed ? <XCircle size={24} strokeWidth={2.25} /> : <CheckCircle2 size={24} strokeWidth={2.25} />}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold text-[var(--sr-text-primary)]">
-            {failed ? pl.summaryHeroFail : pl.summaryHeroSuccess}
-          </p>
-          <p className="mt-0.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
-            {program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram}
-            {cycle ? ` · ${cycle.nameShort}` : ''}
-            {` · ${pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}`}
-          </p>
-        </div>
-      </div>
+      {/* Unified workout result card — status + PR + AI + CTA in one cohesive unit */}
+      <WorkoutResultCard
+        className="mb-6"
+        failed={failed}
+        title={failed ? pl.summaryHeroFail : pl.summaryHeroSuccess}
+        subtitle={`${program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram}${cycle ? ` · ${cycle.nameShort}` : ''} · ${pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}`}
+        prRecords={prRecords}
+        coachInsight={coachInsight}
+        onDismissInsight={async () => {
+          if (!coachInsight) return
+          const dismissed = { ...coachInsight, dismissedAt: new Date().toISOString() }
+          await db.aiInsights.put(dismissed)
+          void enqueueSync('ai_insights', 'update', dismissed)
+          setCoachInsight(null)
+          showToast(pl.coachPostWorkoutDismissed, 'info')
+        }}
+        primaryLabel={pl.backHome}
+        onPrimaryAction={() => navigate('/', { replace: true })}
+        shareLabel={pl.summaryShare}
+        shareDisabled={sharing}
+        onShare={async () => {
+          setSharing(true)
+          try {
+            await shareSessionCard({
+              program,
+              dayNumber: current?.dayNumber ?? progress?.currentDay ?? 1,
+              totalReps,
+              passed: true,
+              prCount: insights?.prCount,
+              bestSetReps: rows.length > 0 ? Math.max(...rows.map((r) => r.actual)) : undefined,
+            })
+            trackShareCard(program, true)
+            showToast(pl.summaryShareDone, 'success')
+          } catch {
+            showToast(pl.summaryShareFailed, 'error')
+          } finally {
+            setSharing(false)
+          }
+        }}
+      />
 
-      {/* Primary CTA — right under hero, no need to scroll to bottom */}
-      <div className="mb-6 flex flex-col gap-2">
-        <Button size="touch" fullWidth onClick={() => navigate('/', { replace: true })}>
-          {pl.backHome}
-        </Button>
-        {!failed && (
-          <Button
-            variant="secondary"
-            size="touch"
-            fullWidth
-            disabled={sharing}
-            onClick={() => {
-              void (async () => {
-                setSharing(true)
-                try {
-                  await shareSessionCard({
-                    program,
-                    dayNumber: current?.dayNumber ?? progress?.currentDay ?? 1,
-                    totalReps,
-                    passed: true,
-                    prCount: insights?.prCount,
-                    bestSetReps: rows.length > 0 ? Math.max(...rows.map((r) => r.actual)) : undefined,
-                  })
-                  trackShareCard(program, true)
-                  showToast(pl.summaryShareDone, 'success')
-                } catch {
-                  showToast(pl.summaryShareFailed, 'error')
-                } finally {
-                  setSharing(false)
-                }
-              })()
-            }}
-          >
-            {pl.summaryShare}
-          </Button>
-        )}
-      </div>
-
-      {/* PR celebration — prominent position right after hero status */}
-      {prRecords.length > 0 && (
-        <div className="mb-6">
-          <PrCelebrationBanner records={prRecords} />
-        </div>
-      )}
-
-      {/* Achievements — celebration moment, keep near PR */}
+      {/* Achievements — celebration moment, keep near result card */}
       {newAchievements.length > 0 && (
         <div className="mb-6">
-          <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-            {pl.summarySectionAchievements}
-          </h2>
+          <SectionHeader icon={Award} title={pl.summarySectionAchievements} />
           <AchievementSummaryList unlocks={newAchievements} />
         </div>
       )}
 
-      {/* Proactive coach insight */}
-      {coachInsight && (
-        <AiInsightCard
-          insight={coachInsight}
-          className="mb-6"
-          onDismiss={async () => {
-            const dismissed = { ...coachInsight, dismissedAt: new Date().toISOString() }
-            await db.aiInsights.put(dismissed)
-            void enqueueSync('ai_insights', 'update', dismissed)
-            setCoachInsight(null)
-            showToast(pl.coachPostWorkoutDismissed, 'info')
-          }}
-        />
-      )}
-
       {/* Cycle complete card with icon */}
       {!failed && progress?.status === 'test_pending' && (
-        <Card className="mb-6 border border-[var(--sr-brand-primary)]/40 bg-[var(--sr-brand-primary-muted)]">
+        <Card className="mb-6 border border-[var(--sr-brand-primary)]/40 bg-[var(--sr-brand-primary-muted)] p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)]/15 text-[var(--sr-brand-primary)]" aria-hidden>
               <Trophy size={20} strokeWidth={2.25} />
             </span>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-[var(--sr-text-primary)]">{pl.cycleComplete}</p>
-              <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.cycleCompleteHint}</p>
-              <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecCycleDone}</p>
+              <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.cycleCompleteHint}</p>
+              <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.summaryRecCycleDone}</p>
             </div>
           </div>
           <div className="mt-4 flex flex-col gap-2">
@@ -535,7 +481,7 @@ export default function SessionSummary() {
 
       {/* Rest recommendation — styled info card */}
       {!failed && progress && progress.status !== 'test_pending' && progress.nextWorkoutAfter && (
-        <div className="mb-6 flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3">
+        <div className="mb-6 flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-4">
           <CalendarClock size={18} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
           <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
             {pl.nextWorkoutIn(daysLeft)}
@@ -545,17 +491,17 @@ export default function SessionSummary() {
 
       {/* Failed info card with icon */}
       {failed && (
-        <Card className="mb-6 border border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]">
+        <Card className="mb-6 border border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)] p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-error)]/15 text-[var(--sr-error)]" aria-hidden>
               <AlertTriangle size={20} strokeWidth={2.25} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-[var(--sr-error)]">
+              <p className="sr-text-body-sm font-medium text-[var(--sr-error)]">
                 {pl.dayFailedRestart(progress?.cycleAttempt ?? 1)}
               </p>
-              <p className="mt-1.5 text-sm text-[var(--sr-text-secondary)]">{pl.summaryRecFail}</p>
-              <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">
+              <p className="mt-1.5 sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.summaryRecFail}</p>
+              <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
                 {pl.restPrimaryLabel(pl.restIn(daysLeft))}
               </p>
             </div>
@@ -565,9 +511,7 @@ export default function SessionSummary() {
 
       {/* Stats section */}
       <div className="mt-6">
-        <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-          {pl.summarySectionStats}
-        </h2>
+        <SectionHeader icon={BarChart3} title={pl.summarySectionStats} />
         <SessionCompare
           rows={rows}
           previousRows={previous?.setResults}
@@ -582,9 +526,7 @@ export default function SessionSummary() {
       {/* Notes section */}
       {current?.id && (
         <div className="mt-6">
-          <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-            {pl.summarySectionNotes}
-          </h2>
+          <SectionHeader icon={StickyNote} title={pl.summarySectionNotes} />
           <SessionNoteCard sessionId={current.id} />
         </div>
       )}
@@ -611,9 +553,9 @@ export default function SessionSummary() {
         />
       )}
 
-      {/* Secondary actions — at the bottom (primary CTA is at top) */}
+      {/* Secondary actions — at the bottom (primary CTA is in result card) */}
       {summaryActions.secondary.length > 0 && progress?.status !== 'test_pending' && (
-        <div className="mt-8 flex flex-col gap-2">
+        <div className="mt-8 flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] pt-6">
           {summaryActions.secondary.map((action) => (
             <Button
               key={action.label}

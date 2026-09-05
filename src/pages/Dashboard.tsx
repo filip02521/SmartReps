@@ -335,9 +335,13 @@ export default function Dashboard() {
 
       {loading && !home ? (
         <div className="space-y-4" aria-busy aria-label={pl.loading}>
+          {/* Status header skeleton */}
           <SkeletonCard className="min-h-[5rem]" />
+          {/* Activity metrics skeleton */}
           <SkeletonCard className="min-h-[7rem]" />
-          <SkeletonCard className="min-h-[18rem]" />
+          {/* Program cards skeleton */}
+          <SkeletonCard className="min-h-[14rem]" />
+          <SkeletonCard className="min-h-[14rem]" />
         </div>
       ) : home ? (
         <>

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, XCircle, Trophy, PencilLine, Flame, Dumbbell, CalendarClock, AlertCircle } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { CheckCircle2, Trophy, PencilLine, Flame, Dumbbell, CalendarClock, AlertCircle, BarChart3, StickyNote, Award } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -50,11 +49,11 @@ import { showToast } from '@/stores/toast-store'
 import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
 import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
-import { PrCelebrationBanner } from '@/components/progress/PrCelebrationBanner'
+import { WorkoutResultCard } from '@/components/workout/WorkoutResultCard'
 import { detectPersonalRecords, type PersonalRecord } from '@/lib/pr-detector'
 import { initCelebrationAudio } from '@/lib/celebration-feedback'
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
-import { AiInsightCard } from '@/components/brand/AiInsightCard'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
 import {
   checkRateLimit,
@@ -517,127 +516,70 @@ export default function CustomSessionSummary() {
       />
 
       {/* Hero status banner */}
-      <div
-        className={cn(
-          'mb-6 flex items-center gap-3 rounded-[var(--sr-radius-lg)] border p-4',
-          failed
-            ? 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]'
-            : 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
-        )}
-      >
-        <span
-          className={cn(
-            'flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]',
-            failed
-              ? 'bg-[var(--sr-error)]/15 text-[var(--sr-error)]'
-              : 'bg-[var(--sr-success)]/15 text-[var(--sr-success)]',
-          )}
-          aria-hidden
-        >
-          {failed ? <XCircle size={24} strokeWidth={2.25} /> : <CheckCircle2 size={24} strokeWidth={2.25} />}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold text-[var(--sr-text-primary)]">
-            {failed ? pl.summaryHeroFail : pl.summaryHeroSuccess}
-          </p>
-          <p className="mt-0.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
-            {planName ?? pl.dayLabel(session.dayNumber)}
-            {` · ${pl.attemptShort(session.cycleAttempt)}`}
-          </p>
-        </div>
-      </div>
+      {/* Unified workout result card — status + PR + AI + CTA in one cohesive unit */}
+      <WorkoutResultCard
+        className="mb-6"
+        failed={failed}
+        title={failed ? pl.summaryHeroFail : pl.summaryHeroSuccess}
+        subtitle={`${planName ?? pl.dayLabel(session.dayNumber)} · ${pl.attemptShort(session.cycleAttempt)}`}
+        prRecords={prRecords}
+        coachInsight={coachInsight}
+        onDismissInsight={async () => {
+          if (!coachInsight) return
+          const dismissed = { ...coachInsight, dismissedAt: new Date().toISOString() }
+          await db.aiInsights.put(dismissed)
+          void enqueueSync('ai_insights', 'update', dismissed)
+          setCoachInsight(null)
+          showToast(pl.coachPostWorkoutDismissed, 'info')
+        }}
+        primaryLabel={failed && resolvedPlanId ? pl.customFailRetryDay : resolvedPlanId ? pl.customSummaryBackToPlan : pl.backHome}
+        onPrimaryAction={() => {
+          if (failed && resolvedPlanId) navigate(`/workout/custom/${resolvedPlanId}`)
+          else if (resolvedPlanId) navigate(`/plans?tab=mine`)
+          else navigate('/')
+        }}
+        shareLabel={pl.summaryShare}
+        shareDisabled={sharing}
+        onShare={async () => {
+          setSharing(true)
+          try {
+            await shareCustomSessionCard({
+              planName: planName ?? pl.dayLabel(session.dayNumber),
+              dayNumber: session.dayNumber,
+              exerciseCount,
+              totalSets,
+              passed: session.passed !== false,
+              bestSetReps,
+              volumeKg: volumeKg > 0 ? Math.round(volumeKg) : undefined,
+            })
+            trackShareCard('custom', true)
+            showToast(pl.summaryShareDone, 'success')
+          } catch {
+            showToast(pl.summaryShareFailed, 'error')
+          } finally {
+            setSharing(false)
+          }
+        }}
+      />
 
-      {/* Primary CTA — right under hero, no need to scroll to bottom */}
-      <div className="mb-6 flex flex-col gap-2">
-        {failed && resolvedPlanId ? (
-          <Button size="touch" fullWidth onClick={() => navigate(`/workout/custom/${resolvedPlanId}`)}>
-            {pl.customFailRetryDay}
-          </Button>
-        ) : resolvedPlanId ? (
-          <Button size="touch" fullWidth onClick={() => navigate(`/plans?tab=mine`)}>
-            {pl.customSummaryBackToPlan}
-          </Button>
-        ) : (
-          <Button size="touch" fullWidth onClick={() => navigate('/')}>
-            {pl.backHome}
-          </Button>
-        )}
-        {!failed && planName && (
-          <Button
-            variant="secondary"
-            size="touch"
-            fullWidth
-            disabled={sharing}
-            onClick={() => {
-              void (async () => {
-                setSharing(true)
-                try {
-                  await shareCustomSessionCard({
-                    planName,
-                    dayNumber: session.dayNumber,
-                    exerciseCount,
-                    totalSets,
-                    passed: session.passed !== false,
-                    bestSetReps,
-                    volumeKg: volumeKg > 0 ? Math.round(volumeKg) : undefined,
-                  })
-                  trackShareCard('custom', true)
-                  showToast(pl.summaryShareDone, 'success')
-                } catch {
-                  showToast(pl.summaryShareFailed, 'error')
-                } finally {
-                  setSharing(false)
-                }
-              })()
-            }}
-          >
-            {pl.summaryShare}
-          </Button>
-        )}
-      </div>
-
-      {/* PR celebration — prominent position right after hero status */}
-      {prRecords.length > 0 && (
-        <div className="mb-6">
-          <PrCelebrationBanner records={prRecords} />
-        </div>
-      )}
-
-      {/* Achievements — celebration moment, keep near PR */}
+      {/* Achievements — celebration moment, keep near result card */}
       {newAchievements.length > 0 && (
         <div className="mb-6">
-          <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-            {pl.summarySectionAchievements}
-          </h2>
+          <SectionHeader icon={Award} title={pl.summarySectionAchievements} />
           <AchievementSummaryList unlocks={newAchievements} />
         </div>
       )}
 
-      {/* Proactive coach insight */}
-      {coachInsight && (
-        <AiInsightCard
-          insight={coachInsight}
-          className="mb-6"
-          onDismiss={async () => {
-            const dismissed = { ...coachInsight, dismissedAt: new Date().toISOString() }
-            await db.aiInsights.put(dismissed)
-            void enqueueSync('ai_insights', 'update', dismissed)
-            setCoachInsight(null)
-            showToast(pl.coachPostWorkoutDismissed, 'info')
-          }}
-        />
-      )}
-
       {/* Cycle complete — prominent celebration card */}
       {cycleComplete && (
-        <Card className="mb-6 border border-[var(--sr-brand-primary)]/40 bg-[var(--sr-brand-primary-muted)]">
+        <Card className="mb-6 border border-[var(--sr-brand-primary)]/40 bg-[var(--sr-brand-primary-muted)] p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)]/15 text-[var(--sr-brand-primary)]" aria-hidden>
               <Trophy size={20} strokeWidth={2.25} />
             </span>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-[var(--sr-text-primary)]">{pl.cycleComplete}</p>
-              <p className="mt-1 text-sm text-[var(--sr-text-secondary)]">{pl.customCycleCompleteHint}</p>
+              <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.customCycleCompleteHint}</p>
             </div>
           </div>
           {resolvedPlanId && progress?.status === 'cycle_complete' && (
@@ -651,7 +593,7 @@ export default function CustomSessionSummary() {
       )}
 
       {!failed && progress?.nextWorkoutAfter && progress.status === 'rest' && (
-        <div className="mb-6 flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3">
+        <div className="mb-6 flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-4">
           <CalendarClock size={18} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
           <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
             {pl.nextWorkoutIn(daysLeft)}
@@ -660,7 +602,7 @@ export default function CustomSessionSummary() {
       )}
 
       {belowTarget && (
-        <div className="mb-6 flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/30 bg-[var(--sr-warning-muted)] px-4 py-3">
+        <div className="mb-6 flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/30 bg-[var(--sr-warning-muted)] p-4">
           <AlertCircle size={18} className="shrink-0 text-[var(--sr-warning)]" aria-hidden />
           <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
             {pl.customSummaryBelowTarget}
@@ -669,13 +611,13 @@ export default function CustomSessionSummary() {
       )}
 
       {offerPlanUpdate && planChanges.length > 0 && (
-        <Card className="mt-4 border border-[var(--sr-border-subtle)] p-4">
+        <Card className="mb-6 border border-[var(--sr-border-subtle)] p-5">
           <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)]" aria-hidden>
-              <PencilLine size={18} strokeWidth={2.25} />
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)]" aria-hidden>
+              <PencilLine size={20} strokeWidth={2.25} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-[var(--sr-text-primary)]">
+              <p className="font-semibold text-[var(--sr-text-primary)]">
                 {pl.customSummaryUpdatePlanTitle}
               </p>
               <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
@@ -816,7 +758,7 @@ export default function CustomSessionSummary() {
       )}
 
       {planUpdateDone && (
-        <div className="mt-3 flex items-center gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)] px-4 py-3">
+        <div className="mb-6 flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)] p-4">
           <CheckCircle2 size={18} className="shrink-0 text-[var(--sr-success)]" aria-hidden />
           <p className="sr-text-body-sm text-[var(--sr-text-primary)]">
             {pl.customSummaryUpdatePlanDone}
@@ -832,9 +774,7 @@ export default function CustomSessionSummary() {
       )}
 
       <div className="mt-6">
-        <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-          {pl.summarySectionStats}
-        </h2>
+        <SectionHeader icon={BarChart3} title={pl.summarySectionStats} />
         <CustomSessionRecap
           current={session}
           previous={previous}
@@ -846,9 +786,7 @@ export default function CustomSessionSummary() {
 
       {session?.id && (
         <div className="mt-6">
-          <h2 className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-            {pl.summarySectionNotes}
-          </h2>
+          <SectionHeader icon={StickyNote} title={pl.summarySectionNotes} />
           <SessionNoteCard sessionId={session.id} />
         </div>
       )}
@@ -883,8 +821,8 @@ export default function CustomSessionSummary() {
         />
       )}
 
-      {/* Secondary actions — at the bottom (primary CTA is at top) */}
-      <div className="mt-8 flex flex-col gap-2">
+      {/* Secondary actions — at the bottom (primary CTA is in result card) */}
+      <div className="mt-8 flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] pt-6">
         {resolvedPlanId && (
           <Button variant="ghost" fullWidth onClick={() => navigate('/')}>
             {pl.backHome}
