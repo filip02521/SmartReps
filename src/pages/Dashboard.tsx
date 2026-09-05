@@ -24,7 +24,7 @@ import { db, type LocalAiInsight } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
 import { generateWeeklyReport } from '@/lib/ai/proactive-coach'
 import { listExercises } from '@/lib/custom-plan-service'
-import { getWeekKey } from '@/lib/stats-engine'
+import { getWeekKey, startOfLocalWeek } from '@/lib/stats-engine'
 import {
   loadHomeDashboard,
   localDayKey,
@@ -131,9 +131,9 @@ export default function Dashboard() {
     setSearchParams({}, { replace: true })
   }, [hydrated, loading, home, searchParams, setSearchParams])
 
-  // Proactive coach: weekly report — generate on Sunday when user has completed workouts
+  // Proactive coach: weekly report — generate on demand or on Sunday
   useEffect(() => {
-    if (!hydrated || !hasCompletedFirstWorkout) return
+    if (!hydrated) return
     let cancelled = false
     const controller = new AbortController()
     void (async () => {
@@ -149,10 +149,17 @@ export default function Dashboard() {
         if (!cancelled && !anyExisting.dismissedAt) setWeeklyReport(anyExisting)
         return
       }
-      // Only generate on Sundays (day 0) or when explicitly requested via search param
+      // Generate on Sundays, on explicit request, or when user has completed workouts
       const isSunday = new Date().getDay() === 0
       const hasReportParam = searchParams.get('weekly_report') === '1'
-      if (!isSunday && !hasReportParam) return
+      // Check if user has any completed sessions this week
+      const weekStart = startOfLocalWeek(new Date())
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekStart.getDate() + 7)
+      const weekSessions = await db.workoutSessions
+        .filter((s) => s.status === 'completed' && new Date(s.startedAt) >= weekStart && new Date(s.startedAt) < weekEnd)
+        .count()
+      if (!isSunday && !hasReportParam && weekSessions === 0) return
 
       const settings = useAppStore.getState().settings
       const aiConfig = settings.aiProactiveCoach && settings.aiApiKey
