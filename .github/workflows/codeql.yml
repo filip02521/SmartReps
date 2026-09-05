@@ -1,0 +1,51 @@
+# GitHub Code Scanning — CodeQL
+# https://docs.github.com/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/setting-up-code-scanning-for-a-repository
+#
+# Skanuje kod JS/TS pod kątem luk bezpieczeństwa (XSS, SQL injection,
+# hardcoded credentials, prototype pollution, path traversal itp.).
+# Wyniki pojawiają się w zakładce Security → Code scanning alerts.
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Cotygodniowy skan niedziela 03:00 CET (02:00 UTC)
+    - cron: "0 2 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze (js-ts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          # Pełny zestaw reguł security + best-practice (poza default security).
+          queries: security-extended,security-and-quality
+
+      - uses: github/codeql-action/autobuild@v4
+        # CodeQL dla JS/TS nie wymaga builda — autobuild wystarczy.
+        # Jeśliby zawiódł, można zastąpić własnym `npm ci && npm run build`.
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
