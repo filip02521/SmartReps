@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, XCircle, Trophy, AlertTriangle, CalendarClock } from 'lucide-react'
+import { CheckCircle2, XCircle, Trophy, AlertTriangle, CalendarClock, Flame, Dumbbell } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SessionCompare } from '@/components/workout/SessionCompare'
 import { ErrorBanner, EmptyState, PageLoader } from '@/components/ux/Feedback'
+import { WorkoutCelebrationOverlay } from '@/components/ux/WorkoutCelebrationOverlay'
 import { LogoMark } from '@/components/brand/Logo'
 import { NoticeCard, LogIn } from '@/components/ux/NoticeCard'
 import { getProgramProgress } from '@/lib/program-service'
@@ -82,6 +83,7 @@ export default function SessionSummary() {
     import('@/lib/achievements/types').LocalAchievementUnlock[]
   >([])
   const [prRecords, setPrRecords] = useState<PersonalRecord[]>([])
+  const [showCelebration, setShowCelebration] = useState(false)
   const achievementQueue = useAchievementUiStore((s) => s.queue)
   const clearQueue = useAchievementUiStore((s) => s.clearQueue)
   const setSummaryMode = useAchievementUiStore((s) => s.setSummaryMode)
@@ -137,6 +139,10 @@ export default function SessionSummary() {
           setPrRecords(records)
         } catch {
           setPrRecords([])
+        }
+        // Trigger celebration overlay on successful completion
+        if (!failed) {
+          setShowCelebration(true)
         }
         setInsights(
           computeBuiltinSessionInsights({
@@ -334,6 +340,18 @@ export default function SessionSummary() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
+      {/* Workout celebration overlay — full-screen reward on completion */}
+      <WorkoutCelebrationOverlay
+        active={showCelebration}
+        onDismiss={() => setShowCelebration(false)}
+        hasPr={prRecords.length > 0}
+        hasNewAchievement={newAchievements.length > 0}
+        stats={[
+          { icon: Flame, value: totalReps, label: pl.celebrationStatReps, animate: true },
+          { icon: Dumbbell, value: rows.length, label: pl.celebrationStatSets, animate: true },
+        ]}
+      />
+
       <PageHeader
         title={failed ? pl.dayFailed : pl.dayComplete(current?.dayNumber ?? 1)}
         subtitle={`${program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram}${

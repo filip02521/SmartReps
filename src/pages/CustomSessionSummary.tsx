@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, XCircle, Trophy, PencilLine } from 'lucide-react'
+import { CheckCircle2, XCircle, Trophy, PencilLine, Flame, Dumbbell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState, PageLoader } from '@/components/ux/Feedback'
+import { WorkoutCelebrationOverlay } from '@/components/ux/WorkoutCelebrationOverlay'
 import { LogoMark } from '@/components/brand/Logo'
 import {
   CustomProgressionDiffList,
@@ -104,6 +105,7 @@ export default function CustomSessionSummary() {
     import('@/lib/achievements/types').LocalAchievementUnlock[]
   >([])
   const [prRecords, setPrRecords] = useState<PersonalRecord[]>([])
+  const [showCelebration, setShowCelebration] = useState(false)
   const achievementQueue = useAchievementUiStore((s) => s.queue)
   const clearQueue = useAchievementUiStore((s) => s.clearQueue)
   const setSummaryMode = useAchievementUiStore((s) => s.setSummaryMode)
@@ -165,6 +167,10 @@ export default function CustomSessionSummary() {
           setPrRecords(records)
         } catch {
           setPrRecords([])
+        }
+        // Trigger celebration overlay on successful completion
+        if (s.passed !== false) {
+          setShowCelebration(true)
         }
         const resolvedPlanId = s.customPlanId ?? planId
         if (resolvedPlanId) {
@@ -447,6 +453,18 @@ export default function CustomSessionSummary() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
+      {/* Workout celebration overlay — full-screen reward on completion */}
+      <WorkoutCelebrationOverlay
+        active={showCelebration}
+        onDismiss={() => setShowCelebration(false)}
+        hasPr={prRecords.length > 0}
+        hasNewAchievement={newAchievements.length > 0}
+        stats={[
+          { icon: Dumbbell, value: totalSets, label: pl.celebrationStatSets, animate: true },
+          { icon: Flame, value: exerciseCount, label: pl.celebrationStatExercises, animate: true },
+        ]}
+      />
+
       <PageHeader
         title={failed ? pl.customDayFailed : pl.customDayPassed}
         subtitle={

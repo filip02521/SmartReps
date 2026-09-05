@@ -60,6 +60,15 @@ export function isGeminiEndpoint(baseURL?: string): boolean {
 }
 
 /**
+ * Check if the model is a Gemini 3.x model.
+ * Gemini 3.x deprecates `temperature` in favor of `thinking_level` (mapped from `reasoning_effort`).
+ * Sending `temperature` with Gemini 3.x can cause HTTP 508 errors.
+ */
+export function isGemini3Model(model: string): boolean {
+  return /gemini-3/i.test(model)
+}
+
+/**
  * Resolve reasoning effort for a given model and user preference.
  * - 'auto': disable reasoning when possible (fastest, cheapest)
  * - 'low'/'medium'/'high': explicitly set reasoning level (works for all Gemini models that support reasoning)
@@ -117,7 +126,9 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
       body: JSON.stringify({
         model: opts.model,
         messages: opts.messages,
-        temperature: opts.temperature ?? 0.7,
+        // Gemini 3.x deprecates temperature in favor of thinking_level (reasoning_effort).
+        // Sending temperature with Gemini 3.x can cause HTTP 508 errors.
+        ...(!isGemini3Model(opts.model) ? { temperature: opts.temperature ?? 0.7 } : {}),
         ...(opts.maxTokens ? { max_tokens: opts.maxTokens } : {}),
         ...(opts.jsonMode ? { response_format: { type: 'json_object' } } : {}),
         ...(shouldSendReasoning ? { reasoning_effort: opts.reasoningEffort } : {}),
@@ -158,6 +169,13 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
     if (resp.status === 400) {
       throw new AiApiError(
         pl.aiErrorBadRequest(detail || opts.model),
+        resp.status,
+        'server',
+      )
+    }
+    if (resp.status === 508) {
+      throw new AiApiError(
+        pl.aiErrorLoopDetected,
         resp.status,
         'server',
       )

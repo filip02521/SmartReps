@@ -526,6 +526,21 @@ const plDict = {
   prCelebrationWeightUnit: 'kg',
   prCelebrationDurationUnit: 's',
   prCelebrationDismiss: 'OK',
+
+  // Workout celebration overlay — full-screen reward on session summary
+  celebrationHeadlineDefault: 'Trening ukończony!',
+  celebrationHeadlinePr: 'Nowy rekord!',
+  celebrationHeadlineAchievement: 'Osiągnięcie odblokowane!',
+  celebrationSubtitle: 'Świetna robota — tak trzymaj!',
+  celebrationPrBadge: 'Nowy rekord osobisty',
+  celebrationAchievementBadge: 'Nowe osiągnięcie',
+  celebrationTapToContinue: 'Dotknij, aby kontynuować',
+  celebrationStatReps: 'powtórzenia',
+  celebrationStatSets: 'serie',
+  celebrationStatExercises: 'ćwiczenia',
+  celebrationStatDuration: 'minuty',
+  celebrationStatVolume: 'objętość',
+
   summaryHeroSuccess: 'Trening zaliczony',
   summaryHeroFail: 'Spróbuj ponownie',
   cycleComplete: 'Cykl ukończony!',
@@ -2115,6 +2130,7 @@ const plDict = {
     `Model „${model}" nie istnieje lub jest niedostępny. Sprawdź nazwę modelu w ustawieniach AI.`,
   aiErrorBadRequest: (detail: string) =>
     `Nieprawidłowe zapytanie do API. ${detail}`.trim(),
+  aiErrorLoopDetected: 'Model AI wpadł w pętlę. Spróbuj ponownie lub użyj innego modelu.',
   aiErrorGenericStatus: (status: number, detail: string) =>
     `Błąd API (${status}). ${detail}`.trim(),
   aiErrorInvalidResponse: 'Nieprawidłowa odpowiedź API.',

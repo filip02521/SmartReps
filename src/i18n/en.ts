@@ -512,6 +512,21 @@ export const en: Translation = {
   prCelebrationWeightUnit: 'kg',
   prCelebrationDurationUnit: 's',
   prCelebrationDismiss: 'OK',
+
+  // Workout celebration overlay — full-screen reward on session summary
+  celebrationHeadlineDefault: 'Workout complete!',
+  celebrationHeadlinePr: 'New record!',
+  celebrationHeadlineAchievement: 'Achievement unlocked!',
+  celebrationSubtitle: 'Great job — keep it up!',
+  celebrationPrBadge: 'New personal record',
+  celebrationAchievementBadge: 'New achievement',
+  celebrationTapToContinue: 'Tap to continue',
+  celebrationStatReps: 'reps',
+  celebrationStatSets: 'sets',
+  celebrationStatExercises: 'exercises',
+  celebrationStatDuration: 'minutes',
+  celebrationStatVolume: 'volume',
+
   summaryHeroSuccess: 'Workout passed',
   summaryHeroFail: 'Try again',
   cycleComplete: 'Cycle complete!',
@@ -2089,6 +2104,7 @@ export const en: Translation = {
     `Model "${model}" does not exist or is unavailable. Check the model name in AI settings.`,
   aiErrorBadRequest: (detail: string) =>
     `Invalid API request. ${detail}`.trim(),
+  aiErrorLoopDetected: 'AI model entered a loop. Try again or use a different model.',
   aiErrorGenericStatus: (status: number, detail: string) =>
     `API error (${status}). ${detail}`.trim(),
   aiErrorInvalidResponse: 'Invalid API response.',
