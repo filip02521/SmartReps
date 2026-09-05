@@ -142,6 +142,10 @@
         letter-spacing: -0.02em;
         color: #fafafa;
       }
+      html[data-theme='light'] #sr-boot-splash .wordmark { color: #18181b; }
+      @media (prefers-color-scheme: light) {
+        html:not([data-theme]) #sr-boot-splash .wordmark { color: #18181b; }
+      }
       #sr-boot-splash .wordmark .accent {
         background: linear-gradient(135deg, #6366f1, #22d3ee);
         -webkit-background-clip: text; background-clip: text;
