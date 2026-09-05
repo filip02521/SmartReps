@@ -160,6 +160,9 @@ export function SessionCompare({
                       {badge && setInsight?.kind === 'improved' && (
                         <SummaryInsightBadge tone="progress">{badge}</SummaryInsightBadge>
                       )}
+                      {badge && setInsight?.kind === 'down' && (
+                        <SummaryInsightBadge tone="down">{badge}</SummaryInsightBadge>
+                      )}
                     </span>
                   </td>
                   <td className="py-3 tabular-nums text-[var(--sr-text-muted)]">

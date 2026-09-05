@@ -139,7 +139,7 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
         />
       </div>
 
-      {/* Professional metrics row — exercise count, total sets, volume */}
+      {/* Professional metrics row — exercise count, total sets, volume, avg volume */}
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         <NestedStat
           size="md"
@@ -159,18 +159,15 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
             hint={weightUnitLabel(weightUnit)}
           />
         ) : null}
-      </div>
-
-      {hasWeights && avgVolumePerSet > 0 && (
-        <div className="mb-4 grid grid-cols-2 gap-2">
+        {hasWeights && avgVolumePerSet > 0 ? (
           <NestedStat
             size="md"
             overline={pl.summaryAvgVolume}
             value={kgToDisplay(avgVolumePerSet, weightUnit)}
             hint={weightUnitLabel(weightUnit)}
           />
-        </div>
-      )}
+        ) : null}
+      </div>
 
       <h3 className="mb-2 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
         {pl.summarySectionSets}
