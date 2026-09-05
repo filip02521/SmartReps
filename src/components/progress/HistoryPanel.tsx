@@ -1,4 +1,4 @@
-import { ChevronRight, Dumbbell, Trash2, User } from 'lucide-react'
+import { ChevronRight, Dumbbell, Trash2, User, History } from 'lucide-react'
 import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { useEffect, useMemo, useState } from 'react'
@@ -174,7 +174,7 @@ export function HistoryPanel({
 
   return (
     <>
-      <ProgressSection first>
+      <ProgressSection first icon={History} title={pl.progressHistorySectionTitle} hint={pl.progressTabHistoryHint}>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"

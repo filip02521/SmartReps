@@ -322,12 +322,12 @@ export default function ProfilePage() {
       />
 
       {/* Stats summary */}
-      <div className="mt-4">
+      <div className="mt-6">
         <ProfileStats />
       </div>
 
       {/* AI Coach — promoted from settings to profile */}
-      <div className="mt-4">
+      <div className="mt-6">
         <AiCoachCard
           connected={!!(settings.aiApiKey ?? '').trim()}
           onOpenSettings={() => setShowSettings(true)}
@@ -344,7 +344,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Programs */}
-      <PageSection title={pl.programs} className="mt-8">
+      <PageSection title={pl.programs} className="mt-6">
         {showProgramsLoading ? (
           <div className="flex flex-col gap-4" aria-busy aria-label={pl.profileProgramsLoading}>
             <SkeletonCard className="min-h-[7rem]" />
@@ -468,7 +468,7 @@ export default function ProfilePage() {
       </PageSection>
 
       {/* About — redesigned with app identity, legal links, disclaimer */}
-      <PageSection title={pl.profileAboutTitle} className="mt-8">
+      <PageSection title={pl.profileAboutTitle} className="mt-6">
         <ProfileAbout />
       </PageSection>
 

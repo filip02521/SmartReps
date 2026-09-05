@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
 import { LogoFull, LogoMark } from '@/components/brand/Logo'
 import { Button } from '@/components/ui/Button'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 import { PageLoader, SkeletonCard, EmptyState, ErrorBanner } from '@/components/ux/Feedback'
 import {
   HomeStatusHeader,
@@ -18,6 +19,7 @@ import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { pl } from '@/i18n/pl'
 import { showToast } from '@/stores/toast-store'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
+import { Dumbbell } from 'lucide-react'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { beginLevelChange } from '@/lib/setup-flow'
@@ -355,15 +357,15 @@ export default function Dashboard() {
             <section
               aria-busy
               aria-live="polite"
-              className="sr-coach-msg-in mb-6 overflow-hidden rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]"
+              className="sr-coach-msg-in mb-6 overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] shadow-[var(--sr-shadow-card)]"
             >
-              <div className="flex items-center gap-2.5 border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)] px-4 py-3">
+              <div className="flex items-center gap-3 border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)] p-4">
                 <AiCoachMark size="sm" />
                 <h3 className="text-sm font-bold leading-tight text-[var(--sr-text-primary)]">
                   {pl.coachWeeklyReportTitle}
                 </h3>
               </div>
-              <div className="px-4 py-3">
+              <div className="p-4">
                 <p className="animate-pulse text-sm text-[var(--sr-text-muted)]">
                   {pl.coachWeeklyReportGenerating}
                 </p>
@@ -422,10 +424,8 @@ export default function Dashboard() {
             />
           ) : (
             <section aria-label={pl.homeStartTraining} className="mt-6">
-              <p className="sr-text-overline text-[var(--sr-text-muted)]">
-                {pl.homeStartTraining}
-              </p>
-              <div className="mt-3 flex flex-col gap-3">
+              <SectionHeader icon={Dumbbell} title={pl.homeStartTraining} />
+              <div className="flex flex-col gap-3">
                 <CustomPlansHomeSection embedded />
                 {home.cards.map((card) => (
                   <ProgramHomeCard

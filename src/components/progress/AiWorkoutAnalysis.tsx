@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { FeedbackBanner } from '@/components/ux/Feedback'
-import { PageSection } from '@/components/ui/PageSection'
+import { ProgressSection } from '@/components/progress/ProgressSection'
 import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { listExercises } from '@/lib/custom-plan-service'
@@ -171,7 +172,7 @@ export function AiWorkoutAnalysis() {
   }
 
   return (
-    <PageSection title={pl.aiAnalysisTitle} hint={pl.aiAnalysisHint}>
+    <ProgressSection first icon={Sparkles} title={pl.aiAnalysisTitle} hint={pl.aiAnalysisHint}>
       {/* Coach header — always visible, establishes persona */}
       <AiCoachHeader
         subtitle={pl.aiCoachTagline}
@@ -360,6 +361,6 @@ export function AiWorkoutAnalysis() {
           </Button>
         </div>
       )}
-    </PageSection>
+    </ProgressSection>
   )
 }

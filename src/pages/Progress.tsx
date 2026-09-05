@@ -294,8 +294,17 @@ export default function ProgressPage() {
     return (
       <div className={TAB_PAGE_SHELL}>
         <PageHeader title={pl.navProgress} />
-        <SkeletonCard className="mt-4 min-h-[8rem]" />
-        <SkeletonCard className="mt-4 min-h-[12rem]" />
+        <ProgressChromeNav tab={tab} onTabChange={selectTab} />
+        <div className="space-y-6" aria-busy aria-label={pl.loading}>
+          {/* Summary skeleton */}
+          <SkeletonCard className="min-h-[10rem]" />
+          {/* Streak heatmap skeleton */}
+          <SkeletonCard className="min-h-[8rem]" />
+          {/* Calendar skeleton */}
+          <SkeletonCard className="min-h-[12rem]" />
+          {/* Records skeleton */}
+          <SkeletonCard className="min-h-[8rem]" />
+        </div>
       </div>
     )
   }
@@ -350,7 +359,7 @@ export default function ProgressPage() {
               aria-label={pl.aiCoachName}
               className={cn(
                 FOCUS_RING,
-                'mt-4 flex min-h-11 w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-brand-primary)]/30 p-3 text-left transition-colors hover:bg-[var(--sr-bg-surface)]',
+                'sr-coach-msg-in mt-6 flex min-h-11 w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-brand-primary)]/30 p-4 text-left shadow-[var(--sr-shadow-card)] transition-colors hover:bg-[var(--sr-bg-surface)]',
               )}
               style={{
                 backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 8%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 60%)`,

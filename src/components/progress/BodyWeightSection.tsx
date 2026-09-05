@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from 'recharts'
 import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Scale, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { PageSection } from '@/components/ui/PageSection'
+import { ProgressSection } from '@/components/progress/ProgressSection'
 import { Sheet } from '@/components/ui/Sheet'
 import { SkeletonCard } from '@/components/ux/Feedback'
 import { AccessibleChart } from '@/components/ui/AccessibleChart'
@@ -94,14 +94,15 @@ export function BodyWeightSection() {
 
   if (loading) {
     return (
-      <PageSection title={pl.bodyWeightTitle}>
+      <ProgressSection icon={Scale} title={pl.bodyWeightTitle}>
         <SkeletonCard className="min-h-[6rem]" />
-      </PageSection>
+      </ProgressSection>
     )
   }
 
   return (
-    <PageSection
+    <ProgressSection
+      icon={Scale}
       title={pl.bodyWeightTitle}
       hint={
         entries.length === 1
@@ -237,10 +238,18 @@ export function BodyWeightSection() {
       {/* Body weight × performance correlation */}
       {correlation && !correlation.insufficientData && correlation.points.length >= 3 && (
         <div className="mt-6">
-          <p className="sr-text-overline text-[var(--sr-text-muted)]">
-            {pl.bodyWeightCorrelationTitle}
-          </p>
-          <p className="mt-0.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
+          <div className="flex items-center gap-2">
+            <TrendingUp
+              size={16}
+              className="text-[var(--sr-text-muted)]"
+              strokeWidth={2.25}
+              aria-hidden
+            />
+            <p className="sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+              {pl.bodyWeightCorrelationTitle}
+            </p>
+          </div>
+          <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
             {pl.bodyWeightCorrelationHint}
           </p>
           <p className="mt-2 sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
@@ -324,6 +333,6 @@ export function BodyWeightSection() {
           </AccessibleChart>
         </div>
       )}
-    </PageSection>
+    </ProgressSection>
   )
 }

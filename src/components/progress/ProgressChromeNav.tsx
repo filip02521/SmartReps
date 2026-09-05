@@ -17,7 +17,7 @@ export function ProgressChromeNav({
   ]
 
   return (
-    <nav className="mb-4" aria-label={pl.navProgress}>
+    <nav className="mb-6" aria-label={pl.navProgress}>
       <SegmentedControl
         stretch
         aria-label={pl.progressSectionNav}

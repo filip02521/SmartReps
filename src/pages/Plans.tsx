@@ -278,7 +278,7 @@ export default function PlansPage() {
       <PageHeader title={pl.navPlans} subtitle={plansSubtitle(tab)} />
 
       <SegmentedControl
-        className="mt-2"
+        className="mb-6"
         size="compact"
         stretch
         aria-label={pl.plansTabAriaLabel}
@@ -296,7 +296,7 @@ export default function PlansPage() {
       />
 
       {tab === 'community' && (
-        <div className="mt-4">
+        <div>
           {communityMine ? (
             <MyCommunityPublicationsPanel />
           ) : (
@@ -310,7 +310,6 @@ export default function PlansPage() {
         <PageSection
           title={pl.myPlansTitle}
           hint={customPlans.length > 0 && !customLoading ? pl.myPlansHint : undefined}
-          className="mt-4"
         >
           {customLoadError && (
             <ErrorBanner message={customLoadError} onRetry={() => void reloadCustom()} />
@@ -326,7 +325,7 @@ export default function PlansPage() {
               aria-label={pl.aiCoachName}
               className={cn(
                 FOCUS_RING,
-                'flex min-h-11 w-full items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-bg-elevated)] p-3 text-left transition-colors hover:bg-[var(--sr-bg-surface)]',
+                'flex min-h-11 w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-bg-elevated)] p-4 text-left shadow-[var(--sr-shadow-card)] transition-colors hover:bg-[var(--sr-bg-surface)]',
               )}
               style={{
                 backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 8%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 60%)`,
@@ -350,7 +349,7 @@ export default function PlansPage() {
               fullWidth
               onClick={() => importInputRef.current?.click()}
             >
-              <Upload size={16} aria-hidden />
+              <Download size={16} aria-hidden />
               {pl.planImportJson}
             </Button>
             <input
@@ -534,7 +533,7 @@ export default function PlansPage() {
                 setTab('library')
                 writeTabParam('library')
               }}
-              className="flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-4 text-left transition-colors hover:border-[var(--sr-border-strong)]"
+              className="flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-4 text-left shadow-[var(--sr-shadow-card)] transition-colors hover:border-[var(--sr-border-strong)]"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)]" aria-hidden>
                 <Dumbbell size={20} strokeWidth={2.25} />
@@ -557,7 +556,6 @@ export default function PlansPage() {
       {tab === 'library' && (
         <PageSection
           title={pl.plansTabLibrary}
-          className="mt-4"
         >
           <ExerciseLibraryPanel mode="manage" onExercisesChange={() => void reloadCustom()} />
         </PageSection>
@@ -568,7 +566,7 @@ export default function PlansPage() {
           <EmptyState icon={<LogoMark size={48} />} title={pl.noPlans} />
         ) : (
           <>
-            <PageSection title={pl.pushupsProgram} hint={pl.plansProgramHint} className="mt-4">
+            <PageSection title={pl.pushupsProgram} hint={pl.plansProgramHint}>
               <CycleList
                 program="pushups"
                 cycles={pushups}
@@ -656,7 +654,7 @@ export default function PlansPage() {
                 setMorePlan(null)
               }}
             >
-              <Download size={16} aria-hidden />
+              <Upload size={16} aria-hidden />
               {pl.planExportJson}
             </Button>
             {morePlan.status === 'active' ? (

@@ -1,4 +1,5 @@
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { BarChart3, Calendar, Flame, Dumbbell, Trophy, TrendingUp, Activity } from 'lucide-react'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
 import { ActivityCalendar } from '@/components/progress/ActivityCalendar'
@@ -118,7 +119,7 @@ export function OverviewPanel({
 
       {/* Podsumowanie + metryki */}
       {showStatsSection && (
-        <ProgressSection first title={pl.progressSummaryTitle}>
+        <ProgressSection first icon={BarChart3} title={pl.progressSummaryTitle}>
           <div className="mb-3">
             <SegmentedControl
               aria-label={pl.progressRangeLabel}
@@ -190,7 +191,7 @@ export function OverviewPanel({
 
       {/* Empty state gdy brak danych */}
       {showEmptyState && (
-        <ProgressSection first title={pl.progressEmptyTitle}>
+        <ProgressSection first icon={BarChart3} title={pl.progressEmptyTitle}>
           <EmptyState
             icon={<LogoMark size={48} />}
             title={pl.firstWorkout}
@@ -207,6 +208,7 @@ export function OverviewPanel({
       {showCustomSection && customOverviewStats && (
         <ProgressSection
           first={!showStatsSection && !showEmptyState}
+          icon={Dumbbell}
           title={pl.progressCustomStatsTitle}
         >
           <MetricStrip
@@ -348,21 +350,21 @@ export function OverviewPanel({
 
       {/* Seria treningowa — streak heatmap */}
       {allSessions.length > 0 && (
-        <ProgressSection title={pl.streakHeatmapTitle} hint={pl.streakHeatmapHint}>
+        <ProgressSection icon={Flame} title={pl.streakHeatmapTitle} hint={pl.streakHeatmapHint}>
           <StreakHeatmap sessions={allSessions} showHeader={false} />
         </ProgressSection>
       )}
 
       {/* Balans mięśniowy — heatmapa */}
       {allSessions.length > 0 && (
-        <ProgressSection title={pl.muscleBalanceTitle} hint={pl.muscleBalanceHint}>
+        <ProgressSection icon={Activity} title={pl.muscleBalanceTitle} hint={pl.muscleBalanceHint}>
           <MuscleBalanceHeatmap sessions={allSessions} />
         </ProgressSection>
       )}
 
       {/* Kalendarz aktywności */}
       {allSessions.length > 0 && (
-        <ProgressSection first={calendarFirst} title={pl.calendarTitle} hint={pl.calendarHint}>
+        <ProgressSection first={calendarFirst} icon={Calendar} title={pl.calendarTitle} hint={pl.calendarHint}>
           <ActivityCalendar sessions={allSessions} customPlanNames={customPlanNames} navigate={navigate} />
         </ProgressSection>
       )}
@@ -374,11 +376,12 @@ export function OverviewPanel({
         customPrs={customPrs}
         onOpenExercise={onOpenExercise}
         first={!showStatsSection && !showEmptyState && allSessions.length === 0}
+        icon={Trophy}
       />
 
       {/* Objętość i częstotliwość */}
       {volumeStats && (volumeStats.volume14d > 0 || (stats?.passedSessionCount ?? 0) > 0) && (
-        <ProgressSection title={pl.progressVolumeTitle}>
+        <ProgressSection icon={TrendingUp} title={pl.progressVolumeTitle}>
           <div className="grid grid-cols-2 gap-2">
             <NestedStat
               size="md"
@@ -418,6 +421,7 @@ export function OverviewPanel({
       {/* Wykres objętości tygodniowej — zastąpił wykres najlepszej serii */}
       {weeklyVolumeChart.length >= 2 && weeklyVolumeChart.some((p) => p.volume > 0) && (
         <ProgressSection
+          icon={BarChart3}
           title={pl.progressWeeklyVolumeTitle}
           hint={pl.progressWeeklyVolumeHint}
         >
@@ -462,7 +466,7 @@ export function OverviewPanel({
 
       {/* Wykres testu max */}
       {tests.length > 0 && (
-        <ProgressSection title={pl.chartTestOverTime} hint={pl.progressTestChartHint}>
+        <ProgressSection icon={TrendingUp} title={pl.chartTestOverTime} hint={pl.progressTestChartHint}>
           <AccessibleChart
             label={pl.progressTestChartAria(tests.length)}
             data={tests.map((t) => ({ date: t.dateLabel, reps: t.reps }))}
@@ -507,6 +511,7 @@ export function OverviewPanel({
       {/* Trend w cyklu */}
       {dayCycleTrend.length > 0 && dayCycleTrend.some((d) => d.delta != null) && (
         <ProgressSection
+          icon={TrendingUp}
           title={pl.progressCycleTrendTitle}
           hint={pl.progressCycleTrendHint}
         >

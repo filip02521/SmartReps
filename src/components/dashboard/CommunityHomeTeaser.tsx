@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PageSection } from '@/components/ui/PageSection'
+import { Users } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 import { CommunityPlanCard } from '@/components/community/CommunityPlanCard'
 import { pl } from '@/i18n/pl'
 import { useOnline } from '@/hooks/useOnline'
@@ -69,7 +70,11 @@ export function CommunityHomeTeaser() {
   if (rows.length === 0) return null
 
   return (
-    <PageSection title={pl.communityTeaserTitle} hint={pl.communityTeaserHint} className="mt-8">
+    <section className="mt-8">
+      <SectionHeader icon={Users} title={pl.communityTeaserTitle} />
+      <p className="mb-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
+        {pl.communityTeaserHint}
+      </p>
       <ul className="flex flex-col gap-2">
         {rows.map((row) => (
           <li key={row.id}>
@@ -91,6 +96,6 @@ export function CommunityHomeTeaser() {
       >
         {pl.communityTeaserCta}
       </Button>
-    </PageSection>
+    </section>
   )
 }

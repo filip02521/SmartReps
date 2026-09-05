@@ -1,4 +1,5 @@
 import { ChevronRight } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { format } from 'date-fns'
 import { pl as plLocale } from 'date-fns/locale'
 import { ProgressSection } from '@/components/progress/ProgressSection'
@@ -41,12 +42,14 @@ export function UnifiedRecordsSection({
   customPrs,
   onOpenExercise,
   first,
+  icon,
 }: {
   programRecords: ProgramRecordsWithDates | null
   programStats: ProgramStats | null
   customPrs: ExercisePr[]
   onOpenExercise: (exerciseId: string) => void
   first?: boolean
+  icon?: LucideIcon
 }) {
   const weightUnit = useAppStore((s) => s.settings.weightUnit)
   const hasProgramRecords =
@@ -60,7 +63,7 @@ export function UnifiedRecordsSection({
 
   if (!hasProgramRecords && !hasCustomRecords) {
     return (
-      <ProgressSection first={first} title={pl.progressRecordsSectionTitle}>
+      <ProgressSection first={first} icon={icon} title={pl.progressRecordsSectionTitle}>
         <EmptyState
           icon={<LogoMark size={40} />}
           title={pl.progressRecordsEmpty}
@@ -70,7 +73,7 @@ export function UnifiedRecordsSection({
   }
 
   return (
-    <ProgressSection first={first} title={pl.progressRecordsSectionTitle}>
+    <ProgressSection first={first} icon={icon} title={pl.progressRecordsSectionTitle}>
       <div id="progress-records">
         {/* Programy wbudowane */}
         {hasProgramRecords && programRecords && programStats && (

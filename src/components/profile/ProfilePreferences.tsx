@@ -8,7 +8,7 @@ import { AiCoachHeader } from '@/components/brand/AiCoachHeader'
 import { pl } from '@/i18n/pl'
 import type { UserSettings } from '@/stores/app-store'
 
-const SECTION = 'mt-5'
+const SECTION = 'mt-6'
 
 type Theme = UserSettings['theme']
 

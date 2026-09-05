@@ -40,14 +40,14 @@ export function AppLayout() {
       </main>
       <nav
         className={cn(
-          'fixed bottom-0 left-0 right-0 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] safe-bottom transition-transform duration-200 motion-reduce:transition-none',
+          'fixed bottom-0 left-0 right-0 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]/95 backdrop-blur-md safe-bottom shadow-[0_-4px_12px_-2px_rgba(0,0,0,0.12)] transition-transform duration-200 motion-reduce:transition-none',
           hideTabs ? 'pointer-events-none translate-y-full' : 'translate-y-0',
         )}
         style={{ zIndex: Z_TAB_BAR }}
         aria-label={pl.mainNav}
         aria-hidden={hideTabs}
       >
-        <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 py-1">
+        <div className="mx-auto flex max-w-lg items-stretch justify-around gap-1 px-2 py-1.5">
           {tabs.map(({ to, label, icon: Icon }) => {
             const active = location.pathname === to
             return (
@@ -56,22 +56,34 @@ export function AppLayout() {
                 to={to}
                 tabIndex={hideTabs ? -1 : undefined}
                 aria-current={active ? 'page' : undefined}
+                onClick={() => {
+                  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                    navigator.vibrate(8)
+                  }
+                }}
                 className={cn(
-                  'relative flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[var(--sr-radius-sm)] px-1 py-1.5 text-xs font-medium transition-colors duration-150 active:scale-[0.97]',
+                  'relative flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[var(--sr-radius-lg)] px-1.5 py-1.5 text-xs transition-all duration-200 motion-reduce:transition-none active:scale-[0.97]',
                   FOCUS_RING,
                   active
-                    ? 'text-[var(--sr-brand-primary)]'
-                    : 'text-[var(--sr-text-muted)] hover:text-[var(--sr-text-secondary)]',
+                    ? 'font-semibold text-[var(--sr-brand-primary)]'
+                    : 'font-medium text-[var(--sr-text-muted)] hover:text-[var(--sr-text-secondary)]',
                 )}
               >
-                {active && (
-                  <span
-                    className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-[var(--sr-brand-primary)]"
-                    aria-hidden
-                  />
-                )}
-                <Icon size={22} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
-                <span className="max-w-full truncate">{label}</span>
+                {/* Pill background — smooth fade in/out */}
+                <span
+                  className={cn(
+                    'absolute inset-0 rounded-[var(--sr-radius-lg)] bg-[var(--sr-brand-primary-muted)] transition-opacity duration-200 motion-reduce:transition-none',
+                    active ? 'opacity-100' : 'opacity-0',
+                  )}
+                  aria-hidden
+                />
+                <Icon
+                  size={20}
+                  strokeWidth={active ? 2.5 : 2}
+                  className="relative shrink-0"
+                  aria-hidden
+                />
+                <span className="relative max-w-full truncate">{label}</span>
               </Link>
             )
           })}

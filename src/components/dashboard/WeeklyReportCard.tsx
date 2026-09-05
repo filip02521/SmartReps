@@ -102,10 +102,10 @@ export function WeeklyReportCard({
   return (
     <section
       aria-live="polite"
-      className="sr-coach-msg-in mb-6 overflow-hidden rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]"
+      className="sr-coach-msg-in mb-6 overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] shadow-[var(--sr-shadow-card)]"
     >
       {/* Header */}
-      <div className="flex items-start gap-2.5 border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)] px-4 py-3">
+      <div className="flex items-start gap-3 border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)] p-4">
         <AiCoachMark size="sm" />
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-bold leading-tight text-[var(--sr-text-primary)]">
@@ -136,7 +136,7 @@ export function WeeklyReportCard({
 
       {/* Metrics grid */}
       {metrics && (
-        <div className="grid grid-cols-4 gap-2 px-4 py-3">
+        <div className="grid grid-cols-4 gap-2 p-4">
           <MetricTile
             icon={<Dumbbell size={14} aria-hidden />}
             label={pl.coachWeeklyMetricSessions}

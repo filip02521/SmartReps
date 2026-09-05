@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Dumbbell } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 import { CustomPlanHomeCard } from '@/components/dashboard/CustomPlanHomeCard'
 import { EmptyState, SkeletonCard } from '@/components/ux/Feedback'
 import { LogoMark } from '@/components/brand/Logo'
@@ -179,14 +181,15 @@ export function CustomPlansHomeSection({
         </div>
       )}
       {embedded && (
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="sr-text-overline text-[var(--sr-text-muted)]">
-            {pl.homeCustomPlans}
-          </p>
-          <Button type="button" size="md" variant="ghost" onClick={() => navigate('/plans?tab=mine')}>
-            {pl.homeSeeAllCustom}
-          </Button>
-        </div>
+        <SectionHeader
+          icon={Dumbbell}
+          title={pl.homeCustomPlans}
+          action={
+            <Button type="button" size="md" variant="ghost" onClick={() => navigate('/plans?tab=mine')}>
+              {pl.homeSeeAllCustom}
+            </Button>
+          }
+        />
       )}
       <ul className="flex flex-col gap-3">
         {cards.map((model) => (
