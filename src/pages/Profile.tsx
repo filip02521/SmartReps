@@ -18,7 +18,7 @@ import { ProfileStats } from '@/components/profile/ProfileStats'
 import { ProfileHero } from '@/components/profile/ProfileHero'
 import { AiCoachCard } from '@/components/profile/AiCoachCard'
 import { ProfileAbout } from '@/components/profile/ProfileAbout'
-import { FollowingListSection, PublicProfileSheet } from '@/components/follow/FollowManager'
+import { FollowersSheet, FollowingSheet, PublicProfileSheet } from '@/components/follow/FollowManager'
 import { useFollowData } from '@/hooks/useFollowData'
 import { runAuthenticatedSync } from '@/lib/auth-sync'
 import { signOutUser } from '@/lib/auth-lifecycle'
@@ -83,6 +83,8 @@ export default function ProfilePage() {
   const [showImportSheet, setShowImportSheet] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
+  const [showFollowersSheet, setShowFollowersSheet] = useState(false)
+  const [showFollowingSheet, setShowFollowingSheet] = useState(false)
   const followData = useFollowData()
   const [customMenuPlanId, setCustomMenuPlanId] = useState<string | null>(null)
   const [progressByProgram, setProgressByProgram] = useState<Partial<Record<Program, LocalProgramProgress>>>({})
@@ -327,6 +329,8 @@ export default function ProfilePage() {
         followCounts={followData.counts}
         followLoading={followData.loading}
         onEditProfile={() => setShowProfileEdit(true)}
+        onViewFollowers={() => setShowFollowersSheet(true)}
+        onViewFollowing={() => setShowFollowingSheet(true)}
       />
 
       {/* Stats summary */}
@@ -345,11 +349,6 @@ export default function ProfilePage() {
       {/* Achievements (gablotka) */}
       <div className="mt-6">
         <ProfileAchievementsSection />
-      </div>
-
-      {/* Following list — users I follow */}
-      <div className="mt-6">
-        <FollowingListSection followData={followData} />
       </div>
 
       {/* Programs */}
@@ -489,6 +488,25 @@ export default function ProfilePage() {
           existing={followData.profile}
           displayName={displayName}
           onSaved={followData.reload}
+        />
+      )}
+
+      {/* Followers sheet — who follows me */}
+      {showFollowersSheet && (
+        <FollowersSheet
+          open={showFollowersSheet}
+          onClose={() => setShowFollowersSheet(false)}
+          followers={followData.followers}
+          loading={followData.loading}
+        />
+      )}
+
+      {/* Following sheet — who I follow */}
+      {showFollowingSheet && (
+        <FollowingSheet
+          open={showFollowingSheet}
+          onClose={() => setShowFollowingSheet(false)}
+          followData={followData}
         />
       )}
 

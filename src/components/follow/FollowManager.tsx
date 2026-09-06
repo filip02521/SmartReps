@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { UserPlus, UserCheck, UserX, Loader2, Dumbbell, Flame, Trophy } from 'lucide-react'
+import { UserPlus, UserCheck, UserX, Loader2, Dumbbell, Flame, Trophy, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
@@ -15,6 +15,7 @@ import {
   toggleFollow,
   upsertMyPublicProfile,
   type FolloweeProfile,
+  type FollowerProfile,
   type PublicProfile,
 } from '@/lib/follow-system'
 import { refreshCommunityAuthorDisplayName } from '@/lib/community-api'
@@ -451,5 +452,152 @@ export function FollowingListSection({ followData }: { followData: FollowData })
         </div>
       )}
     </div>
+  )
+}
+
+/* ─── Follower card — someone who follows me ─── */
+
+function FollowerCard({ profile }: { profile: FollowerProfile }) {
+  const initial = (profile.display_name || '?').charAt(0).toUpperCase()
+
+  return (
+    <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3">
+      <div className="flex items-center gap-3">
+        {/* Avatar with initial */}
+        <div
+          aria-hidden
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--sr-brand-primary-muted)] font-semibold text-[var(--sr-brand-primary)]"
+        >
+          {initial}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
+            {profile.display_name || pl.followAnonymous}
+          </p>
+          {profile.bio && (
+            <p className="truncate sr-text-caption text-[var(--sr-text-muted)]">
+              {profile.bio}
+            </p>
+          )}
+        </div>
+        {/* Heart icon — indicates they follow you */}
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-brand-primary)]"
+          aria-hidden
+        >
+          <Heart size={16} />
+        </span>
+      </div>
+      {/* Stats row */}
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <StatChip
+          icon={<Dumbbell size={12} aria-hidden />}
+          label={pl.followStatsTotalSessions}
+          value={profile.total_sessions}
+        />
+        <StatChip
+          icon={<Flame size={12} aria-hidden />}
+          label={pl.followStatsCurrentStreak}
+          value={profile.current_streak_weeks}
+        />
+        <StatChip
+          icon={<Trophy size={12} aria-hidden />}
+          label={pl.followStatsPushupMax}
+          value={profile.pushup_max}
+        />
+      </div>
+    </div>
+  )
+}
+
+/* ─── Followers sheet — modal showing who follows me ─── */
+
+export function FollowersSheet({
+  open,
+  onClose,
+  followers,
+  loading,
+}: {
+  open: boolean
+  onClose: () => void
+  followers: FollowerProfile[]
+  loading: boolean
+}) {
+  return (
+    <Sheet open={open} onClose={onClose} title={pl.followFollowersSheetTitle}>
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 size={24} className="animate-spin text-[var(--sr-text-muted)]" aria-hidden />
+        </div>
+      ) : followers.length === 0 ? (
+        <EmptyState
+          title={pl.followFollowersEmpty}
+          description={pl.followFollowersEmptyHint}
+        />
+      ) : (
+        <div className="space-y-2">
+          {followers.map((f) => (
+            <FollowerCard key={f.follower_id} profile={f} />
+          ))}
+        </div>
+      )}
+    </Sheet>
+  )
+}
+
+/* ─── Following sheet — modal showing who I follow ─── */
+
+export function FollowingSheet({
+  open,
+  onClose,
+  followData,
+}: {
+  open: boolean
+  onClose: () => void
+  followData: FollowData
+}) {
+  const online = useOnline()
+  const [unfollowBusy, setUnfollowBusy] = useState<string | null>(null)
+
+  const handleUnfollow = useCallback(async (followeeId: string) => {
+    setUnfollowBusy(followeeId)
+    try {
+      await followData.unfollow(followeeId)
+    } finally {
+      setUnfollowBusy(null)
+    }
+  }, [followData])
+
+  if (!isSupabaseConfigured || !online) return null
+
+  return (
+    <Sheet open={open} onClose={onClose} title={pl.followFollowingSheetTitle}>
+      {followData.loading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 size={24} className="animate-spin text-[var(--sr-text-muted)]" aria-hidden />
+        </div>
+      ) : followData.following.length === 0 ? (
+        <EmptyState
+          title={pl.followEmpty}
+          description={pl.followEmptyHint}
+        />
+      ) : (
+        <div className="space-y-2">
+          {followData.following.map((f) => (
+            <div
+              key={f.followee_id}
+              className={cn(
+                unfollowBusy === f.followee_id && 'opacity-50 pointer-events-none',
+              )}
+            >
+              <FolloweeCard
+                profile={f}
+                onUnfollow={handleUnfollow}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </Sheet>
   )
 }

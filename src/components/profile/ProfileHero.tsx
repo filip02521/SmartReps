@@ -1,4 +1,4 @@
-import { Settings, RefreshCw, LogIn, Pencil, Users, Globe, Lock } from 'lucide-react'
+import { Settings, RefreshCw, LogIn, Pencil, Users, UserCheck, Globe, Lock, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Card'
 import { pl } from '@/i18n/pl'
@@ -24,6 +24,8 @@ export function ProfileHero({
   followCounts,
   followLoading,
   onEditProfile,
+  onViewFollowers,
+  onViewFollowing,
 }: {
   displayName: string
   email: string | null
@@ -37,6 +39,8 @@ export function ProfileHero({
   followCounts: FollowCounts
   followLoading: boolean
   onEditProfile: () => void
+  onViewFollowers: () => void
+  onViewFollowing: () => void
 }) {
   // Avatar initials from display name or email
   const initials = (displayName || email || '?')
@@ -130,27 +134,55 @@ export function ProfileHero({
         </p>
       )}
 
-      {/* Follow stats — followers + following */}
+      {/* Follow stats — tappable pills opening followers/following sheets */}
       {showFollowStats && (
-        <div className="mt-3 flex items-center gap-4">
-          <div className="flex items-center gap-1.5">
-            <Users size={14} className="text-[var(--sr-text-muted)]" aria-hidden />
-            <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-              <span className="font-semibold text-[var(--sr-text-primary)]">
-                {followCounts.followers}
-              </span>{' '}
-              {pl.profileHeroFollowers}
+        <div className="mt-3 grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={onViewFollowers}
+            className={cn(
+              FOCUS_RING,
+              'group flex flex-col items-start gap-0.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]/60 px-3 py-2.5 text-left transition-colors hover:border-[var(--sr-brand-primary)] hover:bg-[var(--sr-brand-primary-muted)]',
+            )}
+          >
+            <span className="flex w-full items-center justify-between">
+              <span className="flex items-center gap-1.5 sr-text-caption text-[var(--sr-text-muted)]">
+                <Users size={13} aria-hidden />
+                {pl.profileHeroFollowers}
+              </span>
+              <ChevronRight
+                size={14}
+                className="text-[var(--sr-text-muted)] transition-transform group-hover:translate-x-0.5"
+                aria-hidden
+              />
             </span>
-          </div>
-          <div className="h-3.5 w-px bg-[var(--sr-border-subtle)]" aria-hidden />
-          <div className="flex items-center gap-1.5">
-            <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-              <span className="font-semibold text-[var(--sr-text-primary)]">
-                {followCounts.following}
-              </span>{' '}
-              {pl.profileHeroFollowing}
+            <span className="tabular-nums text-xl font-bold leading-tight text-[var(--sr-text-primary)]">
+              {followCounts.followers}
             </span>
-          </div>
+          </button>
+          <button
+            type="button"
+            onClick={onViewFollowing}
+            className={cn(
+              FOCUS_RING,
+              'group flex flex-col items-start gap-0.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]/60 px-3 py-2.5 text-left transition-colors hover:border-[var(--sr-brand-primary)] hover:bg-[var(--sr-brand-primary-muted)]',
+            )}
+          >
+            <span className="flex w-full items-center justify-between">
+              <span className="flex items-center gap-1.5 sr-text-caption text-[var(--sr-text-muted)]">
+                <UserCheck size={13} aria-hidden />
+                {pl.profileHeroFollowing}
+              </span>
+              <ChevronRight
+                size={14}
+                className="text-[var(--sr-text-muted)] transition-transform group-hover:translate-x-0.5"
+                aria-hidden
+              />
+            </span>
+            <span className="tabular-nums text-xl font-bold leading-tight text-[var(--sr-text-primary)]">
+              {followCounts.following}
+            </span>
+          </button>
         </div>
       )}
 

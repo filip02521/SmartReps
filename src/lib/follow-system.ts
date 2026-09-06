@@ -27,6 +27,19 @@ export type FolloweeProfile = {
   followed_at: string
 }
 
+export type FollowerProfile = {
+  follower_id: string
+  display_name: string
+  bio: string
+  total_sessions: number
+  total_reps: number
+  current_streak_weeks: number
+  best_streak_weeks: number
+  pushup_max: number
+  pullup_max: number
+  followed_at: string
+}
+
 export type FollowCounts = {
   followers: number
   following: number
@@ -66,6 +79,17 @@ export async function getFollowing(limit = 50): Promise<FolloweeProfile[]> {
   const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
   if (!Array.isArray(raw)) return []
   return raw as FolloweeProfile[]
+}
+
+/**
+ * Get list of users who follow me (with their public stats).
+ */
+export async function getFollowers(limit = 50): Promise<FollowerProfile[]> {
+  const { data, error } = await supabase.rpc('get_followers', { p_limit: limit })
+  if (error) throw error
+  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  if (!Array.isArray(raw)) return []
+  return raw as FollowerProfile[]
 }
 
 /**

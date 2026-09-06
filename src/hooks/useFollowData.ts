@@ -3,11 +3,13 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { useOnline } from '@/hooks/useOnline'
 import {
   getFollowing,
+  getFollowers,
   getMyPublicProfile,
   getFollowCounts,
   refreshMyPublicProfileStats,
   toggleFollow,
   type FolloweeProfile,
+  type FollowerProfile,
   type PublicProfile,
   type FollowCounts,
 } from '@/lib/follow-system'
@@ -17,6 +19,7 @@ import { pl } from '@/i18n/pl'
 export interface FollowData {
   profile: PublicProfile | null
   following: FolloweeProfile[]
+  followers: FollowerProfile[]
   counts: FollowCounts
   loading: boolean
   currentUserId: string | null
@@ -28,6 +31,7 @@ export function useFollowData(): FollowData {
   const online = useOnline()
   const [profile, setProfile] = useState<PublicProfile | null>(null)
   const [following, setFollowing] = useState<FolloweeProfile[]>([])
+  const [followers, setFollowers] = useState<FollowerProfile[]>([])
   const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 })
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -55,13 +59,15 @@ export function useFollowData(): FollowData {
       await refreshMyPublicProfileStats().catch(() => undefined)
       if (!mountedRef.current || reqId !== requestIdRef.current) return
 
-      const [myProfile, followingList] = await Promise.all([
+      const [myProfile, followingList, followersList] = await Promise.all([
         getMyPublicProfile(),
         getFollowing(),
+        getFollowers(),
       ])
       if (!mountedRef.current || reqId !== requestIdRef.current) return
       setProfile(myProfile)
       setFollowing(followingList)
+      setFollowers(followersList)
       if (uid) {
         const c = await getFollowCounts(uid)
         if (!mountedRef.current || reqId !== requestIdRef.current) return
@@ -100,6 +106,7 @@ export function useFollowData(): FollowData {
   return {
     profile,
     following,
+    followers,
     counts,
     loading,
     currentUserId,
