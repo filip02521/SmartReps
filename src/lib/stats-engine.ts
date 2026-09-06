@@ -137,6 +137,14 @@ export function computeStreakWeeks(passedSessions: LocalWorkoutSession[], now = 
   let streak = 0
   const cursor = startOfLocalWeek(now)
 
+  // If the current week has no sessions, start counting from the previous week.
+  // This preserves the streak value for "at risk" weeks — the user still has
+  // a streak from previous weeks, it's just at risk of breaking if they don't
+  // train this week. The UI uses this value to show at-risk warnings.
+  if (!weeksWithTraining.has(getWeekKey(cursor))) {
+    cursor.setDate(cursor.getDate() - 7)
+  }
+
   for (let i = 0; i < 104; i++) {
     const key = getWeekKey(cursor)
     if (weeksWithTraining.has(key)) {

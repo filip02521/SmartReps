@@ -24,15 +24,16 @@ function milestoneJustReached(prevStreak: number, newStreak: number): number | n
 
 /**
  * Detect "streak saved" scenario: before this workout, the user had a streak
- * but no session in the current week (at-risk). After completing, the streak
- * is preserved (not increased, but not broken either).
+ * (sessions in previous weeks) but no session in the current week (at-risk).
+ * After completing, the streak is preserved/extended.
  */
 function wasAtRisk(prevSessions: LocalWorkoutSession[]): boolean {
-  const prevStreak = computeStreakWeeks(prevSessions.filter((s) => s.status === 'completed'))
+  const completed = prevSessions.filter((s) => s.status === 'completed')
+  const prevStreak = computeStreakWeeks(completed)
   if (prevStreak === 0) return false
   const currentWeekKey = getWeekKey(new Date())
-  return !prevSessions.some(
-    (s) => s.status === 'completed' && getWeekKey(new Date(s.startedAt)) === currentWeekKey,
+  return !completed.some(
+    (s) => getWeekKey(new Date(s.startedAt)) === currentWeekKey,
   )
 }
 
@@ -66,7 +67,11 @@ export function StreakRecapCard({
   const isNewRecord = newStreak > 0 && newStreak >= bestStreak && bestStreak > 0
   const next = nextMilestone(newStreak)
   const weeksToNext = next ? next - newStreak : 0
-  const streakSaved = !streakIncreased && !milestone && wasAtRisk(previousSessions)
+  const atRiskBefore = wasAtRisk(previousSessions)
+  // "Streak saved" = user was at-risk (no session this week before) and completed a workout.
+  // The streak may have increased (from "at-risk count" to "active count"), but the emotional
+  // message is "saved" not "increased" — the user preserved their streak from breaking.
+  const streakSaved = atRiskBefore && streakIncreased && !milestone
 
   // Don't show card if nothing celebratory happened
   if (!streakIncreased && !milestone && !streakSaved) return null
@@ -74,7 +79,7 @@ export function StreakRecapCard({
   const isLegendary = newStreak >= 26
   const isHot = newStreak >= 12
   // "Saved" uses success green to differentiate from increase (brand) and milestone (gold)
-  const isSavedState = streakSaved && !milestone
+  const isSavedState = streakSaved
 
   return (
     <div
@@ -137,18 +142,18 @@ export function StreakRecapCard({
           </span>
         </div>
 
-        {/* Status line — priority: milestone > new record > saved > progress */}
+        {/* Status line — priority: milestone > saved > new record > progress */}
         {milestone ? (
           <p className="mt-1 sr-text-body-sm font-semibold text-[var(--sr-warning)]">
             {pl.streakRecapMilestone(milestone)}
           </p>
-        ) : isNewRecord ? (
-          <p className="mt-1 sr-text-body-sm font-semibold text-[var(--sr-success)]">
-            {pl.streakRecapNewRecord}
-          </p>
         ) : isSavedState ? (
           <p className="mt-1 sr-text-body-sm font-semibold text-[var(--sr-success)]">
             {pl.streakRecapSaved}
+          </p>
+        ) : isNewRecord ? (
+          <p className="mt-1 sr-text-body-sm font-semibold text-[var(--sr-success)]">
+            {pl.streakRecapNewRecord}
           </p>
         ) : next ? (
           <p className="mt-1 sr-text-caption text-[var(--sr-text-secondary)]">

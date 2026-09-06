@@ -86,9 +86,13 @@ function buildWeekCells(sessions: LocalWorkoutSession[], weeks = 12): WeekCell[]
     const key = getWeekKey(cursor)
     const hasSessions = (weekMap.get(key) ?? 0) > 0
     // Current week: if no sessions yet, still counts as "in streak" (at risk)
-    if (hasSessions || (i === 0 && key === currentWeekKey)) {
+    if (hasSessions) {
       streakSet.add(key)
-      if (!hasSessions) break
+    } else if (i === 0 && key === currentWeekKey) {
+      // At-risk: mark current week but continue to previous weeks
+      streakSet.add(key)
+      cursor.setDate(cursor.getDate() - 7)
+      continue
     } else {
       break
     }

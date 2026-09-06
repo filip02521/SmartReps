@@ -74,6 +74,25 @@ describe('week key unification', () => {
     expect(computeBestStreakWeeks(sessions)).toBe(2)
     expect(computeStreakWeeks(sessions, mon1)).toBe(2)
   })
+
+  it('computeStreakWeeks preserves streak when current week has no sessions (at-risk)', () => {
+    // User trained for 3 consecutive weeks but NOT this week — streak is at risk
+    const thisWeek = startOfWeek(new Date('2026-01-19'), { weekStartsOn: 1 })
+    const w1 = startOfWeek(subWeeks(thisWeek, 1), { weekStartsOn: 1 })
+    const w2 = startOfWeek(subWeeks(thisWeek, 2), { weekStartsOn: 1 })
+    const w3 = startOfWeek(subWeeks(thisWeek, 3), { weekStartsOn: 1 })
+    const sessions = [
+      session({ id: 'a', startedAt: w1.toISOString() }),
+      session({ id: 'b', startedAt: w2.toISOString() }),
+      session({ id: 'c', startedAt: w3.toISOString() }),
+    ]
+    // Streak should be 3 (counting from last week), NOT 0
+    expect(computeStreakWeeks(sessions, thisWeek)).toBe(3)
+  })
+
+  it('computeStreakWeeks returns 0 when no sessions at all', () => {
+    expect(computeStreakWeeks([], new Date())).toBe(0)
+  })
 })
 
 describe('achievement catalog', () => {
