@@ -114,6 +114,7 @@ export type HomeLoadResult = {
     sessions14d: number
     reps14d: number
     streakWeeks: number
+    bestStreakWeeks: number
     statusHeadline: string
     statusSubtitle?: string
     allResting: boolean
@@ -702,6 +703,7 @@ export async function loadHomeDashboard(
       sessions14d,
       reps14d,
       streakWeeks: activity.streakWeeks,
+      bestStreakWeeks: activity.bestStreakWeeks,
       statusHeadline: status.headline,
       statusSubtitle: status.subtitle,
       allResting: isAllResting(cards),

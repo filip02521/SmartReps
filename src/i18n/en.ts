@@ -648,6 +648,19 @@ export const en: Translation = {
   streakHeatmapWeeksStreak: (weeks: number) => `${weeks} wk streak`,
   streakHeatmapMiniAria: (weeks: number) => `Training streak heatmap, ${weeks} weeks in a row`,
   streakHeatmapEmpty: 'No workouts in the last 12 weeks.',
+  streakChainTitle: 'Your streak',
+  streakChainWeeks: (weeks: number) =>
+    weeks === 1 ? '1 week in a row' : `${weeks} wks in a row`,
+  streakChainBest: (weeks: number) => `Best: ${weeks} wks`,
+  streakChainNewRecord: 'New record!',
+  streakChainAtRisk: 'Train this week to keep your streak alive!',
+  streakChainKeepGoing: (weeks: number) =>
+    weeks === 1 ? '1 more week to your next milestone' : `${weeks} more wks to a milestone`,
+  streakChainMilestone: (weeks: number) => `Goal: ${weeks} wks`,
+  streakChainEmpty: 'Start training to build your streak!',
+  streakChainThisWeek: 'This week',
+  streakChainAria: (current: number, best: number) =>
+    `Training streak: ${current} weeks in a row, best: ${best} weeks`,
   muscleBalanceTitle: 'Muscle balance',
   muscleBalanceHint: 'Weekly sets in the last 4 weeks',
   muscleBalanceOptimal: 'Optimal',

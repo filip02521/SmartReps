@@ -1003,6 +1003,23 @@ html[data-offline='1'] .safe-header {
   animation: sr-cta-pulse 2s ease-in-out infinite;
 }
 
+/* Streak flame — subtle pulsing glow for active streaks */
+@keyframes sr-flame-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.08); }
+}
+
+.sr-flame-pulse {
+  animation: sr-flame-pulse 2.4s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sr-flame-pulse {
+    animation: none;
+  }
+}
+
 /* Onboarding — step entrance animation (fade + subtle slide up) */
 @keyframes sr-onboard-enter {
   from { opacity: 0; transform: translateY(8px); }

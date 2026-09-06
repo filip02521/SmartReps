@@ -663,6 +663,20 @@ const plDict = {
   streakHeatmapWeeksStreak: (weeks: number) => `${weeks} tyg. z rzędu`,
   streakHeatmapMiniAria: (weeks: number) => `Mapa serii treningowej, ${weeks} tygodni z rzędu`,
   streakHeatmapEmpty: 'Brak treningów w ostatnich 12 tyg.',
+  // Streak chain card — psychological retention driver
+  streakChainTitle: 'Twoja seria',
+  streakChainWeeks: (weeks: number) =>
+    weeks === 1 ? '1 tydzień z rzędu' : `${weeks} tyg. z rzędu`,
+  streakChainBest: (weeks: number) => `Rekord: ${weeks} tyg.`,
+  streakChainNewRecord: 'Nowy rekord!',
+  streakChainAtRisk: 'Trenuj w tym tyg., by nie przerwać serii!',
+  streakChainKeepGoing: (weeks: number) =>
+    weeks === 1 ? 'Jeszcze 1 tydzień do następnego kamienia milowego' : `Jeszcze ${weeks} tyg. do kamienia milowego`,
+  streakChainMilestone: (weeks: number) => `Cel: ${weeks} tyg.`,
+  streakChainEmpty: 'Zacznij trenować, aby zbudować serię!',
+  streakChainThisWeek: 'Ten tydzień',
+  streakChainAria: (current: number, best: number) =>
+    `Seria treningowa: ${current} tygodni z rzędu, rekord: ${best} tygodni`,
   // Muscle group balance heatmap
   muscleBalanceTitle: 'Balans mięśniowy',
   muscleBalanceHint: 'Serie tygodniowo w ostatnich 4 tyg.',

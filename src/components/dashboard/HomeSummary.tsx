@@ -1,13 +1,10 @@
-import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Activity } from 'lucide-react'
+import { Activity } from 'lucide-react'
 import type { HomeLoadResult } from '@/lib/home-summary'
 import { MetricStrip } from '@/components/ui/MetricStrip'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
-import { StreakHeatmap } from '@/components/progress/StreakHeatmap'
+import { StreakChainCard } from '@/components/dashboard/StreakChainCard'
 import { pl } from '@/i18n/pl'
-import { cn } from '@/lib/utils'
-import { FOCUS_RING } from '@/lib/ui-chrome'
 import type { LocalWorkoutSession } from '@/lib/db'
 
 type Summary = HomeLoadResult['summary']
@@ -37,7 +34,6 @@ export function HomeActivitySection({
   summary: Summary
   sessions: LocalWorkoutSession[]
 }) {
-  const navigate = useNavigate()
   return (
     <section className="mb-6" aria-label={pl.homeActivityTitle}>
       <SectionHeader icon={Activity} title={pl.homeActivityTitle} />
@@ -61,27 +57,8 @@ export function HomeActivitySection({
         }}
       />
       <ActivityInsightsPanel insights={summary.activity} />
-      {/* Streak heatmap — tappable, links to Progress for details */}
-      {sessions.some((s) => s.status === 'completed') && (
-        <button
-          type="button"
-          onClick={() => navigate('/progress')}
-          aria-label={pl.streakHeatmapTitle}
-          className={cn(
-            FOCUS_RING,
-            'group mt-3 flex w-full items-center gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3 text-left transition-colors hover:bg-[var(--sr-bg-elevated)]',
-          )}
-        >
-          <div className="min-w-0 flex-1">
-            <StreakHeatmap sessions={sessions} compact />
-          </div>
-          <ChevronRight
-            size={16}
-            aria-hidden
-            className="shrink-0 text-[var(--sr-text-muted)] transition-colors group-hover:text-[var(--sr-text-primary)]"
-          />
-        </button>
-      )}
+      {/* Streak chain — visual retention driver, tappable to Progress */}
+      <StreakChainCard sessions={sessions} />
       {summary.customLastWorkout && (
         <p className="mt-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
           {pl.customLastWorkoutInsight(
