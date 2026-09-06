@@ -686,9 +686,16 @@ const plDict = {
       ? `Jeszcze ${weeksLeft} tyg. do celu ${target} tyg.`
       : `Cel ${target} tyg. osiągnięty!`,
   streakSheetAllMilestones: 'Wszystkie kamienie milowe zdobyte — legenda!',
+  streakSheetEmptyTitle: 'Rozpocznij swoją serię',
+  streakSheetEmptyHint: 'Każdy ukończony trening wydłuża serię. Trenuj regularnie, by odblokować kamienie milowe!',
+  streakSheetAtRiskTitle: 'Seria w zagrożeniu!',
+  streakSheetAtRiskHint: 'Ukończ trening w tym tygodniu, aby nie przerwać serii.',
+  streakSheetSavedTitle: 'Seria uratowana!',
+  streakSheetSavedHint: 'Trening uratował Twoją serię. Tak trzymaj!',
   // Streak recap card (session summary)
   streakRecapMilestone: (weeks: number) => `Kamień milowy: ${weeks} tygodni!`,
   streakRecapNewRecord: 'Nowy rekord serii!',
+  streakRecapSaved: 'Seria uratowana!',
   // Muscle group balance heatmap
   muscleBalanceTitle: 'Balans mięśniowy',
   muscleBalanceHint: 'Serie tygodniowo w ostatnich 4 tyg.',

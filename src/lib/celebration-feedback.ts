@@ -30,17 +30,38 @@ const CELEBRATION_PR: readonly ToneSpec[] = [
   { frequency: 1318.5, startOffset: 0.5, duration: 0.5, gain: 0.2, type: 'sine' },
 ]
 
+/** Streak milestone celebration: epic seven-note fanfare with bass + shimmer cascade. */
+const CELEBRATION_STREAK_MILESTONE: readonly ToneSpec[] = [
+  // Deep bass anchor — weight and gravitas
+  { frequency: 196.0, startOffset: 0, duration: 0.5, gain: 0.2, type: 'sine' },
+  // Rising arpeggio: G3 → C4 → E4 → G4
+  { frequency: 392.0, startOffset: 0.08, duration: 0.18, gain: 0.2, type: 'triangle' },
+  { frequency: 523.25, startOffset: 0.18, duration: 0.18, gain: 0.22, type: 'triangle' },
+  { frequency: 659.25, startOffset: 0.28, duration: 0.2, gain: 0.24, type: 'triangle' },
+  { frequency: 783.99, startOffset: 0.38, duration: 0.24, gain: 0.26, type: 'triangle' },
+  // Triumphant top note
+  { frequency: 1046.5, startOffset: 0.52, duration: 0.4, gain: 0.24, type: 'triangle' },
+  // Sparkle cascade — high shimmer for celebration
+  { frequency: 1568.0, startOffset: 0.6, duration: 0.5, gain: 0.16, type: 'sine' },
+  { frequency: 2093.0, startOffset: 0.72, duration: 0.4, gain: 0.12, type: 'sine' },
+]
+
 function getSoundPref(): boolean {
   return useAppStore.getState().settings.timerSound
 }
 
 /** Play the celebration sound. Call from a user-gesture-adjacent context (after workout completion). */
-export function playCelebrationSound(hasPr: boolean) {
+export function playCelebrationSound(hasPr: boolean, hasStreakMilestone = false) {
   if (!getSoundPref()) return
   void (async () => {
     const ctx = await ensureSharedAudioReady()
     if (!ctx) return
-    const notes = hasPr ? CELEBRATION_PR : CELEBRATION_DEFAULT
+    // Priority: milestone > PR > default
+    const notes = hasStreakMilestone
+      ? CELEBRATION_STREAK_MILESTONE
+      : hasPr
+        ? CELEBRATION_PR
+        : CELEBRATION_DEFAULT
     const startAt = ctx.currentTime
     const master = getSharedMasterGain(ctx)
     for (const note of notes) {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Flame, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { dateFnsLocale } from '@/lib/date-locale'
@@ -10,6 +10,38 @@ import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { StreakDetailSheet } from './StreakDetailSheet'
 
+/** Count-up animation hook — animates from previous value to new value. */
+function useCountUp(value: number, duration = 800): number {
+  const [display, setDisplay] = useState(value)
+  const prevRef = useRef(value)
+  const rafRef = useRef<number | undefined>(undefined)
+
+  useEffect(() => {
+    const prev = prevRef.current
+    prevRef.current = value
+    if (prev === value) return
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDisplay(value)
+      return
+    }
+    const start = performance.now()
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setDisplay(Math.round(prev + (value - prev) * eased))
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(tick)
+      }
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
+  }, [value, duration])
+
+  return display
+}
+
 type WeekCell = {
   weekKey: string
   weekStart: Date
@@ -19,7 +51,7 @@ type WeekCell = {
   isPartOfStreak: boolean
 }
 
-function buildWeekCells(sessions: LocalWorkoutSession[], weeks = 10): WeekCell[] {
+function buildWeekCells(sessions: LocalWorkoutSession[], weeks = 12): WeekCell[] {
   const now = new Date()
   const currentWeekStart = startOfLocalWeek(now)
   const currentWeekKey = getWeekKey(now)
@@ -118,6 +150,7 @@ export function StreakChainCard({ sessions }: { sessions: LocalWorkoutSession[] 
   )
   const streak = useMemo(() => computeStreakWeeks(completed), [completed])
   const bestStreak = useMemo(() => computeBestStreakWeeks(completed), [completed])
+  const animatedStreak = useCountUp(streak)
   const cells = useMemo(() => buildWeekCells(completed), [completed])
 
   const hasAnyTraining = completed.length > 0
@@ -201,7 +234,7 @@ export function StreakChainCard({ sessions }: { sessions: LocalWorkoutSession[] 
           <div className="min-w-0">
             <div className="flex items-baseline gap-1.5">
               <span className="text-3xl font-bold tabular-nums leading-none text-[var(--sr-text-primary)]">
-                {streak}
+                {animatedStreak}
               </span>
             </div>
             <p className="mt-1 sr-text-caption text-[var(--sr-text-secondary)]">

@@ -670,9 +670,16 @@ export const en: Translation = {
       ? `${weeksLeft} wks to reach ${target} wks goal`
       : `${target} wks goal reached!`,
   streakSheetAllMilestones: 'All milestones achieved — legendary!',
+  streakSheetEmptyTitle: 'Start your streak',
+  streakSheetEmptyHint: 'Every completed workout extends your streak. Train regularly to unlock milestones!',
+  streakSheetAtRiskTitle: 'Streak at risk!',
+  streakSheetAtRiskHint: 'Complete a workout this week to keep your streak alive.',
+  streakSheetSavedTitle: 'Streak saved!',
+  streakSheetSavedHint: 'Your workout saved your streak. Keep it up!',
   // Streak recap card (session summary)
   streakRecapMilestone: (weeks: number) => `Milestone: ${weeks} weeks!`,
   streakRecapNewRecord: 'New streak record!',
+  streakRecapSaved: 'Streak saved!',
   muscleBalanceTitle: 'Muscle balance',
   muscleBalanceHint: 'Weekly sets in the last 4 weeks',
   muscleBalanceOptimal: 'Optimal',

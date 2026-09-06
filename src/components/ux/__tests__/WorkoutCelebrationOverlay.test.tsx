@@ -356,7 +356,7 @@ describe('WorkoutCelebrationOverlay', () => {
         stats={[{ icon: Flame, value: 50, label: 'reps', animate: true }]}
       />,
     )
-    expect(playCelebrationSoundMock).toHaveBeenCalledWith(false)
+    expect(playCelebrationSoundMock).toHaveBeenCalledWith(false, false)
   })
 
   it('plays PR celebration sound when hasPr is true', () => {
@@ -368,7 +368,20 @@ describe('WorkoutCelebrationOverlay', () => {
         stats={[{ icon: Flame, value: 50, label: 'reps', animate: true }]}
       />,
     )
-    expect(playCelebrationSoundMock).toHaveBeenCalledWith(true)
+    expect(playCelebrationSoundMock).toHaveBeenCalledWith(true, false)
+  })
+
+  it('plays milestone fanfare when streakMilestoneReached is set', () => {
+    render(
+      <WorkoutCelebrationOverlay
+        active={true}
+        onDismiss={vi.fn()}
+        hasPr={true}
+        streakMilestoneReached={12}
+        stats={[{ icon: Flame, value: 50, label: 'reps', animate: true }]}
+      />,
+    )
+    expect(playCelebrationSoundMock).toHaveBeenCalledWith(true, true)
   })
 
   it('does not play sound when inactive', () => {

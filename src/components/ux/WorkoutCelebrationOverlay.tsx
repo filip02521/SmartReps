@@ -75,10 +75,12 @@ export function WorkoutCelebrationOverlay({
   const dismissTimerRef = useRef<number | undefined>(undefined)
   const trapRef = useFocusTrap(active)
   const hasPrRef = useRef(hasPr)
+  const streakMilestoneRef = useRef(streakMilestoneReached)
   const onDismissRef = useRef(onDismiss)
 
   useEffect(() => {
     hasPrRef.current = hasPr
+    streakMilestoneRef.current = streakMilestoneReached
     onDismissRef.current = onDismiss
   })
 
@@ -94,17 +96,17 @@ export function WorkoutCelebrationOverlay({
     // Trigger entrance animation on next frame
     const raf = requestAnimationFrame(() => setVisible(true))
 
-    // Haptic feedback (vibration) — respects user settings implicitly
+    // Haptic feedback (vibration) — richer pattern for milestone
     if (navigator.vibrate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       try {
-        navigator.vibrate(hasPrRef.current ? [60, 40, 80] : 80)
+        navigator.vibrate(streakMilestoneRef.current ? [80, 50, 80, 50, 120] : hasPrRef.current ? [60, 40, 80] : 80)
       } catch {
         // ignore — vibration not supported
       }
     }
 
-    // Celebration sound — respects timerSound setting; richer fanfare for PR
-    playCelebrationSound(hasPrRef.current)
+    // Celebration sound — priority: milestone > PR > default
+    playCelebrationSound(hasPrRef.current, !!streakMilestoneRef.current)
 
     // Auto-dismiss
     dismissTimerRef.current = window.setTimeout(handleDismiss, durationMs)
