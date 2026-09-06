@@ -10,6 +10,7 @@ export function ProgressSection({
   children,
   className,
   first,
+  id,
 }: {
   title?: string
   hint?: string
@@ -17,9 +18,11 @@ export function ProgressSection({
   children: ReactNode
   className?: string
   first?: boolean
+  id?: string
 }) {
   return (
     <section
+      id={id}
       className={cn(
         'border-t border-[var(--sr-border-subtle)] pt-6',
         first ? 'border-t-0 pt-0' : 'mt-6',

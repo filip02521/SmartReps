@@ -345,7 +345,7 @@ export function OverviewPanel({
 
       {/* Seria treningowa — streak heatmap */}
       {allSessions.length > 0 && (
-        <ProgressSection icon={Flame} title={pl.streakHeatmapTitle} hint={pl.streakHeatmapHint}>
+        <ProgressSection id="progress-streak" icon={Flame} title={pl.streakHeatmapTitle} hint={pl.streakHeatmapHint}>
           <StreakHeatmap sessions={allSessions} showHeader={false} />
         </ProgressSection>
       )}

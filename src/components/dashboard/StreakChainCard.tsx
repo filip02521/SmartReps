@@ -131,7 +131,7 @@ export function StreakChainCard({ sessions }: { sessions: LocalWorkoutSession[] 
     return (
       <button
         type="button"
-        onClick={() => navigate('/progress')}
+        onClick={() => navigate('/progress?tab=streak')}
         aria-label={pl.streakChainTitle}
         className={cn(
           FOCUS_RING,
@@ -164,7 +164,7 @@ export function StreakChainCard({ sessions }: { sessions: LocalWorkoutSession[] 
   return (
     <button
       type="button"
-      onClick={() => navigate('/progress')}
+      onClick={() => navigate('/progress?tab=streak')}
       aria-label={pl.streakChainAria(streak, bestStreak)}
       className={cn(
         FOCUS_RING,
