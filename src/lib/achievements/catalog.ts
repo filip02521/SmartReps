@@ -276,6 +276,121 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
       { threshold: 100, rarity: 'legendary', glyph: 'layers' },
     ],
   },
+
+  // ══ NEW: AI coach ══
+  { id: 'ai_first_insight', track: 'training', rarity: 'common', glyph: 'sparkles' },
+  {
+    id: 'ai_coach_user',
+    track: 'training',
+    rarity: 'rare',
+    glyph: 'sparkles',
+    tiers: [
+      { threshold: 5, rarity: 'common' },
+      { threshold: 10, rarity: 'rare' },
+      { threshold: 25, rarity: 'legendary', glyph: 'sparkles' },
+    ],
+  },
+
+  // ══ NEW: Custom exercises ══
+  {
+    id: 'exercise_creator',
+    track: 'training',
+    rarity: 'rare',
+    glyph: 'puzzle',
+    tiers: [
+      { threshold: 1, rarity: 'common' },
+      { threshold: 5, rarity: 'rare' },
+      { threshold: 10, rarity: 'legendary', glyph: 'puzzle' },
+    ],
+  },
+
+  // ══ NEW: Body weight tracking ══
+  {
+    id: 'weight_tracker',
+    track: 'habit',
+    rarity: 'rare',
+    glyph: 'scale',
+    tiers: [
+      { threshold: 1, rarity: 'common' },
+      { threshold: 4, rarity: 'rare' },
+      { threshold: 12, rarity: 'rare' },
+      { threshold: 26, rarity: 'legendary', glyph: 'scale' },
+    ],
+  },
+
+  // ══ NEW: Weekend warrior ══
+  {
+    id: 'weekend_warrior',
+    track: 'habit',
+    rarity: 'rare',
+    glyph: 'calendar',
+    tiers: [
+      { threshold: 5, rarity: 'common' },
+      { threshold: 10, rarity: 'rare' },
+      { threshold: 25, rarity: 'legendary', glyph: 'calendar' },
+    ],
+  },
+
+  // ══ NEW: Follow system ══
+  { id: 'first_follower', track: 'catalog', rarity: 'common', glyph: 'user-plus' },
+  {
+    id: 'followed_by_25',
+    track: 'catalog',
+    rarity: 'legendary',
+    glyph: 'users',
+    tiers: [
+      { threshold: 5, rarity: 'common' },
+      { threshold: 25, rarity: 'rare' },
+      { threshold: 100, rarity: 'legendary', glyph: 'users-gold' },
+    ],
+  },
+  { id: 'first_follow', track: 'catalog', rarity: 'common', glyph: 'user-check' },
+
+  // ══ NEW: Community reviews ══
+  { id: 'first_review', track: 'catalog', rarity: 'common', glyph: 'star' },
+  {
+    id: 'reviewer_10',
+    track: 'catalog',
+    rarity: 'rare',
+    glyph: 'star',
+    tiers: [
+      { threshold: 1, rarity: 'common' },
+      { threshold: 5, rarity: 'rare' },
+      { threshold: 25, rarity: 'legendary', glyph: 'star' },
+    ],
+  },
+
+  // ══ NEW: Weekly challenge ══
+  { id: 'challenge_first', track: 'catalog', rarity: 'rare', glyph: 'swords' },
+  { id: 'challenge_winner', track: 'catalog', rarity: 'legendary', glyph: 'trophy' },
+  {
+    id: 'challenge_5',
+    track: 'catalog',
+    rarity: 'rare',
+    glyph: 'swords',
+    tiers: [
+      { threshold: 1, rarity: 'common' },
+      { threshold: 5, rarity: 'rare' },
+      { threshold: 10, rarity: 'legendary', glyph: 'swords' },
+    ],
+  },
+
+  // ══ NEW: Legend — community ══
+  { id: 'legend_community', track: 'legend', rarity: 'legendary', glyph: 'globe' },
+
+  // ══ NEW: Secret — weekend ══
+  {
+    id: 'secret_weekend',
+    track: 'legend',
+    rarity: 'legendary',
+    isSecret: true,
+    glyph: 'umbrella',
+    tiers: [
+      { threshold: 10, rarity: 'common' },
+      { threshold: 25, rarity: 'rare' },
+      { threshold: 50, rarity: 'legendary', glyph: 'umbrella' },
+    ],
+  },
 ]
 
 export const ACHIEVEMENT_BY_ID = Object.fromEntries(
@@ -365,6 +480,40 @@ function achievementMetricValue(id: AchievementId, snap: AchievementSnapshot): n
       return snap.dawnSessionCount
     case 'secret_marathon':
       return snap.longSessionCount
+    case 'ai_first_insight':
+      return snap.aiInsightCount
+    case 'ai_coach_user':
+      return snap.aiInsightCount
+    case 'exercise_creator':
+      return snap.customExercisesCount
+    case 'weight_tracker':
+      return snap.bodyWeightEntries
+    case 'weekend_warrior':
+      return snap.weekendSessionCount
+    case 'first_follower':
+      return snap.impact.followerCount
+    case 'followed_by_25':
+      return snap.impact.followerCount
+    case 'first_follow':
+      return snap.impact.followingCount
+    case 'first_review':
+      return snap.impact.reviewCount
+    case 'reviewer_10':
+      return snap.impact.reviewCount
+    case 'challenge_first':
+      return snap.impact.challengeParticipations
+    case 'challenge_winner':
+      return snap.impact.challengeWins
+    case 'challenge_5':
+      return snap.impact.challengeParticipations
+    case 'legend_community':
+      return snap.impact.publishedCount >= 3 &&
+        snap.impact.followerCount >= 10 &&
+        snap.impact.reviewCount >= 5
+        ? 1
+        : 0
+    case 'secret_weekend':
+      return snap.weekendSessionCount
     default:
       return 0
   }
@@ -402,6 +551,14 @@ function achievementBaseThreshold(id: AchievementId): number {
     case 'first_like':
     case 'first_import':
     case 'first_trained':
+      return 1
+    case 'ai_first_insight':
+    case 'first_follower':
+    case 'first_follow':
+    case 'first_review':
+    case 'challenge_first':
+    case 'challenge_winner':
+    case 'legend_community':
       return 1
     default:
       return Infinity

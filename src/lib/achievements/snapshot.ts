@@ -30,6 +30,11 @@ function isLongSession(s: LocalWorkoutSession): boolean {
   return durMs >= 60 * 60 * 1000 // ≥60 min
 }
 
+function isWeekendSession(s: LocalWorkoutSession): boolean {
+  const day = new Date(s.startedAt).getDay()
+  return day === 0 || day === 6 // Sunday or Saturday
+}
+
 function detectComeback(sortedAsc: LocalWorkoutSession[], now: Date): boolean {
   if (sortedAsc.length < 5) return false
   for (let i = 1; i < sortedAsc.length; i++) {
@@ -105,6 +110,11 @@ export function emptyImpact(): AuthorImpactStats {
     publishedCount: 0,
     bestPlanImports: 0,
     bestPlanTrained: 0,
+    followerCount: 0,
+    followingCount: 0,
+    reviewCount: 0,
+    challengeParticipations: 0,
+    challengeWins: 0,
   }
 }
 
@@ -136,12 +146,15 @@ export async function buildAchievementSnapshot(opts?: {
   }
 
   const promise = (async () => {
-  const [allSessions, maxTests, progressRows, customPlans, tombstones] = await Promise.all([
+  const [allSessions, maxTests, progressRows, customPlans, tombstones, bodyWeightEntries, customExercises, aiInsights] = await Promise.all([
     db.workoutSessions.toArray(),
     db.maxTests.toArray(),
     db.programProgress.toArray(),
     db.customPlans.toArray(),
     db.sessionTombstones.toArray(),
+    db.bodyWeight.toArray(),
+    db.exercises.toArray(),
+    db.aiInsights.toArray(),
   ])
 
   // Defensive: exclude any session that has a tombstone (shouldn't happen in normal flow
@@ -252,6 +265,7 @@ export async function buildAchievementSnapshot(opts?: {
     nightSessionCount: completed.filter(isNightSession).length,
     dawnSessionCount: completed.filter(isDawnSession).length,
     longSessionCount: completed.filter(isLongSession).length,
+    weekendSessionCount: completed.filter(isWeekendSession).length,
     pushupsSessions,
     pullupsSessions,
     customPlansCount: customPlans.length,
@@ -265,6 +279,9 @@ export async function buildAchievementSnapshot(opts?: {
     prRepeatMax: computeBuiltinPrRepeatMax(completed),
     comebackStronger: detectComeback(completedAsc, now),
     totalRepsAllTime,
+    bodyWeightEntries: bodyWeightEntries.length,
+    customExercisesCount: customExercises.filter((e) => !e.id.startsWith('builtin:')).length,
+    aiInsightCount: aiInsights.length,
     impact,
     unlockAtHints,
   }

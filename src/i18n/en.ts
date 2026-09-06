@@ -2267,6 +2267,54 @@ export const en: Translation = {
   achievement_secret_marathon_title: 'Training marathon',
   achievement_secret_marathon_desc: 'Sessions lasting over an hour — patience and volume.',
 
+  // ── NEW: AI coach ──
+  achievement_ai_first_insight_title: 'AI assistant',
+  achievement_ai_first_insight_desc: 'First insight from AI — your coach is watching your training.',
+  achievement_ai_coach_user_title: 'AI familiar',
+  achievement_ai_coach_user_desc: 'More and more AI insights — your coach is always at hand.',
+
+  // ── NEW: Custom exercises ──
+  achievement_exercise_creator_title: 'Exercise creator',
+  achievement_exercise_creator_desc: 'Custom exercises in your library — full personalization.',
+
+  // ── NEW: Body weight tracking ──
+  achievement_weight_tracker_title: 'Weight tracking',
+  achievement_weight_tracker_desc: 'Regular weight entries — tracking your physique progress.',
+
+  // ── NEW: Weekend warrior ──
+  achievement_weekend_warrior_title: 'Weekend warrior',
+  achievement_weekend_warrior_desc: 'Workouts on Saturdays and Sundays — the rhythm never stops.',
+
+  // ── NEW: Follow system ──
+  achievement_first_follower_title: 'First follower',
+  achievement_first_follower_desc: 'Someone decided to follow you — the community is growing.',
+  achievement_followed_by_25_title: 'Recognition',
+  achievement_followed_by_25_desc: 'More and more followers — your training inspires others.',
+  achievement_first_follow_title: 'First follow',
+  achievement_first_follow_desc: 'You follow your first person — tracking someone else\'s progress.',
+
+  // ── NEW: Community reviews ──
+  achievement_first_review_title: 'First review',
+  achievement_first_review_desc: 'You rated a plan in the catalog — helping others choose.',
+  achievement_reviewer_10_title: 'Training critic',
+  achievement_reviewer_10_desc: 'More and more reviews — your voice counts.',
+
+  // ── NEW: Weekly challenge ──
+  achievement_challenge_first_title: 'Contender',
+  achievement_challenge_first_desc: 'You joined the weekly challenge — competition begins.',
+  achievement_challenge_winner_title: 'Challenge champion',
+  achievement_challenge_winner_desc: 'You won the weekly challenge — number one on the board.',
+  achievement_challenge_5_title: 'Challenge veteran',
+  achievement_challenge_5_desc: 'More and more challenges — competition is your nature.',
+
+  // ── NEW: Legend — community ──
+  achievement_legend_community_title: 'Community voice',
+  achievement_legend_community_desc: 'Publications, followers, and reviews — your impact is real.',
+
+  // ── NEW: Secret — weekend ──
+  achievement_secret_weekend_title: 'Weekends only',
+  achievement_secret_weekend_desc: 'Workouts only on weekends — while others rest, you work.',
+
   // ── Builtin exercise names (used in plan-resolver, workout-analyzer) ──
   builtinExercisePushups: 'Pushups',
   builtinExercisePullups: 'Pull-ups',

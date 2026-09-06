@@ -42,6 +42,30 @@ export type AchievementId =
   | 'secret_dawn'
   | 'secret_marathon'
   | 'both_programs'
+  // ── New: AI coach ──
+  | 'ai_first_insight'
+  | 'ai_coach_user'
+  // ── New: Custom exercises ──
+  | 'exercise_creator'
+  // ── New: Body weight tracking ──
+  | 'weight_tracker'
+  // ── New: Weekend warrior ──
+  | 'weekend_warrior'
+  // ── New: Follow system ──
+  | 'first_follower'
+  | 'followed_by_25'
+  | 'first_follow'
+  // ── New: Community reviews ──
+  | 'first_review'
+  | 'reviewer_10'
+  // ── New: Weekly challenge ──
+  | 'challenge_first'
+  | 'challenge_winner'
+  | 'challenge_5'
+  // ── New: Legend ──
+  | 'legend_community'
+  // ── New: Secret ──
+  | 'secret_weekend'
 
 /** Tier definition for progressive achievements. */
 export type AchievementTier = {
@@ -92,6 +116,16 @@ export type AuthorImpactStats = {
   /** Best single publication: imports + trained */
   bestPlanImports: number
   bestPlanTrained: number
+  /** Number of users following me. */
+  followerCount: number
+  /** Number of users I follow. */
+  followingCount: number
+  /** Number of reviews I have written. */
+  reviewCount: number
+  /** Number of weekly challenges I participated in. */
+  challengeParticipations: number
+  /** Number of weekly challenges I won (rank 1). */
+  challengeWins: number
 }
 
 export type AchievementSnapshot = {
@@ -122,6 +156,14 @@ export type AchievementSnapshot = {
   comebackStronger: boolean
   /** All-time total reps across all completed sessions. */
   totalRepsAllTime: number
+  /** Number of body weight entries logged. */
+  bodyWeightEntries: number
+  /** Number of custom exercises created. */
+  customExercisesCount: number
+  /** Number of AI insights generated (all types). */
+  aiInsightCount: number
+  /** Number of completed sessions on Saturday or Sunday. */
+  weekendSessionCount: number
   impact: AuthorImpactStats
   /** Earliest unlock hint timestamps by achievement id (ISO) */
   unlockAtHints: Partial<Record<AchievementId, string>>

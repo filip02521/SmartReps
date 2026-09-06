@@ -2294,6 +2294,54 @@ const plDict = {
   achievement_secret_marathon_title: 'Maraton treningowy',
   achievement_secret_marathon_desc: 'Sesje trwające ponad godzinę — cierpliwość i objętość.',
 
+  // ── NEW: AI coach ──
+  achievement_ai_first_insight_title: 'Asystent AI',
+  achievement_ai_first_insight_desc: 'Pierwszy insights od AI — trener patrzy na Twój trening.',
+  achievement_ai_coach_user_title: 'Z AI za pan brat',
+  achievement_ai_coach_user_desc: 'Coraz więcej insightsów AI — trener zawsze pod ręką.',
+
+  // ── NEW: Custom exercises ──
+  achievement_exercise_creator_title: 'Twórca ćwiczeń',
+  achievement_exercise_creator_desc: 'Własne ćwiczenia w bibliotece — personalizacja na pełnej.',
+
+  // ── NEW: Body weight tracking ──
+  achievement_weight_tracker_title: 'Śledzenie wagi',
+  achievement_weight_tracker_desc: 'Regularne wpisy wagi — kontrola postępu sylwetki.',
+
+  // ── NEW: Weekend warrior ──
+  achievement_weekend_warrior_title: 'Wojownik weekendu',
+  achievement_weekend_warrior_desc: 'Treningi w soboty i niedziele — rytm nie ustaje.',
+
+  // ── NEW: Follow system ──
+  achievement_first_follower_title: 'Pierwszy obserwujący',
+  achievement_first_follower_desc: 'Ktoś zdecydował się Cię obserwować — społeczność rośnie.',
+  achievement_followed_by_25_title: 'Rozpoznawalność',
+  achievement_followed_by_25_desc: 'Coraz więcej obserwujących — Twój trening inspiruje innych.',
+  achievement_first_follow_title: 'Pierwsza obserwacja',
+  achievement_first_follow_desc: 'Obserwujesz pierwszą osobę — śledzisz cudzy postęp.',
+
+  // ── NEW: Community reviews ──
+  achievement_first_review_title: 'Pierwsza recenzja',
+  achievement_first_review_desc: 'Oceniałeś plan w katalogu — pomagasz innym wybierać.',
+  achievement_reviewer_10_title: 'Krytyk treningowy',
+  achievement_reviewer_10_desc: 'Coraz więcej recenzji — Twój głos się liczy.',
+
+  // ── NEW: Weekly challenge ──
+  achievement_challenge_first_title: 'Zawodnik',
+  achievement_challenge_first_desc: 'Wziąłeś udział w wyzwaniu tygodnia — rywalizacja rusza.',
+  achievement_challenge_winner_title: 'Mistrz wyzwania',
+  achievement_challenge_winner_desc: 'Wygrałeś wyzwanie tygodnia — numer jeden na liście.',
+  achievement_challenge_5_title: 'Stażysta wyzwania',
+  achievement_challenge_5_desc: 'Coraz więcej wyzwań — rywalizacja to Twoja natura.',
+
+  // ── NEW: Legend — community ──
+  achievement_legend_community_title: 'Głos społeczności',
+  achievement_legend_community_desc: 'Publikacje, obserwujący i recenzje — Twój wpływ jest realny.',
+
+  // ── NEW: Secret — weekend ──
+  achievement_secret_weekend_title: 'Tylko weekend',
+  achievement_secret_weekend_desc: 'Treningi tylko w weekendy — gdy inni odpoczywają, Ty pracujesz.',
+
   // ── Builtin exercise names (used in plan-resolver, workout-analyzer) ──
   builtinExercisePushups: 'Pompki',
   builtinExercisePullups: 'Podciąganie',

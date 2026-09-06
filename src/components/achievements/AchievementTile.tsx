@@ -15,6 +15,8 @@ import {
   Heart,
   Download,
   Users,
+  UserPlus,
+  UserCheck,
   Footprints,
   Library,
   Shield,
@@ -23,6 +25,14 @@ import {
   HelpCircle,
   BarChart3,
   Lock,
+  Sparkles,
+  Puzzle,
+  Scale,
+  Star,
+  Swords,
+  Trophy,
+  Umbrella,
+  Globe,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -72,6 +82,17 @@ export const GLYPHS: Record<string, LucideIcon> = {
   'bar-chart-gold': BarChart3,
   'bar-chart-diamond': BarChart3,
   'flag-diamond': Flag,
+  // ── New glyphs ──
+  sparkles: Sparkles,
+  puzzle: Puzzle,
+  scale: Scale,
+  'user-plus': UserPlus,
+  'user-check': UserCheck,
+  star: Star,
+  swords: Swords,
+  trophy: Trophy,
+  umbrella: Umbrella,
+  globe: Globe,
 }
 
 type VisualStyle = {
