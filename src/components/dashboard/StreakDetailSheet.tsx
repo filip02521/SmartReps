@@ -113,33 +113,51 @@ export function StreakDetailSheet({
   const bestStreak = useMemo(() => computeBestStreakWeeks(completed), [completed])
   const totalSessions = completed.length
   const isNewRecord = streak > 0 && streak >= bestStreak && bestStreak > 0
+  const isLegendary = streak >= 26
+  const isHot = streak >= 12
 
   return (
     <Sheet open={open} onClose={onClose} title={pl.streakSheetTitle} className="max-w-md">
       <div className="flex flex-col gap-5 pb-4">
-        {/* Hero — current streak number */}
+        {/* Hero — current streak number, tiered intensity */}
         <div
           className={cn(
             'flex items-center gap-4 rounded-[var(--sr-radius-lg)] border p-4',
-            streak > 0
-              ? 'border-[color-mix(in_srgb,var(--sr-brand-primary)_25%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-brand-primary)_6%,var(--sr-bg-surface))]'
-              : 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',
+            isLegendary
+              ? 'border-[color-mix(in_srgb,var(--sr-warning)_30%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-warning)_8%,var(--sr-bg-surface))]'
+              : isHot
+                ? 'border-[color-mix(in_srgb,var(--sr-brand-primary)_30%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-brand-primary)_8%,var(--sr-bg-surface))]'
+                : streak > 0
+                  ? 'border-[color-mix(in_srgb,var(--sr-brand-primary)_25%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-brand-primary)_6%,var(--sr-bg-surface))]'
+                  : 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',
           )}
         >
           <div
             className={cn(
               'flex h-14 w-14 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]',
-              streak > 0
-                ? 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)] text-[var(--sr-brand-primary)]'
-                : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)]',
+              isLegendary
+                ? 'bg-[color-mix(in_srgb,var(--sr-warning)_18%,transparent)] text-[var(--sr-warning)]'
+                : streak > 0
+                  ? 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)] text-[var(--sr-brand-primary)]'
+                  : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)]',
             )}
             aria-hidden
           >
-            <Flame size={28} strokeWidth={2.25} className={cn(streak > 0 && 'sr-flame-pulse')} />
+            <Flame
+              size={isLegendary ? 32 : 28}
+              strokeWidth={2.25}
+              className={cn(streak > 0 && 'sr-flame-pulse')}
+            />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-bold tabular-nums leading-none text-[var(--sr-text-primary)]">
+              <span
+                className={cn(
+                  'font-bold tabular-nums leading-none',
+                  isLegendary ? 'text-[var(--sr-warning)]' : 'text-[var(--sr-text-primary)]',
+                )}
+                style={{ fontSize: isLegendary ? '2.75rem' : '2.5rem' }}
+              >
                 {streak}
               </span>
               <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">

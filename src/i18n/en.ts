@@ -553,6 +553,8 @@ export const en: Translation = {
   celebrationSubtitle: 'Great job — keep it up!',
   celebrationPrBadge: 'New personal record',
   celebrationAchievementBadge: 'New achievement',
+  celebrationStreakBadge: (weeks: number) => `${weeks} wks in a row!`,
+  celebrationStreakMilestone: (weeks: number) => `${weeks} wks — milestone!`,
   celebrationTapToContinue: 'Tap to continue',
   celebrationShare: 'Share',
   celebrationDayContext: (day: number, total: number) => `Day ${day} of ${total}`,
@@ -668,6 +670,9 @@ export const en: Translation = {
       ? `${weeksLeft} wks to reach ${target} wks goal`
       : `${target} wks goal reached!`,
   streakSheetAllMilestones: 'All milestones achieved — legendary!',
+  // Streak recap card (session summary)
+  streakRecapMilestone: (weeks: number) => `Milestone: ${weeks} weeks!`,
+  streakRecapNewRecord: 'New streak record!',
   muscleBalanceTitle: 'Muscle balance',
   muscleBalanceHint: 'Weekly sets in the last 4 weeks',
   muscleBalanceOptimal: 'Optimal',

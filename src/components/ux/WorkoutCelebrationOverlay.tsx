@@ -17,6 +17,14 @@ type StatItem = {
   animate?: boolean
 }
 
+/** Streak badge tiers for visual intensity. */
+function streakBadgeTier(weeks: number): 'none' | 'warm' | 'hot' | 'legendary' {
+  if (weeks >= 26) return 'legendary'
+  if (weeks >= 12) return 'hot'
+  if (weeks >= 4) return 'warm'
+  return 'none'
+}
+
 /**
  * Full-screen celebration overlay shown when a workout is completed.
  * Features:
@@ -37,6 +45,9 @@ export function WorkoutCelebrationOverlay({
   hasNewAchievement = false,
   achievementTrophyTier = null,
   achievementTrophyShape = 'cup',
+  streakWeeks = 0,
+  streakIncreased = false,
+  streakMilestoneReached = null,
   durationMs = 2000,
 }: {
   active: boolean
@@ -52,6 +63,12 @@ export function WorkoutCelebrationOverlay({
   achievementTrophyTier?: TrophyTier | null
   /** Trophy shape — derived from achievement track. */
   achievementTrophyShape?: TrophyShapeKind
+  /** Current streak in weeks — shows a flame badge when > 0 and streakIncreased. */
+  streakWeeks?: number
+  /** Whether this workout extended the streak (show badge only on increase). */
+  streakIncreased?: boolean
+  /** Milestone just reached (4, 8, 12, 26, 52) — shows special milestone badge. */
+  streakMilestoneReached?: number | null
   durationMs?: number
 }) {
   const [visible, setVisible] = useState(false)
@@ -241,8 +258,8 @@ export function WorkoutCelebrationOverlay({
           ))}
         </div>
 
-        {/* PR / Achievement badges — show both if both apply */}
-        {(hasPr || hasNewAchievement) && (
+        {/* PR / Streak / Achievement badges — show all that apply */}
+        {(hasPr || hasNewAchievement || (streakIncreased && streakWeeks > 0)) && (
           <div
             className="mt-6 flex flex-wrap items-center justify-center gap-2"
             style={
@@ -251,6 +268,42 @@ export function WorkoutCelebrationOverlay({
                 : undefined
             }
           >
+            {/* Streak badge — flame with count-up weeks */}
+            {streakIncreased && streakWeeks > 0 && (
+              <div
+                className={cn(
+                  'flex items-center gap-2 rounded-full px-4 py-2',
+                  streakMilestoneReached
+                    ? 'bg-[color-mix(in_srgb,var(--sr-warning)_20%,transparent)] ring-2 ring-[color-mix(in_srgb,var(--sr-warning)_40%,transparent)]'
+                    : streakBadgeTier(streakWeeks) === 'legendary'
+                      ? 'bg-[color-mix(in_srgb,var(--sr-warning)_18%,transparent)]'
+                      : streakBadgeTier(streakWeeks) === 'hot'
+                        ? 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_18%,transparent)]'
+                        : 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_12%,transparent)]',
+                )}
+              >
+                <Flame
+                  size={18}
+                  className={cn(
+                    streakMilestoneReached || streakBadgeTier(streakWeeks) === 'legendary'
+                      ? 'text-[var(--sr-warning)] sr-flame-pulse'
+                      : 'text-[var(--sr-brand-primary)]',
+                  )}
+                />
+                <span
+                  className={cn(
+                    'sr-text-body-sm font-semibold tabular-nums',
+                    streakMilestoneReached || streakBadgeTier(streakWeeks) === 'legendary'
+                      ? 'text-[var(--sr-warning)]'
+                      : 'text-[var(--sr-brand-primary)]',
+                  )}
+                >
+                  {streakMilestoneReached
+                    ? pl.celebrationStreakMilestone(streakWeeks)
+                    : pl.celebrationStreakBadge(streakWeeks)}
+                </span>
+              </div>
+            )}
             {hasPr && (
               <div className="flex items-center gap-2 rounded-full bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)] px-4 py-2">
                 <Trophy size={16} className="text-[var(--sr-brand-primary)]" />

@@ -23,6 +23,7 @@ import { track } from '@/lib/analytics'
 import { useWorkoutStore } from '@/stores/workout-store'
 import { useAppStore } from '@/stores/app-store'
 import { daysUntilWorkout } from '@/lib/progress-engine'
+import { computeStreakWeeks } from '@/lib/stats-engine'
 import { getCycleById } from '@/data/plans'
 import type { Program } from '@/data/plans/types'
 import { shareSessionCard } from '@/lib/share-card'
@@ -32,6 +33,7 @@ import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
 import { useAchievementUiStore } from '@/stores/achievement-ui-store'
 import { AchievementSummaryList } from '@/components/achievements/AchievementSummaryList'
 import { WorkoutResultCard } from '@/components/workout/WorkoutResultCard'
+import { StreakRecapCard } from '@/components/workout/StreakRecapCard'
 import { detectPersonalRecords, type PersonalRecord } from '@/lib/pr-detector'
 import { initCelebrationAudio } from '@/lib/celebration-feedback'
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
@@ -86,6 +88,8 @@ export default function SessionSummary() {
   >([])
   const [prRecords, setPrRecords] = useState<PersonalRecord[]>([])
   const [showCelebration, setShowCelebration] = useState(false)
+  const [allSessionsForStreak, setAllSessionsForStreak] = useState<LocalWorkoutSession[]>([])
+  const [previousSessionsForStreak, setPreviousSessionsForStreak] = useState<LocalWorkoutSession[]>([])
   const achievementQueue = useAchievementUiStore((s) => s.queue)
   const clearQueue = useAchievementUiStore((s) => s.clearQueue)
   const setSummaryMode = useAchievementUiStore((s) => s.setSummaryMode)
@@ -131,7 +135,7 @@ export default function SessionSummary() {
       const prog = await getProgramProgress(program)
       setProgress(prog)
 
-      const [comparison, historicalSessions, totalCompletedCount] = await Promise.all([
+      const [comparison, historicalSessions, totalCompletedCount, allCompleted] = await Promise.all([
         getSessionComparison(program, sessionId),
         db.workoutSessions
           .where('program')
@@ -139,11 +143,17 @@ export default function SessionSummary() {
           .filter((s) => s.status === 'completed')
           .toArray(),
         db.workoutSessions.filter((s) => s.status === 'completed').count(),
+        db.workoutSessions.filter((s) => s.status === 'completed').toArray(),
       ])
       setCurrent(comparison.current)
       setPrevious(comparison.previous)
       if (comparison.current) {
         currentSessionIdRef.current = comparison.current.id
+        // Streak data: all sessions (including this one) + sessions before this one
+        setAllSessionsForStreak(allCompleted)
+        setPreviousSessionsForStreak(
+          allCompleted.filter((s) => s.id !== comparison.current?.id),
+        )
         // Detect personal records for celebration banner
         let records: PersonalRecord[] = []
         try {
@@ -409,6 +419,19 @@ export default function SessionSummary() {
           { icon: Flame, value: totalReps, label: pl.celebrationStatReps, animate: true },
           { icon: Dumbbell, value: rows.length, label: pl.celebrationStatSets, animate: true },
         ]}
+        streakWeeks={computeStreakWeeks(allSessionsForStreak.filter((s) => s.status === 'completed'))}
+        streakIncreased={
+          computeStreakWeeks(allSessionsForStreak.filter((s) => s.status === 'completed')) >
+          computeStreakWeeks(previousSessionsForStreak.filter((s) => s.status === 'completed'))
+        }
+        streakMilestoneReached={(() => {
+          const newS = computeStreakWeeks(allSessionsForStreak.filter((s) => s.status === 'completed'))
+          const prevS = computeStreakWeeks(previousSessionsForStreak.filter((s) => s.status === 'completed'))
+          for (const m of [4, 8, 12, 26, 52]) {
+            if (prevS < m && newS >= m) return m
+          }
+          return null
+        })()}
       />
 
       <PageHeader
@@ -460,6 +483,14 @@ export default function SessionSummary() {
           }
         }}
       />
+
+      {/* Streak recap — celebrate streak increase after workout */}
+      {!failed && (
+        <StreakRecapCard
+          sessions={allSessionsForStreak}
+          previousSessions={previousSessionsForStreak}
+        />
+      )}
 
       {/* Achievements — celebration moment, keep near result card */}
       {newAchievements.length > 0 && (

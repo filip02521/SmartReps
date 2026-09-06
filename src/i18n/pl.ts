@@ -567,6 +567,8 @@ const plDict = {
   celebrationSubtitle: 'Świetna robota — tak trzymaj!',
   celebrationPrBadge: 'Nowy rekord osobisty',
   celebrationAchievementBadge: 'Nowe osiągnięcie',
+  celebrationStreakBadge: (weeks: number) => `${weeks} tyg. z rzędu!`,
+  celebrationStreakMilestone: (weeks: number) => `${weeks} tyg. — kamień milowy!`,
   celebrationTapToContinue: 'Dotknij, aby kontynuować',
   celebrationShare: 'Udostępnij',
   celebrationDayContext: (day: number, total: number) => `Dzień ${day} z ${total}`,
@@ -684,6 +686,9 @@ const plDict = {
       ? `Jeszcze ${weeksLeft} tyg. do celu ${target} tyg.`
       : `Cel ${target} tyg. osiągnięty!`,
   streakSheetAllMilestones: 'Wszystkie kamienie milowe zdobyte — legenda!',
+  // Streak recap card (session summary)
+  streakRecapMilestone: (weeks: number) => `Kamień milowy: ${weeks} tygodni!`,
+  streakRecapNewRecord: 'Nowy rekord serii!',
   // Muscle group balance heatmap
   muscleBalanceTitle: 'Balans mięśniowy',
   muscleBalanceHint: 'Serie tygodniowo w ostatnich 4 tyg.',
