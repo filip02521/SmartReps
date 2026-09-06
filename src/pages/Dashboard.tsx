@@ -157,15 +157,38 @@ export default function Dashboard() {
     let cancelled = false
     const controller = new AbortController()
     void (async () => {
-      const weekKey = getWeekKey(new Date())
+      const now = new Date()
+      const currentWeekKey = getWeekKey(now)
       const forceRegenerate = searchParams.get('weekly_report') === 'force'
+
+      // ── Catch-up: check if previous week's report is missing ──
+      // If the user didn't open the app on Sunday, the weekly report for last
+      // week was never generated. On Monday–Saturday, we check if last week
+      // had sessions but no report — if so, generate it as a catch-up.
+      const prevWeekDate = new Date(now)
+      prevWeekDate.setDate(now.getDate() - 7)
+      const prevWeekKey = getWeekKey(prevWeekDate)
+      const prevWeekStart = startOfLocalWeek(prevWeekDate)
+      const prevWeekEnd = new Date(prevWeekStart)
+      prevWeekEnd.setDate(prevWeekStart.getDate() + 7)
+      const prevWeekSessions = await db.workoutSessions
+        .filter((s) => s.status === 'completed' && new Date(s.startedAt) >= prevWeekStart && new Date(s.startedAt) < prevWeekEnd)
+        .count()
+      const prevWeekExisting = await db.aiInsights
+        .where('weekKey')
+        .equals(prevWeekKey)
+        .filter((i) => i.type === 'weekly_report')
+        .count()
+      const needsCatchUp = prevWeekSessions > 0 && prevWeekExisting === 0
+
+      // ── Check current week for existing report ──
       // Check for ANY existing report this week (including dismissed).
       // If any exists (even dismissed), don't regenerate — respect user's dismissal.
       // Exception: ?weekly_report=force bypasses cache (for testing/fixing stale reports).
       if (!forceRegenerate) {
         const allExisting = await db.aiInsights
           .where('weekKey')
-          .equals(weekKey)
+          .equals(currentWeekKey)
           .filter((i) => i.type === 'weekly_report')
           .toArray()
         if (allExisting.length > 0) {
@@ -181,20 +204,37 @@ export default function Dashboard() {
             await Promise.all(duplicates.map((r) => db.aiInsights.delete(r.id)))
           }
           if (!cancelled && !best.dismissedAt) setWeeklyReport(best)
-          return
+          // Even if current week has a report, still do catch-up for prev week
+          if (!needsCatchUp) return
+          // Fall through to catch-up generation below
         }
       }
-      // Generate on Sundays, on explicit request, or when user has completed workouts
-      const isSunday = new Date().getDay() === 0
-      const hasReportParam = forceRegenerate
-      // Check if user has any completed sessions this week
-      const weekStart = startOfLocalWeek(new Date())
-      const weekEnd = new Date(weekStart)
-      weekEnd.setDate(weekStart.getDate() + 7)
-      const weekSessions = await db.workoutSessions
-        .filter((s) => s.status === 'completed' && new Date(s.startedAt) >= weekStart && new Date(s.startedAt) < weekEnd)
+
+      // ── Determine which week to generate for ──
+      // Priority: force param → current week; catch-up → previous week; else current week
+      const isForce = forceRegenerate
+      const isCatchUp = !isForce && needsCatchUp
+      const targetWeekDate = isCatchUp ? prevWeekDate : now
+      const targetWeekKey = getWeekKey(targetWeekDate)
+
+      // For catch-up: if a report already exists for prev week (race), skip
+      if (isCatchUp) {
+        const recheck = await db.aiInsights
+          .where('weekKey')
+          .equals(targetWeekKey)
+          .filter((i) => i.type === 'weekly_report')
+          .count()
+        if (recheck > 0) return
+      }
+
+      // Check if user has any completed sessions in the target week
+      const targetWeekStart = startOfLocalWeek(targetWeekDate)
+      const targetWeekEnd = new Date(targetWeekStart)
+      targetWeekEnd.setDate(targetWeekStart.getDate() + 7)
+      const targetWeekSessions = await db.workoutSessions
+        .filter((s) => s.status === 'completed' && new Date(s.startedAt) >= targetWeekStart && new Date(s.startedAt) < targetWeekEnd)
         .count()
-      if (!isSunday && !hasReportParam && weekSessions === 0) return
+      if (!isForce && targetWeekSessions === 0) return
 
       // Generation starts here — show placeholder until report is ready
       setWeeklyReportGenerating(true)
@@ -219,15 +259,16 @@ export default function Dashboard() {
               db.workoutSessions.toArray(),
               listExercises(),
             ])
-            const report = await generateWeeklyReport({ sessions, exercises, aiConfig: undefined, signal: controller.signal })
+            const report = await generateWeeklyReport({ sessions, exercises, aiConfig: undefined, signal: controller.signal, weekDate: targetWeekDate })
             if (cancelled) { setWeeklyReportGenerating(false); return }
             if (forceRegenerate) {
-              const old = await db.aiInsights.where('weekKey').equals(weekKey).filter((i) => i.type === 'weekly_report').toArray()
+              const old = await db.aiInsights.where('weekKey').equals(targetWeekKey).filter((i) => i.type === 'weekly_report').toArray()
               await Promise.all(old.map((r) => db.aiInsights.delete(r.id)))
             }
             await db.aiInsights.put(report)
             void enqueueSync('ai_insights', 'insert', report)
-            setWeeklyReport(report)
+            // For catch-up, don't overwrite the current week's report display
+            if (!isCatchUp) setWeeklyReport(report)
             setWeeklyReportGenerating(false)
             if (forceRegenerate) {
               const next = new URLSearchParams(searchParams)
@@ -248,7 +289,7 @@ export default function Dashboard() {
           db.workoutSessions.toArray(),
           listExercises(),
         ])
-        const report = await generateWeeklyReport({ sessions, exercises, aiConfig, signal: controller.signal })
+        const report = await generateWeeklyReport({ sessions, exercises, aiConfig, signal: controller.signal, weekDate: targetWeekDate })
         if (cancelled) { setWeeklyReportGenerating(false); return }
         // Record successful AI call
         if (report.source === 'ai') {
@@ -259,7 +300,7 @@ export default function Dashboard() {
           // AI failed — keep existing report if any, don't save local fallback
           const existing = await db.aiInsights
             .where('weekKey')
-            .equals(weekKey)
+            .equals(targetWeekKey)
             .filter((i) => i.type === 'weekly_report' && !i.dismissedAt)
             .first()
           if (existing) {
@@ -279,14 +320,15 @@ export default function Dashboard() {
         if (forceRegenerate) {
           const old = await db.aiInsights
             .where('weekKey')
-            .equals(weekKey)
+            .equals(targetWeekKey)
             .filter((i) => i.type === 'weekly_report')
             .toArray()
           await Promise.all(old.map((r) => db.aiInsights.delete(r.id)))
         }
         await db.aiInsights.put(report)
         void enqueueSync('ai_insights', 'insert', report)
-        setWeeklyReport(report)
+        // For catch-up, don't overwrite the current week's report display
+        if (!isCatchUp) setWeeklyReport(report)
         // Clear force param after report is saved so re-entry doesn't regenerate
         if (forceRegenerate) {
           const next = new URLSearchParams(searchParams)

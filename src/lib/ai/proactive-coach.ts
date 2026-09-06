@@ -454,9 +454,12 @@ export async function generateWeeklyReport(params: {
   exercises: ExerciseDefinition[]
   aiConfig?: { apiKey: string; model: string; baseURL?: string; reasoningEffort?: 'auto' | 'low' | 'medium' | 'high' }
   signal?: AbortSignal
+  /** Override the week to report on (for catch-up reports from previous week).
+   *  Must be a date within the target week. Defaults to now (current week). */
+  weekDate?: Date
 }): Promise<LocalAiInsight> {
   const { sessions, exercises, aiConfig, signal } = params
-  const now = new Date()
+  const now = params.weekDate ?? new Date()
   const weekKey = getWeekKey(now)
   // Use ISO-week boundaries (Monday→Sunday) for consistency with getWeekKey
   const weekStart = startOfLocalWeek(now)
