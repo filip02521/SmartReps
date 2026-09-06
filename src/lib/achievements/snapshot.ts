@@ -146,7 +146,7 @@ export async function buildAchievementSnapshot(opts?: {
   }
 
   const promise = (async () => {
-  const [allSessions, maxTests, progressRows, customPlans, tombstones, bodyWeightEntries, customExercises, aiInsights] = await Promise.all([
+  const [allSessions, maxTests, progressRows, customPlans, tombstones, bodyWeightEntries, customExercises, aiInsights, exerciseTombstones] = await Promise.all([
     db.workoutSessions.toArray(),
     db.maxTests.toArray(),
     db.programProgress.toArray(),
@@ -155,6 +155,7 @@ export async function buildAchievementSnapshot(opts?: {
     db.bodyWeight.toArray(),
     db.exercises.toArray(),
     db.aiInsights.toArray(),
+    db.exerciseTombstones.toArray(),
   ])
 
   // Defensive: exclude any session that has a tombstone (shouldn't happen in normal flow
@@ -280,8 +281,10 @@ export async function buildAchievementSnapshot(opts?: {
     comebackStronger: detectComeback(completedAsc, now),
     totalRepsAllTime,
     bodyWeightEntries: bodyWeightEntries.length,
-    customExercisesCount: customExercises.filter((e) => !e.id.startsWith('builtin:')).length,
-    aiInsightCount: aiInsights.length,
+    customExercisesCount: customExercises.filter(
+      (e) => !e.id.startsWith('builtin:') && !exerciseTombstones.some((t) => t.exerciseId === e.id)
+    ).length,
+    aiInsightCount: aiInsights.filter((i) => i.source === 'ai').length,
     impact,
     unlockAtHints,
   }

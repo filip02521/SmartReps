@@ -354,8 +354,8 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
     rarity: 'rare',
     glyph: 'star',
     tiers: [
-      { threshold: 1, rarity: 'common' },
-      { threshold: 5, rarity: 'rare' },
+      { threshold: 3, rarity: 'common' },
+      { threshold: 10, rarity: 'rare' },
       { threshold: 25, rarity: 'legendary', glyph: 'star' },
     ],
   },
@@ -369,7 +369,7 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
     rarity: 'rare',
     glyph: 'swords',
     tiers: [
-      { threshold: 1, rarity: 'common' },
+      { threshold: 3, rarity: 'common' },
       { threshold: 5, rarity: 'rare' },
       { threshold: 10, rarity: 'legendary', glyph: 'swords' },
     ],
