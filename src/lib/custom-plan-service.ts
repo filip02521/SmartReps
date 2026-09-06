@@ -163,6 +163,8 @@ export async function saveExercise(
     restDefaultSec: number
     archived?: boolean
     muscleGroup?: MuscleGroup
+    /** Origin — defaults to 'user'. Set to 'ai' when saving from AI plan generator. */
+    source?: 'user' | 'ai'
   },
 ): Promise<ExerciseDefinition> {
   const now = new Date().toISOString()
@@ -186,6 +188,7 @@ export async function saveExercise(
     restDefaultSec: input.restDefaultSec,
     archived: input.archived ?? existing?.archived ?? false,
     muscleGroup: input.muscleGroup ?? existing?.muscleGroup,
+    source: input.source ?? existing?.source ?? 'user',
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   }

@@ -355,6 +355,7 @@ export async function commitGeneratedPlan(result: PlanGenerationResult): Promise
         primaryMetric: tempEx.primaryMetric,
         restDefaultSec: tempEx.restDefaultSec,
         muscleGroup: tempEx.muscleGroup,
+        source: 'ai',
       })
       // If saveExercise returned a different ID (dedup hit), remap
       if (saved.id !== tempEx.id) {
@@ -368,6 +369,7 @@ export async function commitGeneratedPlan(result: PlanGenerationResult): Promise
           primaryMetric: 'reps',
           restDefaultSec: tempEx.restDefaultSec,
           muscleGroup: tempEx.muscleGroup,
+          source: 'ai',
         })
         if (saved.id !== tempEx.id) {
           idRemap.set(tempEx.id, saved.id)

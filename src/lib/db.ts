@@ -341,6 +341,28 @@ class SmartRepsDB extends Dexie {
       exerciseTombstones: 'exerciseId, deletedAt',
       bodyWeightTombstones: 'entryId, deletedAt',
     })
+
+    // v11: Add `source` field to exercises ('user' | 'ai') — no index change.
+    // Existing exercises get source='user' by default via ExerciseDefinition optional field.
+    this.version(11).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, startedAt, [program+status], customPlanId',
+      activeWorkout: 'program',
+      activeCustomWorkout: 'customPlanId',
+      syncQueue: '++id, createdAt',
+      maxTests: '++id, program, testedAt, &[program+testedAt]',
+      exercises: 'id, updatedAt, archived',
+      customPlans: 'id, status, updatedAt',
+      customProgramProgress: '++id, &customPlanId, updatedAt',
+      achievementUnlocks: 'id, unlockedAt',
+      bodyWeight: 'id, measuredAt',
+      aiInsights: 'id, type, sessionId, weekKey, createdAt',
+      sessionTombstones: 'sessionId, deletedAt',
+      aiAnalysisCache: 'id, createdAt',
+      customPlanTombstones: 'planId, deletedAt',
+      exerciseTombstones: 'exerciseId, deletedAt',
+      bodyWeightTombstones: 'entryId, deletedAt',
+    })
   }
 }
 

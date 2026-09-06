@@ -282,7 +282,10 @@ export async function buildAchievementSnapshot(opts?: {
     totalRepsAllTime,
     bodyWeightEntries: bodyWeightEntries.length,
     customExercisesCount: customExercises.filter(
-      (e) => !e.id.startsWith('builtin:') && !exerciseTombstones.some((t) => t.exerciseId === e.id)
+      (e) =>
+        !e.id.startsWith('builtin:') &&
+        !exerciseTombstones.some((t) => t.exerciseId === e.id) &&
+        e.source !== 'ai',
     ).length,
     aiInsightCount: aiInsights.filter((i) => i.source === 'ai').length,
     impact,

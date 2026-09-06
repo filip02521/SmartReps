@@ -33,6 +33,7 @@ export async function upsertUserExercise(userId: string, ex: ExerciseDefinition)
     rest_default_sec: ex.restDefaultSec,
     archived: ex.archived,
     muscle_group: ex.muscleGroup ?? null,
+    source: ex.source ?? 'user',
     created_at: ex.createdAt,
     updated_at: ex.updatedAt,
   })
@@ -92,6 +93,7 @@ type RemoteExercise = {
   rest_default_sec: number
   archived: boolean
   muscle_group?: string | null
+  source?: string | null
   created_at: string
   updated_at: string
 }
@@ -325,6 +327,7 @@ function mapExercise(row: RemoteExercise): ExerciseDefinition {
     restDefaultSec: row.rest_default_sec,
     archived: row.archived,
     muscleGroup: (row.muscle_group ?? undefined) as ExerciseDefinition['muscleGroup'],
+    source: (row.source === 'ai' ? 'ai' : 'user') as ExerciseDefinition['source'],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

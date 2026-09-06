@@ -109,6 +109,9 @@ export type ExerciseDefinition = {
   updatedAt: string
   /** Optional muscle group tag for substitution suggestions. */
   muscleGroup?: MuscleGroup
+  /** Origin of the exercise — 'user' (manually created) or 'ai' (AI plan generator).
+   *  Defaults to 'user' for backwards compatibility with existing records. */
+  source?: 'user' | 'ai'
 }
 
 export type MuscleGroup =
