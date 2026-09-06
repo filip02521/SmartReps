@@ -73,15 +73,32 @@ export async function waitForStoreHydration(timeoutMs = 3000): Promise<void> {
 
 export type AccountEnsureResult = 'cleared' | 'same' | 'first' | 'needs_confirm'
 
-/** Prevent pushing one user's local Dexie data into another user's cloud account. */
+/** Prevent pushing one user's local Dexie data into another user's cloud account.
+ *  Checks ALL user-owned data, not just sessions — exercises, AI insights, body
+ *  weight entries, and achievement unlocks also belong to a specific account. */
 async function hasLocalTrainingData(): Promise<boolean> {
-  const [progressCount, customPlans, customProgress, sessions] = await Promise.all([
+  const [
+    progressCount,
+    customPlans,
+    customProgress,
+    sessions,
+    exercises,
+    aiInsights,
+    bodyWeight,
+    achievements,
+  ] = await Promise.all([
     db.programProgress.count(),
     db.customPlans.count(),
     db.customProgramProgress.count(),
     db.workoutSessions.count(),
+    db.exercises.count(),
+    db.aiInsights.count(),
+    db.bodyWeight.count(),
+    db.achievementUnlocks.count(),
   ])
-  return progressCount + customPlans + customProgress + sessions > 0
+  return (
+    progressCount + customPlans + customProgress + sessions + exercises + aiInsights + bodyWeight + achievements > 0
+  )
 }
 
 export async function ensureAccountForSession(userId: string): Promise<AccountEnsureResult> {
@@ -102,6 +119,16 @@ export async function ensureAccountForSession(userId: string): Promise<AccountEn
   }
 
   if (!lastAuthUserId) {
+    // First login on this device — but if a guest user created local data
+    // (exercises, AI insights, body weight, sessions), that data belongs to
+    // no account and must be cleared before attributing it to the new user.
+    // Without this, a new account inherits stale guest achievements.
+    if (await hasLocalTrainingData()) {
+      await clearAllLocalData()
+      useAppStore.setState({ lastAuthUserId: userId })
+      showToast(pl.accountSwitchCleared, 'info')
+      return 'cleared'
+    }
     useAppStore.setState({ lastAuthUserId: userId })
     return 'first'
   }

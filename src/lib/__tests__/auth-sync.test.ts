@@ -34,6 +34,18 @@ vi.mock('@/lib/db', () => ({
     workoutSessions: {
       count: vi.fn(),
     },
+    exercises: {
+      count: vi.fn(),
+    },
+    aiInsights: {
+      count: vi.fn(),
+    },
+    bodyWeight: {
+      count: vi.fn(),
+    },
+    achievementUnlocks: {
+      count: vi.fn(),
+    },
   },
 }))
 
@@ -96,6 +108,10 @@ describe('ensureAccountForSession', () => {
     vi.mocked(db.customPlans.count).mockResolvedValue(0)
     vi.mocked(db.customProgramProgress.count).mockResolvedValue(0)
     vi.mocked(db.workoutSessions.count).mockResolvedValue(0)
+    vi.mocked(db.exercises.count).mockResolvedValue(0)
+    vi.mocked(db.aiInsights.count).mockResolvedValue(0)
+    vi.mocked(db.bodyWeight.count).mockResolvedValue(0)
+    vi.mocked(db.achievementUnlocks.count).mockResolvedValue(0)
   })
 
   it('sets lastAuthUserId on first login', async () => {
@@ -169,6 +185,13 @@ describe('handleAuthSession', () => {
     } as never)
     vi.mocked(syncWithRemote).mockResolvedValue({ ok: true, errors: 0 })
     vi.mocked(db.programProgress.count).mockResolvedValue(0)
+    vi.mocked(db.customPlans.count).mockResolvedValue(0)
+    vi.mocked(db.customProgramProgress.count).mockResolvedValue(0)
+    vi.mocked(db.workoutSessions.count).mockResolvedValue(0)
+    vi.mocked(db.exercises.count).mockResolvedValue(0)
+    vi.mocked(db.aiInsights.count).mockResolvedValue(0)
+    vi.mocked(db.bodyWeight.count).mockResolvedValue(0)
+    vi.mocked(db.achievementUnlocks.count).mockResolvedValue(0)
     vi.mocked(hasIncompleteSetup).mockResolvedValue(false)
   })
 
@@ -206,6 +229,13 @@ describe('runAuthenticatedSync', () => {
     } as never)
     vi.mocked(syncWithRemote).mockResolvedValue({ ok: true, errors: 0 })
     vi.mocked(db.programProgress.count).mockResolvedValue(0)
+    vi.mocked(db.customPlans.count).mockResolvedValue(0)
+    vi.mocked(db.customProgramProgress.count).mockResolvedValue(0)
+    vi.mocked(db.workoutSessions.count).mockResolvedValue(0)
+    vi.mocked(db.exercises.count).mockResolvedValue(0)
+    vi.mocked(db.aiInsights.count).mockResolvedValue(0)
+    vi.mocked(db.bodyWeight.count).mockResolvedValue(0)
+    vi.mocked(db.achievementUnlocks.count).mockResolvedValue(0)
   })
 
   it('merges toast opts when concurrent callers include SIGNED_IN', async () => {
@@ -281,6 +311,13 @@ describe('completeSignInFlow', () => {
     } as never)
     vi.mocked(syncWithRemote).mockResolvedValue({ ok: true, errors: 0 })
     vi.mocked(db.programProgress.count).mockResolvedValue(0)
+    vi.mocked(db.customPlans.count).mockResolvedValue(0)
+    vi.mocked(db.customProgramProgress.count).mockResolvedValue(0)
+    vi.mocked(db.workoutSessions.count).mockResolvedValue(0)
+    vi.mocked(db.exercises.count).mockResolvedValue(0)
+    vi.mocked(db.aiInsights.count).mockResolvedValue(0)
+    vi.mocked(db.bodyWeight.count).mockResolvedValue(0)
+    vi.mocked(db.achievementUnlocks.count).mockResolvedValue(0)
   })
 
   it('dedupes concurrent sign-in flows', async () => {
