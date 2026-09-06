@@ -1,7 +1,40 @@
 import { db } from '@/lib/db'
+import { ACHIEVEMENT_CATALOG } from './catalog'
 import type { AchievementId, LocalAchievementUnlock } from './types'
 
 const BACKFILL_KEY = 'achievements_backfill_v1'
+
+/** Set of valid achievement IDs from the catalog — used to validate remote data. */
+const VALID_ACHIEVEMENT_IDS = new Set(ACHIEVEMENT_CATALOG.map((d) => d.id))
+
+/** Max tier level per achievement (0 if non-tiered). */
+const MAX_TIER_LEVEL = new Map<AchievementId, number>(
+  ACHIEVEMENT_CATALOG.map((d) => [d.id, d.tiers?.length ?? 0]),
+)
+
+/** Validate and sanitize a remote achievement row. Returns null if invalid. */
+function sanitizeRemoteRow(r: {
+  achievement_id: string
+  unlocked_at: string
+  seen_at: string | null
+  tier_level?: number | null
+}): { id: AchievementId; unlockedAt: string; seenAt: string | null; tierLevel: number | null } | null {
+  if (!VALID_ACHIEVEMENT_IDS.has(r.achievement_id as AchievementId)) return null
+  const id = r.achievement_id as AchievementId
+  // Clamp tier_level to catalog max
+  const maxTier = MAX_TIER_LEVEL.get(id) ?? 0
+  let tierLevel = r.tier_level ?? null
+  if (tierLevel !== null) {
+    if (typeof tierLevel !== 'number' || tierLevel < 0) tierLevel = null
+    else if (maxTier > 0 && tierLevel > maxTier) tierLevel = maxTier
+  }
+  // Validate timestamp
+  const ts = Date.parse(r.unlocked_at)
+  if (isNaN(ts)) return null
+  // Reject future dates beyond 1 hour from now (clock skew tolerance)
+  if (ts > Date.now() + 3_600_000) return null
+  return { id, unlockedAt: r.unlocked_at, seenAt: r.seen_at, tierLevel }
+}
 
 function asUnlock(row: {
   id: string
@@ -83,7 +116,7 @@ export function setBackfillFlag(): void {
   }
 }
 
-/** Merge remote unlocks (keep earliest unlock, latest seen). */
+/** Merge remote unlocks (keep earliest unlock, latest seen). Validates against catalog. */
 export async function mergeRemoteUnlocks(
   remote: {
     achievement_id: string
@@ -93,29 +126,31 @@ export async function mergeRemoteUnlocks(
   }[],
 ): Promise<void> {
   for (const r of remote) {
-    const id = r.achievement_id as AchievementId
+    const sanitized = sanitizeRemoteRow(r)
+    if (!sanitized) continue // reject unknown/invalid achievements
+    const { id, unlockedAt, seenAt, tierLevel } = sanitized
     const local = await db.achievementUnlocks.get(id)
     if (!local) {
       await db.achievementUnlocks.put({
         id,
-        unlockedAt: r.unlocked_at,
-        seenAt: r.seen_at,
-        tierLevel: r.tier_level ?? null,
+        unlockedAt,
+        seenAt,
+        tierLevel,
       })
       continue
     }
-    const unlockedAt =
-      new Date(r.unlocked_at).getTime() < new Date(local.unlockedAt).getTime()
-        ? r.unlocked_at
+    const mergedUnlockedAt =
+      new Date(unlockedAt).getTime() < new Date(local.unlockedAt).getTime()
+        ? unlockedAt
         : local.unlockedAt
-    let seenAt = local.seenAt
-    if (r.seen_at && (!seenAt || new Date(r.seen_at).getTime() > new Date(seenAt).getTime())) {
-      seenAt = r.seen_at
+    let mergedSeenAt = local.seenAt
+    if (seenAt && (!mergedSeenAt || new Date(seenAt).getTime() > new Date(mergedSeenAt).getTime())) {
+      mergedSeenAt = seenAt
     }
-    // Keep the highest tier level between local and remote
+    // Keep the highest tier level between local and remote (clamped to catalog max)
     const localTier = local.tierLevel ?? 0
-    const remoteTier = r.tier_level ?? 0
-    const tierLevel = Math.max(localTier, remoteTier) || null
-    await db.achievementUnlocks.put({ id, unlockedAt, seenAt, tierLevel })
+    const remoteTier = tierLevel ?? 0
+    const mergedTier = Math.max(localTier, remoteTier) || null
+    await db.achievementUnlocks.put({ id, unlockedAt: mergedUnlockedAt, seenAt: mergedSeenAt, tierLevel: mergedTier })
   }
 }

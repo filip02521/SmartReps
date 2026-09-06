@@ -70,6 +70,7 @@ vi.mock('@/lib/db', () => ({
     aiInsights: { clear: vi.fn() },
     aiAnalysisCache: { clear: vi.fn() },
     sessionTombstones: { clear: vi.fn() },
+    achievementUnlocks: { clear: vi.fn() },
   },
 }))
 

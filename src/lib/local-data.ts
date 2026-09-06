@@ -28,6 +28,7 @@ export async function clearAllLocalData(): Promise<void> {
     db.aiInsights.clear(),
     db.aiAnalysisCache.clear(),
     db.sessionTombstones.clear(),
+    db.achievementUnlocks.clear(),
   ])
   useWorkoutStore.getState().reset()
   try {
