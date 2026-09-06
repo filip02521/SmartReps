@@ -191,7 +191,7 @@ export function CustomPlansHomeSection({
           }
         />
       )}
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-2.5">
         {cards.map((model) => (
           <li key={model.planId}>
             <CustomPlanHomeCard model={model} onUpdated={() => setReloadTick((t) => t + 1)} />

@@ -13,36 +13,7 @@ import type { CustomCycleDayStatus } from '@/lib/custom-plan-cycle-rail'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { pl } from '@/i18n/pl'
-import { Dumbbell, MoreVertical, Pause, Play, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
-import type { ReactNode } from 'react'
-
-const statusIcon: Record<string, { icon: ReactNode; accent: string; muted: string }> = {
-  info: {
-    icon: <Play size={16} strokeWidth={2.5} />,
-    accent: 'var(--sr-info)',
-    muted: 'var(--sr-info-muted)',
-  },
-  warning: {
-    icon: <Clock size={16} strokeWidth={2.5} />,
-    accent: 'var(--sr-warning)',
-    muted: 'var(--sr-warning-muted)',
-  },
-  success: {
-    icon: <CheckCircle2 size={16} strokeWidth={2.5} />,
-    accent: 'var(--sr-success)',
-    muted: 'var(--sr-success-muted)',
-  },
-  error: {
-    icon: <AlertCircle size={16} strokeWidth={2.5} />,
-    accent: 'var(--sr-error)',
-    muted: 'var(--sr-error-muted)',
-  },
-  default: {
-    icon: <Pause size={16} strokeWidth={2.5} />,
-    accent: 'var(--sr-text-muted)',
-    muted: 'color-mix(in srgb, var(--sr-text-muted) 12%, transparent)',
-  },
-}
+import { Dumbbell, MoreVertical, Play } from 'lucide-react'
 
 // Mini cycle rail — non-interactive dots/bars showing day status.
 // Mirrors the builtin CycleDayRail visual language but with custom plan statuses.
@@ -63,7 +34,7 @@ function MiniCustomCycleRail({ days, totalDays }: { days: CustomPlanCycleDay[]; 
   }
   return (
     <div
-      className="flex items-end gap-1"
+      className="flex items-end gap-0.5"
       role="list"
       aria-label={pl.progressCustomPlanMapTitle}
     >
@@ -76,9 +47,9 @@ function MiniCustomCycleRail({ days, totalDays }: { days: CustomPlanCycleDay[]; 
             aria-current={isCurrent ? 'step' : undefined}
             aria-label={`${pl.dayOfTotal(d.dayNumber, totalDays)} — ${ariaLabel[d.status]}`}
             className={cn(
-              'flex h-7 flex-1 items-center justify-center rounded-[var(--sr-radius-sm)] text-[10px] font-semibold tabular-nums leading-none transition-colors',
+              'flex h-6 flex-1 items-center justify-center rounded-[var(--sr-radius-sm)] text-[9px] font-semibold tabular-nums leading-none transition-colors',
               tone[d.status],
-              isCurrent && 'ring-2 ring-[var(--sr-brand-primary)]/35',
+              isCurrent && 'ring-2 ring-[var(--sr-brand-primary)]/30',
               d.status === 'passed' && 'text-[var(--sr-text-inverse)]',
               d.status === 'failed' && 'text-[var(--sr-text-inverse)]',
               d.status === 'current' && 'text-[var(--sr-text-inverse)]',
@@ -101,7 +72,6 @@ export function CustomPlanHomeCard({
   onUpdated?: () => void
 }) {
   const navigate = useNavigate()
-  const chrome = statusIcon[model.badge.variant] ?? statusIcon.default!
   const [showMenu, setShowMenu] = useState(false)
   const [preview, setPreview] = useState<{
     plan: CustomPlan
@@ -155,47 +125,42 @@ export function CustomPlanHomeCard({
   return (
     <article
       className={cn(
-        'relative overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] border-l-4 p-4 shadow-[var(--sr-shadow-card)] transition-colors hover:border-l-[var(--sr-border-strong)]',
+        'relative overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] border-l-[3px] p-3.5 shadow-[var(--sr-shadow-card)] transition-colors hover:border-l-[var(--sr-border-strong)]',
       )}
       style={{
         borderLeftColor: 'var(--sr-brand-primary)',
-        backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 12%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 42%)`,
+        backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 10%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 42%)`,
       }}
     >
       {/* Header — compact: icon + title + badge inline, menu button right */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)] text-[var(--sr-brand-primary)]"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)] text-[var(--sr-brand-primary)]"
             aria-hidden
           >
-            <Dumbbell size={20} strokeWidth={2.25} />
+            <Dumbbell size={18} strokeWidth={2.25} />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="min-w-0 line-clamp-2 sr-text-h2 text-[var(--sr-text-primary)]">
+            <h3 className="min-w-0 line-clamp-2 sr-text-h3 text-[var(--sr-text-primary)]">
               {model.planName}
             </h3>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Badge variant={model.badge.variant}>
-            <span className="flex items-center gap-1">
-              {chrome.icon}
-              {model.badge.label}
-            </span>
-          </Badge>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Badge variant={model.badge.variant}>{model.badge.label}</Badge>
           <button
             type="button"
             aria-label={pl.menuCustomPlan}
             aria-haspopup="dialog"
             aria-expanded={showMenu}
             className={cn(
-              'flex min-h-9 min-w-9 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              'flex min-h-8 min-w-8 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
               FOCUS_RING,
             )}
             onClick={() => setShowMenu(true)}
           >
-            <MoreVertical size={18} />
+            <MoreVertical size={16} />
           </button>
         </div>
       </div>
@@ -255,9 +220,9 @@ export function CustomPlanHomeCard({
 
       {/* Progress bar + cycle rail */}
       {model.totalDays > 0 && (
-        <div className="mt-3">
-          <div className="mb-2.5 flex items-center justify-between gap-2">
-            <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+        <div className="mt-2.5">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <p className="sr-text-caption text-[var(--sr-text-secondary)]">
               {model.isCycleComplete
                 ? pl.homeCustomStatusCycleComplete
                 : pl.homeCustomDayOf(
@@ -271,12 +236,12 @@ export function CustomPlanHomeCard({
                 </>
               )}
             </p>
-            <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
+            <p className="sr-text-caption font-semibold tabular-nums text-[var(--sr-text-primary)]">
               {model.pct}%
             </p>
           </div>
           <div
-            className="mb-3 h-1.5 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
+            className="mb-2 h-1 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
             role="progressbar"
             aria-valuenow={model.pct}
             aria-valuemin={0}
@@ -295,16 +260,16 @@ export function CustomPlanHomeCard({
 
       {/* Detail line — compact status info (resume hint, rest days, etc.) */}
       {model.detailLine && (
-        <p className="mt-2.5 line-clamp-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
+        <p className="mt-2 line-clamp-1 sr-text-caption text-[var(--sr-text-secondary)]">
           {model.detailLine}
         </p>
       )}
 
       {/* CTA */}
-      <div className="mt-3 border-t border-[var(--sr-border-subtle)] pt-3">
+      <div className="mt-2.5 border-t border-[var(--sr-border-subtle)] pt-2.5">
         <Button
           type="button"
-          size="touch"
+          size="md"
           fullWidth
           className={cn(model.resume && 'sr-pulse-cta')}
           onClick={() => {
@@ -322,7 +287,7 @@ export function CustomPlanHomeCard({
           }}
         >
           <span className="flex items-center justify-center gap-2">
-            {model.resume && <Play size={18} className="fill-current" />}
+            {model.resume && <Play size={16} className="fill-current" />}
             {model.ctaLabel}
           </span>
         </Button>
