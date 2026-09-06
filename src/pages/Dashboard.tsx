@@ -185,6 +185,7 @@ export default function Dashboard() {
       // Check for ANY existing report this week (including dismissed).
       // If any exists (even dismissed), don't regenerate — respect user's dismissal.
       // Exception: ?weekly_report=force bypasses cache (for testing/fixing stale reports).
+      let currentWeekHasReport = false
       if (!forceRegenerate) {
         const allExisting = await db.aiInsights
           .where('weekKey')
@@ -192,6 +193,7 @@ export default function Dashboard() {
           .filter((i) => i.type === 'weekly_report')
           .toArray()
         if (allExisting.length > 0) {
+          currentWeekHasReport = true
           // Prefer AI source, then most recent createdAt
           const best = allExisting.sort((a, b) => {
             if (a.source === 'ai' && b.source !== 'ai') return -1
@@ -267,8 +269,10 @@ export default function Dashboard() {
             }
             await db.aiInsights.put(report)
             void enqueueSync('ai_insights', 'insert', report)
-            // For catch-up, don't overwrite the current week's report display
-            if (!isCatchUp) setWeeklyReport(report)
+            // For catch-up: only show if current week has no report of its own.
+            // If current week already has a report, the catch-up runs silently
+            // in the background (the current week's report stays displayed).
+            if (!isCatchUp || !currentWeekHasReport) setWeeklyReport(report)
             setWeeklyReportGenerating(false)
             if (forceRegenerate) {
               const next = new URLSearchParams(searchParams)
@@ -327,8 +331,10 @@ export default function Dashboard() {
         }
         await db.aiInsights.put(report)
         void enqueueSync('ai_insights', 'insert', report)
-        // For catch-up, don't overwrite the current week's report display
-        if (!isCatchUp) setWeeklyReport(report)
+        // For catch-up: only show if current week has no report of its own.
+        // If current week already has a report, the catch-up runs silently
+        // in the background (the current week's report stays displayed).
+        if (!isCatchUp || !currentWeekHasReport) setWeeklyReport(report)
         // Clear force param after report is saved so re-entry doesn't regenerate
         if (forceRegenerate) {
           const next = new URLSearchParams(searchParams)
