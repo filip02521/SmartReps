@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { UserPlus, UserCheck, UserX, Loader2, Dumbbell, Flame, Trophy, Heart } from 'lucide-react'
+import { UserPlus, UserCheck, UserX, Loader2, Dumbbell, Flame, Trophy, Heart, Users } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { showToast } from '@/stores/toast-store'
 import { useAppStore } from '@/stores/app-store'
-import { isSupabaseConfigured } from '@/lib/supabase/client'
 import { useOnline } from '@/hooks/useOnline'
 import {
   toggleFollow,
@@ -400,61 +399,6 @@ export function PublicProfileSheet({
   )
 }
 
-/* ─── Following list section — used in Profile below hero ─── */
-
-export function FollowingListSection({ followData }: { followData: FollowData }) {
-  const online = useOnline()
-  const [unfollowBusy, setUnfollowBusy] = useState<string | null>(null)
-
-  const handleUnfollow = useCallback(async (followeeId: string) => {
-    setUnfollowBusy(followeeId)
-    try {
-      await followData.unfollow(followeeId)
-    } finally {
-      setUnfollowBusy(null)
-    }
-  }, [followData])
-
-  if (!isSupabaseConfigured || !online) return null
-  if (followData.loading) {
-    return (
-      <div className="flex items-center justify-center py-4">
-        <Loader2 size={20} className="animate-spin text-[var(--sr-text-muted)]" aria-hidden />
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      <h3 className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
-        {pl.followFollowingList}
-      </h3>
-      {followData.following.length === 0 ? (
-        <EmptyState
-          title={pl.followEmpty}
-          description={pl.followEmptyHint}
-        />
-      ) : (
-        <div className="space-y-2">
-          {followData.following.map((f) => (
-            <div
-              key={f.followee_id}
-              className={cn(
-                unfollowBusy === f.followee_id && 'opacity-50 pointer-events-none',
-              )}
-            >
-              <FolloweeCard
-                profile={f}
-                onUnfollow={handleUnfollow}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 /* ─── Follower card — someone who follows me ─── */
 
 function FollowerCard({ profile }: { profile: FollowerProfile }) {
@@ -483,9 +427,9 @@ function FollowerCard({ profile }: { profile: FollowerProfile }) {
         {/* Heart icon — indicates they follow you */}
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-brand-primary)]"
-          aria-hidden
+          aria-label={pl.followFollowsYou}
         >
-          <Heart size={16} />
+          <Heart size={16} aria-hidden />
         </span>
       </div>
       {/* Stats row */}
@@ -524,13 +468,14 @@ export function FollowersSheet({
   loading: boolean
 }) {
   return (
-    <Sheet open={open} onClose={onClose} title={pl.followFollowersSheetTitle}>
+    <Sheet open={open} onClose={onClose} title={pl.followFollowersSheetTitle(followers.length)}>
       {loading ? (
         <div className="flex items-center justify-center py-8">
           <Loader2 size={24} className="animate-spin text-[var(--sr-text-muted)]" aria-hidden />
         </div>
       ) : followers.length === 0 ? (
         <EmptyState
+          icon={<Users size={48} />}
           title={pl.followFollowersEmpty}
           description={pl.followFollowersEmptyHint}
         />
@@ -556,7 +501,6 @@ export function FollowingSheet({
   onClose: () => void
   followData: FollowData
 }) {
-  const online = useOnline()
   const [unfollowBusy, setUnfollowBusy] = useState<string | null>(null)
 
   const handleUnfollow = useCallback(async (followeeId: string) => {
@@ -568,10 +512,8 @@ export function FollowingSheet({
     }
   }, [followData])
 
-  if (!isSupabaseConfigured || !online) return null
-
   return (
-    <Sheet open={open} onClose={onClose} title={pl.followFollowingSheetTitle}>
+    <Sheet open={open} onClose={onClose} title={pl.followFollowingSheetTitle(followData.following.length)}>
       {followData.loading ? (
         <div className="flex items-center justify-center py-8">
           <Loader2 size={24} className="animate-spin text-[var(--sr-text-muted)]" aria-hidden />
