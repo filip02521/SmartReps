@@ -82,5 +82,17 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        // Force recharts into a single chunk to avoid Rolldown circular-dependency
+        // bug (Vite 8 / Rolldown) where recharts zIndex constants are undefined
+        // at module evaluation time. See: recharts/recharts#7376
+        manualChunks(id) {
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/es-toolkit')) {
+            return 'recharts'
+          }
+        },
+      },
+    },
   },
 })
