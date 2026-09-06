@@ -152,20 +152,17 @@ export function CustomPlanHomeCard({
     setPlanMap({ plan, progress: progress ?? null, exercises: exMap, sessions: planSessions })
   }
 
-  const showPreviewSection =
-    !model.isPaused && !model.isCycleComplete && model.previewLine.length > 0
-
   return (
     <article
       className={cn(
-        'relative overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] border-l-4 p-5 shadow-[var(--sr-shadow-card)] transition-colors hover:border-l-[var(--sr-border-strong)]',
+        'relative overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] border-l-4 p-4 shadow-[var(--sr-shadow-card)] transition-colors hover:border-l-[var(--sr-border-strong)]',
       )}
       style={{
         borderLeftColor: 'var(--sr-brand-primary)',
         backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 12%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 42%)`,
       }}
     >
-      {/* Header — compact, matching ProgramHomeCard */}
+      {/* Header — compact: icon + title + badge inline, menu button right */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <div
@@ -175,7 +172,7 @@ export function CustomPlanHomeCard({
             <Dumbbell size={20} strokeWidth={2.25} />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
+            <h3 className="min-w-0 line-clamp-2 sr-text-h2 text-[var(--sr-text-primary)]">
               {model.planName}
             </h3>
           </div>
@@ -296,28 +293,15 @@ export function CustomPlanHomeCard({
         </div>
       )}
 
-      {/* Session preview */}
-      {showPreviewSection && (
-        <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
-          <div className="mb-1.5 flex items-baseline justify-between gap-2">
-            <p className="sr-text-overline text-[var(--sr-text-muted)]">
-              {pl.homeCustomTodaySession}
-            </p>
-          </div>
-          <p
-            className="text-sm text-[var(--sr-text-primary)]"
-            title={model.previewLine}
-          >
-            {model.previewLine}
-          </p>
-          {model.detailLine && (
-            <p className="mt-1 text-sm text-[var(--sr-text-muted)]">{model.detailLine}</p>
-          )}
-        </div>
+      {/* Detail line — compact status info (resume hint, rest days, etc.) */}
+      {model.detailLine && (
+        <p className="mt-2.5 line-clamp-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
+          {model.detailLine}
+        </p>
       )}
 
       {/* CTA */}
-      <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-4">
+      <div className="mt-3 border-t border-[var(--sr-border-subtle)] pt-3">
         <Button
           type="button"
           size="touch"
