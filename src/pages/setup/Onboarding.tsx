@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { Check, Dumbbell, LayoutGrid, WifiOff, ShieldCheck, Compass, ArrowRight, Users, RefreshCw, Sparkles, Trophy, type LucideIcon } from 'lucide-react'
+import { Check, Dumbbell, LayoutGrid, Compass, ArrowRight, Users, Sparkles, Trophy, type LucideIcon } from 'lucide-react'
 import { LogoFull } from '@/components/brand/Logo'
-import { OnboardingIllustration } from '@/components/onboarding/OnboardingIllustrations'
+import { OnboardingIllustration, SlideCyclesIllustration, SlideAiIllustration, SlideProgressIllustration } from '@/components/onboarding/OnboardingIllustrations'
 import { Button } from '@/components/ui/Button'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { StepIndicator, PageLoader } from '@/components/ux/Feedback'
@@ -27,6 +27,8 @@ export default function Onboarding() {
   const [stepId, setStepId] = useState<WizardStep>('welcome')
   const [wantStrong, setWantStrong] = useState(true)
   const [wantCustom, setWantCustom] = useState(false)
+  const [activeSlide, setActiveSlide] = useState(0)
+  const carouselRef = useRef<HTMLDivElement>(null)
   useSeo({ title: pl.seoOnboardingTitle, description: pl.seoOnboardingDescription, path: '/setup/onboarding' })
   const [programs, setPrograms] = useState<Program[]>(['pushups'])
   const setSettings = useAppStore((s) => s.setSettings)
@@ -179,23 +181,64 @@ export default function Onboarding() {
         >
           <div className="flex flex-col items-center text-center sr-onboard-step">
             <LogoFull height={32} className="mb-3" />
-            <div className="mb-3 w-full">
-              <OnboardingIllustration step="welcome" />
-            </div>
             <h1 className="sr-text-h1">{pl.onboardingWelcome}</h1>
             <p className="mt-2 max-w-sm text-pretty sr-text-body-sm text-[var(--sr-text-secondary)]">
               {pl.onboardingWelcomeTagline}
             </p>
           </div>
-          <div className="mt-5 grid grid-cols-2 gap-2.5">
-            <FeatureTile icon={Dumbbell} text={pl.onboardingFeatureProgramsShort} className="sr-onboard-step sr-onboard-stagger-1" />
-            <FeatureTile icon={LayoutGrid} text={pl.onboardingFeatureCustomShort} className="sr-onboard-step sr-onboard-stagger-1" />
-            <FeatureTile icon={Sparkles} text={pl.onboardingFeatureAiShort} className="sr-onboard-step sr-onboard-stagger-2" />
-            <FeatureTile icon={Users} text={pl.onboardingFeatureCommunityShort} className="sr-onboard-step sr-onboard-stagger-2" />
-            <FeatureTile icon={Trophy} text={pl.onboardingFeatureProgressShort} className="sr-onboard-step sr-onboard-stagger-3" />
-            <FeatureTile icon={RefreshCw} text={pl.onboardingFeatureSyncShort} className="sr-onboard-step sr-onboard-stagger-3" />
-            <FeatureTile icon={WifiOff} text={pl.onboardingFeatureOfflineShort} className="sr-onboard-step sr-onboard-stagger-4" />
-            <FeatureTile icon={ShieldCheck} text={pl.onboardingFeaturePrivateShort} className="sr-onboard-step sr-onboard-stagger-4" />
+          {/* Swipeable feature carousel */}
+          <div
+            ref={carouselRef}
+            className="sr-carousel mt-5 flex snap-x snap-mandatory overflow-x-auto pb-1"
+            aria-label={pl.onboardingCarouselAria}
+            onScroll={() => {
+              const el = carouselRef.current
+              if (!el) return
+              const slideW = el.clientWidth
+              setActiveSlide(Math.round(el.scrollLeft / slideW))
+            }}
+          >
+            {/* Slide 1 — Ready cycles */}
+            <div className="sr-carousel-slide flex w-full shrink-0 flex-col items-center px-1">
+              <SlideCyclesIllustration />
+              <p className="mt-3 text-sm font-semibold text-[var(--sr-text-primary)]">{pl.onboardingSlide1Title}</p>
+              <p className="mt-1 max-w-[240px] text-xs text-[var(--sr-text-muted)]">{pl.onboardingSlide1Desc}</p>
+            </div>
+            {/* Slide 2 — AI Coach */}
+            <div className="sr-carousel-slide flex w-full shrink-0 flex-col items-center px-1">
+              <SlideAiIllustration />
+              <p className="mt-3 text-sm font-semibold text-[var(--sr-text-primary)]">{pl.onboardingSlide2Title}</p>
+              <p className="mt-1 max-w-[240px] text-xs text-[var(--sr-text-muted)]">{pl.onboardingSlide2Desc}</p>
+            </div>
+            {/* Slide 3 — Progress & badges */}
+            <div className="sr-carousel-slide flex w-full shrink-0 flex-col items-center px-1">
+              <SlideProgressIllustration />
+              <p className="mt-3 text-sm font-semibold text-[var(--sr-text-primary)]">{pl.onboardingSlide3Title}</p>
+              <p className="mt-1 max-w-[240px] text-xs text-[var(--sr-text-muted)]">{pl.onboardingSlide3Desc}</p>
+            </div>
+          </div>
+          {/* Dots indicator */}
+          <div className="mt-3 flex justify-center gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <button
+                key={i}
+                type="button"
+                className="h-1.5 rounded-full transition-all"
+                style={{
+                  width: i === activeSlide ? 20 : 6,
+                  background: i === activeSlide
+                    ? 'var(--sr-brand-primary)'
+                    : 'var(--sr-bg-surface)',
+                }}
+                aria-label={`${pl.onboardingCarouselAria} ${i + 1}`}
+                onClick={() => {
+                  carouselRef.current?.scrollTo({
+                    left: i * (carouselRef.current?.clientWidth ?? 0),
+                    behavior: 'smooth',
+                  })
+                }}
+              />
+            ))}
           </div>
         </StepLayout>
       )}
@@ -482,27 +525,6 @@ function NextBullet({ icon: Icon, text }: { icon?: LucideIcon; text: string }) {
         <Icon size={18} className="mt-0.5 shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
       )}
       <p className="text-pretty sr-text-body-sm leading-snug text-[var(--sr-text-secondary)]">
-        {text}
-      </p>
-    </div>
-  )
-}
-
-function FeatureTile({ icon: Icon, text, className }: { icon: LucideIcon; text: string; className?: string }) {
-  return (
-    <div
-      className={cn(
-        'flex flex-col items-center gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-3 py-3 text-center',
-        className,
-      )}
-    >
-      <span
-        className="flex size-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] bg-[var(--sr-brand-primary-muted)]"
-        aria-hidden
-      >
-        <Icon size={18} className="text-[var(--sr-brand-primary)]" />
-      </span>
-      <p className="text-pretty sr-text-body-sm font-medium leading-tight text-[var(--sr-text-primary)]">
         {text}
       </p>
     </div>
