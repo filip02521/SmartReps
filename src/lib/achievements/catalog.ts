@@ -286,8 +286,8 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
     glyph: 'sparkles',
     tiers: [
       { threshold: 5, rarity: 'common' },
-      { threshold: 10, rarity: 'rare' },
-      { threshold: 25, rarity: 'legendary', glyph: 'sparkles' },
+      { threshold: 15, rarity: 'rare' },
+      { threshold: 50, rarity: 'legendary', glyph: 'sparkles' },
     ],
   },
 
@@ -300,7 +300,7 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
     tiers: [
       { threshold: 1, rarity: 'common' },
       { threshold: 5, rarity: 'rare' },
-      { threshold: 10, rarity: 'legendary', glyph: 'puzzle' },
+      { threshold: 25, rarity: 'legendary', glyph: 'puzzle' },
     ],
   },
 
@@ -314,7 +314,7 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
       { threshold: 1, rarity: 'common' },
       { threshold: 4, rarity: 'rare' },
       { threshold: 12, rarity: 'rare' },
-      { threshold: 26, rarity: 'legendary', glyph: 'scale' },
+      { threshold: 52, rarity: 'legendary', glyph: 'scale' },
     ],
   },
 
@@ -326,8 +326,8 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
     glyph: 'calendar',
     tiers: [
       { threshold: 5, rarity: 'common' },
-      { threshold: 10, rarity: 'rare' },
-      { threshold: 25, rarity: 'legendary', glyph: 'calendar' },
+      { threshold: 15, rarity: 'rare' },
+      { threshold: 50, rarity: 'legendary', glyph: 'calendar' },
     ],
   },
 
@@ -376,6 +376,8 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
   },
 
   // ══ NEW: Legend — community ══
+  // Compound: 5 published plans + 25 followers + 10 reviews — significant
+  // community presence, comparable to other legend-track achievements.
   { id: 'legend_community', track: 'legend', rarity: 'legendary', glyph: 'globe' },
 
   // ══ NEW: Secret — weekend ══
@@ -507,9 +509,9 @@ function achievementMetricValue(id: AchievementId, snap: AchievementSnapshot): n
     case 'challenge_5':
       return snap.impact.challengeParticipations
     case 'legend_community':
-      return snap.impact.publishedCount >= 3 &&
-        snap.impact.followerCount >= 10 &&
-        snap.impact.reviewCount >= 5
+      return snap.impact.publishedCount >= 5 &&
+        snap.impact.followerCount >= 25 &&
+        snap.impact.reviewCount >= 10
         ? 1
         : 0
     case 'secret_weekend':
