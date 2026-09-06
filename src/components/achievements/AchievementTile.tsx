@@ -28,7 +28,7 @@ import { cn } from '@/lib/utils'
 import type { AchievementDef, AchievementRarity } from '@/lib/achievements/types'
 import { achievementTitle } from '@/lib/achievements/copy'
 import { resolveDisplayGlyph, resolveDisplayRarity } from '@/lib/achievements/catalog'
-import { trophyTierFor, lockedTrophyTierFor, tierVisual } from '@/lib/achievements/trophy-tier'
+import { trophyTierFor, lockedTrophyTierFor, tierVisual, trophyShapeFor } from '@/lib/achievements/trophy-tier'
 import { pl } from '@/i18n/pl'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { TrophyShape } from './TrophyShape'
@@ -188,6 +188,7 @@ export function AchievementTile({
   onClick,
   pulse,
   showCaption,
+  progress,
 }: {
   def: AchievementDef
   unlocked: boolean
@@ -200,6 +201,8 @@ export function AchievementTile({
   pulse?: boolean
   /** Override caption visibility (default: hidden for sm). */
   showCaption?: boolean
+  /** Progress toward first unlock (for locked achievements). */
+  progress?: { current: number; target: number } | null
 }) {
   const secretLocked = Boolean(def.isSecret && !unlocked)
   const glyph = unlocked ? resolveDisplayGlyph(def, tierLevel) : def.glyph
@@ -230,7 +233,7 @@ export function AchievementTile({
       aria-label={title}
       className={cn(
         FOCUS_RING,
-        'flex flex-col items-center gap-1.5 rounded-[var(--sr-radius-md)] text-center transition-transform active:scale-95',
+        'flex flex-col items-center gap-1.5 rounded-[var(--sr-radius-md)] text-center transition-transform hover:scale-[1.04] active:scale-95',
         onClick && 'cursor-pointer',
       )}
     >
@@ -260,13 +263,22 @@ export function AchievementTile({
           {trophyTier ? (
             <TrophyShape
               tier={trophyTier}
+              shape={trophyShapeFor(def)}
               size={size}
-              className={cn('sr-trophy-shine', vs.iconClass)}
+              glyph={
+                <Icon
+                  size={size === 'lg' ? 30 : size === 'sm' ? 14 : 22}
+                  strokeWidth={2}
+                  aria-hidden
+                />
+              }
+              className="sr-trophy-shine"
               ariaHidden
             />
           ) : lockedTrophyTier ? (
             <TrophyShape
               tier={lockedTrophyTier}
+              shape={trophyShapeFor(def)}
               size={size}
               silhouette
               ariaHidden
@@ -299,6 +311,22 @@ export function AchievementTile({
                 )}
               />
             ))}
+          </span>
+        )}
+        {/* Progress bar for locked achievements — shows how close to unlocking */}
+        {!unlocked && progress && progress.target > 0 && size !== 'sm' && (
+          <span
+            className="absolute -bottom-1.5 left-1/2 h-1.5 w-[80%] -translate-x-1/2 overflow-hidden rounded-full bg-[var(--sr-bg-muted)]"
+            role="progressbar"
+            aria-label={pl.achievementsProgress(progress.current, progress.target)}
+            aria-valuenow={progress.current}
+            aria-valuemin={0}
+            aria-valuemax={progress.target}
+          >
+            <span
+              className="h-full rounded-full bg-[var(--sr-brand-primary)] transition-all"
+              style={{ width: `${Math.min(100, (progress.current / progress.target) * 100)}%` }}
+            />
           </span>
         )}
       </span>

@@ -10,11 +10,12 @@ import {
   achievementTitle,
   achievementRarityLabel,
   achievementTrackLabel,
+  trophyFullLabel,
 } from '@/lib/achievements/copy'
 import { resolveDisplayRarity } from '@/lib/achievements/catalog'
 import { markUnlockSeen } from '@/lib/achievements/store'
 import { playTrophyFeedback, initAchievementAudio } from '@/lib/achievements/feedback'
-import { trophyTierFor } from '@/lib/achievements/trophy-tier'
+import { trophyTierFor, trophyShapeFor } from '@/lib/achievements/trophy-tier'
 import { track } from '@/lib/analytics'
 import { pl } from '@/i18n/pl'
 
@@ -53,6 +54,8 @@ export function AchievementUnlockSheet({
   const displayRarity = resolveDisplayRarity(def, null, tierLevel)
   const hasTiers = Boolean(def.tiers && def.tiers.length > 0)
   const isTierUpgrade = hasTiers && tierLevel && tierLevel > 1
+  const trophyTier = trophyTierFor(def, true, tierLevel)
+  const trophyShape = trophyShapeFor(def)
 
   async function handleClose() {
     await markUnlockSeen(id)
@@ -93,6 +96,14 @@ export function AchievementUnlockSheet({
             {achievementTrackLabel(def.track)}
             <span className="mx-1.5 text-[var(--sr-border-subtle)]">·</span>
             {achievementRarityLabel(displayRarity)}
+            {trophyTier && (
+              <>
+                <span className="mx-1.5 text-[var(--sr-border-subtle)]">·</span>
+                <span className="font-medium text-[var(--sr-text-secondary)]">
+                  {trophyFullLabel(trophyTier, trophyShape)}
+                </span>
+              </>
+            )}
           </span>
         </p>
         <h3 className="text-center text-lg font-semibold text-[var(--sr-text-primary)]">

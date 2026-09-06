@@ -1940,6 +1940,34 @@ export const en: Translation = {
   achievementsRarityCommon: 'Common',
   achievementsRarityRare: 'Rare',
   achievementsRarityLegendary: 'Legendary',
+  /** Trophy material label — describes the trophy's metal, shown alongside rarity. */
+  achievementsTrophyBronze: 'Bronze',
+  achievementsTrophySilver: 'Silver',
+  achievementsTrophyGold: 'Gold',
+  achievementsTrophyDiamond: 'Diamond',
+  /** Masculine material forms — agree with masculine shapes (cup, medal, gem). */
+  achievementsTrophyBronzeM: 'Bronze',
+  achievementsTrophySilverM: 'Silver',
+  achievementsTrophyGoldM: 'Gold',
+  achievementsTrophyDiamondM: 'Diamond',
+  /** Plural material forms — for summary counts ("2 gold"). */
+  achievementsTrophyBronzePl: 'bronze trophies',
+  achievementsTrophySilverPl: 'silver trophies',
+  achievementsTrophyGoldPl: 'gold trophies',
+  achievementsTrophyDiamondPl: 'diamond trophies',
+  /** Trophy shape labels — describes the trophy's silhouette. */
+  achievementsTrophyShapeCup: 'cup',
+  achievementsTrophyShapeShield: 'shield',
+  achievementsTrophyShapeMedal: 'medal',
+  achievementsTrophyShapeCrown: 'crown',
+  achievementsTrophyShapeDiamond: 'gem',
+  /** Combined trophy label — material + shape, e.g. "Gold cup". */
+  achievementsTrophyFullLabel: (material: string, shape: string) => `${material} ${shape}`,
+  /** Celebration badge with trophy — e.g. "Gold cup!". */
+  celebrationAchievementTrophy: (label: string) => `${label}!`,
+  /** Trophy summary counts — e.g. "2 diamond, 3 gold". */
+  achievementsTrophySummary: (parts: string) => parts,
+  achievementsDiamondProgress: 'Diamond collection',
   achievementsUnlockedOn: (date: string) => `Unlocked ${date}`,
   achievementsLockedHint: 'Still ahead of you.',
   achievementsSecretLocked: '???',

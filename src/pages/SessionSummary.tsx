@@ -9,7 +9,7 @@ import { SessionCompare } from '@/components/workout/SessionCompare'
 import { ErrorBanner, EmptyState, PageLoader } from '@/components/ux/Feedback'
 import { WorkoutCelebrationOverlay } from '@/components/ux/WorkoutCelebrationOverlay'
 import { ACHIEVEMENT_BY_ID } from '@/lib/achievements/catalog'
-import { trophyTierFor } from '@/lib/achievements/trophy-tier'
+import { trophyTierFor, trophyShapeFor } from '@/lib/achievements/trophy-tier'
 import { LogoMark } from '@/components/brand/Logo'
 import { NoticeCard, LogIn } from '@/components/ux/NoticeCard'
 import { getProgramProgress } from '@/lib/program-service'
@@ -394,6 +394,16 @@ export default function SessionSummary() {
                 return trophyTierFor(def, true, u.tierLevel)
               })()
             : null
+        }
+        achievementTrophyShape={
+          newAchievements.length > 0
+            ? (() => {
+                const u = newAchievements[0]!
+                const def = ACHIEVEMENT_BY_ID[u.id]
+                if (!def) return 'cup' as const
+                return trophyShapeFor(def)
+              })()
+            : 'cup'
         }
         stats={[
           { icon: Flame, value: totalReps, label: pl.celebrationStatReps, animate: true },

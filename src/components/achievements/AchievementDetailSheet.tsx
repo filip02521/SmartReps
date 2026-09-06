@@ -8,8 +8,10 @@ import {
   achievementRarityLabel,
   achievementTitle,
   achievementTrackLabel,
+  trophyFullLabel,
 } from '@/lib/achievements/copy'
 import { resolveTier, achievementProgress } from '@/lib/achievements/catalog'
+import { trophyTierFor, trophyShapeFor } from '@/lib/achievements/trophy-tier'
 import { pl } from '@/i18n/pl'
 
 export function AchievementDetailSheet({
@@ -41,6 +43,8 @@ export function AchievementDetailSheet({
   const displayLevel = (unlocked ? tierLevel : resolved?.level ?? 0) ?? 0
   const nextTierDef = hasTiers && displayLevel < maxTier ? def.tiers![displayLevel] : null
   const currentTierDef = hasTiers && displayLevel > 0 ? def.tiers![displayLevel - 1] : null
+  const trophyTier = trophyTierFor(def, unlocked, tierLevel)
+  const trophyShape = trophyShapeFor(def)
 
   return (
     <Sheet open={open} onClose={onClose} title={title}>
@@ -67,6 +71,14 @@ export function AchievementDetailSheet({
               hasTiers
                 ? (currentTierDef?.rarity ?? def.tiers![0]!.rarity)
                 : def.rarity,
+            )}
+            {trophyTier && (
+              <>
+                <span className="mx-1.5 text-[var(--sr-border-subtle)]">·</span>
+                <span className="font-medium text-[var(--sr-text-secondary)]">
+                  {trophyFullLabel(trophyTier, trophyShape)}
+                </span>
+              </>
             )}
           </span>
         </p>

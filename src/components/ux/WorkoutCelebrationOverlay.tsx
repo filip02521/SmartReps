@@ -3,7 +3,8 @@ import { CheckCircle2, Flame, Trophy, Share2 } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { ConfettiCanvas } from '@/components/ux/ConfettiCanvas'
-import { TrophyShape, type TrophyTier } from '@/components/achievements/TrophyShape'
+import { TrophyShape, type TrophyTier, type TrophyShapeKind } from '@/components/achievements/TrophyShape'
+import { trophyFullLabel } from '@/lib/achievements/copy'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { Z_CELEBRATION, FOCUS_RING } from '@/lib/ui-chrome'
 import { playCelebrationSound } from '@/lib/celebration-feedback'
@@ -35,6 +36,7 @@ export function WorkoutCelebrationOverlay({
   hasPr = false,
   hasNewAchievement = false,
   achievementTrophyTier = null,
+  achievementTrophyShape = 'cup',
   durationMs = 2000,
 }: {
   active: boolean
@@ -48,6 +50,8 @@ export function WorkoutCelebrationOverlay({
   hasNewAchievement?: boolean
   /** Trophy tier for the achievement badge — shows metallic trophy instead of generic icon. */
   achievementTrophyTier?: TrophyTier | null
+  /** Trophy shape — derived from achievement track. */
+  achievementTrophyShape?: TrophyShapeKind
   durationMs?: number
 }) {
   const [visible, setVisible] = useState(false)
@@ -237,44 +241,46 @@ export function WorkoutCelebrationOverlay({
           ))}
         </div>
 
-        {/* PR / Achievement badge */}
+        {/* PR / Achievement badges — show both if both apply */}
         {(hasPr || hasNewAchievement) && (
           <div
-            className={cn(
-              'mt-6 flex items-center gap-2 rounded-full px-4 py-2',
-              hasPr
-                ? 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)]'
-                : 'bg-[color-mix(in_srgb,var(--sr-warning)_15%,transparent)]',
-            )}
+            className="mt-6 flex flex-wrap items-center justify-center gap-2"
             style={
               !prefersReduced
-                ? {
-                    animation: 'srCelebrationFadeUp 0.5s ease-out 0.9s both',
-                  }
+                ? { animation: 'srCelebrationFadeUp 0.5s ease-out 0.9s both' }
                 : undefined
             }
           >
-            {hasPr ? (
-              <>
+            {hasPr && (
+              <div className="flex items-center gap-2 rounded-full bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)] px-4 py-2">
                 <Trophy size={16} className="text-[var(--sr-brand-primary)]" />
                 <span className="sr-text-body-sm font-semibold text-[var(--sr-brand-primary)]">
                   {pl.celebrationPrBadge}
                 </span>
-              </>
-            ) : achievementTrophyTier ? (
-              <>
-                <TrophyShape tier={achievementTrophyTier} px={16} className="sr-trophy-shine" ariaHidden />
+              </div>
+            )}
+            {hasNewAchievement && achievementTrophyTier && (
+              <div className="flex items-center gap-2 rounded-full bg-[color-mix(in_srgb,var(--sr-warning)_15%,transparent)] px-4 py-2">
+                <TrophyShape
+                  tier={achievementTrophyTier}
+                  shape={achievementTrophyShape}
+                  px={36}
+                  className="sr-trophy-shine"
+                  ariaHidden
+                  interactive
+                />
                 <span className="sr-text-body-sm font-semibold text-[var(--sr-warning)]">
-                  {pl.celebrationAchievementBadge}
+                  {pl.celebrationAchievementTrophy(trophyFullLabel(achievementTrophyTier, achievementTrophyShape))}
                 </span>
-              </>
-            ) : (
-              <>
+              </div>
+            )}
+            {hasNewAchievement && !achievementTrophyTier && (
+              <div className="flex items-center gap-2 rounded-full bg-[color-mix(in_srgb,var(--sr-warning)_15%,transparent)] px-4 py-2">
                 <Trophy size={16} className="text-[var(--sr-warning)]" />
                 <span className="sr-text-body-sm font-semibold text-[var(--sr-warning)]">
                   {pl.celebrationAchievementBadge}
                 </span>
-              </>
+              </div>
             )}
           </div>
         )}

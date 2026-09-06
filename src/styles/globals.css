@@ -291,8 +291,29 @@ html[data-offline='1'] .safe-header {
   .sr-ach-anim-diamond,
   .sr-ach-pulse,
   .sr-trophy-bounce,
-  .sr-trophy-shine {
-    animation: none;
+  .sr-trophy-shine,
+  .sr-trophy--diamond.sr-trophy-shine,
+  .sr-trophy--gold.sr-trophy-shine,
+  .sr-trophy--diamond svg,
+  .sr-trophy--gold svg,
+  .sr-trophy-sparkles,
+  .sr-trophy-sparkles > *,
+  .sr-trophy-sparkles--gold,
+  .sr-trophy-sparkles--gold > *,
+  .sr-trophy-prism,
+  .sr-trophy-halo,
+  .sr-trophy-glow-group,
+  .sr-trophy--celebrating .sr-trophy-sparkles,
+  .sr-trophy--celebrating .sr-trophy-sparkles--gold,
+  .sr-trophy--celebrating .sr-trophy-glow-group,
+  .sr-trophy--diamond:not(.sr-trophy--silhouette):hover,
+  .sr-trophy--gold:not(.sr-trophy--silhouette):hover,
+  .sr-trophy--diamond:not(.sr-trophy--silhouette):hover svg,
+  .sr-trophy--gold:not(.sr-trophy--silhouette):hover svg,
+  .sr-trophy--diamond:not(.sr-trophy--silhouette):hover .sr-trophy-sparkles,
+  .sr-trophy--diamond:not(.sr-trophy--silhouette):hover .sr-trophy-halo,
+  .sr-trophy--gold:not(.sr-trophy--silhouette):hover .sr-trophy-sparkles--gold > * {
+    animation: none !important;
   }
 }
 
@@ -364,12 +385,237 @@ html[data-offline='1'] .safe-header {
   color: #b87333;
 }
 
+/* Diamond tier — glow via CSS drop-shadow on SVG (pausable), SVG filter for shape-following halo */
+/* CSS handles: glow pulse, shine, sparkles, prism, halo, tap-to-celebrate, hover */
+
+@keyframes sr-trophy-twinkle {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+
+@keyframes sr-trophy-twinkle-gold {
+  0%, 100% { opacity: 0.3; transform: scale(0.6); }
+  50% { opacity: 1; transform: scale(1.4); }
+}
+
+@keyframes sr-trophy-prism {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.85; }
+}
+
+@keyframes sr-trophy-halo-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes sr-trophy-celebrate-burst {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes sr-trophy-diamond-glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(167, 139, 250, 0.5)) drop-shadow(0 0 8px rgba(167, 139, 250, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.7)) drop-shadow(0 0 12px rgba(167, 139, 250, 0.4));
+  }
+}
+
+@keyframes sr-trophy-gold-glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.5));
+  }
+}
+
+/* Auto-pause — freeze all CSS animations when off-screen */
+.sr-trophy--paused .sr-trophy-sparkles,
+.sr-trophy--paused .sr-trophy-sparkles > *,
+.sr-trophy--paused .sr-trophy-sparkles--gold,
+.sr-trophy--paused .sr-trophy-sparkles--gold > *,
+.sr-trophy--paused .sr-trophy-prism,
+.sr-trophy--paused .sr-trophy-halo,
+.sr-trophy--paused .sr-trophy-glow-group,
+.sr-trophy--paused svg,
+.sr-trophy--paused.sr-trophy-shine {
+  animation-play-state: paused !important;
+}
+
+/* CSS glow pulse on SVG element — pausable, follows shape alpha */
+.sr-trophy--diamond:not(.sr-trophy--silhouette) svg {
+  animation: sr-trophy-diamond-glow-pulse 2.8s ease-in-out infinite;
+}
+.sr-trophy--gold:not(.sr-trophy--silhouette) svg {
+  animation: sr-trophy-gold-glow-pulse 3.5s ease-in-out infinite;
+}
+
+/* Shine on span — brightness filter */
+.sr-trophy--diamond.sr-trophy-shine:not(.sr-trophy--silhouette),
+.sr-trophy--gold.sr-trophy-shine:not(.sr-trophy--silhouette) {
+  animation: sr-trophy-shine 3.2s ease-in-out infinite;
+}
+
+/* Glow halo — soft radial pulse behind diamond trophies */
+.sr-trophy--diamond .sr-trophy-halo {
+  animation: sr-trophy-halo-pulse 3s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+/* Sparkles — individual twinkle per sparkle (no ambient rotation) */
+.sr-trophy--diamond .sr-trophy-sparkles {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Each sparkle twinkles independently with staggered timing */
+.sr-trophy--diamond .sr-trophy-sparkles > * {
+  animation: sr-trophy-twinkle 2s ease-in-out infinite;
+}
+.sr-trophy--diamond .sr-trophy-sparkles > *:nth-child(1) { animation-delay: 0s; }
+.sr-trophy--diamond .sr-trophy-sparkles > *:nth-child(2) { animation-delay: 0.3s; }
+.sr-trophy--diamond .sr-trophy-sparkles > *:nth-child(3) { animation-delay: 0.6s; }
+.sr-trophy--diamond .sr-trophy-sparkles > *:nth-child(4) { animation-delay: 0.9s; }
+.sr-trophy--diamond .sr-trophy-sparkles > *:nth-child(5) { animation-delay: 1.2s; }
+.sr-trophy--diamond .sr-trophy-sparkles > *:nth-child(6) { animation-delay: 0.15s; }
+.sr-trophy--diamond .sr-trophy-sparkles > *:nth-child(7) { animation-delay: 0.45s; }
+.sr-trophy--diamond .sr-trophy-sparkles > *:nth-child(8) { animation-delay: 0.75s; }
+.sr-trophy--diamond .sr-trophy-sparkles > *:nth-child(9) { animation-delay: 1.05s; }
+.sr-trophy--diamond .sr-trophy-sparkles > *:nth-child(10) { animation-delay: 1.35s; }
+.sr-trophy--diamond .sr-trophy-sparkles > *:nth-child(11) { animation-delay: 1.65s; }
+.sr-trophy--diamond .sr-trophy-sparkles > *:nth-child(12) { animation-delay: 1.8s; }
+
+.sr-trophy--diamond .sr-trophy-prism {
+  animation: sr-trophy-prism 2.5s ease-in-out infinite;
+}
+
+/* Gold sparkles — warm dots that pulse in place, no rotation (distinct from diamond) */
+.sr-trophy--gold .sr-trophy-sparkles--gold {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.sr-trophy--gold .sr-trophy-sparkles--gold > * {
+  animation: sr-trophy-twinkle-gold 2.2s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.sr-trophy--gold .sr-trophy-sparkles--gold > *:nth-child(1) { animation-delay: 0s; }
+.sr-trophy--gold .sr-trophy-sparkles--gold > *:nth-child(2) { animation-delay: 0.35s; }
+.sr-trophy--gold .sr-trophy-sparkles--gold > *:nth-child(3) { animation-delay: 0.7s; }
+.sr-trophy--gold .sr-trophy-sparkles--gold > *:nth-child(4) { animation-delay: 1.05s; }
+.sr-trophy--gold .sr-trophy-sparkles--gold > *:nth-child(5) { animation-delay: 1.4s; }
+.sr-trophy--gold .sr-trophy-sparkles--gold > *:nth-child(6) { animation-delay: 1.75s; }
+
+/* Tap-to-celebrate — burst animation on sparkles + glow group */
+.sr-trophy--celebrating .sr-trophy-sparkles,
+.sr-trophy--celebrating .sr-trophy-sparkles--gold {
+  animation: sr-trophy-celebrate-burst 0.6s ease-out;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.sr-trophy--celebrating .sr-trophy-glow-group {
+  animation: sr-trophy-celebrate-burst 0.8s ease-out;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 /* Silhouette — locked trophy hint, no shine animation */
 .sr-trophy--silhouette {
   color: var(--sr-text-muted);
 }
 .sr-trophy--silhouette.sr-trophy-shine {
   animation: none;
+}
+
+/* Glyph medalion — subtle backdrop circle for the achievement icon */
+.sr-trophy-medalion {
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.sr-trophy--diamond .sr-trophy-medalion,
+.sr-trophy--gold .sr-trophy-medalion {
+  opacity: 0.3;
+}
+.sr-trophy--diamond:hover .sr-trophy-medalion,
+.sr-trophy--gold:hover .sr-trophy-medalion {
+  opacity: 0.5;
+}
+
+/* Hover — scale + intensified glow + sparkle burst + halo pulse */
+@keyframes sr-trophy-hover-sparkle-burst {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes sr-trophy-hover-diamond-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.7)) drop-shadow(0 0 14px rgba(167, 139, 250, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.9)) drop-shadow(0 0 20px rgba(196, 181, 253, 0.5));
+  }
+}
+
+@keyframes sr-trophy-hover-gold-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.7));
+  }
+}
+
+/* Hover — pause ambient animations, single clean transition */
+.sr-trophy--diamond:not(.sr-trophy--silhouette),
+.sr-trophy--gold:not(.sr-trophy--silhouette) {
+  transition: transform 0.2s ease-out;
+}
+.sr-trophy--interactive.sr-trophy--diamond:not(.sr-trophy--silhouette),
+.sr-trophy--interactive.sr-trophy--gold:not(.sr-trophy--silhouette) {
+  cursor: pointer;
+}
+/* Pause ambient shine + glow during hover to prevent double-cycle */
+.sr-trophy--diamond:not(.sr-trophy--silhouette):hover,
+.sr-trophy--gold:not(.sr-trophy--silhouette):hover {
+  animation: none;
+}
+.sr-trophy--diamond:not(.sr-trophy--silhouette):hover svg,
+.sr-trophy--gold:not(.sr-trophy--silhouette):hover svg {
+  animation: none;
+  transition: filter 0.2s ease-out;
+}
+.sr-trophy--diamond:not(.sr-trophy--silhouette):hover svg {
+  filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.6)) drop-shadow(0 0 12px rgba(196, 181, 253, 0.3));
+}
+.sr-trophy--diamond:not(.sr-trophy--silhouette):hover {
+  transform: scale(1.1);
+}
+.sr-trophy--diamond:not(.sr-trophy--silhouette):hover .sr-trophy-sparkles {
+  animation: sr-trophy-hover-sparkle-burst 0.7s ease-out;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.sr-trophy--diamond:not(.sr-trophy--silhouette):hover .sr-trophy-halo {
+  animation: none;
+  opacity: 1;
+  transform: scale(1.1);
+}
+.sr-trophy--gold:not(.sr-trophy--silhouette):hover {
+  transform: scale(1.08);
+}
+.sr-trophy--gold:not(.sr-trophy--silhouette):hover svg {
+  filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.5));
+}
+.sr-trophy--gold:not(.sr-trophy--silhouette):hover .sr-trophy-sparkles--gold > * {
+  animation: sr-trophy-twinkle-gold 0.7s ease-out;
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 /* Profile achievement showcase (gablotka) */

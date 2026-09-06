@@ -10,6 +10,7 @@ import { achievementTitle } from '@/lib/achievements/copy'
 import { buildAchievementSnapshot, emptyImpact } from '@/lib/achievements/snapshot'
 import { AchievementTile } from './AchievementTile'
 import { AchievementDetailSheet } from './AchievementDetailSheet'
+import { TrophySummaryBar } from './TrophySummaryBar'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { EmptyState } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
@@ -97,6 +98,8 @@ export function AchievementGallery({
         ))}
       </div>
 
+      {unlocks.length > 0 && <TrophySummaryBar unlocks={unlocks} />}
+
       {inProgress.length > 0 && filter === 'all' && track === 'all' && (
         <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3">
           <p className="sr-text-overline text-[var(--sr-text-muted)]">{pl.achievementsInProgress}</p>
@@ -145,6 +148,7 @@ export function AchievementGallery({
         <div className="grid grid-cols-3 gap-4 sm:grid-cols-4">
           {visible.map((def) => {
             const unlock = byId.get(def.id)
+            const prog = inProgress.find((p) => p.id === def.id) ?? null
             return (
               <AchievementTile
                 key={def.id}
@@ -152,6 +156,7 @@ export function AchievementGallery({
                 unlocked={Boolean(unlock)}
                 tierLevel={unlock?.tierLevel}
                 highlight={Boolean(unlock && !unlock?.seenAt)}
+                progress={prog}
                 onClick={() => void openDetail(def.id)}
               />
             )

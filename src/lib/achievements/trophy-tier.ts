@@ -1,8 +1,41 @@
 import type { AchievementDef, AchievementRarity } from './types'
 import { resolveDisplayRarity } from './catalog'
 
-/** Trophy tier — determines shape, fanfare richness, and visual treatment. */
+/** Trophy tier — determines material/color, fanfare richness, and visual treatment. */
 export type TrophyTier = 'bronze' | 'silver' | 'gold' | 'diamond'
+
+/**
+ * Trophy shape — determined by achievement track, not tier.
+ * This gives each achievement category a unique visual identity:
+ *
+ * - cup     → training (classic trophy for physical achievement)
+ * - shield  → habit (consistency/streak = defense)
+ * - medal   → catalog (community contribution = medal)
+ * - crown   → legend (legendary status = crown)
+ * - diamond → secret (mystery = precious gem)
+ */
+export type TrophyShapeKind = 'cup' | 'shield' | 'medal' | 'crown' | 'diamond'
+
+/**
+ * Resolve the trophy shape from the achievement definition.
+ * Secret achievements always get the diamond gem shape.
+ * Other tracks get their category-specific shape.
+ */
+export function trophyShapeFor(def: AchievementDef): TrophyShapeKind {
+  if (def.isSecret) return 'diamond'
+  switch (def.track) {
+    case 'training':
+      return 'cup'
+    case 'habit':
+      return 'shield'
+    case 'catalog':
+      return 'medal'
+    case 'legend':
+      return 'crown'
+    default:
+      return 'cup'
+  }
+}
 
 /**
  * Resolve the tier visual (ring/glow) for an achievement.
@@ -46,8 +79,10 @@ export function trophyTierFor(
   if (tv === 'diamond') return 'diamond'
   if (tv === 'gold') return 'gold'
   if (tv === 'silver') return 'silver'
-  // Non-tiered legendary → gold cup trophy
-  if (def.rarity === 'legendary') return 'gold'
+  // Tier 1 uses rarity-based visual — show gold trophy only if that rarity is legendary.
+  // This covers both non-tiered legendary and tiered with legendary first tier (streak_52).
+  // For tier 1 rare/common (sessions_100), no trophy — keep the Lucide icon.
+  if (displayRarity === 'legendary') return 'gold'
   return null
 }
 

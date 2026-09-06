@@ -1966,6 +1966,34 @@ const plDict = {
   achievementsRarityCommon: 'Zwykła',
   achievementsRarityRare: 'Rzadka',
   achievementsRarityLegendary: 'Legendarna',
+  /** Trophy material label — describes the trophy's metal, shown alongside rarity. */
+  achievementsTrophyBronze: 'Brązowa',
+  achievementsTrophySilver: 'Srebrna',
+  achievementsTrophyGold: 'Złota',
+  achievementsTrophyDiamond: 'Diamentowa',
+  /** Masculine material forms — agree with masculine shapes (puchar, medal, klejnot). */
+  achievementsTrophyBronzeM: 'Brązowy',
+  achievementsTrophySilverM: 'Srebrny',
+  achievementsTrophyGoldM: 'Złoty',
+  achievementsTrophyDiamondM: 'Diamentowy',
+  /** Plural material forms — for summary counts ("2 złote"). */
+  achievementsTrophyBronzePl: 'brązowe',
+  achievementsTrophySilverPl: 'srebrne',
+  achievementsTrophyGoldPl: 'złote',
+  achievementsTrophyDiamondPl: 'diamentowe',
+  /** Trophy shape labels — describes the trophy's silhouette. */
+  achievementsTrophyShapeCup: 'puchar',
+  achievementsTrophyShapeShield: 'tarcza',
+  achievementsTrophyShapeMedal: 'medal',
+  achievementsTrophyShapeCrown: 'korona',
+  achievementsTrophyShapeDiamond: 'klejnot',
+  /** Combined trophy label — material + shape, e.g. "Złoty puchar". */
+  achievementsTrophyFullLabel: (material: string, shape: string) => `${material} ${shape}`,
+  /** Celebration badge with trophy — e.g. "Złoty puchar!". */
+  celebrationAchievementTrophy: (label: string) => `${label}!`,
+  /** Trophy summary counts — e.g. "2 diamentowe, 3 złote". */
+  achievementsTrophySummary: (parts: string) => parts,
+  achievementsDiamondProgress: 'Kolekcja diamentów',
   achievementsUnlockedOn: (date: string) => `Zdobyta ${date}`,
   achievementsLockedHint: 'Jeszcze przed Tobą.',
   achievementsSecretLocked: '???',

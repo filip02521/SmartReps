@@ -8,9 +8,10 @@ import type { LocalAchievementUnlock } from '@/lib/achievements/types'
 import {
   achievementTitle,
   achievementRarityLabel,
+  trophyFullLabel,
 } from '@/lib/achievements/copy'
 import { playAchievementUnlockSequence, playTrophyFeedback, initAchievementAudio } from '@/lib/achievements/feedback'
-import { trophyTierFor, type TrophyTier } from '@/lib/achievements/trophy-tier'
+import { trophyTierFor, trophyShapeFor, type TrophyTier } from '@/lib/achievements/trophy-tier'
 import { markUnlockSeen } from '@/lib/achievements/store'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
@@ -95,6 +96,7 @@ export function AchievementSummaryList({ unlocks }: { unlocks: LocalAchievementU
           if (!def) return null
           const rarity = resolveDisplayRarity(def, null, unlock.tierLevel)
           const isTierUpgrade = Boolean(def.tiers && unlock.tierLevel && unlock.tierLevel > 1)
+          const trophyTier = trophyTierFor(def, true, unlock.tierLevel)
           return (
             <div
               key={unlock.id}
@@ -116,6 +118,12 @@ export function AchievementSummaryList({ unlocks }: { unlocks: LocalAchievementU
                 </p>
                 <p className="sr-text-caption text-[var(--sr-text-muted)]">
                   {achievementRarityLabel(rarity)}
+                  {trophyTier && (
+                    <span className="text-[var(--sr-text-secondary)]">
+                      {' · '}
+                      {trophyFullLabel(trophyTier, trophyShapeFor(def))}
+                    </span>
+                  )}
                 </p>
                 {isTierUpgrade && (
                   <p className="sr-text-caption text-[var(--sr-brand-primary)]">
