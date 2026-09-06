@@ -344,7 +344,7 @@ export function SetChecklist({
 
 export function NegativeBanner() {
   return (
-    <div className="sticky top-0 z-10 mx-4 mb-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-pullups-accent)]/40 bg-[var(--sr-pullups-accent)]/10 px-4 py-2.5 text-sm font-medium text-[var(--sr-pullups-accent)]">
+    <div role="status" aria-live="polite" aria-atomic="true" className="sticky top-0 z-10 mx-4 mb-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-pullups-accent)]/40 bg-[var(--sr-pullups-accent)]/10 px-4 py-2.5 text-sm font-medium text-[var(--sr-pullups-accent)]">
       {pl.negativeBanner}
     </div>
   )
@@ -352,7 +352,7 @@ export function NegativeBanner() {
 
 export function NegativeCountdown({ seconds }: { seconds: number }) {
   return (
-    <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-pullups-accent)]/15 px-4 py-2 text-center text-sm font-medium text-[var(--sr-pullups-accent)]">
+    <div role="status" aria-live="polite" aria-atomic="true" className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-pullups-accent)]/15 px-4 py-2 text-center text-sm font-medium text-[var(--sr-pullups-accent)]">
       {pl.negativeCountdown(seconds)}
     </div>
   )
@@ -372,14 +372,17 @@ export function RestTimerPill({
       <button
         type="button"
         onClick={onExpand}
-        aria-live="polite"
+        aria-live="off"
         className={cn(
           'flex min-h-12 flex-1 items-center justify-between rounded-[var(--sr-radius-full)] bg-[var(--sr-brand-primary-muted)] px-5 py-3 transition-all hover:bg-[var(--sr-brand-primary-muted)] hover:brightness-110 active:scale-[0.98]',
           FOCUS_RING,
         )}
       >
         <span className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.restLabel}</span>
-        <span className="tabular-nums text-2xl font-bold text-[var(--sr-text-primary)]">
+        <span className="sr-only" role="status" aria-live="polite">
+          {formatRestTime(remainingSec)}
+        </span>
+        <span className="tabular-nums text-2xl font-bold text-[var(--sr-text-primary)]" aria-hidden>
           {formatRestTime(remainingSec)}
         </span>
         <ChevronRight size={18} className="text-[var(--sr-text-muted)] rotate-[-90deg]" />
@@ -526,9 +529,15 @@ export {
 } from '@/lib/workout-feedback'
 
 export function CycleCelebration({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  const rootRef = useFocusTrap(true)
   return (
     <OverlayPortal>
       <div
+        ref={rootRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={pl.goalAchieved}
+        onKeyDown={(e) => { if (e.key === 'Escape') onDismiss() }}
         className="fixed inset-0 flex flex-col items-center justify-center bg-[var(--sr-bg-overlay)] p-6 text-center safe-top safe-bottom overflow-hidden"
         style={{ zIndex: Z_CELEBRATION }}
       >      <div className="pointer-events-none absolute inset-0">

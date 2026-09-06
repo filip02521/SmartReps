@@ -23,6 +23,8 @@ export type ChatCompletionOptions = {
   /** Disable thinking/reasoning (Gemini 2.5+). Values: "none" | "low" | "medium" | "high". */
   reasoningEffort?: 'none' | 'low' | 'medium' | 'high'
   signal?: AbortSignal
+  /** Request timeout in ms. Default: 60000 (60s). */
+  timeoutMs?: number
 }
 
 export type ChatCompletionResult = {
@@ -110,6 +112,22 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
   const baseURL = (opts.baseURL?.trim() || DEFAULT_BASE_URL).replace(/\/+$/, '')
   const url = `${baseURL}/chat/completions`
 
+  // Default timeout: 60s for analysis, 30s for others. Prevents hung requests
+  // that block the UI forever when the provider is slow or unresponsive.
+  const timeoutMs = opts.timeoutMs ?? 60_000
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  // If caller provided their own signal, forward its abort to our controller
+  let externalAbort: (() => void) | null = null
+  if (opts.signal) {
+    if (opts.signal.aborted) controller.abort()
+    else {
+      externalAbort = () => controller.abort()
+      opts.signal.addEventListener('abort', externalAbort, { once: true })
+    }
+  }
+
   let resp: Response
   try {
     // Only send reasoning_effort if the model supports it
@@ -133,15 +151,24 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
         ...(opts.jsonMode ? { response_format: { type: 'json_object' } } : {}),
         ...(shouldSendReasoning ? { reasoning_effort: opts.reasoningEffort } : {}),
       }),
-      signal: opts.signal,
+      signal: controller.signal,
     })
   } catch (e) {
-    if (e instanceof Error && e.name === 'AbortError') throw e
+    if (e instanceof Error && e.name === 'AbortError') {
+      // Distinguish user-initiated abort from timeout abort
+      if (opts.signal?.aborted) throw e
+      throw new AiApiError(pl.aiErrorConnection, undefined, 'network')
+    }
     throw new AiApiError(
       pl.aiErrorConnection,
       undefined,
       'network',
     )
+  } finally {
+    clearTimeout(timeoutId)
+    if (externalAbort && opts.signal) {
+      opts.signal.removeEventListener('abort', externalAbort)
+    }
   }
 
   if (!resp.ok) {

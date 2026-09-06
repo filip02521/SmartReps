@@ -3,12 +3,19 @@ import { useAppStore, type UserSettings } from '@/stores/app-store'
 import type {
   ActiveCustomWorkoutState,
   ActiveWorkoutState,
+  BodyWeightEntry,
+  LocalAchievementUnlockRow,
+  LocalAiInsight,
   LocalCustomPlan,
   LocalCustomProgramProgress,
   LocalExercise,
   LocalMaxTest,
   LocalProgramProgress,
   LocalWorkoutSession,
+  SessionTombstone,
+  CustomPlanTombstone,
+  ExerciseTombstone,
+  BodyWeightTombstone,
 } from '@/lib/db'
 
 export type BackupSnapshotV1 = {
@@ -35,9 +42,30 @@ export type BackupSnapshotV2 = {
   activeCustomWorkout?: ActiveCustomWorkoutState[]
 }
 
-export type BackupSnapshot = BackupSnapshotV1 | BackupSnapshotV2
+export type BackupSnapshotV3 = {
+  version: 3
+  exportedAt: string
+  settings: UserSettings
+  programProgress: LocalProgramProgress[]
+  workoutSessions: LocalWorkoutSession[]
+  maxTests: LocalMaxTest[]
+  activeWorkout?: ActiveWorkoutState[]
+  exercises: LocalExercise[]
+  customPlans: LocalCustomPlan[]
+  customProgramProgress: LocalCustomProgramProgress[]
+  activeCustomWorkout?: ActiveCustomWorkoutState[]
+  bodyWeight: BodyWeightEntry[]
+  achievementUnlocks: LocalAchievementUnlockRow[]
+  sessionTombstones: SessionTombstone[]
+  customPlanTombstones?: CustomPlanTombstone[]
+  exerciseTombstones?: ExerciseTombstone[]
+  bodyWeightTombstones?: BodyWeightTombstone[]
+  aiInsights: LocalAiInsight[]
+}
 
-export async function exportBackupSnapshot(): Promise<BackupSnapshotV2> {
+export type BackupSnapshot = BackupSnapshotV1 | BackupSnapshotV2 | BackupSnapshotV3
+
+export async function exportBackupSnapshot(): Promise<BackupSnapshotV3> {
   const { settings } = useAppStore.getState()
   const [
     programProgress,
@@ -48,6 +76,13 @@ export async function exportBackupSnapshot(): Promise<BackupSnapshotV2> {
     customPlans,
     customProgramProgress,
     activeCustomWorkout,
+    bodyWeight,
+    achievementUnlocks,
+    sessionTombstones,
+    aiInsights,
+    customPlanTombstones,
+    exerciseTombstones,
+    bodyWeightTombstones,
   ] = await Promise.all([
     db.programProgress.toArray(),
     db.workoutSessions.toArray(),
@@ -57,12 +92,23 @@ export async function exportBackupSnapshot(): Promise<BackupSnapshotV2> {
     db.customPlans.toArray(),
     db.customProgramProgress.toArray(),
     db.activeCustomWorkout.toArray(),
+    db.bodyWeight.toArray(),
+    db.achievementUnlocks.toArray(),
+    db.sessionTombstones.toArray(),
+    db.aiInsights.toArray(),
+    db.customPlanTombstones.toArray(),
+    db.exerciseTombstones.toArray(),
+    db.bodyWeightTombstones.toArray(),
   ])
 
+  // Strip aiApiKey from exported settings — it's LOCAL-ONLY and must never
+  // leave the device via a backup file (security: cross-device secret leak).
+  const { aiApiKey: _stripped, ...safeSettings } = settings
+
   return {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
-    settings: { ...settings },
+    settings: safeSettings as UserSettings,
     programProgress,
     workoutSessions,
     maxTests,
@@ -71,6 +117,13 @@ export async function exportBackupSnapshot(): Promise<BackupSnapshotV2> {
     customPlans,
     customProgramProgress,
     activeCustomWorkout: activeCustomWorkout.length ? activeCustomWorkout : undefined,
+    bodyWeight,
+    achievementUnlocks,
+    sessionTombstones,
+    customPlanTombstones,
+    exerciseTombstones,
+    bodyWeightTombstones,
+    aiInsights,
   }
 }
 

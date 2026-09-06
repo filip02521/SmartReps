@@ -116,6 +116,15 @@ export function setBackfillFlag(): void {
   }
 }
 
+/** Clear the backfill flag — used during account switch / clear local data. */
+export function clearBackfillFlag(): void {
+  try {
+    localStorage.removeItem(BACKFILL_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Merge remote unlocks (keep earliest unlock, latest seen). Validates against catalog. */
 export async function mergeRemoteUnlocks(
   remote: {

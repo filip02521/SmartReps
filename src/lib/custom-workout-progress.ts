@@ -235,12 +235,24 @@ export function resumeSetIndexForExercise(
 /**
  * First exercise that still needs sets — used after jump-out-of-order so
  * dayComplete / next pointers do not skip unfinished work.
+ * For AMRAP groups, the exercise is considered incomplete while the AMRAP timer
+ * is still active (amrapEndAt is in the future), even if all planned sets are done.
  */
 export function findNextIncompletePosition(
   day: PlanDay,
   exerciseLogs: ExerciseLog[],
+  opts?: { amrapEndAt?: number | null },
 ): { exerciseIndex: number; setIndex: number } | null {
+  const now = Date.now()
   for (let i = 0; i < day.exercises.length; i++) {
+    const group = getGroupForExercise(day, i)
+    // AMRAP: if timer is still active, the exercise is incomplete regardless of set count
+    if (group?.kind === 'amrap' && opts?.amrapEndAt && now < opts.amrapEndAt) {
+      return {
+        exerciseIndex: i,
+        setIndex: resumeSetIndexForExercise(day, exerciseLogs, i),
+      }
+    }
     const done = countLoggedSets(exerciseLogs[i])
     const required = getExerciseTargetSetCount(day, i)
     if (done < required) {

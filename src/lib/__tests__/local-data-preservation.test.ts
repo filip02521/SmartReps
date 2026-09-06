@@ -71,6 +71,10 @@ vi.mock('@/lib/db', () => ({
     aiAnalysisCache: { clear: vi.fn() },
     sessionTombstones: { clear: vi.fn() },
     achievementUnlocks: { clear: vi.fn() },
+    bodyWeight: { clear: vi.fn() },
+    customPlanTombstones: { clear: vi.fn() },
+    exerciseTombstones: { clear: vi.fn() },
+    bodyWeightTombstones: { clear: vi.fn() },
   },
 }))
 

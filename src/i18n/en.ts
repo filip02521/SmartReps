@@ -333,10 +333,10 @@ export const en: Translation = {
   onboardingInterestHint: 'Select one option or both.',
   onboardingInterestStrongTitle: 'Pushups and pull-ups',
   onboardingInterestStrongBody:
-    'Ready-made programs: max rep test, level selection, training days and rest between sets.',
+    'Ready-made cycles: max rep test, level selection, training days and rest between sets. From zero to 100 pushups and 20 pull-ups.',
   onboardingInterestCustomTitle: 'Custom plans',
   onboardingInterestCustomBody:
-    'Build your own exercises — for the gym, machines, or home workouts.',
+    'Build your own exercises — gym, machines, dumbbells, home workouts. Or import a ready-made plan from the catalog.',
   onboardingPickProgram: 'Which program to enable?',
   onboardingPickProgramHint:
     'You\'ll do the max rep test and level selection later on the Training screen — when you\'re ready.',
@@ -351,6 +351,41 @@ export const en: Translation = {
   onboardingIllustStrong: 'Programs',
   onboardingIllustCustom: 'Custom',
   onboardingIllustNext: 'Train — when you want',
+  onboardingIllustReps: 'Set 2/5',
+  onboardingIllustDone: 'Done',
+  onboardingLanguageAria: 'Choose language',
+  onboardingWelcomeTagline: 'Your personal coach in your pocket. Plan, analysis and progression — offline.',
+  onboardingFeaturePrograms: 'Ready-made pushup & pull-up cycles',
+  onboardingFeatureCustom: 'Custom plans — gym, machines, home',
+  onboardingFeatureOffline: 'Works offline, installable as an app',
+  onboardingFeaturePrivate: 'Private login — no Google accounts',
+  onboardingPushupsDesc: 'From a max test to 100 pushups — step by step',
+  onboardingPullupsDesc: 'From your first pull-up to 20 and beyond — progressively',
+  onboardingReadyLine: 'Your plan is ready. Shall we start?',
+  onboardingFeatureCommunity: 'Catalog of plans from other users',
+  onboardingFeatureSync: 'Sync across phones — no data loss',
+  onboardingFeatureProgramsShort: 'Ready cycles',
+  onboardingFeatureCustomShort: 'Custom plans',
+  onboardingFeatureCommunityShort: 'Plan catalog',
+  onboardingFeatureSyncShort: 'Device sync',
+  onboardingFeatureOfflineShort: 'Offline & PWA',
+  onboardingFeaturePrivateShort: 'Private account',
+  onboardingFeatureAiShort: 'AI Coach',
+  onboardingFeatureProgressShort: 'Progress & badges',
+  onboardingIllustDay: 'D3',
+  onboardingInterestHintStrong: 'Pick one, both, or neither — you can always change later',
+  onboardingProgramsHint: 'Pick one or both — test and level come later',
+  onboardingNextTitleReady: 'All set',
+  onboardingNextSummary: (choices: string) => `You chose: ${choices}`,
+  onboardingNextSummaryStrong: 'pushup & pull-up programs',
+  onboardingNextSummaryCustom: 'custom plans',
+  onboardingNextSummaryNone: 'browse only',
+  onboardingNextBulletHome: 'Training screen — you decide when to work out',
+  onboardingNextBulletStrong: 'Launch the program from its card. With two, test separately',
+  onboardingNextBulletCustom: 'Add custom plans in the Plans tab',
+  onboardingNextBulletCommunity: 'Import ready-made plans from the catalog',
+  onboardingNextBulletAi: 'AI Coach analyzes workouts and generates weekly reports',
+  onboardingNextBulletProgress: 'Charts, records and badges track your progress',
   restGateHint: (days: number) =>
     days === 1 ? '1 day of rest between workouts' : `${days} days of rest between workouts`,
   totalRepsLastSession: (n: number) => `${n} reps total (last workout)`,
@@ -365,6 +400,7 @@ export const en: Translation = {
   errorLoadProgram: 'Failed to load the program. Try again.',
   errorLoadProgress: 'Failed to load progress. Try again.',
   errorLoadHome: 'Failed to load the home screen. Try again.',
+  errorLoadPage: 'Failed to load the page. Try again.',
   errorLoadPlans: 'Failed to load plans. Try again.',
   errorLoadSummary: 'Failed to load the summary. Try again.',
   errorStartWorkout: 'Failed to start the workout. Try again.',
@@ -1273,6 +1309,7 @@ export const en: Translation = {
   aiProviderCustom: 'Custom endpoint',
   aiApiKeyLabel: 'API key',
   aiApiKeyPlaceholder: 'sk-... or AIza...',
+  aiApiKeySaved: 'API key saved',
   aiModelLabel: 'Model',
   aiModelHint: 'The cheapest and fastest model is enough. For Gemini: "gemini-2.5-flash-lite" (free) or "gemini-2.5-flash".',
   aiBaseUrlLabel: 'API base URL',
@@ -1410,6 +1447,18 @@ export const en: Translation = {
   coachWeeklyReportGreat: 'Great week — volume and progress on track. Keep it up!',
   coachWeeklyReportFirstWeek: 'First week with workouts — no data to compare yet.',
   coachWeeklyReportConnectAiHint: 'Connect AI for a detailed coach analysis',
+  coachWeeklyReportTrainingDays: (days: number) => `${days} training days.`,
+  coachWeeklyReportPrs: (count: number) => count === 1 ? '1 new personal record!' : `${count} new personal records!`,
+  coachWeeklyReportAvgDuration: (min: number) => `Avg ${min} min/session.`,
+  coachWeeklyReportProgramEntry: (program: string, sessions: number, reps: number) => `${program}: ${sessions} sessions, ${reps} reps.`,
+  coachWeeklyReportPrograms: (entries: string) => `Breakdown: ${entries}`,
+  coachWeeklyReportRegenerate: 'Regenerate',
+  coachWeeklyReportRegenerating: 'Coach is updating the report…',
+  coachWeeklyReportUpdatedLabel: (when: string) => `Updated ${when}`,
+  coachWeeklyReportNew: 'New',
+  coachWeeklyReportNewAria: 'New weekly summary — tap to expand',
+  coachWeeklyReportExpand: 'Expand summary',
+  coachWeeklyReportCollapse: 'Collapse summary',
   coachWeeklyMetricSessions: 'Sessions',
   coachWeeklyMetricReps: 'Reps',
   coachWeeklyMetricStreak: 'Streak',
@@ -1474,6 +1523,7 @@ export const en: Translation = {
   addExercise: 'Add exercise',
   editExercise: 'Edit exercise',
   archiveExercise: 'Archive',
+  exerciseArchiveFailed: 'Failed to archive exercise. Try again.',
   exerciseName: 'Name',
   exerciseMetric: 'Metric',
   exerciseMetricReps: 'Reps',
@@ -2548,6 +2598,13 @@ Write in English.`,
   aiPromptWeeklyVolumeEntry: (mg: string, sets: number) => `  ${mg}: ${sets} sets`,
   aiPromptWeeklyNoSessions: 'No sessions this week.',
   aiPromptWeeklyNoData: 'No data',
+  aiPromptWeeklyVolumeTotal: (volume: number) => `TOTAL VOLUME (reps×kg): ${volume}`,
+  aiPromptWeeklyTrainingDays: (days: number) => `TRAINING DAYS: ${days}`,
+  aiPromptWeeklyAvgDuration: (min: number) => `AVG SESSION DURATION: ${min} min`,
+  aiPromptWeeklyPrCount: (count: number) => `PERSONAL RECORDS THIS WEEK: ${count}`,
+  aiPromptWeeklyProgramEntry: (program: string, sessions: number, reps: number) =>
+    `${program}: ${sessions} sessions, ${reps} reps`,
+  aiPromptWeeklyPrograms: (entries: string) => `BY PROGRAM: ${entries}`,
 
   // ── AI weekly report full prompt ──
   aiPromptWeeklyReportBuild: (
@@ -2557,6 +2614,7 @@ Write in English.`,
     streakWeeks: number,
     repsChangePct: string | number,
     volumeByMuscle: string,
+    enrichedContext: string,
   ) => `Create a weekly workout report for the user.
 
 THIS WEEK'S SESSIONS (${weekCount}):
@@ -2565,7 +2623,7 @@ ${weekSummary}
 TOTAL REPS THIS WEEK: ${totalReps}
 STREAK: ${streakWeeks} weeks
 REPS WEEK CHANGE %: ${repsChangePct}
-
+${enrichedContext ? `\n${enrichedContext}\n` : ''}
 WEEKLY SETS BY MUSCLE GROUP:
 ${volumeByMuscle}
 

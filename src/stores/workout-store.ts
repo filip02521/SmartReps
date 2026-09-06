@@ -87,6 +87,9 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       setResults: s.setResults.filter((r) => r.setNumber !== setNumber),
       currentSetIndex: setNumber - 1,
       restTimer: { mode: 'idle', totalSec: 0, remainingSec: 0, startedAt: null },
+      // Reset failedRetryUsed so the user gets their one allowed retry back
+      // after undoing a failed set and re-attempting it.
+      failedRetryUsed: false,
     })
     return removed
   },

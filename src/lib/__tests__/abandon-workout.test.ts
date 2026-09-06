@@ -26,6 +26,16 @@ vi.mock('@/lib/db', () => ({
       put: (...args: unknown[]) => activeWorkoutPut(...args),
       delete: (...args: unknown[]) => activeWorkoutDelete(...args),
     },
+    programProgress: {
+      where: vi.fn(() => ({
+        equals: vi.fn(() => ({
+          first: vi.fn(async () => undefined),
+        })),
+      })),
+    },
+    transaction: vi.fn(
+      async (_mode: string, _tables: unknown, fn: () => Promise<void>) => fn(),
+    ),
   },
 }))
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/db', () => {
-  const exercises = { put: vi.fn() }
+  const exercises = { put: vi.fn(), toArray: vi.fn(async () => []) }
   const customPlans = { put: vi.fn() }
   return {
     db: {

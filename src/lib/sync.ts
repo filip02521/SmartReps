@@ -40,13 +40,42 @@ export type SyncFailureReason =
 
 export type SyncResult = { ok: boolean; errors: number; reason?: SyncFailureReason }
 
+const SYNC_QUEUE_CAP = 500
+
 export async function enqueueSync(table: string, action: SyncAction, payload: unknown) {
+  let payloadJson: string
+  try {
+    payloadJson = JSON.stringify(payload)
+  } catch {
+    // Non-serializable payload (circular refs, BigInt, etc.) — skip rather than crash sync
+    return
+  }
+  // Deduplicate: if there's already a pending item for the same table+action+payload,
+  // skip adding a duplicate. This prevents the queue from growing unboundedly when
+  // the same entity is updated repeatedly while offline.
+  // Use filter() instead of where() because syncQueue doesn't have a 'table' index.
+  const all = await db.syncQueue.toArray()
+  const existing = all.find(
+    (item) => item.table === table && item.action === action && item.payload === payloadJson,
+  )
+  if (existing) return
+
   await db.syncQueue.add({
     table,
     action,
-    payload: JSON.stringify(payload),
+    payload: payloadJson,
     createdAt: new Date().toISOString(),
   })
+
+  // Cap: if the queue exceeds the cap, remove oldest items.
+  // This prevents unbounded growth in pathological offline scenarios.
+  const count = await db.syncQueue.count()
+  if (count > SYNC_QUEUE_CAP) {
+    const oldest = await db.syncQueue.orderBy('createdAt').limit(count - SYNC_QUEUE_CAP).toArray()
+    for (const item of oldest) {
+      await db.syncQueue.delete(item.id!)
+    }
+  }
 }
 
 async function getUserId(): Promise<string | null> {
@@ -423,7 +452,16 @@ async function upsertBodyWeight(userId: string, row: BodyWeightEntry) {
 async function processQueueItem(userId: string, table: string, action: SyncAction, payload: unknown) {
   switch (table) {
     case 'program_progress':
-      if (action !== 'delete') {
+      if (action === 'delete') {
+        // Delete the remote progress row for this program
+        const queued = payload as LocalProgramProgress
+        const { error } = await supabase
+          .from('program_progress')
+          .delete()
+          .eq('user_id', userId)
+          .eq('program', queued.program)
+        if (error) throw error
+      } else {
         const queued = payload as LocalProgramProgress
         const local = await db.programProgress.where('program').equals(queued.program).first()
         const row = local ?? queued
@@ -446,7 +484,17 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
       }
       break
     case 'max_tests':
-      if (action !== 'delete') await upsertMaxTest(userId, payload as LocalMaxTest)
+      if (action === 'delete') {
+        const queued = payload as LocalMaxTest
+        const { error } = await supabase
+          .from('max_tests')
+          .delete()
+          .eq('user_id', userId)
+          .eq('id', queued.id)
+        if (error) throw error
+      } else {
+        await upsertMaxTest(userId, payload as LocalMaxTest)
+      }
       break
     case 'body_weight_entries':
       if (action === 'delete') {
@@ -559,10 +607,20 @@ export async function flushSyncQueue(): Promise<number> {
   if (!userId) return 0
 
   const MAX_ATTEMPTS = 5
+  const DEAD_LETTER_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
   let errors = 0
   const items = await db.syncQueue.orderBy('createdAt').toArray()
+  const now = Date.now()
   for (const item of items) {
-    if ((item.attempts ?? 0) >= MAX_ATTEMPTS) continue
+    // Purge dead-letter items older than 7 days — they're permanently failed
+    // (e.g. referenced a deleted remote row, schema mismatch, etc.)
+    if ((item.attempts ?? 0) >= MAX_ATTEMPTS) {
+      const age = now - new Date(item.createdAt).getTime()
+      if (age > DEAD_LETTER_TTL_MS && item.id !== undefined) {
+        await db.syncQueue.delete(item.id)
+      }
+      continue
+    }
     try {
       await processQueueItem(userId, item.table, item.action, JSON.parse(item.payload))
       if (item.id !== undefined) await db.syncQueue.delete(item.id)
@@ -746,7 +804,7 @@ async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
       remote.progression_diff_json !== undefined
         ? (jsonbToLocalString(remote.progression_diff_json) ?? undefined)
         : local?.progressionDiffJson,
-    note: remote.notes ?? local?.note,
+    note: remote.notes !== undefined ? (remote.notes ?? undefined) : local?.note,
   }
 
   await db.workoutSessions.put(mapped)
@@ -825,6 +883,9 @@ async function mergeMaxTestRemote(remote: RemoteMaxTestRow) {
 }
 
 async function mergeBodyWeightRemote(remote: RemoteBodyWeightRow) {
+  // Skip if tombstoned (deleted on this device)
+  if (await db.bodyWeightTombstones.get(remote.id)) return
+
   // Normalize both sides to epoch ms — Postgres returns "2026-09-03 16:52:29.877+00"
   // while local stores ISO "2026-09-03T16:52:29.877Z". String comparison fails.
   const remoteMs = new Date(remote.measured_at).getTime()
@@ -952,6 +1013,25 @@ export async function pullRemoteData(): Promise<SyncResult> {
       await mergeProgressRemote(userId, remote as RemoteProgressRow)
     }
 
+    // Pull session tombstones BEFORE workout_sessions — this prevents
+    // temporarily resurrecting a deleted session that another device removed.
+    // mergeSessionRemote checks tombstones before inserting, so they must be
+    // present locally before the session merge runs.
+    const { data: remoteTombstones, error: tombstoneError } = await supabase
+      .from('session_tombstones')
+      .select('session_id, deleted_at')
+      .eq('user_id', userId)
+    if (tombstoneError) throw tombstoneError
+    for (const row of remoteTombstones ?? []) {
+      const r = row as { session_id: string; deleted_at: string }
+      await db.sessionTombstones.put({ sessionId: r.session_id, deletedAt: r.deleted_at })
+      // Delete local session if it still exists (resurrected by earlier sync)
+      const localSession = await db.workoutSessions.get(r.session_id)
+      if (localSession) {
+        await db.workoutSessions.delete(r.session_id)
+      }
+    }
+
     const { data: remoteSessions, error: sessionsError } = await supabase
       .from('workout_sessions')
       .select('*, set_results(*)')
@@ -1007,21 +1087,12 @@ export async function pullRemoteData(): Promise<SyncResult> {
       await mergeAiInsightRemote(remote as RemoteAiInsightRow)
     }
 
-    // Pull session tombstones — delete any local sessions that were
-    // deleted on another device, and store tombstones locally.
-    const { data: remoteTombstones, error: tombstoneError } = await supabase
-      .from('session_tombstones')
-      .select('session_id, deleted_at')
-      .eq('user_id', userId)
-    if (tombstoneError) throw tombstoneError
-    for (const row of remoteTombstones ?? []) {
-      const r = row as { session_id: string; deleted_at: string }
-      await db.sessionTombstones.put({ sessionId: r.session_id, deletedAt: r.deleted_at })
-      // Delete local session if it still exists (resurrected by earlier sync)
-      const localSession = await db.workoutSessions.get(r.session_id)
-      if (localSession) {
-        await db.workoutSessions.delete(r.session_id)
-      }
+    // Prune old AI insights to prevent unbounded local storage growth
+    try {
+      const { pruneOldAiInsights } = await import('@/lib/ai/proactive-coach')
+      await pruneOldAiInsights()
+    } catch {
+      /* best-effort */
     }
 
     // Push local tombstones to cloud (that haven't been pushed yet)
@@ -1038,6 +1109,39 @@ export async function pullRemoteData(): Promise<SyncResult> {
       } catch {
         // Non-fatal — will retry on next sync
       }
+    }
+
+    // Push local body-weight tombstones to cloud
+    const localBwTombstones = await db.bodyWeightTombstones.toArray()
+    for (const tombstone of localBwTombstones) {
+      try {
+        await supabase
+          .from('body_weight_tombstones')
+          .upsert({
+            user_id: userId,
+            entry_id: tombstone.entryId,
+            deleted_at: tombstone.deletedAt,
+          }, { onConflict: 'user_id,entry_id' })
+      } catch {
+        // Non-fatal — will retry on next sync
+      }
+    }
+
+    // Pull body-weight tombstones from cloud — delete local entries deleted on another device
+    try {
+      const { data: remoteBwTombstones, error: rbtErr } = await supabase
+        .from('body_weight_tombstones')
+        .select('entry_id, deleted_at')
+        .eq('user_id', userId)
+      if (!rbtErr && remoteBwTombstones) {
+        for (const row of remoteBwTombstones as { entry_id: string; deleted_at: string }[]) {
+          await db.bodyWeightTombstones.put({ entryId: row.entry_id, deletedAt: row.deleted_at })
+          const localEntry = await db.bodyWeight.get(row.entry_id)
+          if (localEntry) await db.bodyWeight.delete(row.entry_id)
+        }
+      }
+    } catch {
+      // Tombstone table may not exist yet — best-effort
     }
 
     const { pullCustomEntities } = await import('@/lib/custom-sync')

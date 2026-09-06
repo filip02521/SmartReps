@@ -26,6 +26,7 @@ import { ToastHost } from '@/components/ux/Toast'
 import { AccountSwitchGate } from '@/components/ux/AccountSwitchGate'
 import { AchievementHost } from '@/components/achievements/AchievementHost'
 import { ResumeWorkoutPrompt } from '@/components/workout/ResumeWorkoutPrompt'
+import { RouteErrorBoundary } from '@/components/ux/RouteErrorBoundary'
 
 const ProgressPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Progress')))
 const PlansPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Plans')))
@@ -36,15 +37,17 @@ const CommunityPublicationPage = lazy(
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-[40vh] items-center justify-center py-16">
-          <BrandLoader size={44} />
-        </div>
-      }
-    >
-      {children}
-    </Suspense>
+    <RouteErrorBoundary>
+      <Suspense
+        fallback={
+          <div className="flex min-h-[40vh] items-center justify-center py-16">
+            <BrandLoader size={44} />
+          </div>
+        }
+      >
+        {children}
+      </Suspense>
+    </RouteErrorBoundary>
   )
 }
 

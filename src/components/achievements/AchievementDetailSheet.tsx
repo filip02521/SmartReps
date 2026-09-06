@@ -1,5 +1,5 @@
 import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
+import { dateFnsLocale } from '@/lib/date-locale'
 import { Sheet } from '@/components/ui/Sheet'
 import { AchievementTile } from './AchievementTile'
 import type { AchievementDef, LocalAchievementUnlock } from '@/lib/achievements/types'
@@ -109,7 +109,7 @@ export function AchievementDetailSheet({
         {unlocked && unlock && (
           <p className="sr-text-caption text-[var(--sr-text-muted)]">
             {pl.achievementsUnlockedOn(
-              format(new Date(unlock.unlockedAt), 'd MMM yyyy', { locale: plLocale }),
+              format(new Date(unlock.unlockedAt), 'd MMM yyyy', { locale: dateFnsLocale() }),
             )}
           </p>
         )}
@@ -138,7 +138,7 @@ export function AchievementDetailSheet({
             <div
               className="h-1.5 overflow-hidden rounded-full bg-[var(--sr-bg-muted)]"
               role="progressbar"
-              aria-valuenow={achievementProgress(def.id, snapshot)?.current ?? currentTierDef.threshold}
+              aria-valuenow={Math.max(currentTierDef.threshold, achievementProgress(def.id, snapshot)?.current ?? currentTierDef.threshold)}
               aria-valuemin={currentTierDef.threshold}
               aria-valuemax={nextTierDef.threshold}
             >
@@ -149,7 +149,9 @@ export function AchievementDetailSheet({
                     const cur = achievementProgress(def.id, snapshot)?.current ?? currentTierDef.threshold
                     const span = nextTierDef.threshold - currentTierDef.threshold
                     if (span <= 0) return 100
-                    return Math.min(100, Math.round(((cur - currentTierDef.threshold) / span) * 100))
+                    // Clamp to 0–100: stats may have decreased since the tier was earned
+                    const ratio = (cur - currentTierDef.threshold) / span
+                    return Math.min(100, Math.max(0, Math.round(ratio * 100)))
                   })()}%`,
                 }}
               />

@@ -62,15 +62,20 @@ export async function updateProgramProgress(
 
 /** Mark program ready/active when user starts a day after rest / cycle_failed. */
 export async function markProgramActiveIfReady(program: Program): Promise<void> {
-  const progress = await getProgramProgress(program)
-  if (!progress) return
-  if (progress.status === 'test_pending' || progress.status === 'paused') return
-  const available = isWorkoutAvailable(
-    progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
-  )
-  if (!available) return
-  if (progress.status === 'active') return
-  await updateProgramProgress(program, { status: 'active' })
+  // Use a transaction with re-check to prevent race condition where two
+  // concurrent calls both read status !== 'active' and both write 'active'.
+  // The transaction ensures atomic read-modify-write.
+  await db.transaction('rw', db.programProgress, async () => {
+    const progress = await getProgramProgress(program)
+    if (!progress) return
+    if (progress.status === 'test_pending' || progress.status === 'paused') return
+    const available = isWorkoutAvailable(
+      progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
+    )
+    if (!available) return
+    if (progress.status === 'active') return
+    await updateProgramProgress(program, { status: 'active' })
+  })
 }
 
 export async function completeWorkoutDay(
@@ -78,6 +83,7 @@ export async function completeWorkoutDay(
   passed: boolean,
   _totalReps: number,
   sessionId?: string,
+  sessionDayNumber?: number,
 ) {
   if (sessionId) {
     const key = `${program}:${sessionId}`
@@ -91,7 +97,12 @@ export async function completeWorkoutDay(
   const cycle = getCycleById(progress.cycleId)
   if (!cycle) return
 
-  const day = cycle.days.find((d) => d.dayNumber === progress.currentDay)
+  // Use the session's dayNumber if provided — this ensures we advance from
+  // the day the session was actually for, not from progress.currentDay which
+  // may have been changed by a concurrent call or stale state.
+  const effectiveDay = sessionDayNumber ?? progress.currentDay
+
+  const day = cycle.days.find((d) => d.dayNumber === effectiveDay)
   const restDays = day?.restAfterDay ?? 1
 
   if (!passed) {
@@ -108,7 +119,7 @@ export async function completeWorkoutDay(
   }
 
   const { nextDay, cycleComplete } = advanceAfterDayPassed(
-    progress.currentDay,
+    effectiveDay,
     cycle.days.length,
   )
 
@@ -205,7 +216,9 @@ export async function clearActiveWorkout(program: Program) {
   await enqueueActiveWorkoutSync(program, null)
 }
 
-/** Drop orphan active rows whose session is no longer in progress or has no completed sets. */
+/** Drop orphan active rows whose session is no longer in progress or has no completed sets.
+ *  Also verifies that the active session's dayNumber matches the current progress day —
+ *  a mismatch means the session is stale (from a different day) and should not be resumed. */
 export async function reconcileActiveWorkout(program: Program): Promise<ActiveWorkoutState | undefined> {
   await cleanupEmptyInProgressSessions(program)
 
@@ -214,10 +227,19 @@ export async function reconcileActiveWorkout(program: Program): Promise<ActiveWo
   const session = await db.workoutSessions.get(active.sessionId)
   const progressInActive = active.setResults.length > 0
   const progressInSession = (session?.setResults.length ?? 0) > 0
+
+  // Verify the session's dayNumber matches the current progress day.
+  // A mismatch means the session is from a different day (e.g. progress was
+  // advanced but the active row wasn't cleared) — resuming it would load the
+  // wrong day plan and finalize incorrectly.
+  const progress = await getProgramProgress(program)
+  const dayMatches = !progress || !session || session.dayNumber === progress.currentDay
+
   if (
     session &&
     session.status === 'in_progress' &&
     session.program === program &&
+    dayMatches &&
     (progressInActive || progressInSession)
   ) {
     return active

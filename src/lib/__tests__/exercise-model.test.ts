@@ -46,17 +46,26 @@ describe('exercise-model', () => {
     ).toBe(false)
   })
 
-  it('requires weight for reps_weight metric', () => {
+  it('requires weight for reps_weight metric only when prescription specifies weight', () => {
+    // Without prescription weightKg, bodyweight reps_weight is valid (no weight needed)
     expect(
       validateSetLog(
         { reps: { kind: 'fixed', value: 8 } },
         { reps: 8 },
         'reps_weight',
       ),
+    ).toBe(true)
+    // With prescription weightKg, actual weight is required
+    expect(
+      validateSetLog(
+        { reps: { kind: 'fixed', value: 8 }, weightKg: { kind: 'fixed', value: 20 } },
+        { reps: 8 },
+        'reps_weight',
+      ),
     ).toBe(false)
     expect(
       validateSetLog(
-        { reps: { kind: 'fixed', value: 8 } },
+        { reps: { kind: 'fixed', value: 8 }, weightKg: { kind: 'fixed', value: 20 } },
         { reps: 8, weightKg: 20 },
         'reps_weight',
       ),

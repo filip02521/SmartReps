@@ -57,6 +57,14 @@ export async function signOutUser(
   if (useAppStore.getState().settings.pushNotifications) {
     await unsubscribeWebPush()
   }
+  // Cancel any pending local reminder — without this, the setTimeout reminder
+  // can still fire for the previous account after logout.
+  try {
+    const { cancelReminder } = await import('@/lib/notifications')
+    cancelReminder()
+  } catch {
+    // best-effort
+  }
   const { error } = await supabase.auth.signOut(options)
   const { data } = await supabase.auth.getSession()
   if (data.session) {

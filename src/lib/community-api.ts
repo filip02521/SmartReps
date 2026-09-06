@@ -171,6 +171,8 @@ export async function unpublishCommunityPlan(publicationId: string): Promise<Com
     p_publication_id: publicationId,
   })
   if (error) throw error
+  // Re-evaluate achievements — published_count may have changed
+  void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
   return mapRow(data as Record<string, unknown>)
 }
 
@@ -196,6 +198,8 @@ export async function toggleCommunityLike(
   }
   const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
   const row = raw as { liked?: boolean; like_count?: number }
+  // Re-evaluate achievements — author's like_total may have changed
+  void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
   return { liked: Boolean(row.liked), like_count: Number(row.like_count ?? 0) }
 }
 
@@ -208,6 +212,8 @@ export async function recordCommunityImport(
   if (error) throw error
   const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
   const row = raw as { import_count?: number; counted?: boolean }
+  // Re-evaluate achievements — author's import_total may have changed
+  void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
   return {
     import_count: Number(row.import_count ?? 0),
     counted: Boolean(row.counted),

@@ -908,6 +908,22 @@ html[data-offline='1'] .safe-header {
   }
 }
 
+/* AI Coach — sparkle shimmer (only the star, not the whole mark) */
+@keyframes sr-coach-sparkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  45% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+  55% {
+    opacity: 0.9;
+    transform: scale(1.08);
+  }
+}
+
 /* AI Coach — message bubble entrance */
 @keyframes sr-coach-msg-in {
   from {
@@ -922,6 +938,24 @@ html[data-offline='1'] .safe-header {
 
 .sr-coach-msg-in {
   animation: sr-coach-msg-in 220ms ease-out;
+}
+
+/* "New" badge — gentle pulse to draw attention to fresh weekly insights */
+@keyframes sr-new-badge-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 var(--sr-brand-primary-muted);
+  }
+  50% {
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+.sr-new-badge {
+  animation: sr-new-badge-pulse 2s ease-in-out infinite;
+}
+
+.sr-new-badge-dot {
+  animation: sr-coach-pulse 1.6s ease-in-out infinite;
 }
 
 [data-high-contrast='true'] {
@@ -967,4 +1001,25 @@ html[data-offline='1'] .safe-header {
 
 .sr-pulse-cta {
   animation: sr-cta-pulse 2s ease-in-out infinite;
+}
+
+/* Onboarding — step entrance animation (fade + subtle slide up) */
+@keyframes sr-onboard-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sr-onboard-step {
+  animation: sr-onboard-enter 320ms ease-out both;
+}
+
+.sr-onboard-stagger-1 { animation-delay: 60ms; }
+.sr-onboard-stagger-2 { animation-delay: 120ms; }
+.sr-onboard-stagger-3 { animation-delay: 180ms; }
+.sr-onboard-stagger-4 { animation-delay: 240ms; }
+
+/* Onboarding — welcome brand glow */
+.sr-onboard-glow {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, var(--sr-brand-primary-muted), transparent 70%);
 }

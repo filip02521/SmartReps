@@ -132,9 +132,9 @@ export function TrophyShape({
   // Tap-to-celebrate — triggers shine sweep + sparkle burst
   const [celebrating, setCelebrating] = useState(false)
   const celebrateTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const handleTap = (e: React.MouseEvent) => {
+  const handleTap = (e?: React.MouseEvent | React.KeyboardEvent) => {
     if (!interactive || silhouette || !hasGlow) return
-    e.stopPropagation()
+    e?.stopPropagation()
     setCelebrating(true)
     if (celebrateTimer.current) clearTimeout(celebrateTimer.current)
     celebrateTimer.current = setTimeout(() => setCelebrating(false), 1200)
@@ -157,8 +157,15 @@ export function TrophyShape({
       )}
       style={{ width: finalPx, height: finalPx }}
       aria-hidden={ariaHidden}
-      role={ariaHidden ? undefined : 'img'}
+      role={ariaHidden ? undefined : (interactive ? 'button' : 'img')}
+      tabIndex={interactive && !ariaHidden ? 0 : undefined}
       onClick={interactive ? handleTap : undefined}
+      onKeyDown={interactive && !ariaHidden ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleTap()
+        }
+      } : undefined}
     >
       <svg
         width={finalPx}

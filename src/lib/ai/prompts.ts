@@ -295,6 +295,13 @@ export function buildWeeklyReportPrompt(
   exercises: ExerciseDefinition[],
   activity: ActivityInsights,
   totalReps: number,
+  extras?: {
+    totalVolume?: number
+    trainingDays?: number
+    avgDurationMin?: number
+    prCount?: number
+    programs?: { program: string; sessions: number; reps: number }[]
+  },
 ): { system: ChatMessage; user: ChatMessage } {
   const exerciseMap = new Map(exercises.map((e) => [e.id, e]))
 
@@ -304,7 +311,13 @@ export function buildWeeklyReportPrompt(
       const exerciseNames = s.exerciseLogs
         .map((log) => exerciseMap.get(log.exerciseId)?.name ?? log.exerciseId)
         .join(', ')
-      return pl.aiPromptWeeklySessionEntry(date, customSessionTotalReps(s), exerciseNames)
+      // Include duration for time-based exercises
+      const durationSec = s.exerciseLogs.reduce(
+        (sum, log) => sum + log.sets.reduce((s2, set) => s2 + (set.actual.durationSec ?? 0), 0),
+        0,
+      )
+      const durationInfo = durationSec > 0 ? ` +${Math.round(durationSec / 60)}min` : ''
+      return pl.aiPromptWeeklySessionEntry(date, customSessionTotalReps(s), `${exerciseNames}${durationInfo}`)
     }
     return pl.aiPromptWeeklySessionEntryBuiltin(date, s.totalReps ?? 0, s.dayNumber)
   }).join('\n')
@@ -329,6 +342,27 @@ export function buildWeeklyReportPrompt(
     .map(([mg, sets]) => pl.aiPromptWeeklyVolumeEntry(mg, sets))
     .join('\n')
 
+  // Build enriched context from extras (volume, training days, PRs, etc.)
+  const enrichedLines: string[] = []
+  if (extras?.totalVolume != null && extras.totalVolume > 0) {
+    enrichedLines.push(pl.aiPromptWeeklyVolumeTotal(extras.totalVolume))
+  }
+  if (extras?.trainingDays != null && extras.trainingDays > 0) {
+    enrichedLines.push(pl.aiPromptWeeklyTrainingDays(extras.trainingDays))
+  }
+  if (extras?.avgDurationMin != null && extras.avgDurationMin > 0) {
+    enrichedLines.push(pl.aiPromptWeeklyAvgDuration(extras.avgDurationMin))
+  }
+  if (extras?.prCount != null && extras.prCount > 0) {
+    enrichedLines.push(pl.aiPromptWeeklyPrCount(extras.prCount))
+  }
+  if (extras?.programs?.length) {
+    const programEntries = extras.programs
+      .map((p) => pl.aiPromptWeeklyProgramEntry(p.program, p.sessions, p.reps))
+      .join('\n')
+    enrichedLines.push(pl.aiPromptWeeklyPrograms(programEntries))
+  }
+
   const userPrompt = pl.aiPromptWeeklyReportBuild(
     weekSessions.length,
     weekSummary || pl.aiPromptWeeklyNoSessions,
@@ -336,6 +370,7 @@ export function buildWeeklyReportPrompt(
     activity.streakWeeks,
     activity.repsWeekChangePct ?? 'N/A',
     volumeByMuscle || pl.aiPromptWeeklyNoData,
+    enrichedLines.join('\n'),
   )
 
   return {

@@ -1,5 +1,5 @@
 import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
+import { dateFnsLocale } from '@/lib/date-locale'
 import { db } from '@/lib/db'
 import type { LocalMaxTest, LocalWorkoutSession } from '@/lib/db'
 import type { ExerciseDefinition, ExerciseLog, PrimaryMetric, SetLog } from '@/lib/exercise-model'
@@ -366,7 +366,7 @@ export async function computeExerciseDetailStats(
       const value = primarySetValue(best, metric)
       chartPoints.push({
         date: at,
-        dateLabel: format(new Date(at), 'd MMM', { locale: plLocale }),
+        dateLabel: format(new Date(at), 'd MMM', { locale: dateFnsLocale() }),
         value,
         tooltipSecondary:
           metric === 'reps_weight' && best.actual.weightKg != null
@@ -383,7 +383,7 @@ export async function computeExerciseDetailStats(
 
     loadPerSession.push({
       date: at,
-      dateLabel: format(new Date(at), 'd MMM', { locale: plLocale }),
+      dateLabel: format(new Date(at), 'd MMM', { locale: dateFnsLocale() }),
       value: sessionLoad(log, metric),
       tooltipSecondary: null,
     })

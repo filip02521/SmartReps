@@ -346,10 +346,10 @@ const plDict = {
   onboardingInterestHint: 'Zaznacz jedną opcję albo obie.',
   onboardingInterestStrongTitle: 'Pompki i podciąganie',
   onboardingInterestStrongBody:
-    'Gotowe programy: test maksymalnej liczby powtórzeń, dobór poziomu, dni treningowe i przerwy między seriami.',
+    'Gotowe cykle: test maksymalnej liczby powtórzeń, dobór poziomu, dni treningowe i przerwy między seriami. Od zera do 100 pompek i 20 podciągnięć.',
   onboardingInterestCustomTitle: 'Własne plany',
   onboardingInterestCustomBody:
-    'Sam układasz ćwiczenia — na siłownię, maszyny albo trening w domu.',
+    'Sam układasz ćwiczenia — siłownia, maszyny, hantle, trening w domu. Lub zaimportuj gotowy plan z katalogu.',
   onboardingPickProgram: 'Który program włączyć?',
   onboardingPickProgramHint:
     'Test maksymalnej liczby powtórzeń i wybór poziomu zrobisz później na ekranie Trening — kiedy będziesz gotowy.',
@@ -364,6 +364,41 @@ const plDict = {
   onboardingIllustStrong: 'Programy',
   onboardingIllustCustom: 'Własne',
   onboardingIllustNext: 'Trening — kiedy Ty chcesz',
+  onboardingIllustReps: 'Seria 2/5',
+  onboardingIllustDone: 'Zrobione',
+  onboardingLanguageAria: 'Wybierz język',
+  onboardingWelcomeTagline: 'Twój trener personalny w kieszeni. Plan, analiza i progresja — offline.',
+  onboardingFeaturePrograms: 'Gotowe cykle pompek i podciągania',
+  onboardingFeatureCustom: 'Własne plany — siłownia, maszyny, dom',
+  onboardingFeatureOffline: 'Działa offline, instalujesz jak aplikację',
+  onboardingFeaturePrivate: 'Prywatne logowanie — bez kont Google',
+  onboardingPushupsDesc: 'Od testu maksymalnego do 100 pompek — krok po kroku',
+  onboardingPullupsDesc: 'Od pierwszego podciągnięcia do 20 i więcej — progresywnie',
+  onboardingReadyLine: 'Twój plan czeka. Zaczynamy?',
+  onboardingFeatureCommunity: 'Katalog planów od innych użytkowników',
+  onboardingFeatureSync: 'Sync między telefonami — bez utraty danych',
+  onboardingFeatureProgramsShort: 'Gotowe cykle',
+  onboardingFeatureCustomShort: 'Własne plany',
+  onboardingFeatureCommunityShort: 'Katalog planów',
+  onboardingFeatureSyncShort: 'Sync urządzeń',
+  onboardingFeatureOfflineShort: 'Offline i PWA',
+  onboardingFeaturePrivateShort: 'Prywatne konto',
+  onboardingFeatureAiShort: 'Trener AI',
+  onboardingFeatureProgressShort: 'Postępy i odznaki',
+  onboardingIllustDay: 'D3',
+  onboardingInterestHintStrong: 'Wybierz jedno, oba albo nic — zawsze możesz zmienić',
+  onboardingProgramsHint: 'Wybierz jeden lub oba — test i poziom ustawisz później',
+  onboardingNextTitleReady: 'Wszystko gotowe',
+  onboardingNextSummary: (choices: string) => `Wybrałeś: ${choices}`,
+  onboardingNextSummaryStrong: 'programy pompki i podciąganie',
+  onboardingNextSummaryCustom: 'własne plany',
+  onboardingNextSummaryNone: 'tylko przegląd',
+  onboardingNextBulletHome: 'Ekran Trening — sam decydujesz, kiedy ćwiczyć',
+  onboardingNextBulletStrong: 'Program uruchomisz z karty. Przy dwóch zrób testy osobno',
+  onboardingNextBulletCustom: 'Własne plany dodasz w zakładce Plany',
+  onboardingNextBulletCommunity: 'Gotowe plany zaimportujesz z katalogu',
+  onboardingNextBulletAi: 'Trener AI analizuje treningi i generuje raporty tygodniowe',
+  onboardingNextBulletProgress: 'Wykresy, rekordy i odznaki śledzą Twój progres',
   restGateHint: (days: number) =>
     days === 1 ? '1 dzień przerwy między treningami' : `${days} dni przerwy między treningami`,
   totalRepsLastSession: (n: number) => `${n} powtórzeń łącznie (ostatni trening)`,
@@ -378,6 +413,7 @@ const plDict = {
   errorLoadProgram: 'Nie udało się wczytać programu. Spróbuj ponownie.',
   errorLoadProgress: 'Nie udało się wczytać postępów. Spróbuj ponownie.',
   errorLoadHome: 'Nie udało się wczytać ekranu głównego. Spróbuj ponownie.',
+  errorLoadPage: 'Nie udało się wczytać stronę. Spróbuj ponownie.',
   errorLoadPlans: 'Nie udało się wczytać planów. Spróbuj ponownie.',
   errorLoadSummary: 'Nie udało się wczytać podsumowania. Spróbuj ponownie.',
   errorStartWorkout: 'Nie udało się rozpocząć treningu. Spróbuj ponownie.',
@@ -1293,6 +1329,7 @@ const plDict = {
   aiProviderCustom: 'Własny endpoint',
   aiApiKeyLabel: 'Klucz API',
   aiApiKeyPlaceholder: 'sk-... lub AIza...',
+  aiApiKeySaved: 'Klucz API zapisany',
   aiModelLabel: 'Model',
   aiModelHint: 'Najtańszy i najszybszy model wystarczy. Dla Gemini: „gemini-2.5-flash-lite" (darmowy) lub „gemini-2.5-flash".',
   aiBaseUrlLabel: 'Adres API (Base URL)',
@@ -1430,6 +1467,18 @@ const plDict = {
   coachWeeklyReportGreat: 'Świetny tydzień — objętość i progres w normie. Tak trzymaj!',
   coachWeeklyReportFirstWeek: 'Pierwszy tydzień z treningami — brak danych do porównania.',
   coachWeeklyReportConnectAiHint: 'Podłącz AI, aby uzyskać szczegółową analizę trenera',
+  coachWeeklyReportTrainingDays: (days: number) => `${days} dni treningowe.`,
+  coachWeeklyReportPrs: (count: number) => count === 1 ? '1 nowy rekord osobisty!' : `${count} nowe rekordy osobiste!`,
+  coachWeeklyReportAvgDuration: (min: number) => `Średnio ${min} min/sesja.`,
+  coachWeeklyReportProgramEntry: (program: string, sessions: number, reps: number) => `${program}: ${sessions} sesje, ${reps} powt.`,
+  coachWeeklyReportPrograms: (entries: string) => `Podział: ${entries}`,
+  coachWeeklyReportRegenerate: 'Wygeneruj ponownie',
+  coachWeeklyReportRegenerating: 'Trener aktualizuje raport…',
+  coachWeeklyReportUpdatedLabel: (when: string) => `Zaktualizowano ${when}`,
+  coachWeeklyReportNew: 'Nowe',
+  coachWeeklyReportNewAria: 'Nowe podsumowanie tygodnia — dotknij, aby rozwinąć',
+  coachWeeklyReportExpand: 'Rozwiń podsumowanie',
+  coachWeeklyReportCollapse: 'Zwiń podsumowanie',
   coachWeeklyMetricSessions: 'Sesje',
   coachWeeklyMetricReps: 'Powt.',
   coachWeeklyMetricStreak: 'Seria',
@@ -1494,6 +1543,7 @@ const plDict = {
   addExercise: 'Dodaj ćwiczenie',
   editExercise: 'Edytuj ćwiczenie',
   archiveExercise: 'Archiwizuj',
+  exerciseArchiveFailed: 'Nie udało się zarchiwizować ćwiczenia. Spróbuj ponownie.',
   exerciseName: 'Nazwa',
   exerciseMetric: 'Metryka',
   exerciseMetricReps: 'Powtórzenia',
@@ -2574,6 +2624,13 @@ Napisz po ${pl.aiPromptLanguageHint}.`,
   aiPromptWeeklyVolumeEntry: (mg: string, sets: number) => `  ${mg}: ${sets} serii`,
   aiPromptWeeklyNoSessions: 'Brak sesji w tym tygodniu.',
   aiPromptWeeklyNoData: 'Brak danych',
+  aiPromptWeeklyVolumeTotal: (volume: number) => `OBJĘTOŚĆ ŁĄCZNA (powt×kg): ${volume}`,
+  aiPromptWeeklyTrainingDays: (days: number) => `DNI TRENINGOWE: ${days}`,
+  aiPromptWeeklyAvgDuration: (min: number) => `ŚREDNI CZAS SESJI: ${min} min`,
+  aiPromptWeeklyPrCount: (count: number) => `REKORDY OSOBISTE W TYM TYGODNIU: ${count}`,
+  aiPromptWeeklyProgramEntry: (program: string, sessions: number, reps: number) =>
+    `${program}: ${sessions} sesje, ${reps} powt.`,
+  aiPromptWeeklyPrograms: (entries: string) => `WG PROGRAMU: ${entries}`,
 
   // ── AI weekly report full prompt ──
   aiPromptWeeklyReportBuild: (
@@ -2583,15 +2640,16 @@ Napisz po ${pl.aiPromptLanguageHint}.`,
     streakWeeks: number,
     repsChangePct: string | number,
     volumeByMuscle: string,
+    enrichedContext: string,
   ) => `Stwórz cotygodniowy raport treningowy dla użytkownika.
 
-SESIONJE W TYM TYGODNIU (${weekCount}):
+SESJE W TYM TYGODNIU (${weekCount}):
 ${weekSummary}
 
 POWTÓRZENIA łącznie W TYM TYGODNIU: ${totalReps}
 SERIA: ${streakWeeks} tygodni
 ZMIANA POWT. TYGODNIOWO %: ${repsChangePct}
-
+${enrichedContext ? `\n${enrichedContext}\n` : ''}
 SERIE TYGODNIOWO WG GRUPY MIĘŚNIOWEJ:
 ${volumeByMuscle}
 
@@ -2615,6 +2673,7 @@ Odpowiedz w JSON:
 }
 
 Napisz po ${pl.aiPromptLanguageHint}. Bądź konkretny i zachęcający.`,
+
 
   // ── Delete session from history ──
   sessionDelete: 'Usuń trening',

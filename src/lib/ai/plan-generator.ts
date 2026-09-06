@@ -267,14 +267,18 @@ export async function generatePlan(
     d.dayNumber = i + 1
   })
 
-  // Validate progression values
+  // Validate progression values — use ?? instead of || so 0 is preserved.
+  // || treats 0 as falsy, making it impossible to generate a non-progressing plan.
+  const rawRepsDelta = Number(parsed.plan.progression?.repsDelta)
+  const rawWeightDelta = Number(parsed.plan.progression?.weightKgDelta)
+  const rawDurationDelta = Number(parsed.plan.progression?.durationSecDelta)
   const progression = parsed.plan.progression?.enabled
     ? {
         enabled: true,
         afterCycleComplete: parsed.plan.progression.afterCycleComplete ?? true,
-        repsDelta: Math.max(0, Math.min(10, Number(parsed.plan.progression.repsDelta) || 1)),
-        weightKgDelta: Math.max(0, Math.min(50, Number(parsed.plan.progression.weightKgDelta) || 2.5)),
-        durationSecDelta: Math.max(0, Math.min(300, Number(parsed.plan.progression.durationSecDelta) || 5)),
+        repsDelta: Math.max(0, Math.min(10, Number.isFinite(rawRepsDelta) ? rawRepsDelta : 1)),
+        weightKgDelta: Math.max(0, Math.min(50, Number.isFinite(rawWeightDelta) ? rawWeightDelta : 2.5)),
+        durationSecDelta: Math.max(0, Math.min(300, Number.isFinite(rawDurationDelta) ? rawDurationDelta : 5)),
       }
     : null
 
@@ -409,7 +413,17 @@ export async function commitGeneratedPlan(result: PlanGenerationResult): Promise
     }
   }
 
-  // Save the plan
+  // Validate the final plan after all exercise ID remapping is complete.
+  // skipValidation was used previously, but that could save plans with missing
+  // exercise IDs or invalid sets if remapping failed silently.
+  const allExercises = await db.exercises.toArray()
+  const byId = new Map(allExercises.map((e) => [e.id, e]))
+  const { validateCustomPlan } = await import('@/lib/exercise-model')
+  const issues = validateCustomPlan(plan, byId)
+  if (issues.length > 0) {
+    throw new Error(pl.aiErrorParsePlan)
+  }
+
   const saved = await saveCustomPlan(plan, { skipValidation: true })
   return saved
 }

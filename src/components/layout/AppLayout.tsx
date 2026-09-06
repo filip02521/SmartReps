@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { Activity, BarChart3, List, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
@@ -18,6 +19,15 @@ export function AppLayout() {
   const hideTabs =
     immersive || location.pathname.startsWith('/workout') || location.pathname.startsWith('/setup')
 
+  // Move focus to main content on route change so screen-reader/keyboard users
+  // don't get stranded on the previously-focused tab link.
+  useEffect(() => {
+    const main = document.getElementById('main-content')
+    if (main) {
+      main.focus({ preventScroll: true })
+    }
+  }, [location.pathname])
+
   return (
     <div className="flex min-h-dvh flex-col bg-[var(--sr-bg-base)]" data-tabs={hideTabs ? '0' : '1'}>
       {!hideTabs && (
@@ -30,6 +40,7 @@ export function AppLayout() {
       )}
       <main
         id="main-content"
+        tabIndex={-1}
         className={cn(
           'flex min-h-0 flex-1 flex-col transition-[padding] duration-200 motion-reduce:transition-none',
           !hideTabs && 'safe-header',

@@ -773,6 +773,7 @@ function CycleList({
   highlightRef: React.RefObject<HTMLDivElement | null>
   currentCycleIds: Set<string>
 }) {
+  const navigate = useNavigate()
   return (
     <div className="flex flex-col gap-3">
       {cycles.map((cycle) => {
@@ -870,6 +871,15 @@ function CycleList({
                       </div>
                     )
                   })}
+                  {!isCurrent && (
+                    <Button
+                      variant="primary"
+                      className="mt-2 w-full"
+                      onClick={() => navigate(`/setup/cycle/${program}?cycle=${cycle.id}`)}
+                    >
+                      {pl.pickLevelCta}
+                    </Button>
+                  )}
                 </div>
               )}
             </ProgramAccentCard>

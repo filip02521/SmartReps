@@ -23,6 +23,39 @@ import { chatCompletion, parseJsonResponse, AiApiError, resolveReasoningEffort }
 import { buildPostWorkoutPrompt, buildWeeklyReportPrompt } from './prompts'
 import type { ActivityInsights } from '@/lib/weekly-recap'
 
+// ─── AI Insight Retention ──────────────────────────────────────────────────
+
+/** Maximum number of AI insights to retain locally. Older insights are pruned
+ *  to prevent unbounded growth. Dismissed insights are pruned first, then
+ *  oldest undismissed insights. */
+const MAX_AI_INSIGHTS = 200
+
+/** Prune old/dismissed AI insights to prevent unbounded local storage growth.
+ *  Called after new insights are saved. */
+export async function pruneOldAiInsights(): Promise<void> {
+  const all = await db.aiInsights.toArray()
+  if (all.length <= MAX_AI_INSIGHTS) return
+
+  // Sort: dismissed first (oldest dismissed pruned before any undismissed),
+  // then by createdAt ascending.
+  const sorted = all.sort((a, b) => {
+    const aDismissed = a.dismissedAt ? 0 : 1
+    const bDismissed = b.dismissedAt ? 0 : 1
+    if (aDismissed !== bDismissed) return aDismissed - bDismissed
+    const aTime = new Date(a.createdAt).getTime()
+    const bTime = new Date(b.createdAt).getTime()
+    // Treat invalid dates as 0 (oldest) so they get pruned first
+    const aSafe = Number.isFinite(aTime) ? aTime : 0
+    const bSafe = Number.isFinite(bTime) ? bTime : 0
+    return aSafe - bSafe
+  })
+
+  const toDelete = sorted.slice(0, all.length - MAX_AI_INSIGHTS)
+  for (const insight of toDelete) {
+    if (insight?.id) await db.aiInsights.delete(insight.id)
+  }
+}
+
 // ─── Smart Rest Suggestions ────────────────────────────────────────────────
 
 /**
@@ -320,6 +353,102 @@ export async function detectPlateau(
 import { buildActivityInsights } from '@/lib/weekly-recap'
 import { getWeekKey, startOfLocalWeek } from '@/lib/stats-engine'
 
+/** Compute total volume for a session: reps × weight for custom, reps for builtin. */
+function sessionVolume(session: LocalWorkoutSession): number {
+  if (isCustomWorkoutSession(session) && session.exerciseLogs) {
+    let volume = 0
+    for (const log of session.exerciseLogs) {
+      for (const set of log.sets) {
+        const reps = set.actual.reps ?? 0
+        const weight = set.actual.weightKg ?? 0
+        const duration = set.actual.durationSec ?? 0
+        if (reps > 0) volume += reps * Math.max(weight, 1)
+        else if (duration > 0) volume += duration
+      }
+    }
+    return volume
+  }
+  return session.totalReps ?? 0
+}
+
+/** Count distinct training days (by calendar date) in a set of sessions. */
+function countTrainingDays(sessions: LocalWorkoutSession[]): number {
+  const days = new Set<string>()
+  for (const s of sessions) {
+    days.add(s.startedAt.split('T')[0] ?? '')
+  }
+  return days.size
+}
+
+/** Average session duration in minutes (from startedAt → completedAt). */
+function avgDurationMin(sessions: LocalWorkoutSession[]): number {
+  const durations: number[] = []
+  for (const s of sessions) {
+    if (!s.completedAt) continue
+    const ms = new Date(s.completedAt).getTime() - new Date(s.startedAt).getTime()
+    if (ms > 0) durations.push(ms / 60000)
+  }
+  if (!durations.length) return 0
+  return Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+}
+
+/** Detect PRs achieved within the given week's sessions. */
+function countWeekPRs(
+  weekSessions: LocalWorkoutSession[],
+  allCompleted: LocalWorkoutSession[],
+): number {
+  let prCount = 0
+  for (const session of weekSessions) {
+    const sessionTime = new Date(session.startedAt).getTime()
+    const priorSessions = allCompleted.filter(
+      (s) => new Date(s.startedAt).getTime() < sessionTime && s.id !== session.id,
+    )
+
+    if (isCustomWorkoutSession(session) && session.exerciseLogs) {
+      for (const log of session.exerciseLogs) {
+        const currentMaxReps = Math.max(...log.sets.map((s) => s.actual.reps ?? 0), 0)
+        const currentMaxWeight = Math.max(...log.sets.map((s) => s.actual.weightKg ?? 0), 0)
+        let prevMaxReps = 0
+        let prevMaxWeight = 0
+        for (const prev of priorSessions) {
+          if (!isCustomWorkoutSession(prev) || !prev.exerciseLogs) continue
+          const prevLog = prev.exerciseLogs.find((l) => l.exerciseId === log.exerciseId)
+          if (!prevLog) continue
+          for (const s of prevLog.sets) {
+            prevMaxReps = Math.max(prevMaxReps, s.actual.reps ?? 0)
+            prevMaxWeight = Math.max(prevMaxWeight, s.actual.weightKg ?? 0)
+          }
+        }
+        if (currentMaxReps > 0 && currentMaxReps > prevMaxReps) prCount++
+        if (currentMaxWeight > 0 && currentMaxWeight > prevMaxWeight) prCount++
+      }
+    } else {
+      const currentTotal = session.totalReps ?? 0
+      let prevBest = 0
+      for (const prev of priorSessions) {
+        if (isCustomWorkoutSession(prev)) continue
+        if (prev.program !== session.program) continue
+        prevBest = Math.max(prevBest, prev.totalReps ?? 0)
+      }
+      if (currentTotal > 0 && currentTotal > prevBest) prCount++
+    }
+  }
+  return prCount
+}
+
+/** Per-program breakdown for the week. */
+function perProgramBreakdown(weekSessions: LocalWorkoutSession[]): { program: string; sessions: number; reps: number }[] {
+  const map = new Map<string, { sessions: number; reps: number }>()
+  for (const s of weekSessions) {
+    const key = s.program === 'custom' ? (s.customPlanId ?? 'custom') : s.program
+    const entry = map.get(key) ?? { sessions: 0, reps: 0 }
+    entry.sessions++
+    entry.reps += isCustomWorkoutSession(s) ? customSessionTotalReps(s) : (s.totalReps ?? 0)
+    map.set(key, entry)
+  }
+  return [...map.entries()].map(([program, v]) => ({ program, ...v }))
+}
+
 export async function generateWeeklyReport(params: {
   sessions: LocalWorkoutSession[]
   exercises: ExerciseDefinition[]
@@ -346,22 +475,38 @@ export async function generateWeeklyReport(params: {
     if (isCustomWorkoutSession(s)) return sum + customSessionTotalReps(s)
     return sum + (s.totalReps ?? 0)
   }, 0)
+  const totalVolume = weekSessions.reduce((sum, s) => sum + sessionVolume(s), 0)
+  const trainingDays = countTrainingDays(weekSessions)
+  const avgDuration = avgDurationMin(weekSessions)
+  const prCount = countWeekPRs(weekSessions, completedSessions)
+  const programs = perProgramBreakdown(weekSessions)
 
   // Structured metrics for card display
   const metrics = {
     sessions: weekSessions.length,
     totalReps,
+    totalVolume,
+    trainingDays,
+    avgDurationMin: avgDuration,
+    prCount,
     streakWeeks: activity.streakWeeks,
     repsWeekChangePct: activity.repsWeekChangePct,
     weekStart: weekStart.toISOString(),
     weekEnd: weekEnd.toISOString(),
+    programs,
   }
   const metricsJson = JSON.stringify(metrics)
 
   // Try AI path when configured
   if (aiConfig?.apiKey) {
     try {
-      const { system, user } = buildWeeklyReportPrompt(weekSessions, sessions, exercises, activity, totalReps)
+      const { system, user } = buildWeeklyReportPrompt(weekSessions, sessions, exercises, activity, totalReps, {
+        totalVolume,
+        trainingDays,
+        avgDurationMin: avgDuration,
+        prCount,
+        programs,
+      })
       const isGemini = aiConfig.baseURL?.includes('gemini') || aiConfig.baseURL?.includes('googleapis')
       // 20s timeout — weekly report can be slightly longer but still bounded
       const controller = new AbortController()

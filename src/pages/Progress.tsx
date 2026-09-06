@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
 import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
+import { dateFnsLocale } from '@/lib/date-locale'
 import { OverviewPanel } from '@/components/progress/OverviewPanel'
 import { HistoryPanel } from '@/components/progress/HistoryPanel'
 import { AiWorkoutAnalysis } from '@/components/progress/AiWorkoutAnalysis'
@@ -194,7 +194,7 @@ export default function ProgressPage() {
     setTests(
       rows.map((r) => ({
         date: r.testedAt.slice(0, 10),
-        dateLabel: format(new Date(r.testedAt), 'd MMM', { locale: plLocale }),
+        dateLabel: format(new Date(r.testedAt), 'd MMM', { locale: dateFnsLocale() }),
         reps: r.reps,
       })),
     )

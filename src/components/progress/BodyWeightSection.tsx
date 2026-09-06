@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from 'recharts'
 import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
+import { dateFnsLocale } from '@/lib/date-locale'
 import { Plus, Trash2, Scale, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ProgressSection } from '@/components/progress/ProgressSection'
@@ -82,7 +82,7 @@ export function BodyWeightSection() {
     .map((e) => ({
       date: format(new Date(e.measuredAt), 'MM.dd'),
       weight: kgToDisplay(e.weightKg, weightUnit),
-      label: format(new Date(e.measuredAt), 'd MMM yyyy', { locale: plLocale }),
+      label: format(new Date(e.measuredAt), 'd MMM yyyy', { locale: dateFnsLocale() }),
     }))
 
   const latest = entries[0]
@@ -179,7 +179,7 @@ export function BodyWeightSection() {
                 </span>
               </span>
               <span className="text-xs text-[var(--sr-text-muted)]">
-                {format(new Date(e.measuredAt), 'd MMM yyyy', { locale: plLocale })}
+                {format(new Date(e.measuredAt), 'd MMM yyyy', { locale: dateFnsLocale() })}
               </span>
               {e.note && (
                 <span className="max-w-24 truncate text-xs text-[var(--sr-text-secondary)]">
@@ -258,7 +258,7 @@ export function BodyWeightSection() {
           <AccessibleChart
             label={pl.bodyWeightCorrelationChartAria(correlation.points.length)}
             data={correlation.points.map((p) => ({
-              date: format(new Date(p.date), 'd MMM', { locale: plLocale }),
+              date: format(new Date(p.date), 'd MMM', { locale: dateFnsLocale() }),
               weight: p.weight,
               performance: p.performance,
             }))}
@@ -272,7 +272,7 @@ export function BodyWeightSection() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={correlation.points.map((p) => ({
-                  dateLabel: format(new Date(p.date), 'd MMM', { locale: plLocale }),
+                  dateLabel: format(new Date(p.date), 'd MMM', { locale: dateFnsLocale() }),
                   weight: p.weight,
                   performance: p.performance,
                 }))}

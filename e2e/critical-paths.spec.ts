@@ -165,7 +165,7 @@ test.describe('SmartReps routing critical paths', () => {
     await page.getByRole('button', { name: 'Dalej' }).click()
     await expect(page.getByRole('heading', { name: 'Który program włączyć?' })).toBeVisible()
     await page.getByRole('button', { name: 'Dalej' }).click()
-    await expect(page.getByRole('heading', { name: 'Co dalej?' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Wszystko gotowe' })).toBeVisible()
     await page.getByRole('button', { name: 'Przejdź do Treningu' }).click()
 
     await expect(page).toHaveURL('/', { timeout: 15_000 })
@@ -210,7 +210,7 @@ test.describe('SmartReps routing critical paths', () => {
     await page.getByRole('button', { name: /Pompki i podciąganie/ }).click()
     await page.getByRole('button', { name: /Własne plany/ }).click()
     await page.getByRole('button', { name: 'Dalej' }).click()
-    await expect(page.getByRole('heading', { name: 'Co dalej?' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Wszystko gotowe' })).toBeVisible()
     await page.getByRole('button', { name: 'Przejdź do Treningu' }).click()
 
     await expect(page).toHaveURL('/', { timeout: 15_000 })

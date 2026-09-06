@@ -380,11 +380,26 @@ test.describe('custom plans smoke', () => {
     const payload = {
       name: planName,
       description: '',
+      exercises: [
+        {
+          id: 'imp-ex-1',
+          name: 'Pompki import',
+          primaryMetric: 'reps',
+          restDefaultSec: 90,
+        },
+      ],
       days: [
         {
           dayNumber: 1,
           restAfterDay: 1,
-          exercises: [],
+          exercises: [
+            {
+              exerciseId: 'imp-ex-1',
+              order: 0,
+              restBetweenSetsSec: 90,
+              sets: [{ reps: { kind: 'fixed', value: 10 } }],
+            },
+          ],
         },
       ],
     }

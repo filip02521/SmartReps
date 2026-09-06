@@ -6,7 +6,7 @@ import type {
   LocalWorkoutSession,
 } from '@/lib/db'
 import type { SetTarget } from '@/data/plans/types'
-import type { BackupSnapshot, BackupSnapshotV1, BackupSnapshotV2 } from '@/lib/export-backup'
+import type { BackupSnapshot, BackupSnapshotV1, BackupSnapshotV2, BackupSnapshotV3 } from '@/lib/export-backup'
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024
 
@@ -34,7 +34,7 @@ export type JsonImportPreview = {
   exerciseCount: number
   customProgressCount: number
   skipActiveWorkout: boolean
-  snapshot: BackupSnapshotV2
+  snapshot: BackupSnapshotV3
 }
 
 export type ImportPreview = CsvImportPreview | JsonImportPreview
@@ -82,27 +82,51 @@ function parseSets(raw: string): LocalWorkoutSession['setResults'] {
 
 export function parseSessionsCsv(text: string): LocalWorkoutSession[] {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
-  const header = 'data,session_id,program,cycle_id,day,attempt,status,passed,total_reps,sets'
   const sessions: LocalWorkoutSession[] = []
+  // Detect header format: v3 has 12 cols (with custom_plan_id + exercise_logs),
+  // v1/v2 has 10 cols (builtin-only).
+  const headerLine = lines[0] ?? ''
+  const isV3Format = headerLine.includes('custom_plan_id')
   for (const line of lines) {
-    if (line === header || line.startsWith('data,session_id,')) continue
+    if (line.startsWith('data,session_id,')) continue
     const cols = parseCsvLine(line)
-    if (cols.length < 10) continue
-    const [date, id, program, cycleId, day, attempt, status, passed, totalReps, setsRaw] = cols
-    if (program !== 'pushups' && program !== 'pullups') continue
-    if (status !== 'completed' && status !== 'in_progress' && status !== 'abandoned') continue
-    sessions.push({
-      id,
-      program,
-      cycleId,
-      dayNumber: Number(day),
-      cycleAttempt: Number(attempt),
-      status,
-      startedAt: `${date}T12:00:00.000Z`,
-      passed: passed === 'true' ? true : passed === 'false' ? false : undefined,
-      totalReps: totalReps ? Number(totalReps) : undefined,
-      setResults: parseSets(setsRaw),
-    })
+    if (isV3Format) {
+      // V3: data,session_id,program,custom_plan_id,cycle_id,day,attempt,status,passed,total_reps,sets,exercise_logs
+      if (cols.length < 12) continue
+      const [date, id, program, _customPlanId, cycleId, day, attempt, status, passed, totalReps, setsRaw] = cols
+      if (program !== 'pushups' && program !== 'pullups') continue
+      if (status !== 'completed' && status !== 'in_progress' && status !== 'abandoned') continue
+      sessions.push({
+        id,
+        program,
+        cycleId,
+        dayNumber: Number(day),
+        cycleAttempt: Number(attempt),
+        status,
+        startedAt: `${date}T12:00:00.000Z`,
+        passed: passed === 'true' ? true : passed === 'false' ? false : undefined,
+        totalReps: totalReps ? Number(totalReps) : undefined,
+        setResults: parseSets(setsRaw),
+      })
+    } else {
+      // V1/V2: data,session_id,program,cycle_id,day,attempt,status,passed,total_reps,sets
+      if (cols.length < 10) continue
+      const [date, id, program, cycleId, day, attempt, status, passed, totalReps, setsRaw] = cols
+      if (program !== 'pushups' && program !== 'pullups') continue
+      if (status !== 'completed' && status !== 'in_progress' && status !== 'abandoned') continue
+      sessions.push({
+        id,
+        program,
+        cycleId,
+        dayNumber: Number(day),
+        cycleAttempt: Number(attempt),
+        status,
+        startedAt: `${date}T12:00:00.000Z`,
+        passed: passed === 'true' ? true : passed === 'false' ? false : undefined,
+        totalReps: totalReps ? Number(totalReps) : undefined,
+        setResults: parseSets(setsRaw),
+      })
+    }
   }
   return sessions
 }
@@ -126,18 +150,46 @@ export function isBackupSnapshotV2(value: unknown): value is BackupSnapshotV2 {
   )
 }
 
-export function isBackupSnapshot(value: unknown): value is BackupSnapshot {
-  return isBackupSnapshotV1(value) || isBackupSnapshotV2(value)
+export function isBackupSnapshotV3(value: unknown): value is BackupSnapshotV3 {
+  if (!value || typeof value !== 'object') return false
+  const v = value as BackupSnapshotV3
+  return (
+    v.version === 3 &&
+    typeof v.exportedAt === 'string' &&
+    Array.isArray(v.workoutSessions) &&
+    Array.isArray(v.exercises) &&
+    Array.isArray(v.customPlans) &&
+    Array.isArray(v.customProgramProgress)
+  )
 }
 
-function normalizeBackup(snapshot: BackupSnapshot): BackupSnapshotV2 {
-  if (snapshot.version === 2) return snapshot
+export function isBackupSnapshot(value: unknown): value is BackupSnapshot {
+  return isBackupSnapshotV1(value) || isBackupSnapshotV2(value) || isBackupSnapshotV3(value)
+}
+
+function normalizeBackup(snapshot: BackupSnapshot): BackupSnapshotV3 {
+  if (snapshot.version === 3) return snapshot
+  if (snapshot.version === 2) {
+    return {
+      ...snapshot,
+      version: 3,
+      bodyWeight: [],
+      achievementUnlocks: [],
+      sessionTombstones: [],
+      aiInsights: [],
+    }
+  }
+  // v1 → v3
   return {
     ...snapshot,
-    version: 2,
+    version: 3,
     exercises: [],
     customPlans: [],
     customProgramProgress: [],
+    bodyWeight: [],
+    achievementUnlocks: [],
+    sessionTombstones: [],
+    aiInsights: [],
   }
 }
 
@@ -236,7 +288,9 @@ export function assertImportFileSize(bytes: number) {
 }
 
 function mergeSettings(imported: UserSettings): Partial<UserSettings> {
-  const patch: Partial<UserSettings> = { ...imported }
+  // Never overwrite the local aiApiKey from an imported backup — it's LOCAL-ONLY.
+  const { aiApiKey: _stripped, ...rest } = imported
+  const patch: Partial<UserSettings> = { ...rest }
   if (!getVapidPublicKey()) {
     patch.pushNotifications = false
   }
@@ -249,6 +303,10 @@ export async function applyCsvImport(
 ): Promise<{ written: number }> {
   let written = 0
   for (const s of preview.sessions) {
+    // Skip sessions that were previously deleted (tombstoned) — importing
+    // them would resurrect deleted data and corrupt stats/achievements.
+    const tombstoned = await db.sessionTombstones.get(s.id)
+    if (tombstoned) continue
     if (mode === 'replace') {
       await db.workoutSessions.put(s)
     } else {
@@ -259,6 +317,9 @@ export async function applyCsvImport(
     await enqueueSync('workout_sessions', mode === 'replace' ? 'update' : 'insert', s)
     written++
   }
+  // Re-evaluate achievements — imported sessions may unlock new badges
+  const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+  scheduleAchievementCheck()
   return { written }
 }
 
@@ -273,7 +334,11 @@ export async function applyJsonImport(
 ): Promise<void> {
   const { snapshot } = preview
 
+  // Pre-load tombstones to avoid resurrecting deleted sessions during import
+  const tombstoneIds = new Set((await db.sessionTombstones.toArray()).map((t) => t.sessionId))
+
   for (const s of snapshot.workoutSessions) {
+    if (tombstoneIds.has(s.id)) continue // skip tombstoned sessions
     const exists = await db.workoutSessions.get(s.id)
     if (exists && opts.sessionMode === 'skip') continue
     await db.workoutSessions.put(s)
@@ -366,6 +431,53 @@ export async function applyJsonImport(
       onboardingComplete: snapshot.settings.onboardingComplete ?? true,
     })
   }
+
+  // V3: import body weight, achievements, tombstones, AI insights
+  if (snapshot.bodyWeight?.length) {
+    for (const bw of snapshot.bodyWeight) {
+      const dup = await db.bodyWeight.get(bw.id)
+      if (dup) continue
+      await db.bodyWeight.put(bw)
+      await enqueueSync('body_weight_entries', 'insert', bw)
+    }
+  }
+  if (snapshot.achievementUnlocks?.length) {
+    for (const a of snapshot.achievementUnlocks) {
+      await db.achievementUnlocks.put(a)
+    }
+  }
+  if (snapshot.sessionTombstones?.length) {
+    for (const t of snapshot.sessionTombstones) {
+      await db.sessionTombstones.put(t)
+    }
+  }
+  if (snapshot.customPlanTombstones?.length) {
+    for (const t of snapshot.customPlanTombstones) {
+      await db.customPlanTombstones.put(t)
+    }
+  }
+  if (snapshot.exerciseTombstones?.length) {
+    for (const t of snapshot.exerciseTombstones) {
+      await db.exerciseTombstones.put(t)
+    }
+  }
+  if (snapshot.bodyWeightTombstones?.length) {
+    for (const t of snapshot.bodyWeightTombstones) {
+      await db.bodyWeightTombstones.put(t)
+    }
+  }
+  if (snapshot.aiInsights?.length) {
+    for (const ai of snapshot.aiInsights) {
+      const local = await db.aiInsights.get(ai.id)
+      if (local) continue
+      await db.aiInsights.put(ai)
+      await enqueueSync('ai_insights', 'insert', ai)
+    }
+  }
+
+  // Re-evaluate achievements — imported sessions/max-tests/plans may unlock new badges
+  const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+  scheduleAchievementCheck()
 }
 
 export async function readImportFile(file: File): Promise<string> {

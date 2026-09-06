@@ -349,6 +349,8 @@ function mapPlan(row: RemotePlan): CustomPlan {
 export async function pushCustomEntities(userId: string): Promise<number> {
   let errors = 0
   for (const ex of await db.exercises.toArray()) {
+    // Skip tombstoned exercises — they were deleted on this device
+    if (await db.exerciseTombstones.get(ex.id)) continue
     try {
       await upsertUserExercise(userId, ex)
     } catch (err) {
@@ -357,6 +359,8 @@ export async function pushCustomEntities(userId: string): Promise<number> {
     }
   }
   for (const plan of await db.customPlans.toArray()) {
+    // Skip tombstoned plans — they were deleted on this device
+    if (await db.customPlanTombstones.get(plan.id)) continue
     if (await hasPendingCustomPlanDelete(plan.id)) continue
     try {
       await upsertCustomPlan(userId, plan)
@@ -396,12 +400,81 @@ export async function pushCustomEntities(userId: string): Promise<number> {
       console.warn('[sync] active_custom_workout failed', active.customPlanId, err)
     }
   }
+
+  // Push local custom plan tombstones to cloud
+  for (const tombstone of await db.customPlanTombstones.toArray()) {
+    try {
+      await supabase
+        .from('custom_plan_tombstones')
+        .upsert({
+          user_id: userId,
+          plan_id: tombstone.planId,
+          deleted_at: tombstone.deletedAt,
+        }, { onConflict: 'user_id,plan_id' })
+    } catch {
+      // Non-fatal — will retry on next sync
+    }
+  }
+
+  // Push local exercise tombstones to cloud
+  for (const tombstone of await db.exerciseTombstones.toArray()) {
+    try {
+      await supabase
+        .from('exercise_tombstones')
+        .upsert({
+          user_id: userId,
+          exercise_id: tombstone.exerciseId,
+          deleted_at: tombstone.deletedAt,
+        }, { onConflict: 'user_id,exercise_id' })
+    } catch {
+      // Non-fatal — will retry on next sync
+    }
+  }
+
   return errors
 }
 
 export async function pullCustomEntities(userId: string): Promise<number> {
   let errors = 0
   try {
+    // Pull custom plan tombstones first — delete local plans that were deleted
+    // on another device before merging remote plans (prevents resurrection).
+    try {
+      const { data: planTombstones, error: ptErr } = await supabase
+        .from('custom_plan_tombstones')
+        .select('plan_id, deleted_at')
+        .eq('user_id', userId)
+      if (!ptErr && planTombstones) {
+        for (const row of planTombstones as { plan_id: string; deleted_at: string }[]) {
+          await db.customPlanTombstones.put({ planId: row.plan_id, deletedAt: row.deleted_at })
+          const localPlan = await db.customPlans.get(row.plan_id)
+          if (localPlan) await db.customPlans.delete(row.plan_id)
+          const localProg = await db.customProgramProgress.where('customPlanId').equals(row.plan_id).first()
+          if (localProg?.id != null) await db.customProgramProgress.delete(localProg.id)
+          await db.activeCustomWorkout.delete(row.plan_id)
+        }
+      }
+    } catch {
+      // Tombstone table may not exist yet — best-effort
+    }
+
+    // Pull exercise tombstones — archive/delete local exercises deleted on another device.
+    try {
+      const { data: exTombstones, error: etErr } = await supabase
+        .from('exercise_tombstones')
+        .select('exercise_id, deleted_at')
+        .eq('user_id', userId)
+      if (!etErr && exTombstones) {
+        for (const row of exTombstones as { exercise_id: string; deleted_at: string }[]) {
+          await db.exerciseTombstones.put({ exerciseId: row.exercise_id, deletedAt: row.deleted_at })
+          const localEx = await db.exercises.get(row.exercise_id)
+          if (localEx) await db.exercises.delete(row.exercise_id)
+        }
+      }
+    } catch {
+      // Tombstone table may not exist yet — best-effort
+    }
+
     const { data: exercises, error: exErr } = await supabase
       .from('user_exercises')
       .select('*')
@@ -409,6 +482,8 @@ export async function pullCustomEntities(userId: string): Promise<number> {
     if (exErr) throw exErr
     for (const row of (exercises ?? []) as RemoteExercise[]) {
       const mapped = mapExercise(row)
+      // Skip if tombstoned (deleted on this or another device)
+      if (await db.exerciseTombstones.get(mapped.id)) continue
       const local = await db.exercises.get(mapped.id)
       if (!local || new Date(mapped.updatedAt) >= new Date(local.updatedAt)) {
         await db.exercises.put(mapped)
@@ -424,6 +499,8 @@ export async function pullCustomEntities(userId: string): Promise<number> {
     if (planErr) throw planErr
     const remotePlanIds = new Set<string>()
     for (const row of (plans ?? []) as RemotePlan[]) {
+      // Skip if tombstoned (deleted on this or another device)
+      if (await db.customPlanTombstones.get(row.id)) continue
       remotePlanIds.add(row.id)
       const mapped = mapPlan(row)
       const local = await db.customPlans.get(mapped.id)

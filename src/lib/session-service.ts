@@ -2,6 +2,7 @@ import { db, type LocalWorkoutSession } from '@/lib/db'
 import type { SetResultDraft } from '@/lib/progress-engine'
 import type { Program } from '@/data/plans/types'
 import { enqueueSync } from '@/lib/sync'
+import { sanitizeReps } from '@/lib/sanitize'
 import {
   clearActiveWorkout,
   completeWorkoutDay,
@@ -104,6 +105,11 @@ export async function ensureWorkoutSessionPersisted(
     await saveWorkoutSession(row)
   } else if (existing.status === 'in_progress') {
     await saveWorkoutSession({ ...existing, setResults: state.setResults })
+  } else {
+    // Session is already completed or abandoned — don't overwrite it or
+    // re-activate the program. This prevents flipping a rest/cycle_failed
+    // progress back to 'active' based on a stale/completed session.
+    return
   }
 
   await saveActiveWorkout(requireBuiltinProgram(session.program), {
@@ -231,10 +237,37 @@ export async function finalizeSuccessfulDay(
 ): Promise<void> {
   const program = requireBuiltinProgram(session.program)
   const key = progressKey(program, session.id)
-  const existing = await db.workoutSessions.get(session.id)
-  if (existing?.status === 'completed' && existing.passed === true) {
+  if (finalizedProgressKeys.has(key)) return
+
+  // Use a DB transaction with re-check to prevent double-completion race.
+  // Two concurrent calls could both observe status === 'in_progress' and both
+  // write 'completed'. The transaction + re-check ensures only one wins.
+  let alreadyCompleted = false
+  let totalReps = 0
+  await db.transaction('rw', db.workoutSessions, async () => {
+    const existing = await db.workoutSessions.get(session.id)
+    if (existing?.status === 'completed') {
+      alreadyCompleted = true
+      totalReps = existing.totalReps ?? 0
+      return
+    }
+    totalReps = setResults.reduce((s, r) => s + sanitizeReps(r.actual), 0)
+    const updated: LocalWorkoutSession = {
+      ...session,
+      status: 'completed',
+      completedAt: new Date().toISOString(),
+      passed: true,
+      totalReps,
+      setResults,
+    }
+    await db.workoutSessions.put(updated)
+  })
+
+  if (alreadyCompleted) {
+    // Session was already completed by a concurrent call — still advance progress
+    // if not yet done (e.g. after page reload, in-memory guard is empty)
     if (!finalizedProgressKeys.has(key)) {
-      await completeWorkoutDay(program, true, existing.totalReps ?? 0, session.id)
+      await completeWorkoutDay(program, true, totalReps, session.id, session.dayNumber)
       finalizedProgressKeys.add(key)
     }
     markFirstWorkoutAndTrack(true, session.id)
@@ -244,18 +277,12 @@ export async function finalizeSuccessfulDay(
     return
   }
 
-  const totalReps = setResults.reduce((s, r) => s + r.actual, 0)
-  const updated: LocalWorkoutSession = {
-    ...session,
-    status: 'completed',
-    completedAt: new Date().toISOString(),
-    passed: true,
-    totalReps,
-    setResults,
-  }
-  await saveWorkoutSession(updated)
+  // Enqueue sync after successful transaction
+  const completed = await db.workoutSessions.get(session.id)
+  if (completed) await enqueueSync('workout_sessions', 'update', completed)
+
   await clearActiveWorkout(program)
-  await completeWorkoutDay(program, true, totalReps, session.id)
+  await completeWorkoutDay(program, true, totalReps, session.id, session.dayNumber)
   finalizedProgressKeys.add(key)
   markFirstWorkoutAndTrack(true, session.id)
   void schedulePostWorkoutSync()
@@ -269,29 +296,45 @@ export async function finalizeFailedDay(
   setResults: SetResultDraft[],
 ): Promise<void> {
   const key = progressKey(program, sessionId)
-  const existing = await db.workoutSessions.get(sessionId)
-  if (!existing) return
-  if (existing.status === 'completed' && existing.passed === false) {
+  if (finalizedProgressKeys.has(key)) return
+
+  let alreadyCompleted = false
+  let totalReps = 0
+  await db.transaction('rw', db.workoutSessions, async () => {
+    const existing = await db.workoutSessions.get(sessionId)
+    if (!existing) return
+    if (existing.status === 'completed') {
+      alreadyCompleted = true
+      totalReps = existing.totalReps ?? 0
+      return
+    }
+    totalReps = setResults.reduce((s, r) => s + sanitizeReps(r.actual), 0)
+    const updated: LocalWorkoutSession = {
+      ...existing,
+      status: 'completed',
+      completedAt: new Date().toISOString(),
+      passed: false,
+      totalReps,
+      setResults,
+    }
+    await db.workoutSessions.put(updated)
+  })
+
+  if (alreadyCompleted) {
     if (!finalizedProgressKeys.has(key)) {
-      await completeWorkoutDay(program, false, existing.totalReps ?? 0, sessionId)
+      const existingForDay = await db.workoutSessions.get(sessionId)
+      await completeWorkoutDay(program, false, totalReps, sessionId, existingForDay?.dayNumber)
       finalizedProgressKeys.add(key)
     }
     markFirstWorkoutAndTrack(false, sessionId)
     return
   }
 
-  const totalReps = setResults.reduce((s, r) => s + r.actual, 0)
-  const updated: LocalWorkoutSession = {
-    ...existing,
-    status: 'completed',
-    completedAt: new Date().toISOString(),
-    passed: false,
-    totalReps,
-    setResults,
-  }
-  await saveWorkoutSession(updated)
+  const completed = await db.workoutSessions.get(sessionId)
+  if (completed) await enqueueSync('workout_sessions', 'update', completed)
+
   await clearActiveWorkout(program)
-  await completeWorkoutDay(program, false, totalReps, sessionId)
+  await completeWorkoutDay(program, false, totalReps, sessionId, completed?.dayNumber)
   finalizedProgressKeys.add(key)
   markFirstWorkoutAndTrack(false, sessionId)
   void schedulePostWorkoutSync()
@@ -305,25 +348,49 @@ export async function finalizeFailedDay(
 export async function deleteWorkoutSession(sessionId: string): Promise<void> {
   const session = await db.workoutSessions.get(sessionId)
   if (!session) return
-  // 1. Enqueue cloud delete
+  // 1. Enqueue cloud delete BEFORE local delete to prevent resurrection
   await enqueueSync('workout_sessions', 'delete', { id: sessionId })
-  // 2. Store tombstone locally (persists across syncs — prevents resurrection)
-  await db.sessionTombstones.put({
-    sessionId,
-    deletedAt: new Date().toISOString(),
+  // 2. Store tombstone + delete locally in a transaction for atomicity
+  await db.transaction('rw', [db.sessionTombstones, db.workoutSessions], async () => {
+    await db.sessionTombstones.put({
+      sessionId,
+      deletedAt: new Date().toISOString(),
+    })
+    await db.workoutSessions.delete(sessionId)
   })
-  // 3. Delete locally
-  await db.workoutSessions.delete(sessionId)
+  // 3. Clear active workout pointer if it references the deleted session
+  if (session.program !== 'custom' && (session.programKind ?? 'builtin') !== 'custom') {
+    const { clearActiveWorkout } = await import('@/lib/program-service')
+    await clearActiveWorkout(session.program as Program)
+  } else if (session.customPlanId) {
+    const { clearActiveCustomWorkout } = await import('@/lib/custom-session-service')
+    await clearActiveCustomWorkout(session.customPlanId)
+  }
   track('session_deleted', { program: session.program })
+  // 4. Re-evaluate achievements — session counts/streaks may have changed
+  const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+  scheduleAchievementCheck()
 }
 
-export async function abandonWorkoutSession(program: Program, _sessionId: string): Promise<void> {
-  // Always clear every in_progress row for the program — cancels must not leave ghosts
-  // that Workout init reconstructs into a resume when activeWorkout is missing.
-  await abandonAllInProgress(program)
+export async function abandonWorkoutSession(program: Program, sessionId: string): Promise<void> {
+  // Abandon only the specific session — not every in_progress session for the program.
+  // The previous behavior abandoned ALL in_progress sessions, which could unintentionally
+  // abandon an unrelated session if multiple existed.
+  const session = await db.workoutSessions.get(sessionId)
+  if (session && session.status === 'in_progress') {
+    const now = new Date().toISOString()
+    await saveWorkoutSession({ ...session, status: 'abandoned', completedAt: now })
+  }
+  // Check if the active workout points to this session — only clear if so
+  const active = await db.activeWorkout.get(program)
+  if (active?.sessionId === sessionId) {
+    await clearActiveWorkout(program)
+  }
 }
 
-/** Abandon every in_progress session for a program (cancel / start-fresh / setup). */
+/** Abandon every in_progress session for a program (cancel / start-fresh / setup).
+ *  Uses a transaction so all abandon operations are atomic — either all
+ *  sessions are abandoned or none, preventing partial states. */
 export async function abandonAllInProgress(program: Program): Promise<void> {
   const orphans = await db.workoutSessions
     .where('program')
@@ -331,8 +398,14 @@ export async function abandonAllInProgress(program: Program): Promise<void> {
     .filter((s) => s.status === 'in_progress')
     .toArray()
   const now = new Date().toISOString()
+  await db.transaction('rw', db.workoutSessions, async () => {
+    for (const s of orphans) {
+      await db.workoutSessions.put({ ...s, status: 'abandoned', completedAt: now })
+    }
+  })
+  // Enqueue sync after successful transaction
   for (const s of orphans) {
-    await saveWorkoutSession({ ...s, status: 'abandoned', completedAt: now })
+    await enqueueSync('workout_sessions', 'update', { ...s, status: 'abandoned', completedAt: now })
   }
   await clearActiveWorkout(program)
 }

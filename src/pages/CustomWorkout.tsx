@@ -29,6 +29,7 @@ import {
   hasAnyCompletedCustomSessions,
   persistCustomActive,
   reconcileActiveCustomWorkout,
+  clearActiveCustomWorkout,
   type PreviousCustomSetResult,
 } from '@/lib/custom-session-service'
 import {
@@ -287,6 +288,25 @@ export default function CustomWorkoutPage() {
     if (epoch !== sessionEpochRef.current) return
   }, [sessionStartedAt])
 
+  // Persist current set changes on tab close / hide — prevents data loss when
+  // the user switches tabs or closes the browser mid-workout without tapping Done.
+  useEffect(() => {
+    const handlePersist = () => {
+      void persistState()
+    }
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      void persistState()
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    document.addEventListener('visibilitychange', handlePersist)
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      document.removeEventListener('visibilitychange', handlePersist)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [persistState])
+
   const startNewSession = useCallback(
     async (
       p: CustomPlan,
@@ -396,7 +416,20 @@ export default function CustomWorkoutPage() {
       const activeSession = activeEarly
         ? await db.workoutSessions.get(activeEarly.sessionId)
         : null
-      const hasResume = activeSession?.status === 'in_progress'
+      // Validate that the active session's day matches the current progress day.
+      // If progress advanced past the session's day (e.g. via sync from another device),
+      // the active session is orphaned — abandon it and start fresh.
+      let hasResume = activeSession?.status === 'in_progress'
+      if (hasResume && activeSession && activeSession.dayNumber !== progress.currentDay) {
+        const now = new Date().toISOString()
+        await db.workoutSessions.put({
+          ...activeSession,
+          status: 'abandoned',
+          completedAt: now,
+        })
+        await clearActiveCustomWorkout(planId)
+        hasResume = false
+      }
 
       if (progress.status === 'paused' && !forceStart && !hasResume) {
         setLoadError(pl.errorProgramPaused)
@@ -545,8 +578,9 @@ export default function CustomWorkoutPage() {
         return
       }
 
-      const cycleAttempt =
-        progress.status === 'cycle_complete' ? progress.cycleAttempt + 1 : progress.cycleAttempt
+      // cycleAttempt is already incremented by finalizeCustomDay when cycle completes.
+      // Use it directly — no +1 needed here.
+      const cycleAttempt = progress.cycleAttempt
       await startNewSession(p, dayPlan, dayNumber, cycleAttempt, generation, pendingOverride)
     },
     [planId, forceStart, navigate, hasSeenWorkoutHint, setSettings, startNewSession, setPlanLive],
@@ -567,8 +601,8 @@ export default function CustomWorkoutPage() {
       ),
     }
     const progress = await getOrCreateCustomProgress(planId)
-    const cycleAttempt =
-      progress.status === 'cycle_complete' ? progress.cycleAttempt + 1 : progress.cycleAttempt
+    // cycleAttempt is already incremented by finalizeCustomDay when cycle completes.
+    const cycleAttempt = progress.cycleAttempt
     setExercises(exMap)
     setLoadError(null)
     setLoadErrorKind(null)
@@ -894,7 +928,9 @@ export default function CustomWorkoutPage() {
     // After out-of-order jumps, linear dayComplete / next can land on a finished
     // exercise or end the day while earlier work remains — redirect first.
     if (!inAmrap && (nav.dayComplete || !nav.next || !landedIncomplete)) {
-      const incomplete = findNextIncompletePosition(liveDay, latest.exerciseLogs)
+      const incomplete = findNextIncompletePosition(liveDay, latest.exerciseLogs, {
+        amrapEndAt: latest.amrapEndAt,
+      })
       if (incomplete) {
         if (
           incomplete.exerciseIndex !== latest.currentExerciseIndex ||
@@ -942,7 +978,9 @@ export default function CustomWorkoutPage() {
         return
       }
     } else if (inAmrap && (nav.dayComplete || !nav.next)) {
-      const incomplete = findNextIncompletePosition(liveDay, latest.exerciseLogs)
+      const incomplete = findNextIncompletePosition(liveDay, latest.exerciseLogs, {
+        amrapEndAt: latest.amrapEndAt,
+      })
       if (!incomplete) {
         try {
           await persistCustomActive(sessionRef.current, {

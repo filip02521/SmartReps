@@ -1,5 +1,6 @@
 import { db, type BodyWeightEntry } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
+import { sanitizeWeight } from '@/lib/sanitize'
 
 /**
  * Body weight tracking service.
@@ -13,9 +14,14 @@ export async function listBodyWeightEntries(): Promise<BodyWeightEntry[]> {
 }
 
 export async function addBodyWeightEntry(weightKg: number, note?: string): Promise<BodyWeightEntry> {
+  // Validate raw value BEFORE sanitization (sanitizeWeight clamps, which would hide out-of-range)
+  if (!Number.isFinite(weightKg) || weightKg < 20 || weightKg > 500) {
+    throw new Error('Invalid weight value')
+  }
+  const sanitizedWeight = sanitizeWeight(weightKg, 500)
   const entry: BodyWeightEntry = {
     id: crypto.randomUUID(),
-    weightKg,
+    weightKg: sanitizedWeight,
     measuredAt: new Date().toISOString(),
     note: note?.trim() || undefined,
   }
@@ -26,6 +32,8 @@ export async function addBodyWeightEntry(weightKg: number, note?: string): Promi
 
 export async function deleteBodyWeightEntry(id: string): Promise<void> {
   const entry = await db.bodyWeight.get(id)
+  // Store tombstone BEFORE local delete to prevent resurrection by cross-device sync
+  await db.bodyWeightTombstones.put({ entryId: id, deletedAt: new Date().toISOString() })
   await db.bodyWeight.delete(id)
   if (entry) {
     await enqueueSync('body_weight_entries', 'delete', entry)

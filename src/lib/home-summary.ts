@@ -10,6 +10,7 @@ import { getProgramStats, type ProgramStats } from '@/lib/stats-engine'
 import { isStaleActiveWorkout, enqueueSync } from '@/lib/sync'
 import { reconcileActiveWorkout } from '@/lib/program-service'
 import { pl } from '@/i18n/pl'
+import { currentLang } from '@/i18n'
 import { buildActivityInsights, daysSinceLastPassedSession, type ActivityInsights } from '@/lib/weekly-recap'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import { detectPlateau } from '@/lib/ai/proactive-coach'
@@ -156,7 +157,8 @@ export function localDayKey(d = new Date()): string {
 
 export function formatHomeDate(d = new Date()): string {
   const sameYear = d.getFullYear() === new Date().getFullYear()
-  return d.toLocaleDateString('pl-PL', {
+  const locale = currentLang() === 'en' ? 'en-US' : 'pl-PL'
+  return d.toLocaleDateString(locale, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -513,7 +515,7 @@ async function loadCustomLastWorkoutInsight(): Promise<{
   const when = new Date(last.completedAt ?? last.startedAt)
   return {
     planName: plan?.name?.trim() || pl.planDash,
-    whenLabel: when.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+    whenLabel: when.toLocaleDateString(currentLang() === 'en' ? 'en-US' : 'pl-PL', { day: 'numeric', month: 'short' }),
   }
 }
 
@@ -530,7 +532,12 @@ export async function loadHomeDashboard(
   const builtinSessions = allSessions.filter(
     (s) => (s.programKind ?? 'builtin') !== 'custom' && s.program !== 'custom',
   )
-  const completedAll = builtinSessions.filter((s) => s.status === 'completed')
+  // Activity metrics should include ALL completed sessions (builtin + custom),
+  // not just builtin — custom-only users would otherwise see 0 sessions/reps.
+  // Only count passed sessions for consistency with Progress page stats.
+  const completedAll = allSessions.filter(
+    (s) => s.status === 'completed' && (s.programKind === 'custom' || s.program === 'custom' || s.passed === true),
+  )
   const activity = buildActivityInsights(completedAll)
   const sessions14d = activity.sessions14d
   const reps14d = activity.reps14d

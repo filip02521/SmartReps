@@ -143,6 +143,8 @@ const UI_SYNC_KEYS: (keyof UserSettings)[] = [
   'language',
   'aiProactiveCoach',
   'aiReasoningEffort',
+  'aiModel',
+  'aiBaseUrl',
 ]
 
 export const defaultSettings: UserSettings = {

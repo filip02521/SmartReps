@@ -15,6 +15,14 @@ export async function clearAllLocalData(): Promise<void> {
   } catch {
     // best-effort — clearing local data must not fail on push unsubscribe
   }
+  // Wait for any in-progress sync to finish before clearing — otherwise
+  // the sync could write data back to the cleared DB (race condition).
+  try {
+    const { waitForSyncToFinish } = await import('@/lib/auth-sync')
+    await waitForSyncToFinish()
+  } catch {
+    // best-effort — if auth-sync module isn't available, proceed anyway
+  }
   await Promise.all([
     db.programProgress.clear(),
     db.workoutSessions.clear(),
@@ -29,7 +37,19 @@ export async function clearAllLocalData(): Promise<void> {
     db.aiAnalysisCache.clear(),
     db.sessionTombstones.clear(),
     db.achievementUnlocks.clear(),
+    db.bodyWeight.clear(),
+    db.customPlanTombstones.clear(),
+    db.exerciseTombstones.clear(),
+    db.bodyWeightTombstones.clear(),
   ])
+  // Clear backfill flag so the next account starts fresh — otherwise the first
+  // evaluation after account switch would skip the backfill check.
+  try {
+    const { clearBackfillFlag } = await import('@/lib/achievements/store')
+    clearBackfillFlag()
+  } catch {
+    /* best-effort */
+  }
   useWorkoutStore.getState().reset()
   try {
     const { useCustomWorkoutStore } = await import('@/stores/custom-workout-store')

@@ -54,7 +54,10 @@ function detectComeback(sortedAsc: LocalWorkoutSession[], now: Date): boolean {
   return false
 }
 
-/** Count sessions where a same-day / same-set PR occurred vs prior history (builtin). */
+/** Count sessions where a same-day / same-set PR occurred vs prior history (builtin).
+ *  The first session in a (program, dayNumber) context counts as a PR — it sets
+ *  the initial record. This makes pr_repeat_3 achievable in exactly 3 PR sessions,
+ *  not 4. */
 function computeBuiltinPrRepeatMax(sessions: LocalWorkoutSession[]): number {
   const byProgramDay = new Map<string, number>()
   const sorted = [...sessions]
@@ -69,15 +72,16 @@ function computeBuiltinPrRepeatMax(sessions: LocalWorkoutSession[]): number {
     let isPr = false
     for (const row of passedRows) {
       const key = `${s.program}:${s.dayNumber}:${row.setNumber}`
-      const prev = byProgramDay.get(key) ?? 0
-      if (row.actual > prev && prev > 0) isPr = true
-      if (row.actual > prev) byProgramDay.set(key, row.actual)
+      const prev = byProgramDay.get(key)
+      // First occurrence (prev === undefined) is a PR — it sets the initial record
+      if (prev === undefined || row.actual > prev) isPr = true
+      if (prev === undefined || row.actual > prev) byProgramDay.set(key, row.actual)
     }
     // Also session-best set PR vs prior same program
     const histKey = `${s.program}:best`
-    const prevBest = byProgramDay.get(histKey) ?? 0
-    if (best > prevBest && prevBest > 0) isPr = true
-    if (best > prevBest) byProgramDay.set(histKey, best)
+    const prevBest = byProgramDay.get(histKey)
+    if (prevBest === undefined || best > prevBest) isPr = true
+    if (prevBest === undefined || best > prevBest) byProgramDay.set(histKey, best)
     if (isPr) prSessionKeys.add(s.id)
   }
   // Count max PR sessions for same program day setNumber key chain — simplify: total PR sessions
@@ -132,14 +136,22 @@ export async function buildAchievementSnapshot(opts?: {
   }
 
   const promise = (async () => {
-  const [allSessions, maxTests, progressRows, customPlans] = await Promise.all([
+  const [allSessions, maxTests, progressRows, customPlans, tombstones] = await Promise.all([
     db.workoutSessions.toArray(),
     db.maxTests.toArray(),
     db.programProgress.toArray(),
     db.customPlans.toArray(),
+    db.sessionTombstones.toArray(),
   ])
 
-  const completed = allSessions.filter(isCompletedForAchievements)
+  // Defensive: exclude any session that has a tombstone (shouldn't happen in normal flow
+  // since delete removes the row, but protects against sync resurrection bugs)
+  const tombstonedIds = new Set(tombstones.map((t) => t.sessionId))
+  const liveSessions = tombstonedIds.size > 0
+    ? allSessions.filter((s) => !tombstonedIds.has(s.id))
+    : allSessions
+
+  const completed = liveSessions.filter(isCompletedForAchievements)
   const completedAsc = [...completed].sort(
     (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime(),
   )
@@ -189,10 +201,19 @@ export async function buildAchievementSnapshot(opts?: {
   let pullupsSessions = 0
   for (const s of completed) {
     if (isCustomWorkoutSession(s)) {
-      // Custom sessions: sum exerciseLogs sets
+      // Custom sessions: sum exerciseLogs sets.
+      // For duration-based exercises (plank, etc.), convert seconds to rep
+      // equivalents (10s = 1 rep) so they contribute to volume achievements.
+      // For reps_weight, count reps (weight is intensity, not volume).
       for (const log of s.exerciseLogs ?? []) {
         for (const set of log.sets) {
-          totalRepsAllTime += set.actual.reps ?? 0
+          const reps = set.actual.reps
+          const dur = set.actual.durationSec
+          if (reps != null && reps > 0) {
+            totalRepsAllTime += reps
+          } else if (dur != null && dur > 0) {
+            totalRepsAllTime += Math.round(dur / 10)
+          }
         }
       }
     } else {

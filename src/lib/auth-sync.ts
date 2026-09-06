@@ -152,6 +152,25 @@ type SyncToastOpts = {
 }
 
 let authenticatedSyncLock: Promise<SyncResult> | null = null
+
+/** Check if an authenticated sync is currently running. Used by clearAllLocalData
+ *  to avoid racing with an active sync (which could write data back to a cleared DB). */
+export function isSyncRunning(): boolean {
+  return authenticatedSyncLock !== null
+}
+
+/** Wait for any in-progress sync to complete before proceeding. */
+export async function waitForSyncToFinish(timeoutMs = 10_000): Promise<void> {
+  if (!authenticatedSyncLock) return
+  try {
+    await Promise.race([
+      authenticatedSyncLock,
+      new Promise<void>((_, reject) => setTimeout(() => reject(new Error('sync timeout')), timeoutMs)),
+    ])
+  } catch {
+    // Sync failed or timed out — proceed anyway
+  }
+}
 let signInFlowLock: Promise<void> | null = null
 let pendingSyncToasts: SyncToastOpts = {}
 let syncToastTimer: ReturnType<typeof setTimeout> | null = null
@@ -261,6 +280,10 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
 
   if (authenticatedSyncLock) return authenticatedSyncLock
 
+  // Timeout guard: if sync hangs (slow network, unresponsive server), release
+  // the lock after 90s so future sync attempts aren't blocked forever.
+  const SYNC_TIMEOUT_MS = 90_000
+
   authenticatedSyncLock = (async () => {
     const accountResult = await ensureAccountForSession(session.user.id)
     if (accountResult === 'needs_confirm') {
@@ -289,6 +312,13 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
         const { pullAchievementsFromCloud } = await import('@/lib/achievements/sync')
         const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
         await pullAchievementsFromCloud()
+        // Queue unseen remote unlocks (earned on another device, not yet shown here)
+        const { listUnseenUnlocks } = await import('@/lib/achievements/store')
+        const { useAchievementUiStore } = await import('@/stores/achievement-ui-store')
+        const unseen = await listUnseenUnlocks()
+        if (unseen.length > 0) {
+          useAchievementUiStore.getState().enqueueUnlocks(unseen, false)
+        }
         scheduleAchievementCheck()
       } catch {
         /* best-effort */
@@ -299,11 +329,19 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
     }
 
     return finalResult
-  })().finally(() => {
-    authenticatedSyncLock = null
+  })()
+
+  // Race the sync against a timeout. If the timeout wins, return a failure
+  // result but still clear the lock so the next sync can proceed.
+  const timeoutPromise = new Promise<SyncResult>((resolve) => {
+    setTimeout(() => {
+      resolve({ ok: false, errors: 0, reason: 'network' as SyncFailureReason })
+    }, SYNC_TIMEOUT_MS)
   })
 
-  return authenticatedSyncLock
+  return Promise.race([authenticatedSyncLock, timeoutPromise]).finally(() => {
+    authenticatedSyncLock = null
+  })
 }
 
 /** Single-flight: sync + optional post-login navigation (OTP code, Kontynuuj). */

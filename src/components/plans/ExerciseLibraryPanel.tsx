@@ -119,15 +119,20 @@ export function ExerciseLibraryPanel({
 
   async function handleArchive() {
     if (!editing) return
-    const result = await archiveExercise(editing.id)
-    if (!result.ok) {
-      showToast(pl.exerciseUsedInPlans(result.usedIn), 'error')
+    try {
+      const result = await archiveExercise(editing.id)
+      if (!result.ok) {
+        showToast(pl.exerciseUsedInPlans(result.usedIn), 'error')
+        setArchiveConfirm(false)
+        return
+      }
       setArchiveConfirm(false)
-      return
+      setEditing(null)
+      await reload()
+    } catch {
+      showToast(pl.exerciseArchiveFailed, 'error')
+      setArchiveConfirm(false)
     }
-    setArchiveConfirm(false)
-    setEditing(null)
-    await reload()
   }
 
   async function handleSeed() {

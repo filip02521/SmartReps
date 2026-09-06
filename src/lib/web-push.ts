@@ -40,6 +40,15 @@ export async function subscribeWebPush(reminderHour: number): Promise<boolean> {
     return false
   }
 
+  // Verify user is logged in BEFORE requesting notification permission —
+  // otherwise the user grants permission for nothing if not authenticated.
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData.user?.id
+  if (!userId) {
+    track('push_subscribe_fail', { reason: 'no_user' })
+    return false
+  }
+
   const permission =
     Notification.permission === 'granted'
       ? 'granted'
@@ -62,13 +71,6 @@ export async function subscribeWebPush(reminderHour: number): Promise<boolean> {
     const json = subscription.toJSON()
     if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
       track('push_subscribe_fail', { reason: 'bad_keys' })
-      return false
-    }
-
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData.user?.id
-    if (!userId) {
-      track('push_subscribe_fail', { reason: 'no_user' })
       return false
     }
 

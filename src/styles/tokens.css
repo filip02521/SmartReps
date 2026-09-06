@@ -29,7 +29,9 @@
   --sr-z-toast: 90;
 
   --sr-pushups-accent: #f97316;
+  --sr-pushups-accent-muted: rgba(249, 115, 22, 0.15);
   --sr-pullups-accent: #a78bfa;
+  --sr-pullups-accent-muted: rgba(167, 139, 250, 0.15);
 
   --sr-text-primary: #fafafa;
   --sr-text-secondary: #a1a1aa;

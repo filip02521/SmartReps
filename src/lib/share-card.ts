@@ -1,5 +1,5 @@
 import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
+import { dateFnsLocale } from '@/lib/date-locale'
 import type { Program } from '@/data/plans/types'
 import { pl } from '@/i18n/pl'
 
@@ -68,7 +68,7 @@ function renderShareCanvas(
     date?: Date
   },
 ) {
-  const dateLabel = format(opts.date ?? new Date(), 'd MMM yyyy', { locale: plLocale })
+  const dateLabel = format(opts.date ?? new Date(), 'd MMM yyyy', { locale: dateFnsLocale() })
   const grad = ctx.createLinearGradient(0, 0, W, H)
   grad.addColorStop(0, '#1e1b4b')
   grad.addColorStop(1, '#09090b')

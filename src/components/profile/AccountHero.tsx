@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
+import { dateFnsLocale } from '@/lib/date-locale'
 import { ChevronDown } from 'lucide-react'
 import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -33,7 +33,7 @@ function formatLastSync(lastSyncedAt: string | null, online: boolean): string {
   if (!online) return pl.syncNowOffline
   if (lastSyncedAt) {
     return pl.syncLastAt(
-      format(new Date(lastSyncedAt), 'd MMM yyyy, HH:mm', { locale: plLocale }),
+      format(new Date(lastSyncedAt), 'd MMM yyyy, HH:mm', { locale: dateFnsLocale() }),
     )
   }
   return pl.syncNever

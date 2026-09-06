@@ -7,252 +7,97 @@ export function OnboardingIllustration({ step }: { step: OnboardingIllustrationS
   const uid = useId().replace(/:/g, '')
   const gradId = `sr-onboard-grad-${uid}`
 
+  if (step === 'interest' || step === 'programs') {
+    // These steps no longer use illustrations — cards below carry the visuals.
+    return null
+  }
+
   if (step === 'welcome') {
     return (
-      <svg viewBox="0 0 200 120" className="mx-auto h-28 w-full max-w-[200px]" aria-hidden>
+      <svg viewBox="0 0 150 200" className="mx-auto h-40 w-full max-w-[130px]" aria-hidden>
         <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="200" y2="120" gradientUnits="userSpaceOnUse">
+          <linearGradient id={gradId} x1="11" y1="8" x2="139" y2="192" gradientUnits="userSpaceOnUse">
             <stop stopColor="var(--sr-brand-primary)" />
             <stop offset="1" stopColor="var(--sr-brand-secondary)" />
           </linearGradient>
-        </defs>
-        {/* Glow circle */}
-        <circle cx="100" cy="60" r="52" fill="var(--sr-brand-primary-muted)" />
-        {/* Main ring */}
-        <circle
-          cx="100"
-          cy="60"
-          r="44"
-          fill="none"
-          stroke={`url(#${gradId})`}
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        />
-        {/* Accent arc */}
-        <path
-          d="M 100 16 A 44 44 0 0 1 144 60"
-          fill="none"
-          stroke="var(--sr-brand-secondary)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          opacity="0.5"
-        />
-        {/* Letter R */}
-        <text
-          x="100"
-          y="70"
-          textAnchor="middle"
-          fill={`url(#${gradId})`}
-          fontSize="28"
-          fontWeight="800"
-          fontFamily="var(--sr-font)"
-        >
-          R
-        </text>
-        {/* Orbiting dots */}
-        {[0, 1, 2, 3, 4].map((i) => {
-          const angle = (i * 72 * Math.PI) / 180
-          return (
-            <circle
-              key={i}
-              cx={100 + Math.cos(angle) * 34}
-              cy={60 + Math.sin(angle) * 34}
-              r="3.5"
-              fill="var(--sr-brand-secondary)"
-              opacity={0.7}
-            />
-          )
-        })}
-      </svg>
-    )
-  }
-
-  if (step === 'interest') {
-    return (
-      <svg viewBox="0 0 200 100" className="mx-auto h-24 w-full max-w-[200px]" aria-hidden>
-        <defs>
-          <linearGradient id={gradId} x1="16" y1="18" x2="94" y2="82" gradientUnits="userSpaceOnUse">
+          <linearGradient id={`${gradId}-btn`} x1="40" y1="154" x2="110" y2="176" gradientUnits="userSpaceOnUse">
             <stop stopColor="var(--sr-brand-primary)" />
             <stop offset="1" stopColor="var(--sr-brand-secondary)" />
           </linearGradient>
+          <linearGradient id={`${gradId}-screen`} x1="11" y1="20" x2="139" y2="100" gradientUnits="userSpaceOnUse">
+            <stop stopColor="var(--sr-brand-secondary)" stopOpacity="0.06" />
+            <stop offset="1" stopColor="var(--sr-brand-primary)" stopOpacity="0" />
+          </linearGradient>
         </defs>
-        {/* Strong card — brand gradient border */}
-        <rect
-          x="16"
-          y="18"
-          width="78"
-          height="64"
-          rx="14"
-          fill="var(--sr-brand-primary-muted)"
-          stroke={`url(#${gradId})`}
-          strokeWidth="2"
-        />
-        {/* Custom card — neutral */}
-        <rect
-          x="106"
-          y="18"
-          width="78"
-          height="64"
-          rx="14"
-          fill="var(--sr-bg-elevated)"
-          stroke="var(--sr-border-strong)"
-          strokeWidth="2"
-        />
-        {/* Dumbbell icon in strong card */}
-        <g transform="translate(38, 38)">
-          <rect x="0" y="6" width="4" height="12" rx="1" fill="var(--sr-brand-primary)" />
-          <rect x="30" y="6" width="4" height="12" rx="1" fill="var(--sr-brand-primary)" />
-          <rect x="4" y="3" width="2" height="18" rx="1" fill="var(--sr-brand-primary)" />
-          <rect x="28" y="3" width="2" height="18" rx="1" fill="var(--sr-brand-primary)" />
-          <rect x="6" y="11" width="22" height="2" rx="1" fill="var(--sr-brand-primary)" />
-        </g>
-        {/* Custom icon — grid */}
-        <g transform="translate(128, 38)" stroke="var(--sr-text-secondary)" strokeWidth="2" fill="none">
-          <rect x="0" y="0" width="10" height="10" rx="2" />
-          <rect x="22" y="0" width="10" height="10" rx="2" />
-          <rect x="0" y="22" width="10" height="10" rx="2" />
-          <rect x="22" y="22" width="10" height="10" rx="2" />
-        </g>
-        <text
-          x="55"
-          y="74"
-          textAnchor="middle"
-          fill="var(--sr-brand-primary)"
-          fontSize="10"
-          fontWeight="700"
-          fontFamily="var(--sr-font)"
-        >
-          {pl.onboardingIllustStrong}
+        {/* Soft glow behind phone */}
+        <ellipse cx="75" cy="102" rx="64" ry="80" fill="var(--sr-brand-primary-muted)" opacity="0.5" />
+        {/* Phone frame */}
+        <rect x="11" y="8" width="128" height="184" rx="22" fill="var(--sr-bg-elevated)" stroke="var(--sr-border-strong)" strokeWidth="2" />
+        {/* Screen subtle gradient sheen */}
+        <rect x="13" y="22" width="124" height="170" rx="18" fill={`url(#${gradId}-screen)`} />
+        {/* Notch */}
+        <rect x="58" y="14" width="34" height="6" rx="3" fill="var(--sr-bg-surface)" />
+        {/* Screen top label — program + day */}
+        <text x="75" y="40" textAnchor="middle" fill="var(--sr-text-secondary)" fontSize="8" fontWeight="600" fontFamily="var(--sr-font)">
+          {pl.pushupsProgram} · {pl.onboardingIllustDay}
         </text>
-        <text
-          x="145"
-          y="74"
-          textAnchor="middle"
-          fill="var(--sr-text-secondary)"
-          fontSize="10"
-          fontWeight="600"
-          fontFamily="var(--sr-font)"
-        >
-          {pl.onboardingIllustCustom}
+        {/* Big rep target — display number, brand gradient */}
+        <text x="75" y="78" textAnchor="middle" fill={`url(#${gradId})`} fontSize="40" fontWeight="800" fontFamily="var(--sr-font)">
+          12
+        </text>
+        <text x="75" y="92" textAnchor="middle" fill="var(--sr-text-muted)" fontSize="7" fontWeight="600" fontFamily="var(--sr-font)">
+          {pl.onboardingIllustReps}
+        </text>
+        {/* Set checklist — 3 rows */}
+        {/* Done set */}
+        <circle cx="28" cy="112" r="4" fill="var(--sr-success)" />
+        <path d="M26 112 l1.5 1.5 l3 -3" stroke="var(--sr-bg-elevated)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <rect x="38" y="109" width="84" height="6" rx="3" fill="var(--sr-bg-surface)" />
+        {/* Active set — brand accent */}
+        <circle cx="28" cy="128" r="4" fill="none" stroke={`url(#${gradId})`} strokeWidth="2" />
+        <rect x="38" y="125" width="84" height="6" rx="3" fill={`url(#${gradId})`} opacity="0.5" />
+        {/* Pending set — muted */}
+        <circle cx="28" cy="144" r="3.5" fill="none" stroke="var(--sr-border-strong)" strokeWidth="1.5" />
+        <rect x="38" y="141" width="84" height="6" rx="3" fill="var(--sr-bg-surface)" opacity="0.6" />
+        {/* Rest timer pill — subtle, between checklist and CTA */}
+        <rect x="44" y="154" width="62" height="10" rx="5" fill="var(--sr-bg-surface)" />
+        <circle cx="50" cy="159" r="2" fill="var(--sr-brand-secondary)" />
+        <text x="75" y="162" textAnchor="middle" fill="var(--sr-text-muted)" fontSize="6" fontWeight="600" fontFamily="var(--sr-font)">
+          0:45
+        </text>
+        {/* "Zrobione" CTA pill — brand gradient */}
+        <rect x="32" y="170" width="86" height="20" rx="10" fill={`url(#${gradId}-btn)`} />
+        <text x="75" y="183" textAnchor="middle" fill="var(--sr-text-inverse)" fontSize="9" fontWeight="700" fontFamily="var(--sr-font)">
+          {pl.onboardingIllustDone}
         </text>
       </svg>
     )
   }
 
-  if (step === 'programs') {
-    return (
-      <svg viewBox="0 0 200 100" className="mx-auto h-24 w-full max-w-[200px]" aria-hidden>
-        {/* Pushups card */}
-        <rect
-          x="20"
-          y="20"
-          width="70"
-          height="60"
-          rx="14"
-          fill="var(--sr-pushups-accent)"
-          opacity="0.15"
-          stroke="var(--sr-pushups-accent)"
-          strokeWidth="2"
-        />
-        {/* Pullups card */}
-        <rect
-          x="110"
-          y="20"
-          width="70"
-          height="60"
-          rx="14"
-          fill="var(--sr-pullups-accent)"
-          opacity="0.15"
-          stroke="var(--sr-pullups-accent)"
-          strokeWidth="2"
-        />
-        {/* Pushup icon — person doing pushup */}
-        <g transform="translate(32, 38)" fill="var(--sr-pushups-accent)">
-          <circle cx="6" cy="4" r="4" />
-          <rect x="2" y="9" width="28" height="3" rx="1.5" />
-          <rect x="0" y="12" width="4" height="6" rx="1" />
-        </g>
-        {/* Pullup icon — bar with person */}
-        <g transform="translate(122, 36)" fill="var(--sr-pullups-accent)">
-          <rect x="0" y="0" width="40" height="3" rx="1.5" />
-          <circle cx="20" cy="10" r="4" />
-          <rect x="18" y="14" width="4" height="12" rx="1.5" />
-        </g>
-        <text
-          x="55"
-          y="72"
-          textAnchor="middle"
-          fill="var(--sr-pushups-accent)"
-          fontSize="11"
-          fontWeight="700"
-          fontFamily="var(--sr-font)"
-        >
-          {pl.pushupsProgram}
-        </text>
-        <text
-          x="145"
-          y="72"
-          textAnchor="middle"
-          fill="var(--sr-pullups-accent)"
-          fontSize="10"
-          fontWeight="700"
-          fontFamily="var(--sr-font)"
-        >
-          {pl.pullupsProgram}
-        </text>
-      </svg>
-    )
-  }
-
-  // 'next' — progress chart
+  // 'next' — checkmark circle "all set"
   return (
-    <svg viewBox="0 0 200 100" className="mx-auto h-24 w-full max-w-[200px]" aria-hidden>
+    <svg viewBox="0 0 120 120" className="mx-auto h-28 w-full max-w-[120px]" aria-hidden>
       <defs>
-        <linearGradient id={gradId} x1="30" y1="70" x2="170" y2="25" gradientUnits="userSpaceOnUse">
+        <linearGradient id={gradId} x1="20" y1="20" x2="100" y2="100" gradientUnits="userSpaceOnUse">
           <stop stopColor="var(--sr-brand-primary)" />
           <stop offset="1" stopColor="var(--sr-brand-secondary)" />
         </linearGradient>
       </defs>
-      {/* Grid lines */}
-      <line x1="20" y1="80" x2="180" y2="80" stroke="var(--sr-border-subtle)" strokeWidth="1" />
-      <line x1="20" y1="50" x2="180" y2="50" stroke="var(--sr-border-subtle)" strokeWidth="0.5" strokeDasharray="3 3" />
-      {/* Progress line with gradient */}
+      {/* Soft glow */}
+      <circle cx="60" cy="60" r="50" fill="var(--sr-brand-primary-muted)" opacity="0.4" />
+      {/* Outer ring — gradient */}
+      <circle cx="60" cy="60" r="42" fill="none" stroke={`url(#${gradId})`} strokeWidth="3" strokeLinecap="round" />
+      {/* Inner filled circle */}
+      <circle cx="60" cy="60" r="34" fill={`url(#${gradId})`} opacity="0.12" />
+      {/* Checkmark — gradient stroke */}
       <path
-        d="M30 70 L70 40 L110 50 L170 25"
+        d="M44 61 L55 72 L78 48"
         fill="none"
         stroke={`url(#${gradId})`}
-        strokeWidth="3"
+        strokeWidth="5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Data points */}
-      {[
-        { x: 30, y: 70 },
-        { x: 70, y: 40 },
-        { x: 110, y: 50 },
-        { x: 170, y: 25 },
-      ].map((pt, i) => (
-        <circle
-          key={i}
-          cx={pt.x}
-          cy={pt.y}
-          r="5"
-          fill="var(--sr-bg-base)"
-          stroke={`url(#${gradId})`}
-          strokeWidth="2.5"
-        />
-      ))}
-      {/* Up arrow at the end */}
-      <path
-        d="M170 25 L165 30 M170 25 L175 30"
-        fill="none"
-        stroke={`url(#${gradId})`}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <text x="100" y="95" textAnchor="middle" fill="var(--sr-text-muted)" fontSize="9" fontWeight="600" fontFamily="var(--sr-font)">
-        {pl.onboardingIllustNext}
-      </text>
     </svg>
   )
 }

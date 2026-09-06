@@ -1,16 +1,32 @@
 const RELOAD_GUARD_KEY = 'sr-chunk-reload-once'
 
-/** Detect Vite / dynamic import failures after a new deployment. */
+/** Detect Vite / dynamic import failures after a new deployment.
+ *  Matches specific error types and message patterns — avoids generic
+ *  "load failed" which causes false positives on unrelated fetch failures. */
 export function isChunkLoadError(err: unknown): boolean {
-  if (!(err instanceof Error)) return false
-  const msg = err.message.toLowerCase()
-  return (
-    msg.includes('failed to fetch dynamically imported module') ||
-    msg.includes('error loading dynamically imported module') ||
-    msg.includes('importing a module script failed') ||
-    msg.includes('loading chunk') ||
-    msg.includes('load failed')
-  )
+  if (!err) return false
+  // Check for TypeError from dynamic import — most reliable cross-browser signal
+  if (err instanceof TypeError) {
+    const msg = err.message.toLowerCase()
+    if (
+      msg.includes('failed to fetch dynamically imported module') ||
+      msg.includes('error loading dynamically imported module') ||
+      msg.includes('importing a module script failed')
+    ) {
+      return true
+    }
+  }
+  // Fallback: check message string for chunk-specific patterns
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase()
+    return (
+      msg.includes('failed to fetch dynamically imported module') ||
+      msg.includes('error loading dynamically imported module') ||
+      msg.includes('importing a module script failed') ||
+      msg.includes('loading chunk')
+    )
+  }
+  return false
 }
 
 /**
@@ -29,7 +45,9 @@ export function setupChunkLoadRecovery(): void {
 
   window.addEventListener('unhandledrejection', (event) => {
     if (!isChunkLoadError(event.reason)) return
-    if (tryReload()) event.preventDefault()
+    // preventDefault BEFORE reload so the rejection doesn't surface as an error
+    event.preventDefault()
+    tryReload()
   })
 
   window.addEventListener('error', (event) => {
@@ -42,7 +60,9 @@ export function setupChunkLoadRecovery(): void {
   })
 }
 
-/** Lazy import wrapper — reload once on chunk 404, then surface the error. */
+/** Lazy import wrapper — reload once on chunk 404, then surface the error.
+ *  After reload, the guard prevents infinite loop; if reload already happened,
+ *  the error propagates to RouteErrorBoundary which shows a retry UI. */
 export function lazyWithChunkRecovery<T extends { default: unknown }>(
   factory: () => Promise<T>,
 ): () => Promise<T> {
@@ -53,6 +73,8 @@ export function lazyWithChunkRecovery<T extends { default: unknown }>(
       if (isChunkLoadError(err) && !sessionStorage.getItem(RELOAD_GUARD_KEY)) {
         sessionStorage.setItem(RELOAD_GUARD_KEY, '1')
         window.location.reload()
+        // Return a never-resolving promise — reload will replace the page
+        return new Promise<T>(() => {})
       }
       throw err
     }

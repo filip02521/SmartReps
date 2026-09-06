@@ -65,6 +65,7 @@ function applyHighContrast(on: boolean) {
 
 export default function ProfilePage() {
   const { settings, setSettings } = useAppStore()
+  const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const navigate = useNavigate()
   const [email, setEmail] = useState<string | null>(null)
   useSeo({ title: pl.seoProfileTitle, description: pl.seoProfileDescription, path: '/profile' })
@@ -140,7 +141,7 @@ export default function ProfilePage() {
 
     return () => subscription.unsubscribe()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.theme, settings.highContrast, settings.enabledPrograms])
+  }, [settings.theme, settings.highContrast, settings.enabledPrograms, lastSyncedAt])
 
   const handleSyncNow = async () => {
     if (!online || syncing) return
@@ -516,7 +517,7 @@ export default function ProfilePage() {
         }}
         onAiApiKeySave={(key) => {
           setSettings({ aiApiKey: key })
-          showToast(pl.communityDisplayNameSaved, 'success')
+          showToast(pl.aiApiKeySaved, 'success')
         }}
         onAiModelSave={(model) => setSettings({ aiModel: model })}
         onAiBaseUrlSave={(url) => setSettings({ aiBaseUrl: url })}

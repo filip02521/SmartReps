@@ -12,7 +12,7 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: [
         'brand/favicon.svg',
         'brand/favicon-32.png',
@@ -57,7 +57,7 @@ export default defineConfig({
       },
       injectManifest: {
         // Keep hashed assets precached; index.html must stay network-first (see sw.ts).
-        globPatterns: ['**/*.{js,css,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,css,svg,png,woff2,wav}'],
         globIgnores: ['**/index.html'],
       },
       devOptions: {

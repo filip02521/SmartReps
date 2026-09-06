@@ -1,6 +1,7 @@
 import { db, type LocalWorkoutSession } from '@/lib/db'
 import type { CustomPlan, CustomProgramProgress, ExerciseLog, SetLog } from '@/lib/exercise-model'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
+import { sanitizeReps } from '@/lib/sanitize'
 import { getOrCreateCustomProgress, applyCycleProgression } from '@/lib/custom-plan-service'
 import { previewProgressionDiff } from '@/lib/custom-progression'
 import {
@@ -219,24 +220,9 @@ export async function finalizeCustomDay(params: {
   const { session, plan, exerciseLogs, sessionDayPatchJson } = params
   const hitTargets = allExerciseSetsPassed(exerciseLogs)
 
-  const existing = await db.workoutSessions.get(session.id)
-  if (
-    finalizedCustomSessions.has(session.id) ||
-    (existing?.status === 'completed' && existing.passed === true)
-  ) {
-    return { passed: true, hitTargets: existing?.passed === true }
-  }
-  if (existing?.status === 'completed') {
-    // Already finalized — do not re-advance progress
-    finalizedCustomSessions.add(session.id)
-    return { passed: existing.passed === true, hitTargets: existing.passed === true }
-  }
-
-  finalizedCustomSessions.add(session.id)
-
   const now = new Date().toISOString()
   const totalReps = exerciseLogs.reduce(
-    (sum, log) => sum + log.sets.reduce((s, set) => s + (set.actual.reps ?? 0), 0),
+    (sum, log) => sum + log.sets.reduce((s, set) => s + sanitizeReps(set.actual.reps), 0),
     0,
   )
 
@@ -254,31 +240,64 @@ export async function finalizeCustomDay(params: {
     if (diff.length > 0) progressionDiffJson = JSON.stringify(diff)
   }
 
-  // Custom: completing the day always counts as done (no Strong-style restart).
-  // Below-target sets stay on logs for a soft summary note only.
-  const completed: LocalWorkoutSession = {
-    ...session,
-    status: 'completed',
-    completedAt: now,
-    passed: true,
-    totalReps,
-    exerciseLogs,
-    programKind: 'custom',
-    customPlanId: plan.id,
-    progressionDiffJson,
-    sessionDayPatchJson: sessionDayPatchJson ?? null,
+  // Use a DB transaction with re-check to prevent double-completion race.
+  // Two concurrent calls (e.g. page reload + background sync) could both
+  // observe status === 'in_progress' and both advance progress twice.
+  let alreadyCompleted = false
+  let existingPassed = false
+  await db.transaction('rw', db.workoutSessions, async () => {
+    const existing = await db.workoutSessions.get(session.id)
+    if (!existing) return
+    if (existing.status === 'completed') {
+      alreadyCompleted = true
+      existingPassed = existing.passed === true
+      return
+    }
+    if (finalizedCustomSessions.has(session.id)) {
+      alreadyCompleted = true
+      existingPassed = true
+      return
+    }
+    finalizedCustomSessions.add(session.id)
+
+    // Custom: completing the day always counts as done (no Strong-style restart).
+    // Below-target sets stay on logs for a soft summary note only.
+    const completed: LocalWorkoutSession = {
+      ...session,
+      status: 'completed',
+      completedAt: now,
+      passed: true,
+      totalReps,
+      exerciseLogs,
+      programKind: 'custom',
+      customPlanId: plan.id,
+      progressionDiffJson,
+      sessionDayPatchJson: sessionDayPatchJson ?? null,
+    }
+    await db.workoutSessions.put(completed)
+  })
+
+  if (alreadyCompleted) {
+    return { passed: existingPassed, hitTargets: existingPassed }
   }
-  await db.workoutSessions.put(completed)
-  await enqueueSync('workout_sessions', 'update', completed)
+
+  // Enqueue sync + advance progress AFTER successful transaction
+  const completedSession = await db.workoutSessions.get(session.id)
+  if (completedSession) await enqueueSync('workout_sessions', 'update', completedSession)
   if (session.customPlanId) await clearActiveCustomWorkout(session.customPlanId)
 
   const progress = await getOrCreateCustomProgress(plan.id)
 
   if (isLastDay) {
+    // Increment cycleAttempt so progression/deload math works correctly.
+    // Without this, cycleAttempt stays at 1 forever and every cycle is treated as cycle 2,
+    // causing deload to fire every cycle and progression to be re-applied infinitely.
+    const nextCycleAttempt = (progress.cycleAttempt ?? 1) + 1
     await saveCustomProgress({
       ...progress,
       status: 'cycle_complete',
       currentDay: 1,
+      cycleAttempt: nextCycleAttempt,
       lastWorkoutAt: now,
       nextWorkoutAfter: null,
       updatedAt: now,

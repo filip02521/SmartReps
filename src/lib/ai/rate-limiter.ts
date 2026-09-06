@@ -248,7 +248,10 @@ export function getCooldownRemaining(feature: AiFeature): number {
 /** Format cooldown remaining as human-readable string (e.g. "45 min", "2 h 15 min"). */
 export function formatCooldownRemaining(ms: number): string {
   if (ms <= 0) return ''
-  const totalMinutes = Math.ceil(ms / 60_000)
+  // Use floor instead of ceil to avoid "1 min" for 1ms remaining.
+  // Show "<1 min" for sub-minute values that haven't expired yet.
+  const totalMinutes = Math.floor(ms / 60_000)
+  if (totalMinutes === 0) return '<1 min'
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
   if (hours > 0 && minutes > 0) {

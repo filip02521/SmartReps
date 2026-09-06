@@ -143,6 +143,24 @@ export type SessionTombstone = {
   deletedAt: string
 }
 
+/** Tombstone for a deleted custom plan — prevents resurrection by cross-device sync. */
+export type CustomPlanTombstone = {
+  planId: string
+  deletedAt: string
+}
+
+/** Tombstone for a deleted exercise — prevents resurrection by cross-device sync. */
+export type ExerciseTombstone = {
+  exerciseId: string
+  deletedAt: string
+}
+
+/** Tombstone for a deleted body-weight entry — prevents resurrection by cross-device sync. */
+export type BodyWeightTombstone = {
+  entryId: string
+  deletedAt: string
+}
+
 class SmartRepsDB extends Dexie {
   programProgress!: EntityTable<LocalProgramProgress, 'id'>
   workoutSessions!: EntityTable<LocalWorkoutSession, 'id'>
@@ -158,6 +176,9 @@ class SmartRepsDB extends Dexie {
   aiInsights!: EntityTable<LocalAiInsight, 'id'>
   aiAnalysisCache!: EntityTable<AiAnalysisCache, 'id'>
   sessionTombstones!: EntityTable<SessionTombstone, 'sessionId'>
+  customPlanTombstones!: EntityTable<CustomPlanTombstone, 'planId'>
+  exerciseTombstones!: EntityTable<ExerciseTombstone, 'exerciseId'>
+  bodyWeightTombstones!: EntityTable<BodyWeightTombstone, 'entryId'>
 
   constructor() {
     super('SmartRepsDB')
@@ -299,6 +320,26 @@ class SmartRepsDB extends Dexie {
       aiInsights: 'id, type, sessionId, weekKey, createdAt',
       sessionTombstones: 'sessionId, deletedAt',
       aiAnalysisCache: 'id, createdAt',
+    })
+    // v10: Tombstones for custom plans, exercises, and body-weight entries
+    this.version(10).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, startedAt, [program+status], customPlanId',
+      activeWorkout: 'program',
+      activeCustomWorkout: 'customPlanId',
+      syncQueue: '++id, createdAt',
+      maxTests: '++id, program, testedAt, &[program+testedAt]',
+      exercises: 'id, updatedAt, archived',
+      customPlans: 'id, status, updatedAt',
+      customProgramProgress: '++id, &customPlanId, updatedAt',
+      achievementUnlocks: 'id, unlockedAt',
+      bodyWeight: 'id, measuredAt',
+      aiInsights: 'id, type, sessionId, weekKey, createdAt',
+      sessionTombstones: 'sessionId, deletedAt',
+      aiAnalysisCache: 'id, createdAt',
+      customPlanTombstones: 'planId, deletedAt',
+      exerciseTombstones: 'exerciseId, deletedAt',
+      bodyWeightTombstones: 'entryId, deletedAt',
     })
   }
 }

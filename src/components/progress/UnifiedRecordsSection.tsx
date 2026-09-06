@@ -1,7 +1,7 @@
 import { ChevronRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
+import { dateFnsLocale } from '@/lib/date-locale'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { LogoMark } from '@/components/brand/Logo'
@@ -90,7 +90,7 @@ export function UnifiedRecordsSection({
                   programRecords.bestMaxSetDate
                     ? pl.progressRecordDate(
                         format(new Date(programRecords.bestMaxSetDate), 'd MMM yyyy', {
-                          locale: plLocale,
+                          locale: dateFnsLocale(),
                         }),
                       )
                     : undefined
@@ -106,7 +106,7 @@ export function UnifiedRecordsSection({
                         format(
                           new Date(programRecords.bestSessionTotalDate),
                           'd MMM yyyy',
-                          { locale: plLocale },
+                          { locale: dateFnsLocale() },
                         ),
                       )
                     : undefined
@@ -170,7 +170,7 @@ export function UnifiedRecordsSection({
                             ? pl.progressCustomSessionCount(pr.sessionCount)
                             : null,
                           pr.lastSessionAt
-                            ? `${pl.exerciseDetailLastTrained} ${format(new Date(pr.lastSessionAt), 'd MMM', { locale: plLocale })}`
+                            ? `${pl.exerciseDetailLastTrained} ${format(new Date(pr.lastSessionAt), 'd MMM', { locale: dateFnsLocale() })}`
                             : null,
                         ]
                           .filter(Boolean)

@@ -317,6 +317,8 @@ export async function duplicateCustomPlan(planId: string): Promise<CustomPlan> {
     name: `${plan.name}${pl.planDuplicateCopySuffix}`,
     status: 'draft',
     source: 'duplicate',
+    // Duplicated plans must not reference the original community publication.
+    communityPublicationId: null,
     createdAt: now,
     updatedAt: now,
   }
@@ -346,6 +348,9 @@ export async function deleteCustomPlan(planId: string): Promise<void> {
     }
   }
   const prog = await db.customProgramProgress.where('customPlanId').equals(planId).first()
+  // Store tombstone BEFORE local delete to prevent resurrection by cross-device sync
+  const now = new Date().toISOString()
+  await db.customPlanTombstones.put({ planId, deletedAt: now })
   await db.customPlans.delete(planId)
   if (prog?.id != null) {
     await db.customProgramProgress.delete(prog.id)
@@ -382,6 +387,10 @@ export async function deleteCustomPlan(planId: string): Promise<void> {
   } catch (err) {
     console.warn('[community] unpublish on plan delete failed', err)
   }
+
+  // Re-evaluate achievements — customPlansCount and workshop_custom may have changed
+  const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+  scheduleAchievementCheck()
 }
 
 export async function setCustomPlanPaused(planId: string, paused: boolean): Promise<void> {
@@ -455,7 +464,7 @@ export async function importCustomPlanFromJson(text: string): Promise<CustomPlan
     idMap.size > 0
       ? (raw.days as PlanDay[]).map((day) => ({
           ...day,
-          exercises: day.exercises.map((pe) => ({
+          exercises: (day.exercises ?? []).map((pe) => ({
             ...pe,
             exerciseId: idMap.get(pe.exerciseId) ?? pe.exerciseId,
           })),
@@ -475,11 +484,17 @@ export async function importCustomPlanFromJson(text: string): Promise<CustomPlan
     deload: raw.deload ?? null,
   }
 
-  if (createdExercises.length > 0) {
-    const byId = new Map(createdExercises.map((e) => [e.id, e]))
-    const issues = validateCustomPlan(plan, byId)
-    if (issues.length > 0) throw new Error(pl.importInvalid)
+  // Always validate the plan, whether or not exercises were bundled.
+  // Build the exercise map from both created exercises and existing local exercises.
+  const existingExercises = await db.exercises.toArray()
+  const byId = new Map<string, ExerciseDefinition>([
+    ...existingExercises.map((e) => [e.id, e] as const),
+    ...createdExercises.map((e) => [e.id, e] as const),
+  ])
+  const issues = validateCustomPlan(plan, byId)
+  if (issues.length > 0) throw new Error(pl.importInvalid)
 
+  if (createdExercises.length > 0) {
     await db.transaction('rw', db.exercises, db.customPlans, async () => {
       for (const ex of createdExercises) {
         await db.exercises.put(ex)
@@ -522,7 +537,9 @@ export async function applyCycleProgression(planId: string): Promise<CustomPlan 
     if (!plan.deload?.enabled) return null
   }
   const progress = await db.customProgramProgress.where('customPlanId').equals(planId).first()
-  const nextCycleAttempt = (progress?.cycleAttempt ?? 1) + 1
+  // cycleAttempt was already incremented by finalizeCustomDay before calling this.
+  // Use it directly for deload/progression math.
+  const nextCycleAttempt = progress?.cycleAttempt ?? 2
   const rule = plan.progression ?? {
     enabled: true,
     afterCycleComplete: true,

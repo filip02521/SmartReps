@@ -1,6 +1,6 @@
 import { ChevronRight, Dumbbell, Trash2, User, History } from 'lucide-react'
 import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
+import { dateFnsLocale } from '@/lib/date-locale'
 import { useEffect, useMemo, useState } from 'react'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { Button } from '@/components/ui/Button'
@@ -306,7 +306,7 @@ export function HistoryPanel({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-3">
                           <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-                            {format(new Date(s.startedAt), 'd MMM yyyy', { locale: plLocale })}
+                            {format(new Date(s.startedAt), 'd MMM yyyy', { locale: dateFnsLocale() })}
                           </p>
                           <Badge variant={sessionBadgeVariant(s)}>
                             {sessionStatusLabel(s)}
@@ -431,7 +431,7 @@ export function HistoryPanel({
                 {sessionStatusLabel(selectedSession)}
               </Badge>
               <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-                {format(new Date(selectedSession.startedAt), 'd MMM yyyy', { locale: plLocale })}
+                {format(new Date(selectedSession.startedAt), 'd MMM yyyy', { locale: dateFnsLocale() })}
               </span>
             </div>
             <p className="mt-2 sr-text-h3 text-[var(--sr-text-primary)]">

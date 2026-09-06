@@ -360,23 +360,38 @@ export default function Dashboard() {
               className="sr-coach-msg-in mb-6 overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] shadow-[var(--sr-shadow-card)]"
             >
               <div className="flex items-center gap-3 border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)] p-4">
-                <AiCoachMark size="sm" />
-                <h3 className="text-sm font-bold leading-tight text-[var(--sr-text-primary)]">
-                  {pl.coachWeeklyReportTitle}
-                </h3>
+                <AiCoachMark size="sm" pulse />
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-bold leading-tight text-[var(--sr-text-primary)]">
+                    {pl.coachWeeklyReportTitle}
+                  </h3>
+                  <p className="mt-0.5 animate-pulse text-xs text-[var(--sr-text-muted)]">
+                    {pl.coachWeeklyReportGenerating}
+                  </p>
+                </div>
               </div>
-              <div className="p-4">
-                <p className="animate-pulse text-sm text-[var(--sr-text-muted)]">
-                  {pl.coachWeeklyReportGenerating}
-                </p>
+              {/* Skeleton metrics grid — mirrors the real 4-tile layout */}
+              <div className="grid grid-cols-4 gap-2 p-4">
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="flex h-14 animate-pulse flex-col items-center justify-center gap-1 rounded-[var(--sr-radius-sm)] bg-[var(--sr-bg-surface)]"
+                  >
+                    <div className="h-3 w-8 rounded bg-[var(--sr-border-subtle)]" />
+                    <div className="h-2 w-10 rounded bg-[var(--sr-border-subtle)]" />
+                  </div>
+                ))}
               </div>
             </section>
           )}
           {weeklyReport && !weeklyReport.dismissedAt && (
             <WeeklyReportCard
+              key={weeklyReport.id}
               insight={weeklyReport}
               onDismissed={() => setWeeklyReport(null)}
               onConnectAi={() => navigate('/profile')}
+              onRegenerate={() => setSearchParams({ weekly_report: 'force' }, { replace: true })}
+              regenerating={weeklyReportGenerating}
             />
           )}
 

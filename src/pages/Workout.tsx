@@ -411,6 +411,28 @@ export default function WorkoutPage() {
   ])
 
   const prevNegativeRef = useRef<number | null>(null)
+
+  // Persist current set changes on tab close / hide — prevents data loss when
+  // the user switches tabs or closes the browser mid-workout without tapping Done.
+  useEffect(() => {
+    const handlePersist = () => {
+      void persistState()
+    }
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Best-effort persist — async, may not complete before unload
+      void persistState()
+      // Prompt user to confirm leaving (browser-native)
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    document.addEventListener('visibilitychange', handlePersist)
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      document.removeEventListener('visibilitychange', handlePersist)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [persistState])
+
   useEffect(() => {
     if (negativeCountdown === null) {
       prevNegativeRef.current = null
@@ -811,7 +833,13 @@ export default function WorkoutPage() {
           navigate('/', { replace: true })
           return
         }
-        void persistState().finally(() => navigate('/', { replace: true }))
+        // Only navigate after successful persist — if persist fails, stay on
+        // the workout screen so the user can retry instead of losing state.
+        void persistState()
+          .then(() => navigate('/', { replace: true }))
+          .catch(() => {
+            // Stay on workout screen — user can try again
+          })
       }}
       onDismissLeave={() => setShowLeaveConfirm(false)}
       onClosePlan={() => setShowPlanSheet(false)}

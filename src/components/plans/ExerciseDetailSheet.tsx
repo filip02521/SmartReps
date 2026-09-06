@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
+import { dateFnsLocale } from '@/lib/date-locale'
 import { useNavigate } from 'react-router-dom'
 import {
   Bar,
@@ -192,7 +192,7 @@ export function ExerciseDetailSheet({
                   value={
                     stats.lastSessionAt
                       ? format(new Date(stats.lastSessionAt), 'd MMM yyyy', {
-                          locale: plLocale,
+                          locale: dateFnsLocale(),
                         })
                       : '—'
                   }
@@ -200,7 +200,7 @@ export function ExerciseDetailSheet({
                     stats.firstSessionAt && stats.firstSessionAt !== stats.lastSessionAt
                       ? pl.exerciseDetailSince(
                           format(new Date(stats.firstSessionAt), 'd MMM yyyy', {
-                            locale: plLocale,
+                            locale: dateFnsLocale(),
                           }),
                         )
                       : undefined
@@ -220,7 +220,7 @@ export function ExerciseDetailSheet({
                         : exercise.primaryMetric === 'duration_sec'
                           ? pl.exerciseDetailPrHintDuration
                           : pl.exerciseDetailPrHint)(
-                        format(new Date(stats.prDate), 'd MMM yyyy', { locale: plLocale }),
+                        format(new Date(stats.prDate), 'd MMM yyyy', { locale: dateFnsLocale() }),
                         stats.prSessionLabel,
                       )
                     : undefined
@@ -422,7 +422,7 @@ export function ExerciseDetailSheet({
                       <li key={row.sessionId} className="py-3 first:pt-0">
                         <div className="flex items-start justify-between gap-3">
                           <p className="text-sm text-[var(--sr-text-muted)]">
-                            {format(new Date(row.date), 'd MMM yyyy', { locale: plLocale })}
+                            {format(new Date(row.date), 'd MMM yyyy', { locale: dateFnsLocale() })}
                           </p>
                           <Badge
                             variant={

@@ -139,4 +139,6 @@ export type EvaluateResult = {
   newlyUnlocked: LocalAchievementUnlock[]
   allUnlocked: LocalAchievementUnlock[]
   backfill: boolean
+  /** Unlocks whose tier was upgraded or downgraded (not new). Pushed to cloud but not queued as unlock sheets. */
+  tierChanged: LocalAchievementUnlock[]
 }

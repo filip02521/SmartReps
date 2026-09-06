@@ -4,6 +4,7 @@ import { Users } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { CommunityPlanCard } from '@/components/community/CommunityPlanCard'
+import { SkeletonCard } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useOnline } from '@/hooks/useOnline'
 import {
@@ -29,6 +30,7 @@ export function CommunityHomeTeaser() {
   const online = useOnline()
   const navigate = useNavigate()
   const [rows, setRows] = useState<CommunityPublicationRow[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
@@ -40,6 +42,7 @@ export function CommunityHomeTeaser() {
       const apply = (list: CommunityPublicationRow[]) => {
         if (cancelled) return
         setRows(withoutOwn(list, userId).slice(0, TEASER_LIMIT))
+        setLoading(false)
       }
 
       if (!online) {
@@ -67,7 +70,7 @@ export function CommunityHomeTeaser() {
     }
   }, [online])
 
-  if (rows.length === 0) return null
+  if (rows.length === 0 && !loading) return null
 
   return (
     <section className="mt-8">
@@ -75,6 +78,15 @@ export function CommunityHomeTeaser() {
       <p className="mb-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
         {pl.communityTeaserHint}
       </p>
+      {loading && rows.length === 0 ? (
+        <ul className="flex flex-col gap-2">
+          {Array.from({ length: TEASER_LIMIT }).map((_, i) => (
+            <li key={i}>
+              <SkeletonCard />
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <ul className="flex flex-col gap-2">
         {rows.map((row) => (
           <li key={row.id}>

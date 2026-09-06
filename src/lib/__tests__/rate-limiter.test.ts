@@ -167,8 +167,8 @@ describe('rate-limiter', () => {
       expect(formatCooldownRemaining(2 * 60 * 60 * 1000 + 15 * 60 * 1000)).toBe('2 h 15 min')
     })
 
-    it('rounds up partial minutes', () => {
-      expect(formatCooldownRemaining(30 * 1000)).toBe('1 min') // 30s → 1 min
+    it('shows <1 min for partial minutes', () => {
+      expect(formatCooldownRemaining(30 * 1000)).toBe('<1 min') // 30s → <1 min
     })
   })
 

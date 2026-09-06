@@ -1,5 +1,5 @@
 import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
+import { dateFnsLocale } from '@/lib/date-locale'
 import { db, type LocalWorkoutSession, type LocalProgramProgress } from '@/lib/db'
 import { getCycleById } from '@/data/plans'
 import type { Program } from '@/data/plans/types'
@@ -238,7 +238,7 @@ export async function getMaxSetPerSession(program: Program): Promise<SessionChar
     const at = s.completedAt ?? s.startedAt
     points.push({
       date: at,
-      dateLabel: format(new Date(at), 'd MMM', { locale: plLocale }),
+      dateLabel: format(new Date(at), 'd MMM', { locale: dateFnsLocale() }),
       value: last.actual,
       dayNumber: s.dayNumber,
     })
@@ -427,7 +427,7 @@ export async function getWeeklyVolumeChart(
       }
     }
 
-    const label = format(weekStart, 'd MMM', { locale: plLocale })
+    const label = format(weekStart, 'd MMM', { locale: dateFnsLocale() })
     points.push({
       weekKey: getWeekKey(weekStart),
       weekLabel: label,

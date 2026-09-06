@@ -195,7 +195,7 @@ export type CustomSessionChartPoint = {
 
 export async function getCustomSessionChart(): Promise<CustomSessionChartPoint[]> {
   const { format } = await import('date-fns')
-  const { pl: plLocale } = await import('date-fns/locale')
+  const { dateFnsLocale } = await import('@/lib/date-locale')
   const { isCustomWorkoutSession } = await import('@/lib/custom-session-utils')
   const sessions = (await db.workoutSessions.toArray())
     .filter((s) => isCustomWorkoutSession(s) && s.status === 'completed')
@@ -207,7 +207,7 @@ export async function getCustomSessionChart(): Promise<CustomSessionChartPoint[]
     const at = s.completedAt ?? s.startedAt
     points.push({
       date: at,
-      dateLabel: format(new Date(at), 'd MMM', { locale: plLocale }),
+      dateLabel: format(new Date(at), 'd MMM', { locale: dateFnsLocale() }),
       value: vol,
       dayNumber: s.dayNumber,
     })
@@ -229,7 +229,7 @@ export async function getCustomWeeklyVolumeChart(
   weeks = 12,
 ): Promise<CustomWeeklyVolumePoint[]> {
   const { format } = await import('date-fns')
-  const { pl: plLocale } = await import('date-fns/locale')
+  const { dateFnsLocale } = await import('@/lib/date-locale')
   const { isCustomWorkoutSession } = await import('@/lib/custom-session-utils')
   const { startOfLocalWeek, getWeekKey } = await import('@/lib/stats-engine')
 
@@ -259,7 +259,7 @@ export async function getCustomWeeklyVolumeChart(
 
     points.push({
       weekKey: getWeekKey(weekStart),
-      weekLabel: format(weekStart, 'd MMM', { locale: plLocale }),
+      weekLabel: format(weekStart, 'd MMM', { locale: dateFnsLocale() }),
       volume,
     })
   }

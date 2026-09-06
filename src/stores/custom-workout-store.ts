@@ -131,6 +131,10 @@ export const useCustomWorkoutStore = create<CustomWorkoutStore>((set, get) => ({
       currentSetIndex: Math.max(0, removed.setNumber - 1),
       restTimer: null,
       failedRetryUsed: false,
+      // Reset AMRAP state — if the undone set started an AMRAP group,
+      // the deadline should not stay active after undo.
+      amrapGroupId: null,
+      amrapEndAt: null,
     })
     return removed
   },

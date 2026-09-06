@@ -112,7 +112,7 @@ async function gatherWorkoutHistory(
   const muscleGroupSets = new Map<MuscleGroup, number>()
   const exerciseById = new Map(exercises.map((e) => [e.id, e]))
 
-  // Recent sessions (last 10)
+  // Recent sessions (last 10) — built from the most recent sessions
   const recentSessions: WorkoutHistorySummary['recentSessions'] = []
 
   // Built-in program muscle group mapping
@@ -121,24 +121,15 @@ async function gatherWorkoutHistory(
     pullups: 'back',
   }
 
-  for (const session of [...sorted].reverse().slice(0, 20)) {
-    const sessionExercises: WorkoutHistorySummary['recentSessions'][number]['exercises'] = []
-
+  // Accumulate totals over ALL completed sessions (not just last 20).
+  // Previously this loop was sliced to 20, undercounting totalSets/totalReps
+  // and muscleGroupSets for users with >20 sessions.
+  for (const session of sorted) {
     if (session.exerciseLogs && session.exerciseLogs.length > 0) {
       for (const log of session.exerciseLogs) {
         const def = exerciseById.get(log.exerciseId)
-        const name = def?.name ?? pl.builtinExerciseUnknown
-        const sets = log.sets.length
-        const totalRepsEx = log.sets.reduce((acc, s) => acc + (s.actual.reps ?? 0), 0)
-        const avgWeight =
-          log.sets.reduce((acc, s) => acc + (s.actual.weightKg ?? 0), 0) / Math.max(1, sets)
-
-        sessionExercises.push({
-          name,
-          sets,
-          reps: totalRepsEx > 0 ? totalRepsEx : undefined,
-          weightKg: avgWeight > 0 ? Math.round(avgWeight * 10) / 10 : undefined,
-        })
+        const sets = log.sets?.length ?? 0
+        const totalRepsEx = (log.sets ?? []).reduce((acc, s) => acc + (s.actual.reps ?? 0), 0)
 
         totalSets += sets
         totalReps += totalRepsEx
@@ -163,6 +154,32 @@ async function gatherWorkoutHistory(
           (muscleGroupSets.get(muscleGroup) ?? 0) + builtinSets,
         )
       }
+    }
+  }
+
+  // Build recentSessions from the last 10 sessions (most recent first)
+  for (const session of [...sorted].reverse().slice(0, 10)) {
+    const sessionExercises: WorkoutHistorySummary['recentSessions'][number]['exercises'] = []
+
+    if (session.exerciseLogs && session.exerciseLogs.length > 0) {
+      for (const log of session.exerciseLogs) {
+        const def = exerciseById.get(log.exerciseId)
+        const name = def?.name ?? pl.builtinExerciseUnknown
+        const sets = log.sets?.length ?? 0
+        const totalRepsEx = (log.sets ?? []).reduce((acc, s) => acc + (s.actual.reps ?? 0), 0)
+        const avgWeight =
+          (log.sets ?? []).reduce((acc, s) => acc + (s.actual.weightKg ?? 0), 0) / Math.max(1, sets)
+
+        sessionExercises.push({
+          name,
+          sets,
+          reps: totalRepsEx > 0 ? totalRepsEx : undefined,
+          weightKg: avgWeight > 0 ? Math.round(avgWeight * 10) / 10 : undefined,
+        })
+      }
+    } else if (session.totalReps != null) {
+      const builtinSets = session.setResults?.length || 1
+      const program = session.program === 'custom' ? 'custom' : session.program
       sessionExercises.push({
         name: program === 'pushups' ? pl.builtinExercisePushups : program === 'pullups' ? pl.builtinExercisePullups : pl.builtinWorkoutFallback,
         sets: builtinSets,
@@ -170,14 +187,12 @@ async function gatherWorkoutHistory(
       })
     }
 
-    if (recentSessions.length < 10) {
-      recentSessions.push({
-        date: session.startedAt.split('T')[0]!,
-        planName: session.program === 'custom' ? pl.calendarSessionCustom : session.program === 'pushups' ? pl.builtinExercisePushups : pl.builtinExercisePullups,
-        dayNumber: session.dayNumber,
-        exercises: sessionExercises,
-      })
-    }
+    recentSessions.push({
+      date: session.startedAt.split('T')[0]!,
+      planName: session.program === 'custom' ? pl.calendarSessionCustom : session.program === 'pushups' ? pl.builtinExercisePushups : pl.builtinExercisePullups,
+      dayNumber: session.dayNumber,
+      exercises: sessionExercises,
+    })
   }
 
   // Reverse to chronological order

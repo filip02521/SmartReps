@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Check, X, ChevronRight as ChevronRightIcon } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, parseISO } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
+import { dateFnsLocale } from '@/lib/date-locale'
 import { Button } from '@/components/ui/Button'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
@@ -101,7 +101,7 @@ export function ActivityCalendar({
         </Button>
         <div className="flex flex-col items-center text-center">
           <p className="sr-text-body-sm font-medium capitalize text-[var(--sr-text-primary)]">
-            {format(cursor, 'LLLL yyyy', { locale: plLocale })}
+            {format(cursor, 'LLLL yyyy', { locale: dateFnsLocale() })}
           </p>
           {hasMonthSessions && (
             <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
@@ -153,7 +153,7 @@ export function ActivityCalendar({
                 hasCompleted && !isSelected && !isToday && 'bg-[var(--sr-brand-primary)]/8',
                 !hasCompleted && 'cursor-default',
               )}
-              aria-label={hasCompleted ? format(day, 'd MMMM yyyy', { locale: plLocale }) : undefined}
+              aria-label={hasCompleted ? format(day, 'd MMMM yyyy', { locale: dateFnsLocale() }) : undefined}
             >
               <span className={cn(
                 'tabular-nums',
@@ -215,7 +215,7 @@ export function ActivityCalendar({
       {selectedSessions.length > 0 && (
         <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3">
           <p className="sr-text-overline text-[var(--sr-text-muted)] capitalize">
-            {format(selectedDate!, 'EEEE d MMMM yyyy', { locale: plLocale })}
+            {format(selectedDate!, 'EEEE d MMMM yyyy', { locale: dateFnsLocale() })}
           </p>
           <ul className="mt-2 space-y-1.5">
             {selectedSessions.map((s) => {

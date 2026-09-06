@@ -230,6 +230,10 @@ export function validateCustomPlan(
       issues.push({ path: dPath, message: pl.validationDuplicateDay })
     }
     dayNums.add(day.dayNumber)
+    // Day number must be a positive integer (1-based)
+    if (!Number.isInteger(day.dayNumber) || day.dayNumber < 1) {
+      issues.push({ path: dPath, message: pl.validationDuplicateDay })
+    }
     if (day.exercises.length === 0) {
       issues.push({ path: `${dPath}.exercises`, message: pl.validationDayNoExercises })
     }
@@ -238,8 +242,21 @@ export function validateCustomPlan(
     }
     const groupIds = new Set((day.groups ?? []).map((g) => g.id))
     const groupMemberCount = new Map<string, number>()
+    const orderSet = new Set<number>()
     for (const pe of day.exercises) {
       const ePath = `${dPath}.exercises[${pe.order}]`
+      // Check for duplicate order values
+      if (orderSet.has(pe.order)) {
+        issues.push({ path: `${ePath}.order`, message: pl.validationDuplicateDay })
+      }
+      orderSet.add(pe.order)
+      // Validate restBetweenSetsSec is non-negative and finite
+      if (
+        typeof pe.restBetweenSetsSec === 'number' &&
+        (!Number.isFinite(pe.restBetweenSetsSec) || pe.restBetweenSetsSec < 0 || pe.restBetweenSetsSec > 600)
+      ) {
+        issues.push({ path: `${ePath}.restBetweenSetsSec`, message: pl.validationRestAfterDay })
+      }
       const def = exercisesById.get(pe.exerciseId)
       if (!def || def.archived) {
         issues.push({ path: `${ePath}.exerciseId`, message: pl.validationExerciseUnavailable })
@@ -293,6 +310,7 @@ export function validateCustomPlan(
 }
 
 export function metricTargetMet(target: MetricTarget, actual: number): boolean {
+  if (!Number.isFinite(actual) || actual < 0) return false
   switch (target.kind) {
     case 'fixed':
     case 'min':
@@ -311,16 +329,17 @@ export function validateSetLog(
 ): boolean {
   if (metric === 'duration_sec') {
     if (prescription.durationSec == null || actual.durationSec == null) return false
+    if (!Number.isFinite(actual.durationSec) || actual.durationSec < 0) return false
     return metricTargetMet(prescription.durationSec, actual.durationSec)
   }
   if (prescription.reps == null || actual.reps == null) return false
+  if (!Number.isFinite(actual.reps) || actual.reps < 0) return false
   if (!metricTargetMet(prescription.reps, actual.reps)) return false
-  if (metric === 'reps_weight') {
-    // Require a recorded weight (0 allowed for bodyweight-tagged work)
-    if (actual.weightKg == null || !Number.isFinite(actual.weightKg)) return false
-  }
+  // Only require weight when the prescription specifies a weight target.
+  // Without a prescription weight, reps_weight exercises can be done bodyweight
+  // (weightKg = 0 or null) — e.g. weighted pull-ups prescription vs bodyweight.
   if (prescription.weightKg) {
-    if (actual.weightKg == null) return false
+    if (actual.weightKg == null || !Number.isFinite(actual.weightKg)) return false
     return metricTargetMet(prescription.weightKg, actual.weightKg)
   }
   return true

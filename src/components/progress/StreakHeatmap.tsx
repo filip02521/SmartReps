@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Flame } from 'lucide-react'
 import { format } from 'date-fns'
-import { pl as plLocale } from 'date-fns/locale'
+import { dateFnsLocale } from '@/lib/date-locale'
 import { pl } from '@/i18n/pl'
 import { startOfLocalWeek, getWeekKey, computeStreakWeeks } from '@/lib/stats-engine'
 import type { LocalWorkoutSession } from '@/lib/db'
@@ -42,12 +42,12 @@ function buildWeekCells(sessions: LocalWorkoutSession[], weeks = 12): WeekCell[]
     const data = weekMap.get(key)
     const month = weekStart.getMonth()
     // Show month label only on the first cell of a new month
-    const monthLabel = month !== lastMonth ? format(weekStart, 'MMM', { locale: plLocale }) : null
+    const monthLabel = month !== lastMonth ? format(weekStart, 'MMM', { locale: dateFnsLocale() }) : null
     lastMonth = month
     cells.push({
       weekKey: key,
       weekStart,
-      label: format(weekStart, 'd MMM', { locale: plLocale }),
+      label: format(weekStart, 'd MMM', { locale: dateFnsLocale() }),
       monthLabel,
       sessions: data?.sessions ?? 0,
       reps: data?.reps ?? 0,
