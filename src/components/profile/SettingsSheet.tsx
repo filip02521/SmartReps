@@ -31,7 +31,6 @@ type SettingsSheetProps = {
   onPushChange: (on: boolean) => void
   onLocalRemindersChange: (on: boolean) => void
   onReminderHourChange: (hour: number) => void
-  onDisplayNameSave: (name: string) => void | Promise<void>
   onWeightUnitChange: (unit: 'kg' | 'lb') => void
   onLanguageChange: (lang: 'pl' | 'en') => void
   onAiApiKeySave: (key: string) => void
@@ -84,7 +83,6 @@ export function SettingsSheet({
   onPushChange,
   onLocalRemindersChange,
   onReminderHourChange,
-  onDisplayNameSave,
   onWeightUnitChange,
   onLanguageChange,
   onAiApiKeySave,
@@ -128,7 +126,6 @@ export function SettingsSheet({
           pushNotifications={settings.pushNotifications}
           workoutReminders={settings.workoutReminders}
           reminderHour={settings.reminderHour}
-          displayName={settings.displayName ?? ''}
           weightUnit={settings.weightUnit}
           language={settings.language}
           aiApiKey={settings.aiApiKey ?? ''}
@@ -149,7 +146,6 @@ export function SettingsSheet({
           onPushChange={onPushChange}
           onLocalRemindersChange={onLocalRemindersChange}
           onReminderHourChange={onReminderHourChange}
-          onDisplayNameSave={onDisplayNameSave}
           onWeightUnitChange={onWeightUnitChange}
           onLanguageChange={onLanguageChange}
           onAiApiKeySave={onAiApiKeySave}

@@ -9,6 +9,9 @@ import { Sheet } from '@/components/ui/Sheet'
 import { EmptyState, FeedbackBanner, PageLoader } from '@/components/ux/Feedback'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { PublishCommunitySheet } from '@/components/community/PublishCommunitySheet'
+import { CommunityReviewsSection } from '@/components/community/CommunityReviews'
+import { FollowButton } from '@/components/follow/FollowManager'
+import { getPublicProfile } from '@/lib/follow-system'
 import { pl } from '@/i18n/pl'
 import { useOnline } from '@/hooks/useOnline'
 import { useAppStore } from '@/stores/app-store'
@@ -61,6 +64,9 @@ export function CommunityPublicationView({ slug, onBack }: Props) {
   const [unpublishOpen, setUnpublishOpen] = useState(false)
   const [importConfirmOpen, setImportConfirmOpen] = useState(false)
   const [republishPlan, setRepublishPlan] = useState<CustomPlan | null>(null)
+  const [authorIsFollowing, setAuthorIsFollowing] = useState(false)
+  const [authorProfileLoaded, setAuthorProfileLoaded] = useState(false)
+  const [authorHasPublicProfile, setAuthorHasPublicProfile] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -93,6 +99,19 @@ export function CommunityPublicationView({ slug, onBack }: Props) {
       if (data.user?.id && pub.status === 'published') {
         const likedIds = await fetchMyLikedPublicationIds([pub.id])
         setLiked(likedIds.has(pub.id))
+        // Load author's public profile to check follow status
+        if (pub.author_id !== data.user.id) {
+          try {
+            const authorProfile = await getPublicProfile(pub.author_id)
+            setAuthorIsFollowing(authorProfile?.is_following ?? false)
+            setAuthorHasPublicProfile(Boolean(authorProfile))
+          } catch {
+            // Author has no public profile — hide follow button
+            setAuthorIsFollowing(false)
+            setAuthorHasPublicProfile(false)
+          }
+        }
+        setAuthorProfileLoaded(true)
       } else {
         setLiked(false)
       }
@@ -378,6 +397,17 @@ export function CommunityPublicationView({ slug, onBack }: Props) {
         {pl.communityDetailMeta(row.like_count, row.import_count)}
       </p>
 
+      {/* Follow author button — only for other users' published plans with public profiles */}
+      {isPublished && !isAuthor && authorProfileLoaded && authorHasPublicProfile && online && userId && (
+        <div className="mt-3">
+          <FollowButton
+            targetUserId={row.author_id}
+            initiallyFollowing={authorIsFollowing}
+            onToggled={setAuthorIsFollowing}
+          />
+        </div>
+      )}
+
       <div className="mt-5 space-y-2">
         {isPublished && userId && (
           <Button
@@ -496,6 +526,13 @@ export function CommunityPublicationView({ slug, onBack }: Props) {
           ))}
         </ul>
       </PageSection>
+
+      {/* Reviews — star rating + comments */}
+      {row.status === 'published' && online && (
+        <div className="mt-8">
+          <CommunityReviewsSection publicationId={row.id} authorId={row.author_id} />
+        </div>
+      )}
 
       <Sheet open={reportOpen} onClose={() => setReportOpen(false)} title={pl.communityReport}>
         <div className="flex flex-col gap-2 p-4">

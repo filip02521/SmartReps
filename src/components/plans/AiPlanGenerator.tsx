@@ -176,8 +176,8 @@ export function AiPlanGenerator({
         showToast(pl.aiImported, 'success')
         onGenerated()
         handleClose()
-      } catch (e) {
-        showToast(e instanceof Error ? e.message : pl.aiErrorGeneric, 'error')
+      } catch {
+        showToast(pl.aiErrorGeneric, 'error')
       } finally {
         setImporting(false)
       }

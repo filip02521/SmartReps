@@ -141,11 +141,6 @@ export function OverviewPanel({
                 hint: pl.rangeDaysLabel(rangeDays),
               },
               {
-                value: stats.streakWeeks,
-                label: pl.streakWeeks,
-                hint: pl.streakWeeksHint,
-              },
-              {
                 value: rangeStats.totalReps,
                 label: pl.rangeTotalReps,
                 hint: pl.rangeDaysLabel(rangeDays),

@@ -42,8 +42,10 @@ self.addEventListener('message', (event) => {
 })
 
 self.addEventListener('push', (event) => {
+  // SW has no access to i18n — use language-neutral fallback.
+  // Server should send localized title/body in the push payload.
   let title = 'SmartReps'
-  let body = 'SmartReps — Time to train'
+  let body = '🏋️'
   let url = '/'
   let program: string | undefined
   try {

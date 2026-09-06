@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { Check, Dumbbell, LayoutGrid, Compass, ArrowRight, Users, Sparkles, Trophy, type LucideIcon } from 'lucide-react'
+import { Check, Dumbbell, LayoutGrid, Compass, ArrowRight, Users, Sparkles, ChevronRight, type LucideIcon } from 'lucide-react'
 import { LogoFull } from '@/components/brand/Logo'
 import { OnboardingIllustration, SlideCyclesIllustration, SlideAiIllustration, SlideProgressIllustration } from '@/components/onboarding/OnboardingIllustrations'
 import { Button } from '@/components/ui/Button'
@@ -28,6 +28,7 @@ export default function Onboarding() {
   const [wantStrong, setWantStrong] = useState(true)
   const [wantCustom, setWantCustom] = useState(false)
   const [activeSlide, setActiveSlide] = useState(0)
+  const [hasSwiped, setHasSwiped] = useState(false)
   const carouselRef = useRef<HTMLDivElement>(null)
   useSeo({ title: pl.seoOnboardingTitle, description: pl.seoOnboardingDescription, path: '/setup/onboarding' })
   const [programs, setPrograms] = useState<Program[]>(['pushups'])
@@ -45,6 +46,28 @@ export default function Onboarding() {
       document.documentElement.lang = next
     }
   }
+
+  const handleCarouselScroll = useCallback(() => {
+    const el = carouselRef.current
+    if (!el) return
+    const slideW = el.clientWidth
+    if (slideW === 0) return
+    const next = Math.round(el.scrollLeft / slideW)
+    setActiveSlide((prev) => (prev !== next ? next : prev))
+    if (next > 0) setHasSwiped(true)
+  }, [])
+
+  const handleCarouselKey = useCallback((e: ReactKeyboardEvent) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+    e.preventDefault()
+    const el = carouselRef.current
+    if (!el) return
+    const slideW = el.clientWidth
+    const current = Math.round(el.scrollLeft / slideW)
+    const target = e.key === 'ArrowRight' ? current + 1 : current - 1
+    if (target < 0 || target > 2) return
+    el.scrollTo({ left: target * slideW, behavior: 'smooth' })
+  }, [])
 
   const steps = useMemo<WizardStep[]>(() => {
     if (wantStrong) return ['welcome', 'interest', 'programs', 'next']
@@ -189,55 +212,65 @@ export default function Onboarding() {
           {/* Swipeable feature carousel */}
           <div
             ref={carouselRef}
-            className="sr-carousel mt-5 flex snap-x snap-mandatory overflow-x-auto pb-1"
+            className="sr-carousel sr-onboard-step sr-onboard-stagger-1 mt-4 flex min-h-[270px] snap-x snap-mandatory overflow-x-auto pb-1 focus:outline-none focus-visible:[&]:ring-2 focus-visible:ring-[var(--sr-brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sr-bg-base)] rounded-[var(--sr-radius-md)]"
             aria-label={pl.onboardingCarouselAria}
-            onScroll={() => {
-              const el = carouselRef.current
-              if (!el) return
-              const slideW = el.clientWidth
-              setActiveSlide(Math.round(el.scrollLeft / slideW))
-            }}
+            tabIndex={0}
+            onScroll={handleCarouselScroll}
+            onKeyDown={handleCarouselKey}
           >
             {/* Slide 1 — Ready cycles */}
-            <div className="sr-carousel-slide flex w-full shrink-0 flex-col items-center px-1">
+            <div className="sr-carousel-slide flex w-full shrink-0 flex-col items-center justify-center">
               <SlideCyclesIllustration />
               <p className="mt-3 text-sm font-semibold text-[var(--sr-text-primary)]">{pl.onboardingSlide1Title}</p>
-              <p className="mt-1 max-w-[240px] text-xs text-[var(--sr-text-muted)]">{pl.onboardingSlide1Desc}</p>
+              <p className="mt-1 max-w-[240px] text-center text-xs text-[var(--sr-text-muted)]">{pl.onboardingSlide1Desc}</p>
+              {/* Swipe hint — only on first slide, only once */}
+              {activeSlide === 0 && !hasSwiped && (
+                <div className="mt-3 flex items-center gap-1 text-[var(--sr-text-muted)] sr-swipe-hint">
+                  <span className="text-[11px] font-medium">{pl.onboardingSwipeHint}</span>
+                  <ChevronRight size={14} aria-hidden />
+                </div>
+              )}
             </div>
             {/* Slide 2 — AI Coach */}
-            <div className="sr-carousel-slide flex w-full shrink-0 flex-col items-center px-1">
+            <div className="sr-carousel-slide flex w-full shrink-0 flex-col items-center justify-center">
               <SlideAiIllustration />
               <p className="mt-3 text-sm font-semibold text-[var(--sr-text-primary)]">{pl.onboardingSlide2Title}</p>
-              <p className="mt-1 max-w-[240px] text-xs text-[var(--sr-text-muted)]">{pl.onboardingSlide2Desc}</p>
+              <p className="mt-1 max-w-[240px] text-center text-xs text-[var(--sr-text-muted)]">{pl.onboardingSlide2Desc}</p>
             </div>
             {/* Slide 3 — Progress & badges */}
-            <div className="sr-carousel-slide flex w-full shrink-0 flex-col items-center px-1">
-              <SlideProgressIllustration />
+            <div className="sr-carousel-slide flex w-full shrink-0 flex-col items-center justify-center">
+              <SlideProgressIllustration isActive={activeSlide === 2} />
               <p className="mt-3 text-sm font-semibold text-[var(--sr-text-primary)]">{pl.onboardingSlide3Title}</p>
-              <p className="mt-1 max-w-[240px] text-xs text-[var(--sr-text-muted)]">{pl.onboardingSlide3Desc}</p>
+              <p className="mt-1 max-w-[240px] text-center text-xs text-[var(--sr-text-muted)]">{pl.onboardingSlide3Desc}</p>
             </div>
           </div>
           {/* Dots indicator */}
-          <div className="mt-3 flex justify-center gap-1.5">
+          <div className="mt-3 flex justify-center gap-1">
             {[0, 1, 2].map((i) => (
               <button
                 key={i}
                 type="button"
-                className="h-1.5 rounded-full transition-all"
-                style={{
-                  width: i === activeSlide ? 20 : 6,
-                  background: i === activeSlide
-                    ? 'var(--sr-brand-primary)'
-                    : 'var(--sr-bg-surface)',
-                }}
-                aria-label={`${pl.onboardingCarouselAria} ${i + 1}`}
+                className="flex min-h-[var(--sr-spacing-touch)] min-w-[var(--sr-spacing-touch)] items-center justify-center rounded-full"
+                aria-label={pl.onboardingSlideAria(i + 1, 3)}
+                aria-current={i === activeSlide}
                 onClick={() => {
                   carouselRef.current?.scrollTo({
                     left: i * (carouselRef.current?.clientWidth ?? 0),
                     behavior: 'smooth',
                   })
                 }}
-              />
+              >
+                <span
+                  className="block rounded-full transition-all"
+                  style={{
+                    height: 6,
+                    width: i === activeSlide ? 20 : 6,
+                    background: i === activeSlide
+                      ? 'var(--sr-brand-primary)'
+                      : 'var(--sr-bg-surface)',
+                  }}
+                />
+              </button>
             ))}
           </div>
         </StepLayout>
@@ -340,26 +373,25 @@ export default function Onboarding() {
             </>
           }
         >
-          <div className="mb-5 sr-onboard-step">
+          <div className="mb-4 flex flex-col items-center sr-onboard-step">
             <OnboardingIllustration step="next" />
           </div>
-          <h2 className="sr-text-h2 sr-onboard-step sr-onboard-stagger-1">{pl.onboardingNextTitleReady}</h2>
+          <h2 className="text-center sr-text-h2 sr-onboard-step sr-onboard-stagger-1">{pl.onboardingNextTitleReady}</h2>
           {/* Summary of choices */}
-          <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-4 py-3 sr-onboard-step sr-onboard-stagger-2">
+          <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-4 py-3 text-center sr-onboard-step sr-onboard-stagger-2">
             <p className="text-pretty sr-text-body-sm text-[var(--sr-text-secondary)]">
               {pl.onboardingNextSummary(choicesLabel)}
             </p>
           </div>
           {/* Concise bullets — what happens next */}
-          <div className="mt-5 flex flex-col gap-2.5 sr-onboard-step sr-onboard-stagger-3">
+          <div className="mt-4 flex flex-col gap-2 sr-onboard-step sr-onboard-stagger-3">
             <NextBullet icon={Compass} text={pl.onboardingNextBulletHome} />
             {wantStrong && <NextBullet icon={Dumbbell} text={pl.onboardingNextBulletStrong} />}
             {wantCustom && <NextBullet icon={LayoutGrid} text={pl.onboardingNextBulletCustom} />}
             <NextBullet icon={Users} text={pl.onboardingNextBulletCommunity} />
-            <NextBullet icon={Sparkles} text={pl.onboardingNextBulletAi} />
-            <NextBullet icon={Trophy} text={pl.onboardingNextBulletProgress} />
+            <NextBullet icon={Sparkles} text={pl.onboardingNextBulletAiProgress} />
           </div>
-          <p className="mt-6 text-center text-pretty sr-text-body font-semibold text-[var(--sr-brand-primary)] sr-onboard-step sr-onboard-stagger-4">
+          <p className="mt-5 text-center text-pretty sr-text-body font-semibold text-[var(--sr-brand-primary)] sr-onboard-step sr-onboard-stagger-4">
             {pl.onboardingReadyLine}
           </p>
         </StepLayout>
@@ -377,10 +409,10 @@ function StepLayout({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {children}
       </div>
-      <div className="mt-8 flex shrink-0 flex-col gap-2.5">{footer}</div>
+      <div className="mt-6 flex shrink-0 flex-col gap-2.5">{footer}</div>
     </div>
   )
 }
@@ -407,7 +439,7 @@ function InterestCard({
       type="button"
       onClick={onToggle}
       aria-pressed={selected}
-      className="rounded-[var(--sr-radius-lg)] border-2 px-4 py-3.5 text-left transition-all active:scale-[0.98]"
+      className="min-h-[var(--sr-spacing-touch)] rounded-[var(--sr-radius-lg)] border-2 px-4 py-4 text-left transition-all active:scale-[0.98]"
       style={{
         borderColor: selected ? accent : 'var(--sr-border-subtle)',
         background: selected ? accentMuted : 'transparent',
@@ -416,25 +448,36 @@ function InterestCard({
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <span
-            className="flex size-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] transition-colors"
-            style={{ background: selected ? accent : 'var(--sr-bg-surface)' }}
+            className="flex size-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] transition-all duration-200"
+            style={{
+              background: selected ? accent : 'var(--sr-bg-surface)',
+              transform: selected ? 'scale(1.05)' : 'scale(1)',
+            }}
             aria-hidden
           >
             <Icon
-              size={20}
+              size={22}
               className={selected ? 'text-[var(--sr-text-inverse)]' : 'text-[var(--sr-text-secondary)]'}
             />
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="font-semibold text-[var(--sr-text-primary)]">{title}</p>
             <p className="mt-1.5 text-pretty sr-text-body-sm leading-snug text-[var(--sr-text-secondary)]">
               {body}
             </p>
           </div>
         </div>
-        {selected && (
-          <Check size={20} className="mt-0.5 shrink-0" style={{ color: accent }} aria-hidden />
-        )}
+        {/* Selection indicator — circle with check */}
+        <span
+          className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full transition-all duration-200"
+          style={{
+            background: selected ? accent : 'transparent',
+            border: selected ? 'none' : '2px solid var(--sr-border-strong)',
+          }}
+          aria-hidden
+        >
+          {selected && <Check size={14} className="text-[var(--sr-text-inverse)]" />}
+        </span>
       </div>
     </button>
   )
@@ -520,9 +563,9 @@ function PullupIcon({ className }: { className?: string }) {
 
 function NextBullet({ icon: Icon, text }: { icon?: LucideIcon; text: string }) {
   return (
-    <div className="flex items-start gap-3 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-4 py-3.5">
+    <div className="flex items-start gap-2.5 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-3.5 py-3">
       {Icon && (
-        <Icon size={18} className="mt-0.5 shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
+        <Icon size={16} className="mt-0.5 shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
       )}
       <p className="text-pretty sr-text-body-sm leading-snug text-[var(--sr-text-secondary)]">
         {text}

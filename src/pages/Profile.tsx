@@ -18,7 +18,8 @@ import { ProfileStats } from '@/components/profile/ProfileStats'
 import { ProfileHero } from '@/components/profile/ProfileHero'
 import { AiCoachCard } from '@/components/profile/AiCoachCard'
 import { ProfileAbout } from '@/components/profile/ProfileAbout'
-import { BodyWeightSection } from '@/components/progress/BodyWeightSection'
+import { FollowingListSection, PublicProfileSheet } from '@/components/follow/FollowManager'
+import { useFollowData } from '@/hooks/useFollowData'
 import { runAuthenticatedSync } from '@/lib/auth-sync'
 import { signOutUser } from '@/lib/auth-lifecycle'
 import { pl } from '@/i18n/pl'
@@ -81,6 +82,8 @@ export default function ProfilePage() {
   const [deletingAccount, setDeletingAccount] = useState(false)
   const [showImportSheet, setShowImportSheet] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showProfileEdit, setShowProfileEdit] = useState(false)
+  const followData = useFollowData()
   const [customMenuPlanId, setCustomMenuPlanId] = useState<string | null>(null)
   const [progressByProgram, setProgressByProgram] = useState<Partial<Record<Program, LocalProgramProgress>>>({})
   const [programsReady, setProgramsReady] = useState(false)
@@ -310,7 +313,7 @@ export default function ProfilePage() {
 
   return (
     <div className={TAB_PAGE_SHELL}>
-      {/* Profile hero — identity, sync status, quick CTA */}
+      {/* Profile hero — identity, sync status, follow stats, edit profile */}
       <ProfileHero
         displayName={displayName}
         email={email}
@@ -320,6 +323,10 @@ export default function ProfilePage() {
         onSyncNow={handleSyncNow}
         onLogin={() => navigate('/setup/login', { state: { returnTo: '/profile' } })}
         onOpenSettings={() => setShowSettings(true)}
+        followProfile={followData.profile}
+        followCounts={followData.counts}
+        followLoading={followData.loading}
+        onEditProfile={() => setShowProfileEdit(true)}
       />
 
       {/* Stats summary */}
@@ -340,8 +347,9 @@ export default function ProfilePage() {
         <ProfileAchievementsSection />
       </div>
 
+      {/* Following list — users I follow */}
       <div className="mt-6">
-        <BodyWeightSection />
+        <FollowingListSection followData={followData} />
       </div>
 
       {/* Programs */}
@@ -473,6 +481,17 @@ export default function ProfilePage() {
         <ProfileAbout />
       </PageSection>
 
+      {/* Profile edit sheet — bio + public toggle */}
+      {showProfileEdit && (
+        <PublicProfileSheet
+          open={showProfileEdit}
+          onClose={() => setShowProfileEdit(false)}
+          existing={followData.profile}
+          displayName={displayName}
+          onSaved={followData.reload}
+        />
+      )}
+
       {/* Settings sheet — mounted only when needed */}
       {showSettings && (
       <SettingsSheet
@@ -523,24 +542,6 @@ export default function ProfilePage() {
         onAiBaseUrlSave={(url) => setSettings({ aiBaseUrl: url })}
         onAiProactiveCoachChange={(enabled) => setSettings({ aiProactiveCoach: enabled })}
         onAiReasoningEffortChange={(effort) => setSettings({ aiReasoningEffort: effort })}
-        onDisplayNameSave={async (name) => {
-          if (!name) {
-            showToast(pl.communityPublishNeedName, 'error')
-            return
-          }
-          const prev = settings.displayName ?? ''
-          setSettings({ displayName: name })
-          try {
-            const { refreshCommunityAuthorDisplayName } = await import('@/lib/community-api')
-            await refreshCommunityAuthorDisplayName(name)
-            const { pushProfileSettingsOnly } = await import('@/lib/sync')
-            await pushProfileSettingsOnly()
-            showToast(pl.communityDisplayNameSaved, 'success')
-          } catch {
-            setSettings({ displayName: prev })
-            showToast(pl.communityErrorGeneric, 'error')
-          }
-        }}
         onPushChange={(on) => {
           void (async () => {
             if (on) {

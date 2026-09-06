@@ -22,6 +22,7 @@ import {
   Crosshair,
   HelpCircle,
   BarChart3,
+  Lock,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -94,8 +95,9 @@ function resolveVisual(
 ): VisualStyle {
   if (!unlocked) {
     return {
-      outerClass: 'bg-[var(--sr-border-subtle)]',
-      innerClass: 'bg-[var(--sr-bg-elevated)]',
+      // Locked: grayscale + dashed border style, no color, no glow
+      outerClass: 'bg-[var(--sr-bg-surface)] sr-ach-locked',
+      innerClass: 'bg-[var(--sr-bg-surface)]',
       glowClass: '',
       animClass: '',
       iconClass: 'text-[var(--sr-text-muted)]',
@@ -244,7 +246,8 @@ export function AchievementTile({
           vs.outerClass,
           vs.glowClass,
           vs.animClass,
-          !unlocked && 'opacity-40',
+          // Locked: grayscale filter on entire tile content (not opacity)
+          !unlocked && 'sr-ach-locked-grayscale',
           highlight && 'ring-2 ring-[var(--sr-brand-primary)] ring-offset-2 ring-offset-[var(--sr-bg-base)]',
           // One-shot pulse on unlock for max-tier or legendary
           pulse && unlocked && (isMaxTier || (maxTier <= 1 && displayRarity === 'legendary')) && 'sr-ach-pulse',
@@ -292,6 +295,15 @@ export function AchievementTile({
             />
           )}
         </span>
+        {/* Lock badge — bottom-right corner, only for locked achievements (not sm size) */}
+        {!unlocked && size !== 'sm' && (
+          <span
+            className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[var(--sr-bg-base)] bg-[var(--sr-bg-elevated)] shadow-sm"
+            aria-hidden
+          >
+            <Lock size={10} className="text-[var(--sr-text-muted)]" strokeWidth={2.5} />
+          </span>
+        )}
         {/* Tier pips — small dots showing progress through tiers (all sizes) */}
         {hasTiers && unlocked && maxTier > 1 && (
           <span

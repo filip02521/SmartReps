@@ -13,6 +13,7 @@ import { HomeTip } from '@/components/dashboard/HomeTip'
 import { ProgramHomeCard } from '@/components/dashboard/ProgramHomeCard'
 import { CustomPlansHomeSection } from '@/components/dashboard/CustomPlansHomeSection'
 import { CommunityHomeTeaser } from '@/components/dashboard/CommunityHomeTeaser'
+import { WeeklyChallengeCard } from '@/components/dashboard/WeeklyChallengeCard'
 import { InstallCoach } from '@/components/ux/InstallCoach'
 import { WeeklyReportCard } from '@/components/dashboard/WeeklyReportCard'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
@@ -517,6 +518,8 @@ export default function Dashboard() {
           {settings.enabledPrograms.length === 0 && (
             <CustomPlansHomeSection hideEmptyDiscover />
           )}
+
+          <WeeklyChallengeCard />
 
           <CommunityHomeTeaser />
         </>

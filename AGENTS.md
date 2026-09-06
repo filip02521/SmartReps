@@ -48,7 +48,7 @@
 ### What must NOT sync
 
 - **`aiApiKey` is LOCAL-ONLY.** Never sync the API key to Supabase — it's a security risk. Each device must enter its own key.
-- **`aiModel` and `aiBaseUrl` DO sync** — they're not secrets and users expect the same AI configuration across devices.
+- **`aiModel` and `aiBaseUrl` DO sync** — they're not secrets and users expect the same AI configuration across devices. This is the intentional policy (confirmed with product owner).
 
 ### Deletion sync (tombstone pattern)
 

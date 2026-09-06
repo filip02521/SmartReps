@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
 import { Sheet } from '@/components/ui/Sheet'
@@ -10,9 +11,9 @@ import { buildCommunitySnapshot } from '@/lib/community-snapshot'
 import {
   fetchMyPublicationForPlan,
   publishCommunityPlan,
-  refreshCommunityAuthorDisplayName,
   type CommunityPublicationRow,
 } from '@/lib/community-api'
+import { getMyPublicProfile } from '@/lib/follow-system'
 import { communitySlugFromTitle } from '@/lib/slugify'
 import { generateId } from '@/lib/utils'
 import {
@@ -37,16 +38,17 @@ type Props = {
 }
 
 export function PublishCommunitySheet({ plan, open, onClose, onPublished }: Props) {
+  const navigate = useNavigate()
   const online = useOnline()
   const displayName = useAppStore((s) => s.settings.displayName ?? '')
-  const setSettings = useAppStore((s) => s.setSettings)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [tags, setTags] = useState<CommunityTag[]>([])
-  const [nameDraft, setNameDraft] = useState(displayName)
   const [busy, setBusy] = useState(false)
   const [existing, setExisting] = useState<CommunityPublicationRow | null>(null)
   const [loadingExisting, setLoadingExisting] = useState(false)
+  const [hasPublicProfile, setHasPublicProfile] = useState(false)
+  const [profileChecked, setProfileChecked] = useState(false)
 
   const isUpdate = existing != null
 
@@ -55,10 +57,23 @@ export function PublishCommunitySheet({ plan, open, onClose, onPublished }: Prop
     setTitle(plan.name)
     setDescription(plan.description || '')
     setTags([])
-    setNameDraft(displayName)
     setExisting(null)
+    setProfileChecked(false)
     let cancelled = false
     setLoadingExisting(true)
+    // Check public profile in parallel with existing publication
+    void getMyPublicProfile()
+      .then((profile) => {
+        if (cancelled) return
+        setHasPublicProfile(Boolean(profile?.is_public))
+      })
+      .catch(() => {
+        if (cancelled) return
+        setHasPublicProfile(false)
+      })
+      .finally(() => {
+        if (!cancelled) setProfileChecked(true)
+      })
     void fetchMyPublicationForPlan(plan.id)
       .then((pub) => {
         if (cancelled || !pub) return
@@ -76,7 +91,7 @@ export function PublishCommunitySheet({ plan, open, onClose, onPublished }: Prop
     return () => {
       cancelled = true
     }
-  }, [open, plan, displayName])
+  }, [open, plan])
 
   const preview = useMemo(() => {
     if (!plan) return null
@@ -98,11 +113,15 @@ export function PublishCommunitySheet({ plan, open, onClose, onPublished }: Prop
       showToast(pl.communityNeedOnline, 'info')
       return
     }
+    if (!hasPublicProfile) {
+      showToast(pl.communityPublishNeedPublicProfile, 'warning')
+      return
+    }
     if (plan.status !== 'active') {
       showToast(pl.communityPublishNeedActive, 'error')
       return
     }
-    const authorName = nameDraft.trim()
+    const authorName = displayName.trim()
     if (!authorName) {
       showToast(pl.communityPublishNeedName, 'error')
       return
@@ -114,15 +133,6 @@ export function PublishCommunitySheet({ plan, open, onClose, onPublished }: Prop
 
     setBusy(true)
     try {
-      if (authorName !== displayName.trim()) {
-        setSettings({ displayName: authorName })
-        try {
-          await refreshCommunityAuthorDisplayName(authorName)
-        } catch {
-          // publish RPC also updates display_name
-        }
-      }
-
       const exercises = await db.exercises.toArray()
       const byId = new Map(exercises.map((e) => [e.id, e]))
       const built = buildCommunitySnapshot(plan, byId)
@@ -155,13 +165,17 @@ export function PublishCommunitySheet({ plan, open, onClose, onPublished }: Prop
     } catch (err) {
       const msg = err instanceof Error ? err.message : ''
       if (msg.includes('rate_limited')) showToast(pl.communityRateLimited, 'warning')
+      else if (msg.includes('public_profile_required')) {
+        showToast(pl.communityPublishNeedPublicProfile, 'warning')
+        setHasPublicProfile(false)
+      }
       else showToast(pl.communityErrorGeneric, 'error')
     } finally {
       setBusy(false)
     }
   }
 
-  const formDisabled = busy || loadingExisting || !online
+  const formDisabled = busy || loadingExisting || !online || !hasPublicProfile
 
   return (
     <Sheet
@@ -171,20 +185,37 @@ export function PublishCommunitySheet({ plan, open, onClose, onPublished }: Prop
     >
       <div className="space-y-3 p-4 pb-6">
         {!online && <FeedbackBanner variant="info" message={pl.communityNeedOnline} />}
-        <p className="text-sm text-[var(--sr-text-secondary)]">{pl.communityPublishHint}</p>
-        {preview ? (
-          <p className="text-xs font-medium text-[var(--sr-text-muted)]">{preview}</p>
-        ) : null}
 
-        <TextField
-          id="community-display-name"
-          label={pl.communityDisplayName}
-          value={nameDraft}
-          onChange={(e) => setNameDraft(e.target.value.slice(0, 40))}
-          hint={pl.communityDisplayNameHint}
-          disabled={formDisabled}
-          maxLength={40}
-        />
+        {/* Public profile required blocker */}
+        {online && profileChecked && !hasPublicProfile && (
+          <div className="space-y-3">
+            <FeedbackBanner
+              variant="warning"
+              message={pl.communityPublishNeedPublicProfile}
+            />
+            <p className="text-sm text-[var(--sr-text-secondary)]">
+              {pl.communityPublishNeedPublicProfileHint}
+            </p>
+            <Button
+              fullWidth
+              onClick={() => {
+                onClose()
+                navigate('/profile')
+              }}
+            >
+              {pl.communityPublishGoToProfile}
+            </Button>
+          </div>
+        )}
+
+        {/* Form — only when public profile is set (or still loading) */}
+        {(!profileChecked || hasPublicProfile) && (
+          <>
+            <p className="text-sm text-[var(--sr-text-secondary)]">{pl.communityPublishHint}</p>
+            {preview ? (
+              <p className="text-xs font-medium text-[var(--sr-text-muted)]">{preview}</p>
+            ) : null}
+
         <TextField
           id="community-title"
           label={pl.communityPublishTitle}
@@ -251,6 +282,8 @@ export function PublishCommunitySheet({ plan, open, onClose, onPublished }: Prop
         >
           {isUpdate ? pl.communityPublishUpdate : pl.communityPublishSubmit}
         </Button>
+          </>
+        )}
       </div>
     </Sheet>
   )

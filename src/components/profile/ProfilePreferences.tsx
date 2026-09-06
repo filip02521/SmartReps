@@ -27,7 +27,6 @@ export function ProfilePreferences({
   pushNotifications,
   workoutReminders,
   reminderHour,
-  displayName,
   weightUnit,
   language,
   aiApiKey,
@@ -48,7 +47,6 @@ export function ProfilePreferences({
   onPushChange,
   onLocalRemindersChange,
   onReminderHourChange,
-  onDisplayNameSave,
   onWeightUnitChange,
   onLanguageChange,
   onAiApiKeySave,
@@ -65,7 +63,6 @@ export function ProfilePreferences({
   pushNotifications: boolean
   workoutReminders: boolean
   reminderHour: number
-  displayName: string
   weightUnit: 'kg' | 'lb'
   language: 'pl' | 'en'
   aiApiKey: string
@@ -86,7 +83,6 @@ export function ProfilePreferences({
   onPushChange: (on: boolean) => void
   onLocalRemindersChange: (on: boolean) => void
   onReminderHourChange: (hour: number) => void
-  onDisplayNameSave: (name: string) => void | Promise<void>
   onWeightUnitChange: (unit: 'kg' | 'lb') => void
   onLanguageChange: (lang: 'pl' | 'en') => void
   onAiApiKeySave: (key: string) => void
@@ -95,14 +91,10 @@ export function ProfilePreferences({
   onAiProactiveCoachChange: (enabled: boolean) => void
   onAiReasoningEffortChange: (effort: 'auto' | 'low' | 'medium' | 'high') => void
 }) {
-  const [nameDraft, setNameDraft] = useState(displayName)
   const [apiKeyDraft, setApiKeyDraft] = useState(aiApiKey)
   const [modelDraft, setModelDraft] = useState(aiModel)
   const [baseUrlDraft, setBaseUrlDraft] = useState(aiBaseUrl)
   const [baseUrlError, setBaseUrlError] = useState('')
-  useEffect(() => {
-    setNameDraft(displayName)
-  }, [displayName])
   useEffect(() => {
     setApiKeyDraft(aiApiKey)
   }, [aiApiKey])
@@ -115,22 +107,6 @@ export function ProfilePreferences({
 
   return (
     <>
-      <PageSection title={pl.communityDisplayName} hint={pl.communityDisplayNameHint} className={SECTION}>
-        <TextField
-          id="profile-display-name"
-          value={nameDraft}
-          onChange={(e) => setNameDraft(e.target.value.slice(0, 40))}
-        />
-        <Button
-          type="button"
-          className="mt-3"
-          size="sm"
-          onClick={() => void onDisplayNameSave(nameDraft.trim())}
-        >
-          {pl.communityDisplayNameSave}
-        </Button>
-      </PageSection>
-
       <PageSection title={pl.appearance} className={SECTION}>
         <SegmentedControl
           options={[

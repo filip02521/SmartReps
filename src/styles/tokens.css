@@ -17,6 +17,8 @@
   --sr-success-muted: rgba(52, 211, 153, 0.15);
   --sr-warning: #fbbf24;
   --sr-warning-muted: rgba(251, 191, 36, 0.15);
+  --sr-bronze: #b87333;
+  --sr-avatar-text: #ffffff;
   --sr-error: #f87171;
   --sr-error-muted: rgba(248, 113, 113, 0.15);
   --sr-info: #60a5fa;

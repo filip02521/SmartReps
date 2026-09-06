@@ -1,12 +1,14 @@
-import { Settings, RefreshCw, LogIn } from 'lucide-react'
+import { Settings, RefreshCw, LogIn, Pencil, Users, Globe, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Card'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
+import type { PublicProfile, FollowCounts } from '@/lib/follow-system'
 
 /**
- * Profile hero — brand gradient card with user identity, sync status, and quick CTA.
- * Replaces the plain PageHeader on the Profile page with a visual anchor.
+ * Profile hero — brand gradient card with user identity, sync status, follow stats,
+ * public/private badge, bio, and quick CTAs (sync/login + edit profile).
  */
 export function ProfileHero({
   displayName,
@@ -17,6 +19,11 @@ export function ProfileHero({
   onSyncNow,
   onLogin,
   onOpenSettings,
+  // Follow system
+  followProfile,
+  followCounts,
+  followLoading,
+  onEditProfile,
 }: {
   displayName: string
   email: string | null
@@ -26,6 +33,10 @@ export function ProfileHero({
   onSyncNow: () => void
   onLogin: () => void
   onOpenSettings: () => void
+  followProfile: PublicProfile | null
+  followCounts: FollowCounts
+  followLoading: boolean
+  onEditProfile: () => void
 }) {
   // Avatar initials from display name or email
   const initials = (displayName || email || '?')
@@ -36,6 +47,9 @@ export function ProfileHero({
     .join('') || '?'
 
   const title = displayName || email || pl.navProfile
+  const isPublic = followProfile?.is_public ?? false
+  const bio = followProfile?.bio?.trim() ?? ''
+  const showFollowStats = connected && online && !followLoading
 
   return (
     <div
@@ -49,10 +63,10 @@ export function ProfileHero({
         )`,
       }}
     >
-      <div className="flex items-center gap-3.5">
+      <div className="flex items-start gap-3.5">
         {/* Avatar — gradient circle with initials */}
         <div
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white"
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-[var(--sr-avatar-text)]"
           style={{
             background: 'var(--sr-brand-gradient)',
             boxShadow: 'var(--sr-shadow-glow)',
@@ -71,10 +85,24 @@ export function ProfileHero({
               {email}
             </p>
           )}
-          <div className="mt-1.5 flex items-center gap-2">
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
             <Badge variant={connected ? 'success' : 'info'}>
               {connected ? pl.profileHeroConnected : pl.profileHeroLocal}
             </Badge>
+            {/* Public/private badge */}
+            {showFollowStats && (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
+                  isPublic
+                    ? 'bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)]'
+                    : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
+                )}
+              >
+                {isPublic ? <Globe size={11} aria-hidden /> : <Lock size={11} aria-hidden />}
+                {isPublic ? pl.profileHeroPublic : pl.profileHeroPrivate}
+              </span>
+            )}
             {!online && (
               <span className="text-xs text-[var(--sr-text-muted)]">{pl.offline}</span>
             )}
@@ -86,6 +114,7 @@ export function ProfileHero({
           type="button"
           onClick={onOpenSettings}
           className={cn(
+            FOCUS_RING,
             'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
           )}
           aria-label={pl.profileHeroSettings}
@@ -94,16 +123,67 @@ export function ProfileHero({
         </button>
       </div>
 
-      {/* Quick CTA — sync or login */}
-      <div className="mt-3.5">
+      {/* Bio — if set */}
+      {showFollowStats && bio && (
+        <p className="mt-3 text-pretty text-sm leading-relaxed text-[var(--sr-text-secondary)]">
+          {bio}
+        </p>
+      )}
+
+      {/* Follow stats — followers + following */}
+      {showFollowStats && (
+        <div className="mt-3 flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <Users size={14} className="text-[var(--sr-text-muted)]" aria-hidden />
+            <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+              <span className="font-semibold text-[var(--sr-text-primary)]">
+                {followCounts.followers}
+              </span>{' '}
+              {pl.profileHeroFollowers}
+            </span>
+          </div>
+          <div className="h-3.5 w-px bg-[var(--sr-border-subtle)]" aria-hidden />
+          <div className="flex items-center gap-1.5">
+            <span className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+              <span className="font-semibold text-[var(--sr-text-primary)]">
+                {followCounts.following}
+              </span>{' '}
+              {pl.profileHeroFollowing}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Private profile hint */}
+      {showFollowStats && !isPublic && (
+        <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
+          {pl.profileHeroFollowHint}
+        </p>
+      )}
+
+      {/* CTAs — edit profile + sync/login */}
+      <div className="mt-3.5 flex gap-2.5">
+        {/* Edit profile — only when connected + online */}
+        {connected && online && (
+          <Button
+            variant="secondary"
+            size="md"
+            className="flex-1 gap-2"
+            onClick={onEditProfile}
+          >
+            <Pencil size={16} aria-hidden />
+            {pl.profileHeroEditProfile}
+          </Button>
+        )}
+
+        {/* Sync or login */}
         {connected ? (
           <Button
             variant="secondary"
             size="md"
-            fullWidth
+            className="flex-1 gap-2"
             disabled={!online || syncing}
             onClick={onSyncNow}
-            className="gap-2"
           >
             <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} aria-hidden />
             {syncing ? pl.syncInProgress : pl.profileHeroSyncNow}
@@ -112,9 +192,8 @@ export function ProfileHero({
           <Button
             variant="secondary"
             size="md"
-            fullWidth
+            className="flex-1 gap-2"
             onClick={onLogin}
-            className="gap-2"
           >
             <LogIn size={16} aria-hidden />
             {pl.profileHeroLogin}

@@ -200,8 +200,8 @@ export default function PlansPage() {
       showToast(pl.planImportDone, 'success')
       await reloadCustom()
       await openEditor(plan.id)
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : pl.importInvalid, 'error')
+    } catch {
+      showToast(pl.importInvalid, 'error')
     }
   }
 

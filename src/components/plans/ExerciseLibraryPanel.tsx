@@ -112,8 +112,8 @@ export function ExerciseLibraryPanel({
       if (mode === 'pick' && onPick) {
         onPick(saved)
       }
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : pl.errorCrash, 'error')
+    } catch {
+      showToast(pl.errorCrash, 'error')
     }
   }
 

@@ -39,7 +39,7 @@ Mobilna PWA (Vite + React 19 + TS + Tailwind 4 + Zustand + Dexie + Supabase). PL
 - Każde pole user-data musi się synchronizować z Supabase
 - Nowe pole w encji syncowanej → dodaj do upsert/pull w `src/lib/sync.ts`
 - Nowe ustawienie → dodaj do `defaultSettings` w `app-store.ts` + zachowaj w `clearAllLocalData()` w `local-data.ts` + sync w `enabled-programs-sync.ts`
-- AI keys (`aiApiKey`, `aiModel`, `aiBaseUrl`) są LOCAL-ONLY — nigdy do Supabase
+- AI keys: `aiApiKey` jest LOCAL-ONLY — nigdy do Supabase. `aiModel` i `aiBaseUrl` syncują się do chmury (nie są sekretami)
 - Komentarz „not synced" musi odzwierciedlać rzeczywistość (incydent z `language`)
 - Testy automatyczne wymuszają: `local-data-preservation.test.ts`
 - Sprawdź: persist across reload, survive clear-local-data, sync when logged in, pull on fresh device
