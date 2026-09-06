@@ -1,9 +1,8 @@
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { BarChart3, Calendar, Flame, Dumbbell, Trophy, TrendingUp, Activity } from 'lucide-react'
+import { BarChart3, Calendar, Dumbbell, Trophy, TrendingUp, Activity } from 'lucide-react'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
 import { ActivityCalendar } from '@/components/progress/ActivityCalendar'
-import { StreakHeatmap } from '@/components/progress/StreakHeatmap'
 import { MuscleBalanceHeatmap } from '@/components/progress/MuscleBalanceHeatmap'
 import { UnifiedRecordsSection } from '@/components/progress/UnifiedRecordsSection'
 import { AccessibleChart } from '@/components/ui/AccessibleChart'
@@ -340,13 +339,6 @@ export function OverviewPanel({
               </AccessibleChart>
             </div>
           )}
-        </ProgressSection>
-      )}
-
-      {/* Seria treningowa — streak heatmap */}
-      {allSessions.length > 0 && (
-        <ProgressSection id="progress-streak" icon={Flame} title={pl.streakHeatmapTitle} hint={pl.streakHeatmapHint}>
-          <StreakHeatmap sessions={allSessions} showHeader={false} />
         </ProgressSection>
       )}
 

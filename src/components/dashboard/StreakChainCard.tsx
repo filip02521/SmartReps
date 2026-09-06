@@ -1,5 +1,4 @@
-import { useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useMemo, useState } from 'react'
 import { Flame, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { dateFnsLocale } from '@/lib/date-locale'
@@ -9,6 +8,7 @@ import { computeBestStreakWeeks } from '@/lib/weekly-recap'
 import type { LocalWorkoutSession } from '@/lib/db'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
+import { StreakDetailSheet } from './StreakDetailSheet'
 
 type WeekCell = {
   weekKey: string
@@ -111,7 +111,7 @@ function nextMilestone(current: number): number | null {
 }
 
 export function StreakChainCard({ sessions }: { sessions: LocalWorkoutSession[] }) {
-  const navigate = useNavigate()
+  const [sheetOpen, setSheetOpen] = useState(false)
   const completed = useMemo(
     () => sessions.filter((s) => s.status === 'completed'),
     [sessions],
@@ -129,9 +129,10 @@ export function StreakChainCard({ sessions }: { sessions: LocalWorkoutSession[] 
 
   if (!hasAnyTraining) {
     return (
+      <>
       <button
         type="button"
-        onClick={() => navigate('/progress?tab=streak')}
+        onClick={() => setSheetOpen(true)}
         aria-label={pl.streakChainTitle}
         className={cn(
           FOCUS_RING,
@@ -158,13 +159,16 @@ export function StreakChainCard({ sessions }: { sessions: LocalWorkoutSession[] 
           className="shrink-0 text-[var(--sr-text-muted)] transition-colors group-hover:text-[var(--sr-text-primary)]"
         />
       </button>
+      <StreakDetailSheet open={sheetOpen} onClose={() => setSheetOpen(false)} sessions={sessions} />
+      </>
     )
   }
 
   return (
+    <>
     <button
       type="button"
-      onClick={() => navigate('/progress?tab=streak')}
+      onClick={() => setSheetOpen(true)}
       aria-label={pl.streakChainAria(streak, bestStreak)}
       className={cn(
         FOCUS_RING,
@@ -258,5 +262,7 @@ export function StreakChainCard({ sessions }: { sessions: LocalWorkoutSession[] 
         </div>
       ) : null}
     </button>
+    <StreakDetailSheet open={sheetOpen} onClose={() => setSheetOpen(false)} sessions={sessions} />
+    </>
   )
 }

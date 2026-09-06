@@ -57,15 +57,13 @@ import { ProgressChromeNav, type ProgressTab } from '@/components/progress/Progr
 import { ACHIEVEMENT_CATALOG } from '@/lib/achievements/catalog'
 import type { ProgramStats } from '@/lib/stats-engine'
 
-function parseTab(raw: string | null): ProgressTab | 'records' | 'streak' | null {
+function parseTab(raw: string | null): ProgressTab | 'records' | null {
   // New tabs
   if (raw === 'overview' || raw === 'history' || raw === 'achievements') return raw
   // Legacy tabs → redirect to overview
   if (raw === 'cycle' || raw === 'custom') return 'overview'
   // Legacy records → overview + scroll
   if (raw === 'records') return 'records'
-  // Streak scroll target → overview + scroll to streak section
-  if (raw === 'streak') return 'streak'
   return null
 }
 
@@ -77,14 +75,11 @@ export default function ProgressPage() {
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const [tab, setTab] = useState<ProgressTab>(() => {
     const raw = parseTab(searchParams.get('tab'))
-    if (raw === 'records' || raw === 'streak') return 'overview'
+    if (raw === 'records') return 'overview'
     return raw ?? 'overview'
   })
   const [scrollToRecords, setScrollToRecords] = useState(
     () => searchParams.get('tab') === 'records',
-  )
-  const [scrollToStreak, setScrollToStreak] = useState(
-    () => searchParams.get('tab') === 'streak',
   )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -123,7 +118,6 @@ export default function ProgressPage() {
   // Detail sheet
   const [detailExercise, setDetailExercise] = useState<ExerciseDefinition | null>(null)
   const recordsScrollDone = useRef(false)
-  const streakScrollDone = useRef(false)
 
   async function openExerciseDetail(exerciseId: string) {
     const ex = await db.exercises.get(exerciseId)
@@ -224,15 +218,6 @@ export default function ProgressPage() {
       setSearchParams(next, { replace: true })
       return
     }
-    if (raw === 'streak') {
-      setTab('overview')
-      streakScrollDone.current = false
-      setScrollToStreak(true)
-      const next = new URLSearchParams(searchParams)
-      next.delete('tab')
-      setSearchParams(next, { replace: true })
-      return
-    }
     // Legacy ?tab=cycle or ?tab=custom → redirect to overview
     const legacyRaw = searchParams.get('tab')
     if (legacyRaw === 'cycle' || legacyRaw === 'custom') {
@@ -271,25 +256,6 @@ export default function ProgressPage() {
     setScrollToRecords(false)
     window.setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }, [loading, scrollToRecords, tab])
-
-  // Scroll to streak section after load
-  useEffect(() => {
-    if (loading || !scrollToStreak || streakScrollDone.current) return
-    if (tab !== 'overview') {
-      streakScrollDone.current = true
-      setScrollToStreak(false)
-      return
-    }
-    const el = document.getElementById('progress-streak')
-    if (!el) {
-      streakScrollDone.current = true
-      setScrollToStreak(false)
-      return
-    }
-    streakScrollDone.current = true
-    setScrollToStreak(false)
-    window.setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
-  }, [loading, scrollToStreak, tab])
 
   function selectTab(next: ProgressTab) {
     setTab(next)

@@ -656,6 +656,18 @@ export const en: Translation = {
   streakChainThisWeek: 'This week',
   streakChainAria: (current: number, best: number) =>
     `Training streak: ${current} weeks in a row, best: ${best} weeks`,
+  // Streak detail sheet
+  streakSheetTitle: 'Your streak',
+  streakSheetCurrent: 'Current',
+  streakSheetBest: 'Best',
+  streakSheetTotal: 'Workouts',
+  streakSheetMilestones: 'Milestones',
+  streakSheetWeeksShort: 'wks',
+  streakSheetMilestoneProgress: (weeksLeft: number, target: number) =>
+    weeksLeft > 0
+      ? `${weeksLeft} wks to reach ${target} wks goal`
+      : `${target} wks goal reached!`,
+  streakSheetAllMilestones: 'All milestones achieved — legendary!',
   muscleBalanceTitle: 'Muscle balance',
   muscleBalanceHint: 'Weekly sets in the last 4 weeks',
   muscleBalanceOptimal: 'Optimal',

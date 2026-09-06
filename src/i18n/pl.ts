@@ -672,6 +672,18 @@ const plDict = {
   streakChainThisWeek: 'Ten tydzień',
   streakChainAria: (current: number, best: number) =>
     `Seria treningowa: ${current} tygodni z rzędu, rekord: ${best} tygodni`,
+  // Streak detail sheet
+  streakSheetTitle: 'Twoja seria',
+  streakSheetCurrent: 'Obecna',
+  streakSheetBest: 'Rekord',
+  streakSheetTotal: 'Treningi',
+  streakSheetMilestones: 'Kamienie milowe',
+  streakSheetWeeksShort: 'tyg.',
+  streakSheetMilestoneProgress: (weeksLeft: number, target: number) =>
+    weeksLeft > 0
+      ? `Jeszcze ${weeksLeft} tyg. do celu ${target} tyg.`
+      : `Cel ${target} tyg. osiągnięty!`,
+  streakSheetAllMilestones: 'Wszystkie kamienie milowe zdobyte — legenda!',
   // Muscle group balance heatmap
   muscleBalanceTitle: 'Balans mięśniowy',
   muscleBalanceHint: 'Serie tygodniowo w ostatnich 4 tyg.',
