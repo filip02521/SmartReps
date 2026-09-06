@@ -11,11 +11,12 @@ declare let self: ServiceWorkerGlobalScope
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
-// Activate new SW immediately on install — prevents stale chunk cache
-// after deploys. Without this, users get stuck on old SW serving removed chunks.
-self.addEventListener('install', () => {
-  self.skipWaiting()
-})
+// NOTE: Do NOT call self.skipWaiting() in the install handler.
+// With registerType: 'prompt', the SW must wait in the "waiting" state until
+// the user clicks "Refresh now". The updateSW() function from virtual:pwa-register
+// sends a SKIP_WAITING message (handled below) which activates the SW and reloads.
+// Calling skipWaiting() in install would activate the SW immediately, firing
+// controllerchange before updateSW() can listen for it — the page never reloads.
 
 // HTML navigations: network-first so deploys never serve stale index.html + missing chunks.
 // Only cache status 200 — opaque (status 0) responses can be blank/cross-origin pages.
