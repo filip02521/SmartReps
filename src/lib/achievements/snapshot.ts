@@ -269,7 +269,8 @@ export async function buildAchievementSnapshot(opts?: {
     weekendSessionCount: completed.filter(isWeekendSession).length,
     pushupsSessions,
     pullupsSessions,
-    customPlansCount: customPlans.length,
+    // Only count user-created plans (not imported from community/backup)
+    customPlansCount: customPlans.filter((p) => p.source === 'user' || p.source === 'duplicate').length,
     streakWeeks: computeStreakWeeks(completed, now),
     bestStreakWeeks: computeBestStreakWeeks(completed),
     maxPushups,
@@ -280,7 +281,17 @@ export async function buildAchievementSnapshot(opts?: {
     prRepeatMax: computeBuiltinPrRepeatMax(completed),
     comebackStronger: detectComeback(completedAsc, now),
     totalRepsAllTime,
-    bodyWeightEntries: bodyWeightEntries.length,
+    // Count distinct ISO weeks of body weight entries — prevents spamming 52
+    // entries in one day to get legendary. Tiers (1, 4, 12, 52) map to weeks.
+    bodyWeightEntries: new Set(
+      bodyWeightEntries.map((e) => {
+        const d = new Date(e.measuredAt)
+        const thursday = new Date(d.getTime() + (4 - (d.getDay() || 7)) * MS_DAY)
+        const yearStart = new Date(thursday.getFullYear(), 0, 1)
+        const week = Math.ceil(((thursday.getTime() - yearStart.getTime()) / MS_DAY + 1) / 7)
+        return `${thursday.getFullYear()}-W${week}`
+      }),
+    ).size,
     customExercisesCount: customExercises.filter(
       (e) =>
         !e.id.startsWith('builtin:') &&
