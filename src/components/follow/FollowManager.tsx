@@ -378,6 +378,7 @@ export function PublicProfileSheet({
         displayName: trimmedName,
         bio,
         isPublic,
+        showcaseSlots: existing?.showcase_slots ?? null,
       })
       if (!mountedRef.current) return
       // 2. Update local settings only after successful upsert
@@ -413,7 +414,7 @@ export function PublicProfileSheet({
     } finally {
       if (mountedRef.current) setBusy(false)
     }
-  }, [nameDraft, bio, isPublic, displayName, setSettings, onSaved, onClose])
+  }, [nameDraft, bio, isPublic, displayName, setSettings, onSaved, onClose, existing])
 
   return (
     <Sheet open={open} onClose={onClose} title={pl.followPublicProfile}>

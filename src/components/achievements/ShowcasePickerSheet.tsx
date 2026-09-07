@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/Button'
 import { achievementRarityLabel } from '@/lib/achievements/copy'
 import { pl } from '@/i18n/pl'
 import { FOCUS_RING } from '@/lib/ui-chrome'
+import { upsertMyPublicProfile } from '@/lib/follow-system'
+import { showToast } from '@/stores/toast-store'
 
 export function ShowcasePickerSheet({
   open,
@@ -50,11 +52,17 @@ export function ShowcasePickerSheet({
     })
   }
 
-  function save() {
+  async function save() {
     if (auto) setShowcasePinnedIds(null)
     else setShowcasePinnedIds(draft)
     onSaved()
     onClose()
+    // Sync to cloud so other users see the same showcase in follow cards
+    try {
+      await upsertMyPublicProfile({ showcaseSlots: auto ? null : draft })
+    } catch {
+      showToast(pl.followErrorGeneric, 'error')
+    }
   }
 
   const selectedCount = auto ? 0 : draft.length

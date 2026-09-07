@@ -16,6 +16,7 @@ export type PublicProfile = {
   best_streak_weeks: number
   achievement_count: number
   top_achievements: PublicAchievementBadge[]
+  showcase_slots: string[] | null
   updated_at?: string
 }
 
@@ -119,11 +120,13 @@ export async function upsertMyPublicProfile(args: {
   displayName?: string
   bio?: string
   isPublic?: boolean
+  showcaseSlots?: string[] | null
 }): Promise<PublicProfile> {
   const { data, error } = await supabase.rpc('upsert_my_public_profile', {
     p_display_name: args.displayName ?? '',
     p_bio: args.bio ?? '',
     p_is_public: args.isPublic ?? false,
+    p_showcase_slots: args.showcaseSlots ?? null,
   })
   if (error) {
     const msg = error.message ?? ''

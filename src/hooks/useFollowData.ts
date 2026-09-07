@@ -15,6 +15,7 @@ import {
 } from '@/lib/follow-system'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
+import { setShowcasePinnedIds } from '@/lib/achievements/showcase'
 
 export interface FollowData {
   profile: PublicProfile | null
@@ -84,6 +85,10 @@ export function useFollowData(): FollowData {
       setProfile(myProfile)
       setFollowing(followingList)
       setFollowers(followersList)
+      // Sync showcase slots from cloud to localStorage
+      if (myProfile?.showcase_slots !== undefined) {
+        setShowcasePinnedIds(myProfile.showcase_slots)
+      }
       if (uid) {
         const c = await getFollowCounts(uid)
         if (!mountedRef.current || reqId !== requestIdRef.current) return
