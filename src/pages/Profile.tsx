@@ -193,6 +193,7 @@ export default function ProfilePage() {
       // so we can compute the suppressed list (false badges to never re-create)
       const { isSupabaseConfigured, supabase } = await import('@/lib/supabase/client')
       let suppressedIds: string[] = []
+      let remoteAchievements: { achievement_id: string; unlocked_at: string; seen_at: string | null; tier_level?: number | null }[] | null = null
       if (isSupabaseConfigured) {
         const { data: { session } } = await supabase.auth.getSession()
         if (session?.user) {
@@ -200,8 +201,9 @@ export default function ProfilePage() {
           const localBefore = await getAllUnlocks()
           const { data: remote } = await supabase
             .from('user_achievements')
-            .select('achievement_id')
+            .select('achievement_id, unlocked_at, seen_at, tier_level')
             .eq('user_id', session.user.id)
+          remoteAchievements = remote
           const remoteIds = new Set((remote ?? []).map((r) => r.achievement_id))
           suppressedIds = localBefore
             .filter((l) => !remoteIds.has(l.id))
@@ -219,11 +221,22 @@ export default function ProfilePage() {
         setSuppressedAchievements(suppressedIds)
       }
 
+      // Pre-populate local achievements from cloud + set backfill flag BEFORE sync.
+      // Without this, scheduleAchievementCheck (fire-and-forget inside sync) sees
+      // 0 local achievements, treats all 14 as "newly unlocked", and shows a
+      // celebration sheet every time the user clears local data.
+      if (remoteAchievements && remoteAchievements.length > 0) {
+        const { mergeRemoteUnlocks, setBackfillFlag } = await import('@/lib/achievements/store')
+        await mergeRemoteUnlocks(remoteAchievements)
+        setBackfillFlag()
+      }
+
       if (isSupabaseConfigured) {
         const { data: { session } } = await supabase.auth.getSession()
         if (session?.user) {
           // Restore from cloud — pull all data + achievements
-          // scheduleAchievementCheck will skip suppressed IDs
+          // scheduleAchievementCheck will skip suppressed IDs and see existing
+          // achievements (pre-populated above) so no celebration sheet appears
           await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
           // Force-reconcile achievements: cloud is source of truth
           const { forceReconcileFromCloud } = await import('@/lib/achievements/sync')
