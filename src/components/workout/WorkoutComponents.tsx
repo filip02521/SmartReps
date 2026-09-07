@@ -2,6 +2,7 @@ import { cn, formatRestTime } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
 import { Check, ChevronRight, Minus, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { BrandLoader } from '@/components/ui/BrandLoader'
 import { OverlayPortal } from '@/components/ui/OverlayPortal'
 import { Sheet } from '@/components/ui/Sheet'
 import { getSetLabel, getTargetReps, formatSetTarget } from '@/lib/progress-engine'
@@ -48,6 +49,7 @@ export function ConfirmSheet({
   onCancel,
   variant = 'primary',
   extraActions,
+  confirming,
 }: {
   title: string
   message: string
@@ -58,20 +60,29 @@ export function ConfirmSheet({
   variant?: 'primary' | 'danger'
   /** Optional middle actions (e.g. logout keep-data) between confirm and cancel. */
   extraActions?: ReactNode
+  /** Disable buttons + show loading state while confirm action is in progress */
+  confirming?: boolean
 }) {
   return (
-    <Sheet open onClose={onCancel} title={title} showClose={false} elevated>
+    <Sheet open onClose={confirming ? () => undefined : onCancel} title={title} showClose={false} elevated>
       <p className="text-sm text-[var(--sr-text-secondary)]">{message}</p>
+      {confirming && (
+        <div className="mt-4 flex items-center justify-center gap-3 py-2">
+          <BrandLoader size={32} />
+          <span className="text-sm text-[var(--sr-text-muted)]">{pl.loading}</span>
+        </div>
+      )}
       <div className="mt-6 flex flex-col gap-2">
         <Button
           fullWidth
           variant={variant === 'danger' ? 'danger' : 'primary'}
           onClick={onConfirm}
+          disabled={confirming}
         >
-          {confirmLabel ?? pl.confirm}
+          {confirming ? pl.loading : (confirmLabel ?? pl.confirm)}
         </Button>
         {extraActions}
-        <Button variant="ghost" fullWidth onClick={onCancel}>
+        <Button variant="ghost" fullWidth onClick={onCancel} disabled={confirming}>
           {cancelLabel ?? pl.cancel}
         </Button>
       </div>

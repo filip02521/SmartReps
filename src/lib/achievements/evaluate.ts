@@ -11,7 +11,7 @@ import type {
   EvaluateResult,
   LocalAchievementUnlock,
 } from './types'
-import { getAllUnlocks, putUnlock, hasBackfillFlag, setBackfillFlag } from './store'
+import { getAllUnlocks, putUnlock, hasBackfillFlag, setBackfillFlag, getSuppressedAchievements } from './store'
 
 export async function evaluateAchievements(
   snap: AchievementSnapshot,
@@ -22,8 +22,12 @@ export async function evaluateAchievements(
   const newlyUnlocked: LocalAchievementUnlock[] = []
   const tierChanged: LocalAchievementUnlock[] = []
   const firstRun = opts?.forceBackfillCheck || !hasBackfillFlag()
+  // Suppressed achievements (force-removed via cloud reconcile) are never re-created
+  const suppressed = getSuppressedAchievements()
 
   for (const def of ACHIEVEMENT_CATALOG) {
+    // Skip suppressed achievements entirely — they were force-removed from cloud
+    if (suppressed.has(def.id)) continue
     const met = isAchievementMet(def.id, snap)
     const resolved = resolveTier(def, snap)
     const newTierLevel = resolved?.level ?? 0

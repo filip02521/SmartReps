@@ -103,18 +103,8 @@ export function ProgramHomeCard({
   if (model.loadError) {
     return (
       <ProgramAccentCard program={program}>
-        <div className="flex items-center gap-2.5">
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
-            style={{
-              background: program === 'pushups'
-                ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
-                : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
-            }}
-            aria-hidden
-          >
-            <ProgramIcon program={program} size={20} />
-          </div>
+        <div className="flex items-center gap-3">
+          <ProgramIconBadge program={program} />
           <h2 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
             {model.label}
           </h2>
@@ -130,18 +120,8 @@ export function ProgramHomeCard({
     return (
       <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
-              style={{
-                background: program === 'pushups'
-                  ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
-                : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
-              }}
-              aria-hidden
-            >
-              <ProgramIcon program={program} size={20} />
-            </div>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <ProgramIconBadge program={program} />
             <div className="min-w-0 flex-1">
               <h2 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
                 {model.label}
@@ -174,20 +154,10 @@ export function ProgramHomeCard({
 
   return (
     <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
-      {/* Header — compact: icon + title + badge inline, menu button right */}
+      {/* Header — icon + title + badge inline, menu button right */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]"
-            style={{
-              background: program === 'pushups'
-                ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
-                : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
-            }}
-            aria-hidden
-          >
-            <ProgramIcon program={program} size={20} />
-          </div>
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <ProgramIconBadge program={program} />
           <div className="min-w-0 flex-1">
             <h2 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
               {model.label}
@@ -910,5 +880,27 @@ export function ProgramHomeCard({
         </Sheet>
       )}
     </ProgramAccentCard>
+  )
+}
+
+/* ─── Program icon badge — larger, with gradient ring ─── */
+
+function ProgramIconBadge({ program }: { program: 'pushups' | 'pullups' }) {
+  return (
+    <div
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-lg)] ring-1"
+      style={{
+        background: program === 'pushups'
+          ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
+          : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
+        // @ts-expect-error — CSS custom property
+        '--tw-ring-color': program === 'pushups'
+          ? 'color-mix(in srgb, var(--sr-pushups-accent) 30%, transparent)'
+          : 'color-mix(in srgb, var(--sr-pullups-accent) 30%, transparent)',
+      }}
+      aria-hidden
+    >
+      <ProgramIcon program={program} size={26} />
+    </div>
   )
 }

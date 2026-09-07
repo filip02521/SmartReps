@@ -810,15 +810,19 @@ function CycleList({
               >
                 <span className="flex min-w-0 items-center gap-2.5">
                   <span
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)]"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] ring-1"
                     style={{
                       background: program === 'pushups'
                         ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
                         : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
+                      // @ts-expect-error — CSS custom property
+                      '--tw-ring-color': program === 'pushups'
+                        ? 'color-mix(in srgb, var(--sr-pushups-accent) 30%, transparent)'
+                        : 'color-mix(in srgb, var(--sr-pullups-accent) 30%, transparent)',
                     }}
                     aria-hidden
                   >
-                    <ProgramIcon program={program} size={18} />
+                    <ProgramIcon program={program} size={22} />
                   </span>
                   <span className="min-w-0">
                     <span className="flex flex-wrap items-center gap-2">

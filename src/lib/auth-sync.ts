@@ -335,24 +335,28 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
       useAppStore.getState().setLastSyncFailureReason(null)
       await completeOnboardingIfSynced()
       track('sync_ok')
-      try {
-        const { pullAchievementsFromCloud } = await import('@/lib/achievements/sync')
-        const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
-        await pullAchievementsFromCloud()
-        // Queue unseen remote unlocks (earned on another device, not yet shown here)
-        const { listUnseenUnlocks } = await import('@/lib/achievements/store')
-        const { useAchievementUiStore } = await import('@/stores/achievement-ui-store')
-        const unseen = await listUnseenUnlocks()
-        if (unseen.length > 0) {
-          useAchievementUiStore.getState().enqueueUnlocks(unseen, false)
-        }
-        scheduleAchievementCheck()
-      } catch {
-        /* best-effort */
-      }
     } else {
       if (reason) useAppStore.getState().setLastSyncFailureReason(reason)
       track('sync_failed', { errors: finalResult.errors, reason: reason ?? 'unknown' })
+    }
+
+    // Achievement reconciliation runs independently of data sync result.
+    // Even if the queue has failing items, achievements should still reconcile
+    // with the cloud (e.g. remove erroneously-unlocked badges).
+    try {
+      const { pullAchievementsFromCloud } = await import('@/lib/achievements/sync')
+      const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+      await pullAchievementsFromCloud()
+      // Queue unseen remote unlocks (earned on another device, not yet shown here)
+      const { listUnseenUnlocks } = await import('@/lib/achievements/store')
+      const { useAchievementUiStore } = await import('@/stores/achievement-ui-store')
+      const unseen = await listUnseenUnlocks()
+      if (unseen.length > 0) {
+        useAchievementUiStore.getState().enqueueUnlocks(unseen, false)
+      }
+      scheduleAchievementCheck()
+    } catch {
+      /* best-effort */
     }
 
     return finalResult

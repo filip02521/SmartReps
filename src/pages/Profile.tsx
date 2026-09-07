@@ -81,6 +81,7 @@ export default function ProfilePage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deletingAccount, setDeletingAccount] = useState(false)
   const [showImportSheet, setShowImportSheet] = useState(false)
+  const [clearingLocal, setClearingLocal] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [showFollowersSheet, setShowFollowersSheet] = useState(false)
@@ -153,6 +154,8 @@ export default function ProfilePage() {
     setSyncing(true)
     try {
       await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
+      // Reload achievement data after sync
+      await reloadMeta()
     } finally {
       setSyncing(false)
     }
@@ -181,9 +184,43 @@ export default function ProfilePage() {
   }
 
   const clearLocal = async () => {
-    await clearAllLocalData()
-    setShowClearConfirm(false)
-    navigate('/setup/onboarding', { replace: true })
+    setClearingLocal(true)
+    try {
+      await clearAllLocalData()
+      setShowClearConfirm(false)
+      // If user is logged in, pull fresh data from cloud instead of going to onboarding
+      const { isSupabaseConfigured, supabase } = await import('@/lib/supabase/client')
+      if (isSupabaseConfigured) {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          // Restore from cloud — pull all data + achievements
+          await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
+          // Wait for any pending achievement evaluation to complete
+          // (scheduleAchievementCheck is fire-and-forget and may re-create
+          // false achievements AFTER forceReconcileFromCloud runs)
+          const { runAchievementEvaluation } = await import('@/lib/achievements/run')
+          try {
+            await runAchievementEvaluation({ skipCloud: true })
+          } catch {
+            /* best-effort */
+          }
+          // Force-reconcile achievements: cloud is source of truth
+          // This runs AFTER evaluation completes, so it overrides any re-created unlocks
+          const { forceReconcileFromCloud } = await import('@/lib/achievements/sync')
+          await forceReconcileFromCloud()
+          // Reload page data
+          await reloadMeta()
+          return
+        }
+      }
+      // No session — go to onboarding
+      navigate('/setup/onboarding', { replace: true })
+    } catch {
+      showToast(pl.toastSyncFailed, 'error')
+      navigate('/setup/onboarding', { replace: true })
+    } finally {
+      setClearingLocal(false)
+    }
   }
 
   const exportJsonBackup = async () => {
@@ -691,6 +728,7 @@ export default function ProfilePage() {
           message={pl.clearLocalDataConfirm}
           confirmLabel={pl.confirm}
           variant="danger"
+          confirming={clearingLocal}
           onConfirm={() => void clearLocal()}
           onCancel={() => setShowClearConfirm(false)}
         />

@@ -22,19 +22,28 @@ export function ProgramAccentCard({
   return (
     <Card
       {...props}
-      className={cn('relative overflow-hidden border-l-4 transition-colors hover:border-l-[var(--sr-border-strong)]', className)}
+      className={cn(
+        'relative overflow-hidden border-l-4 transition-all hover:border-l-[var(--sr-border-strong)] hover:shadow-[var(--sr-shadow-elevated)]',
+        className,
+      )}
       style={
         {
           ...style,
           borderLeftColor: accent,
           backgroundImage: `linear-gradient(
             135deg,
-            color-mix(in srgb, ${accent} 12%, var(--sr-bg-elevated)) 0%,
-            var(--sr-bg-elevated) 42%
+            color-mix(in srgb, ${accent} 10%, var(--sr-bg-elevated)) 0%,
+            var(--sr-bg-elevated) 50%
           )`,
         } as CSSProperties
       }
     >
+      {/* Subtle accent glow in top-right corner */}
+      <div
+        className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-20 blur-2xl"
+        style={{ background: accent }}
+        aria-hidden
+      />
       {children}
     </Card>
   )

@@ -3,6 +3,7 @@ import { ACHIEVEMENT_CATALOG } from './catalog'
 import type { AchievementId, LocalAchievementUnlock } from './types'
 
 const BACKFILL_KEY = 'achievements_backfill_v1'
+const SUPPRESSED_KEY = 'achievements_suppressed_v1'
 
 /** Set of valid achievement IDs from the catalog — used to validate remote data. */
 const VALID_ACHIEVEMENT_IDS = new Set(ACHIEVEMENT_CATALOG.map((d) => d.id))
@@ -120,6 +121,39 @@ export function setBackfillFlag(): void {
 export function clearBackfillFlag(): void {
   try {
     localStorage.removeItem(BACKFILL_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Suppressed achievements — IDs that were force-removed from cloud reconcile.
+ * These will NOT be re-created by evaluateAchievements even if criteria are met.
+ * This prevents false achievements from being resurrected by scheduleAchievementCheck.
+ */
+export function getSuppressedAchievements(): Set<AchievementId> {
+  try {
+    const raw = localStorage.getItem(SUPPRESSED_KEY)
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw) as string[]
+    return new Set(arr.filter((id) => VALID_ACHIEVEMENT_IDS.has(id as AchievementId)) as AchievementId[])
+  } catch {
+    return new Set()
+  }
+}
+
+export function setSuppressedAchievements(ids: AchievementId[]): void {
+  try {
+    const valid = ids.filter((id) => VALID_ACHIEVEMENT_IDS.has(id))
+    localStorage.setItem(SUPPRESSED_KEY, JSON.stringify(valid))
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearSuppressedAchievements(): void {
+  try {
+    localStorage.removeItem(SUPPRESSED_KEY)
   } catch {
     /* ignore */
   }

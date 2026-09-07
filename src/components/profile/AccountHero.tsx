@@ -4,6 +4,7 @@ import { dateFnsLocale } from '@/lib/date-locale'
 import { ChevronDown } from 'lucide-react'
 import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { BrandLoader } from '@/components/ui/BrandLoader'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { pl } from '@/i18n/pl'
 import { isSupabaseConfigured } from '@/lib/supabase/client'
@@ -150,6 +151,7 @@ export function AccountHero({
             disabled={retrying || syncing}
             onClick={() => void handleRetryDeadLetter()}
           >
+            {retrying && <BrandLoader size={18} className="mr-2" />}
             {retrying ? pl.syncInProgress : pl.syncRetryDead}
           </Button>
         </div>
@@ -197,6 +199,7 @@ export function AccountHero({
             disabled={!online || syncing}
             onClick={() => void onSyncNow()}
           >
+            {syncing && <BrandLoader size={18} className="mr-2" />}
             {syncing ? pl.syncInProgress : pl.syncNow}
           </Button>
         )}

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 import { ACHIEVEMENT_CATALOG, isAchievementMet } from './catalog'
 import type { AchievementId, LocalAchievementUnlock } from './types'
-import { getAllUnlocks, mergeRemoteUnlocks } from './store'
+import { getAllUnlocks, mergeRemoteUnlocks, setSuppressedAchievements, clearSuppressedAchievements } from './store'
 import { buildAchievementSnapshot } from './snapshot'
 import { db } from '@/lib/db'
 
@@ -58,19 +58,21 @@ export async function pullAchievementsFromCloud(): Promise<void> {
     .eq('user_id', userData.user.id)
 
   if (error || !data) return
+
+  // Cloud is source of truth — delete local achievements NOT in remote
+  // (after merge) that are not currently met by snapshot.
+  // This is the only way to remove erroneously-unlocked achievements.
   await mergeRemoteUnlocks(data)
 
   const local = await getAllUnlocks()
   const remoteIds = new Set(data.map((r) => r.achievement_id))
   const missing = local.filter((l) => !remoteIds.has(l.id))
 
-  // Reconcile: delete local achievements not in remote IF they are not currently
-  // met by the snapshot. This removes erroneously-unlocked achievements without
-  // wiping legitimate offline unlocks that haven't synced yet.
   const toDelete: AchievementId[] = []
   if (missing.length) {
     const snap = await buildAchievementSnapshot({ force: true }).catch(() => null)
     for (const unlock of missing) {
+      // Delete if not in remote AND not currently met by snapshot
       if (snap && !isAchievementMet(unlock.id, snap)) {
         toDelete.push(unlock.id)
       }
@@ -84,4 +86,38 @@ export async function pullAchievementsFromCloud(): Promise<void> {
   const deletedSet = new Set(toDelete)
   const remaining = missing.filter((l) => !deletedSet.has(l.id))
   if (remaining.length) await pushAchievementsToCloud(remaining)
+}
+
+/**
+ * Force-reconcile: cloud is absolute source of truth.
+ * Delete ALL local achievements not present in remote, regardless of snapshot.
+ * Suppressed IDs are recorded so evaluateAchievements won't re-create them.
+ * Use after clearAllLocalData + cloud pull to ensure local matches cloud exactly.
+ */
+export async function forceReconcileFromCloud(): Promise<void> {
+  if (!supabase) return
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) return
+
+  const { data, error } = await supabase
+    .from('user_achievements')
+    .select('achievement_id, unlocked_at, seen_at, tier_level')
+    .eq('user_id', userData.user.id)
+
+  if (error || !data) return
+
+  // Record which local achievements are being removed (not in remote)
+  // so evaluateAchievements won't re-create them
+  const local = await getAllUnlocks()
+  const remoteIds = new Set(data.map((r) => r.achievement_id))
+  const removed = local.filter((l) => !remoteIds.has(l.id)).map((l) => l.id)
+  if (removed.length > 0) {
+    setSuppressedAchievements(removed)
+  } else {
+    clearSuppressedAchievements()
+  }
+
+  // Replace local entirely with remote
+  await db.achievementUnlocks.clear()
+  await mergeRemoteUnlocks(data)
 }

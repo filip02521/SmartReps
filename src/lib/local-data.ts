@@ -45,8 +45,9 @@ export async function clearAllLocalData(): Promise<void> {
   // Clear backfill flag so the next account starts fresh — otherwise the first
   // evaluation after account switch would skip the backfill check.
   try {
-    const { clearBackfillFlag } = await import('@/lib/achievements/store')
+    const { clearBackfillFlag, clearSuppressedAchievements } = await import('@/lib/achievements/store')
     clearBackfillFlag()
+    clearSuppressedAchievements()
   } catch {
     /* best-effort */
   }
