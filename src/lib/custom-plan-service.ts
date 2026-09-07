@@ -94,28 +94,46 @@ export function isEmptyOrphanDraft(plan: CustomPlan): boolean {
 /** When the library is empty, seed the default starter pack (idempotent).
  *  Also backfills any missing starter exercises for existing users,
  *  and backfills muscleGroup on existing starter exercises that lack it. */
+
+// Prevent race condition: ensureDefaultExercises can be called simultaneously
+// from online-sync boot + custom-sync pull + ExerciseLibraryPanel mount.
+// Without a lock, parallel calls both see "no exercises" and both seed,
+// creating duplicate starter exercises with different UUIDs.
+let ensureDefaultExercisesLock: Promise<{
+  seeded: boolean
+  created: ExerciseDefinition[]
+}> | null = null
+
 export async function ensureDefaultExercises(): Promise<{
   seeded: boolean
   created: ExerciseDefinition[]
 }> {
-  const all = await db.exercises.toArray()
-  const active = all.filter((e) => !e.archived)
-  if (active.length === 0) {
-    const { created } = await seedStarterExercises()
-    return { seeded: created.length > 0, created }
-  }
-  // Backfill muscleGroup on existing starter exercises that lack it.
-  await backfillStarterMuscleGroups(active)
-  // Backfill: if user has fewer exercises than the starter pack, add missing ones.
-  const byName = new Set(active.map((e) => e.name.trim().toLowerCase()))
-  const missing = EXERCISE_STARTERS.some(
-    (s) => !byName.has(STARTER_LABELS[s.key].toLowerCase()),
-  )
-  if (missing) {
-    const { created } = await seedStarterExercises()
-    return { seeded: created.length > 0, created }
-  }
-  return { seeded: false, created: [] }
+  if (ensureDefaultExercisesLock) return ensureDefaultExercisesLock
+  ensureDefaultExercisesLock = (async () => {
+    try {
+      const all = await db.exercises.toArray()
+      const active = all.filter((e) => !e.archived)
+      if (active.length === 0) {
+        const { created } = await seedStarterExercises()
+        return { seeded: created.length > 0, created }
+      }
+      // Backfill muscleGroup on existing starter exercises that lack it.
+      await backfillStarterMuscleGroups(active)
+      // Backfill: if user has fewer exercises than the starter pack, add missing ones.
+      const byName = new Set(active.map((e) => e.name.trim().toLowerCase()))
+      const missing = EXERCISE_STARTERS.some(
+        (s) => !byName.has(STARTER_LABELS[s.key].toLowerCase()),
+      )
+      if (missing) {
+        const { created } = await seedStarterExercises()
+        return { seeded: created.length > 0, created }
+      }
+      return { seeded: false, created: [] }
+    } finally {
+      ensureDefaultExercisesLock = null
+    }
+  })()
+  return ensureDefaultExercisesLock
 }
 
 /**
@@ -243,7 +261,10 @@ export async function seedStarterExercises(): Promise<{
     created.push(ex)
     byName.set(name.toLowerCase(), ex)
   }
-  return { created, all: await listExercises() }
+  // Return exercises directly from db — calling listExercises() here would
+  // re-enter ensureDefaultExercises() and deadlock against the lock.
+  const all = await db.exercises.toArray()
+  return { created, all: all.filter((e) => !e.archived).sort((a, b) => a.name.localeCompare(b.name, 'pl')) }
 }
 
 export async function listCustomPlans(): Promise<CustomPlan[]> {
