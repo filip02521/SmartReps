@@ -191,7 +191,7 @@ function BadgeRow({ badges }: { badges: PublicAchievementBadge[] }) {
     return null
   }
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto sr-no-scrollbar">
+    <div className="flex items-center gap-2 overflow-visible">
       {badges.map((b, i) => (
         <AchievementTrophyBadge key={`${b.achievement_id}-${i}`} badge={b} />
       ))}
