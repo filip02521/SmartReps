@@ -177,6 +177,7 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
         const def = exerciseMap.get(log.exerciseId)
         const metric: PrimaryMetric = def?.primaryMetric ?? 'reps'
         const name = def?.name ?? pl.planDash
+        const durationUnit = def?.durationDisplayUnit ?? 'sec'
         return (
           <Card key={`${log.exerciseId}-${log.order}`} className="mb-3 overflow-x-auto p-4 transition-colors hover:border-[var(--sr-border-strong)]">
             <p className="mb-3 font-semibold text-[var(--sr-text-primary)]">{name}</p>
@@ -198,7 +199,7 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
                       : null
                   const setInsight = insights?.setInsights.get(`${log.exerciseId}:${set.setNumber}`)
                   const badge = formatCustomSetInsightBadge(setInsight)
-                  const ariaLabel = customSetInsightAria(setInsight, metric, set)
+                  const ariaLabel = customSetInsightAria(setInsight, metric, set, durationUnit)
                   return (
                     <tr
                       key={set.setNumber}
@@ -212,7 +213,7 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
                         {set.setNumber}
                       </td>
                       <td className="py-2 tabular-nums text-[var(--sr-text-secondary)]">
-                        {formatPrescriptionTarget(set.prescription, metric, weightUnit)}
+                        {formatPrescriptionTarget(set.prescription, metric, weightUnit, durationUnit)}
                       </td>
                       <td
                         className={`py-2 text-base font-semibold tabular-nums ${
@@ -225,7 +226,7 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
                           className="inline-flex flex-wrap items-center gap-1.5"
                           aria-label={ariaLabel ?? undefined}
                         >
-                          {formatSetActualDisplay(set.actual, metric, weightUnit)}
+                          {formatSetActualDisplay(set.actual, metric, weightUnit, durationUnit)}
                           {badge && setInsight?.kind === 'pr' && (
                             <SummaryInsightBadge tone="pr">{badge}</SummaryInsightBadge>
                           )}
@@ -240,7 +241,7 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
                       <td className="hidden py-2 tabular-nums text-[var(--sr-text-muted)] sm:table-cell">
                         {prevSet ? (
                           <span className="inline-flex items-center gap-1">
-                            {formatSetActualDisplay(prevSet.actual, metric, weightUnit)}
+                            {formatSetActualDisplay(prevSet.actual, metric, weightUnit, durationUnit)}
                             <TrendIndicator delta={diff} />
                           </span>
                         ) : (

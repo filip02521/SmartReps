@@ -334,7 +334,16 @@ export async function detectPlateau(
   const programLabel = program === 'pushups' ? pl.pushupsProgram : program === 'pullups' ? pl.pullupsProgram : program
   const lastMetric = sessionProgressionMetric(plateauSessions[2])
   const bestMetric = Math.max(...plateauSessions.map(sessionProgressionMetric))
-  const sessionsSinceBest = plateauSessions.length - plateauSessions.findIndex((s) => sessionProgressionMetric(s) === bestMetric) - 1
+  // Use findLastIndex so that if the best metric was achieved multiple times,
+  // we report the most recent occurrence (not the oldest).
+  let bestIdx = -1
+  for (let i = plateauSessions.length - 1; i >= 0; i--) {
+    if (sessionProgressionMetric(plateauSessions[i]) === bestMetric) {
+      bestIdx = i
+      break
+    }
+  }
+  const sessionsSinceBest = plateauSessions.length - 1 - bestIdx
 
   return {
     id: crypto.randomUUID(),

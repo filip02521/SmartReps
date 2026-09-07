@@ -1738,6 +1738,7 @@ export default function CustomWorkoutPage() {
         timerRunning={timerRunning}
         canEditPreviousSet={canEditPreviousSet}
         weightUnit={weightUnit}
+        durationUnit={exDef.durationDisplayUnit ?? 'sec'}
         onBack={() => {
           if (!sessionHasProgress) {
             discardEphemeralSession()

@@ -2,7 +2,7 @@ import { buildAchievementSnapshot, emptyImpact } from './snapshot'
 import { evaluateAchievements } from './evaluate'
 import type { AuthorImpactStats, EvaluateResult } from './types'
 import { fetchAuthorImpact } from './community-impact'
-import { pushAchievementsToCloud } from './sync'
+import { pushAchievementsToCloud, deleteAchievementsFromCloud } from './sync'
 
 let evaluatingPromise: Promise<EvaluateResult> | null = null
 
@@ -38,6 +38,10 @@ async function doEvaluate(opts?: {
       const toPush = [...result.newlyUnlocked, ...result.tierChanged]
       if (toPush.length > 0) {
         void pushAchievementsToCloud(toPush).catch(() => undefined)
+      }
+      // Delete revoked rolling-window achievements from cloud
+      if (result.revoked.length > 0) {
+        void deleteAchievementsFromCloud(result.revoked).catch(() => undefined)
       }
     }
     return result

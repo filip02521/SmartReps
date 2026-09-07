@@ -188,11 +188,11 @@ export function BodyWeightSection() {
               )}
               <button
                 type="button"
-                className={`flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-error)] active:scale-95 ${FOCUS_RING}`}
+                className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-error)] active:scale-95 ${FOCUS_RING}`}
                 onClick={() => void handleDelete(e.id)}
                 aria-label={pl.bodyWeightDelete}
               >
-                <Trash2 size={14} />
+                <Trash2 size={16} />
               </button>
             </li>
           ))}

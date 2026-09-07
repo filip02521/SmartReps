@@ -2,6 +2,7 @@ import { TargetKindChips } from '@/components/plans/TargetKindChips'
 import { NumericDraftInput } from '@/components/ui/NumericDraftInput'
 import type { MetricTarget, PrimaryMetric, SetPrescription } from '@/lib/exercise-model'
 import { metricTargetDisplayValue } from '@/lib/plan-resolver'
+import { secToDisplay, displayToSec, type DurationUnit } from '@/lib/custom-prescription-format'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 
@@ -57,26 +58,40 @@ export function CustomSetPrescriptionEditor({
   metric,
   prescription,
   disabled = false,
+  durationUnit = 'sec',
   onChange,
 }: {
   setNumber: number
   metric: PrimaryMetric
   prescription: SetPrescription
   disabled?: boolean
+  durationUnit?: DurationUnit
   onChange: (next: SetPrescription) => void
 }) {
+  const isMinUnit = metric === 'duration_sec' && durationUnit === 'min'
   const primaryTarget =
     metric === 'duration_sec'
-      ? (prescription.durationSec ?? { kind: 'min', value: 30 })
+      ? (prescription.durationSec ?? { kind: 'min', value: isMinUnit ? 5 : 30 })
       : (prescription.reps ?? { kind: 'fixed', value: 8 })
   const weightTarget = prescription.weightKg ?? { kind: 'fixed' as const, value: 20 }
 
   const primaryLabel =
     metric === 'duration_sec'
-      ? pl.customWorkoutDurationSec
+      ? isMinUnit
+        ? pl.customWorkoutDurationMin
+        : pl.customWorkoutDurationSec
       : metric === 'reps_weight'
         ? pl.customSetRepsLabel
         : pl.planTargetValue
+
+  // For min unit, convert the stored seconds to display minutes for the input
+  const displayTarget: MetricTarget = isMinUnit
+    ? {
+        kind: primaryTarget.kind,
+        value: primaryTarget.kind === 'max' ? secToDisplay(primaryTarget.minValue, 'min') : secToDisplay(primaryTarget.value, 'min'),
+        ...(primaryTarget.kind === 'max' ? { minValue: secToDisplay(primaryTarget.minValue, 'min') } : {}),
+      } as MetricTarget
+    : primaryTarget
 
   return (
     <article className="overflow-hidden rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]">
@@ -95,12 +110,17 @@ export function CustomSetPrescriptionEditor({
         <PrescriptionMetricBlock
           idPrefix={`set-${setNumber}-primary`}
           label={primaryLabel}
-          target={primaryTarget}
+          target={displayTarget}
           mode="integer"
           disabled={disabled}
           onChange={(next) => {
             if (metric === 'duration_sec') {
-              onChange({ durationSec: next })
+              // Convert display value back to seconds
+              const secValue = next.kind === 'max' ? displayToSec(next.minValue, durationUnit) : displayToSec(next.value, durationUnit)
+              const secTarget: MetricTarget = next.kind === 'max'
+                ? { kind: 'max', minValue: secValue }
+                : { kind: next.kind, value: secValue }
+              onChange({ durationSec: secTarget })
             } else {
               onChange({ reps: next, weightKg: prescription.weightKg })
             }

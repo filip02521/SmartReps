@@ -4,6 +4,7 @@ import {
   acquireInflight,
   releaseInflight,
   recordCall,
+  recordFailedCall,
   getRemainingQuota,
   getCooldownRemaining,
   formatCooldownRemaining,
@@ -138,6 +139,33 @@ describe('rate-limiter', () => {
     })
   })
 
+  describe('recordFailedCall', () => {
+    it('increments daily count (consumes quota)', () => {
+      expect(getRemainingQuota()).toBe(50)
+      recordFailedCall('weekly_report')
+      expect(getRemainingQuota()).toBe(49)
+    })
+
+    it('does NOT set lastCall (no cooldown triggered)', () => {
+      recordFailedCall('plan_generation')
+      expect(getCooldownRemaining('plan_generation')).toBe(0)
+    })
+
+    it('multiple failed calls consume quota progressively', () => {
+      recordFailedCall('weekly_report')
+      recordFailedCall('weekly_report')
+      recordFailedCall('plan_generation')
+      expect(getRemainingQuota()).toBe(47)
+    })
+
+    it('failed calls count toward quota exhaustion', () => {
+      for (let i = 0; i < 50; i++) recordFailedCall('weekly_report')
+      const result = checkRateLimit('plan_generation')
+      expect(result.allowed).toBe(false)
+      if (!result.allowed) expect(result.reason).toBe('quota')
+    })
+  })
+
   describe('getCooldownRemaining', () => {
     it('returns 0 when no call recorded', () => {
       expect(getCooldownRemaining('weekly_report')).toBe(0)
@@ -207,11 +235,11 @@ describe('rate-limiter', () => {
       expect(remaining).toBeLessThanOrEqual(3 * 60 * 1000) // <= 3 min
     })
 
-    it('weekly_report cooldown is 30 min', () => {
+    it('weekly_report cooldown is 24 h (force regen limited to once/day)', () => {
       recordCall('weekly_report')
       const remaining = getCooldownRemaining('weekly_report')
-      expect(remaining).toBeGreaterThan(25 * 60 * 1000) // > 25 min
-      expect(remaining).toBeLessThanOrEqual(30 * 60 * 1000) // <= 30 min
+      expect(remaining).toBeGreaterThan(23 * 60 * 60 * 1000) // > 23 h
+      expect(remaining).toBeLessThanOrEqual(24 * 60 * 60 * 1000) // <= 24 h
     })
 
     it('workout_analysis cooldown is 30 min', () => {

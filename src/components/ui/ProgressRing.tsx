@@ -8,6 +8,7 @@ export function ProgressRing({
   className,
   children,
   reducedMotion,
+  ringColor,
 }: {
   progress: number
   size?: number
@@ -15,6 +16,8 @@ export function ProgressRing({
   className?: string
   children?: ReactNode
   reducedMotion?: boolean
+  /** Override the ring stroke color (e.g. green when rest is ending). */
+  ringColor?: string
 }) {
   const r = (size - strokeWidth) / 2 - 4
   const cx = size / 2
@@ -23,6 +26,7 @@ export function ProgressRing({
   const clamped = Math.min(1, Math.max(0, progress))
   const offset = reducedMotion ? circumference * (1 - clamped) : circumference * (1 - clamped)
   const gradId = `sr-ring-gradient-${Math.round(size)}-${strokeWidth}`
+  const stroke = ringColor ?? `url(#${gradId})`
 
   return (
     <div
@@ -40,19 +44,21 @@ export function ProgressRing({
           cy={cy}
           r={r}
           fill="none"
-          stroke={`url(#${gradId})`}
+          stroke={stroke}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           style={reducedMotion ? undefined : { transition: 'stroke-dashoffset 300ms ease' }}
         />
-        <defs>
-          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop stopColor="var(--sr-brand-primary)" />
-            <stop offset="1" stopColor="var(--sr-brand-secondary)" />
-          </linearGradient>
-        </defs>
+        {!ringColor && (
+          <defs>
+            <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop stopColor="var(--sr-brand-primary)" />
+              <stop offset="1" stopColor="var(--sr-brand-secondary)" />
+            </linearGradient>
+          </defs>
+        )}
       </svg>
       {children && (
         <div className="absolute inset-0 flex items-center justify-center">{children}</div>

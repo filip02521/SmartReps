@@ -18,11 +18,13 @@ const variants: Record<Variant, string> = {
 type Size = 'sm' | 'md' | 'lg' | 'touch'
 
 const sizes: Record<Size, string> = {
-  sm: 'h-9 px-3.5 text-sm rounded-[var(--sr-radius-sm)] gap-1.5',
-  md: 'h-11 px-4 text-base rounded-[var(--sr-radius-md)] gap-2',
-  lg: 'h-12 px-6 text-base rounded-[var(--sr-radius-md)] gap-2',
+  // Use min-h instead of fixed h so labels can wrap on narrow viewports
+  // instead of overflowing the button height.
+  sm: 'min-h-9 px-3.5 py-1.5 text-sm rounded-[var(--sr-radius-sm)] gap-1.5',
+  md: 'min-h-11 px-4 py-2 text-base rounded-[var(--sr-radius-md)] gap-2',
+  lg: 'min-h-12 px-6 py-2.5 text-base rounded-[var(--sr-radius-md)] gap-2',
   touch:
-    'h-14 px-6 text-lg font-semibold rounded-[var(--sr-radius-md)] min-h-[var(--sr-spacing-touch)] gap-2.5',
+    'min-h-14 px-6 py-3 text-lg font-semibold rounded-[var(--sr-radius-md)] min-h-[var(--sr-spacing-touch)] gap-2.5',
 }
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

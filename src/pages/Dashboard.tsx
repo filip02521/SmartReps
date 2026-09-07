@@ -33,6 +33,7 @@ import {
   acquireInflight,
   releaseInflight,
   recordCall,
+  recordFailedCall,
   formatCooldownRemaining,
 } from '@/lib/ai/rate-limiter'
 import { listExercises } from '@/lib/custom-plan-service'
@@ -205,6 +206,11 @@ export default function Dashboard() {
           if (allExisting.length > 1) {
             const duplicates = allExisting.filter((r) => r.id !== best.id)
             await Promise.all(duplicates.map((r) => db.aiInsights.delete(r.id)))
+            // Enqueue sync deletes so duplicates are removed from cloud too
+            // (prevents resurrection from other devices)
+            for (const dup of duplicates) {
+              void enqueueSync('ai_insights', 'delete', dup)
+            }
           }
           if (!cancelled && !best.dismissedAt) setWeeklyReport(best)
           // Even if current week has a report, still do catch-up for prev week
@@ -267,6 +273,7 @@ export default function Dashboard() {
             if (forceRegenerate) {
               const old = await db.aiInsights.where('weekKey').equals(targetWeekKey).filter((i) => i.type === 'weekly_report').toArray()
               await Promise.all(old.map((r) => db.aiInsights.delete(r.id)))
+              for (const r of old) void enqueueSync('ai_insights', 'delete', r)
             }
             await db.aiInsights.put(report)
             void enqueueSync('ai_insights', 'insert', report)
@@ -302,6 +309,8 @@ export default function Dashboard() {
         }
         // When forcing with AI configured, don't overwrite AI report with local fallback
         if (forceRegenerate && aiConfig && report.source !== 'ai') {
+          // AI failed — count toward quota to prevent retry spam
+          recordFailedCall('weekly_report')
           // AI failed — keep existing report if any, don't save local fallback
           const existing = await db.aiInsights
             .where('weekKey')
@@ -329,6 +338,7 @@ export default function Dashboard() {
             .filter((i) => i.type === 'weekly_report')
             .toArray()
           await Promise.all(old.map((r) => db.aiInsights.delete(r.id)))
+          for (const r of old) void enqueueSync('ai_insights', 'delete', r)
         }
         await db.aiInsights.put(report)
         void enqueueSync('ai_insights', 'insert', report)
@@ -343,6 +353,8 @@ export default function Dashboard() {
           setSearchParams(next, { replace: true })
         }
       } catch {
+        // AI call failed (not aborted) — count toward quota to prevent retry spam
+        if (aiConfig) recordFailedCall('weekly_report')
         setWeeklyReportGenerating(false)
         // Non-blocking
       } finally {

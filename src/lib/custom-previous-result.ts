@@ -1,6 +1,7 @@
 import type { LocalWorkoutSession } from '@/lib/db'
 import type { PrimaryMetric, SetLog } from '@/lib/exercise-model'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
+import type { DurationUnit } from '@/lib/custom-prescription-format'
 import { pl } from '@/i18n/pl'
 
 export type PreviousCustomSetResult = {
@@ -75,9 +76,13 @@ export function formatPreviousCustomContext(
 export function formatPreviousCustomValue(
   result: PreviousCustomSetResult,
   metric: PrimaryMetric,
+  durationUnit: DurationUnit = 'sec',
 ): string | null {
   if (metric === 'duration_sec') {
     if (result.durationSec == null) return null
+    if (durationUnit === 'min') {
+      return pl.customPreviousDurationMin(Math.round(result.durationSec / 60))
+    }
     return pl.customPreviousDuration(result.durationSec)
   }
   if (metric === 'reps_weight') {
@@ -94,6 +99,7 @@ export function formatPreviousCustomValue(
 export function hasPreviousCustomDisplay(
   result: PreviousCustomSetResult,
   metric: PrimaryMetric,
+  durationUnit: DurationUnit = 'sec',
 ): boolean {
-  return formatPreviousCustomValue(result, metric) != null
+  return formatPreviousCustomValue(result, metric, durationUnit) != null
 }

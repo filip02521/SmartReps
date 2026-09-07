@@ -55,8 +55,15 @@ type EditorView =
   | { screen: 'pick'; dayIndex: number }
   | { screen: 'pickReplace'; dayIndex: number; exerciseIndex: number }
 
-function defaultSets(metric: ExerciseDefinition['primaryMetric']): SetPrescription[] {
-  if (metric === 'duration_sec') return [{ durationSec: { kind: 'min', value: 30 } }]
+function defaultSets(
+  metric: ExerciseDefinition['primaryMetric'],
+  durationUnit?: 'sec' | 'min',
+): SetPrescription[] {
+  if (metric === 'duration_sec') {
+    // For min-based exercises (cardio), default to 5 min (300s); for sec, 30s
+    const defaultSec = durationUnit === 'min' ? 300 : 30
+    return [{ durationSec: { kind: 'min', value: defaultSec } }]
+  }
   if (metric === 'reps_weight') {
     return [{ reps: { kind: 'fixed', value: 8 }, weightKg: { kind: 'fixed', value: 20 } }]
   }
@@ -317,7 +324,7 @@ export function CustomPlanEditor({
       order: d.exercises.length,
       restBetweenSetsSec: ex.restDefaultSec,
       restAfterExerciseSec: 60,
-      sets: defaultSets(ex.primaryMetric),
+      sets: defaultSets(ex.primaryMetric, ex.durationDisplayUnit),
     }
     const days = [...plan.days]
     days[dayIdx] = { ...d, exercises: [...d.exercises, pe] }
@@ -991,6 +998,7 @@ export function CustomPlanEditor({
                             size="sm"
                             sets={pe.sets}
                             metric={def.primaryMetric}
+                            durationUnit={def.durationDisplayUnit ?? 'sec'}
                           />
                         )}
                       </button>
@@ -1397,7 +1405,7 @@ export function CustomPlanEditor({
                   const sets: SetPrescription[] = Array.from({ length: n }, (_, i) => {
                     const prev = planned.sets[i]
                     if (prev) return prev
-                    return defaultSets(metric)[0]!
+                    return defaultSets(metric, exDef?.durationDisplayUnit)[0]!
                   })
                   updatePlanned(view.dayIndex, view.exerciseIndex, { sets })
                 }}
@@ -1411,6 +1419,7 @@ export function CustomPlanEditor({
                         metric={exDef?.primaryMetric ?? 'reps'}
                         prescription={s}
                         disabled={exerciseDayLocked}
+                        durationUnit={exDef?.durationDisplayUnit ?? 'sec'}
                         onChange={(next) => updateSet(view.dayIndex, view.exerciseIndex, i, next)}
                       />
                     </li>

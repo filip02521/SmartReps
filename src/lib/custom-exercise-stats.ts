@@ -450,8 +450,8 @@ export async function computeExerciseDetailStats(
         .sort((a, b) => a.setNumber - b.setNumber)
         .map((set) => ({
           setNumber: set.setNumber,
-          actualLabel: formatSetActualDisplay(set.actual, metric, weightUnit),
-          targetLabel: formatPrescriptionTarget(set.prescription, metric, weightUnit),
+          actualLabel: formatSetActualDisplay(set.actual, metric, weightUnit, exercise.durationDisplayUnit ?? 'sec'),
+          targetLabel: formatPrescriptionTarget(set.prescription, metric, weightUnit, exercise.durationDisplayUnit ?? 'sec'),
           passed: set.passed,
         }))
     }

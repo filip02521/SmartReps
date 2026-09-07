@@ -46,7 +46,7 @@ export function SegmentedControl<T extends string>({
             FOCUS_RING,
             stretch && 'min-w-0 flex-1',
             size === 'compact'
-              ? 'min-h-9 px-2.5 py-1.5 text-xs'
+              ? 'min-h-11 px-2.5 py-2 text-xs'
               : 'min-h-11 px-4 py-2.5 text-sm',
             value === opt.value
               ? 'bg-[var(--sr-brand-primary-muted)] font-semibold text-[var(--sr-brand-primary)]'

@@ -78,6 +78,15 @@ const STARTER_LABELS: Record<ExerciseStarterKey, string> = {
   kettlebellSwing: pl.exerciseStarterKettlebellSwing,
   thrusters: pl.exerciseStarterThrusters,
   cleanAndPress: pl.exerciseStarterCleanAndPress,
+  // Cardio
+  stairClimbing: pl.exerciseStarterStairClimbing,
+  running: pl.exerciseStarterRunning,
+  cycling: pl.exerciseStarterCycling,
+  rowingMachine: pl.exerciseStarterRowingMachine,
+  elliptical: pl.exerciseStarterElliptical,
+  jumpRope: pl.exerciseStarterJumpRope,
+  jumpingJacks: pl.exerciseStarterJumpingJacks,
+  highKnees: pl.exerciseStarterHighKnees,
 }
 
 export function shouldPersistDraft(plan: CustomPlan): boolean {
@@ -186,6 +195,8 @@ export async function saveExercise(
     /** Origin — defaults to 'user'. Set to 'ai' when saving from AI plan generator,
      *  or 'starter' when seeding default exercises (not user-created). */
     source?: 'user' | 'ai' | 'starter'
+    /** Display unit for duration_sec exercises — 'sec' (default) or 'min'. */
+    durationDisplayUnit?: 'sec' | 'min'
   },
 ): Promise<ExerciseDefinition> {
   const now = new Date().toISOString()
@@ -210,6 +221,10 @@ export async function saveExercise(
     archived: input.archived ?? existing?.archived ?? false,
     muscleGroup: input.muscleGroup ?? existing?.muscleGroup,
     source: input.source ?? existing?.source ?? 'user',
+    durationDisplayUnit:
+      input.primaryMetric === 'duration_sec'
+        ? (input.durationDisplayUnit ?? existing?.durationDisplayUnit ?? 'sec')
+        : undefined,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   }
@@ -257,6 +272,8 @@ export async function seedStarterExercises(): Promise<{
       restDefaultSec: starter.restDefaultSec,
       muscleGroup: starter.muscleGroup,
       source: 'starter',
+      // Cardio exercises use minutes as the display unit
+      durationDisplayUnit: starter.muscleGroup === 'cardio' ? 'min' : undefined,
     })
     created.push(ex)
     byName.set(name.toLowerCase(), ex)

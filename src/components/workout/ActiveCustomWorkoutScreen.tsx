@@ -39,6 +39,7 @@ import {
   getPrimaryMetricTarget,
   isExactPrescription,
   isMaxPrescription,
+  type DurationUnit,
 } from '@/lib/custom-prescription-format'
 import type { PreviousCustomSetResult } from '@/lib/custom-session-service'
 import { metricTargetDisplayValue } from '@/lib/plan-resolver'
@@ -191,6 +192,7 @@ function CustomSetRow({
   isExtra,
   onClick,
   weightUnit = 'kg',
+  durationUnit = 'sec',
 }: {
   setNumber: number
   prescription: SetPrescription
@@ -203,11 +205,12 @@ function CustomSetRow({
   isExtra?: boolean
   onClick?: () => void
   weightUnit?: 'kg' | 'lb'
+  durationUnit?: DurationUnit
 }) {
   const canPress = Boolean(onClick) && (state !== 'done' || editable)
-  const targetLabel = formatPrescriptionTarget(prescription, metric, weightUnit)
+  const targetLabel = formatPrescriptionTarget(prescription, metric, weightUnit, durationUnit)
   const actualLabel =
-    result != null ? formatSetActualDisplay(result.actual, metric, weightUnit) : null
+    result != null ? formatSetActualDisplay(result.actual, metric, weightUnit, durationUnit) : null
 
   // Delta vs previous session — only for completed sets with same metric
   const showDelta =
@@ -321,6 +324,7 @@ function CustomSetChecklist({
   baselineSetCount,
   onEditLastSet,
   weightUnit = 'kg',
+  durationUnit = 'sec',
   previousResults,
 }: {
   sets: SetPrescription[]
@@ -332,6 +336,7 @@ function CustomSetChecklist({
   baselineSetCount?: number
   onEditLastSet?: () => void
   weightUnit?: 'kg' | 'lb'
+  durationUnit?: DurationUnit
   /** Map of setNumber → previous result, for delta indicators. */
   previousResults?: Map<number, { reps?: number; durationSec?: number; weightKg?: number }>
 }) {
@@ -366,6 +371,7 @@ function CustomSetChecklist({
             isExtra={i >= baseline}
             onClick={editable ? onEditLastSet : undefined}
             weightUnit={weightUnit}
+            durationUnit={durationUnit}
           />
         )
       })}
@@ -604,7 +610,7 @@ function CustomDayPlanSheet({
                 )}
               >
               <div className="flex items-baseline justify-between gap-2">
-                <p className="font-medium text-[var(--sr-text-primary)]">
+                <p className="min-w-0 flex-1 truncate font-medium text-[var(--sr-text-primary)]">
                   {i + 1}. {name}
                 </p>
                 <p className="shrink-0 text-xs text-[var(--sr-text-muted)]">
@@ -641,8 +647,8 @@ function CustomDayPlanSheet({
                       )}
                     >
                       {doneSet && setLog
-                        ? formatSetActualDisplay(setLog.actual, metric)
-                        : formatPrescriptionTarget(s, metric)}
+                        ? formatSetActualDisplay(setLog.actual, metric, 'kg', def?.durationDisplayUnit ?? 'sec')
+                        : formatPrescriptionTarget(s, metric, 'kg', def?.durationDisplayUnit ?? 'sec')}
                     </span>
                   )
                 })}
@@ -683,6 +689,7 @@ function CustomMetricCounter({
   onToggleTimer,
   previousResult,
   weightUnit,
+  durationUnit = 'sec',
 }: {
   prescription: SetPrescription
   metric: PrimaryMetric
@@ -702,8 +709,10 @@ function CustomMetricCounter({
   timerRunning: boolean
   onToggleTimer: () => void
   weightUnit: 'kg' | 'lb'
+  durationUnit?: 'sec' | 'min'
 }) {
   const isDuration = metric === 'duration_sec'
+  const isMinUnit = isDuration && durationUnit === 'min'
   const primaryTarget = getPrimaryMetricTarget(prescription, metric)
   const isExact = isExactPrescription(prescription, metric)
   const isMax = isMaxPrescription(prescription, metric)
@@ -715,7 +724,12 @@ function CustomMetricCounter({
       : null
   const targetWeight = targetWeightKg != null ? kgToDisplay(targetWeightKg, weightUnit) : null
   const maxValue = isExact ? targetReps : 9999
-  const step = 1
+  // For min-based exercises, step by 60 seconds (1 minute)
+  const step = isMinUnit ? 60 : 1
+  // Display value: convert seconds to minutes for min-based exercises
+  const displayActual = isMinUnit ? Math.round(actual / 60) : actual
+  const displayTargetReps = isMinUnit ? Math.round(targetReps / 60) : targetReps
+  const displayMaxValue = isMinUnit ? Math.round(maxValue / 60) : maxValue
   const weightValueKg = weightKg === '' ? 0 : Number(weightKg)
   const weightValue = kgToDisplay(weightValueKg, weightUnit)
   const weightStep = weightUnit === 'lb' ? 5 : 2.5
@@ -727,7 +741,7 @@ function CustomMetricCounter({
   return (
     <div className={cn('flex flex-col items-center gap-4 py-4', disabled && 'opacity-60')}>
       <p className="px-2 text-center sr-text-overline text-[var(--sr-text-muted)]">
-        {formatPrescriptionSetLabel(prescription, metric, exerciseName, weightUnit)}
+        {formatPrescriptionSetLabel(prescription, metric, exerciseName, weightUnit, durationUnit)}
       </p>
       {isExact && (
         <p className="text-center text-sm text-[var(--sr-text-secondary)]">
@@ -741,7 +755,7 @@ function CustomMetricCounter({
       )}
       {isMin && isDuration && (
         <p className="text-center text-sm text-[var(--sr-text-secondary)]">
-          {pl.customMinDurationHint(targetReps)}
+          {isMinUnit ? pl.customMinDurationHintMin(displayTargetReps) : pl.customMinDurationHint(targetReps)}
         </p>
       )}
       {isMin && !isDuration && (
@@ -756,19 +770,24 @@ function CustomMetricCounter({
           metric={metric}
           currentDayNumber={dayNumber}
           currentCycleAttempt={cycleAttempt}
+          durationUnit={durationUnit}
         />
       )}
 
       {!isRepsWeight && (
         <div className="flex items-baseline gap-2">
           <NumericDraftInput
-            ariaLabel={isDuration ? pl.customWorkoutDurationSec : pl.exerciseMetricReps}
-            value={actual}
+            ariaLabel={isDuration ? (isMinUnit ? pl.customWorkoutDurationMin : pl.customWorkoutDurationSec) : pl.exerciseMetricReps}
+            value={isMinUnit ? displayActual : actual}
             mode="integer"
             min={0}
-            max={maxValue}
+            max={isMinUnit ? displayMaxValue : maxValue}
             disabled={disabled}
-            onCommit={(n) => onActualChange(Math.min(maxValue, Math.max(0, n)))}
+            onCommit={(n) => {
+              // Convert display value back to seconds for min-based exercises
+              const secValue = isMinUnit ? Math.min(maxValue, Math.max(0, n * 60)) : Math.min(maxValue, Math.max(0, n))
+              onActualChange(secValue)
+            }}
             className={cn(
               'w-auto min-w-[4.5rem] max-w-[9rem] border-0 bg-transparent px-1 py-0 text-center sr-text-display leading-none shadow-none',
               pulseFlash && 'animate-pulse-success',
@@ -778,7 +797,7 @@ function CustomMetricCounter({
           />
           {isDuration && (
             <span className="sr-text-body-sm font-medium text-[var(--sr-text-muted)]">
-              {pl.customDurationUnit}
+              {isMinUnit ? pl.customDurationUnitMin : pl.customDurationUnit}
             </span>
           )}
         </div>
@@ -863,7 +882,7 @@ function CustomMetricCounter({
       ) : (
         <div className="flex w-full max-w-xs items-center gap-3">
           <WorkoutStepperButton
-            ariaLabel={isDuration ? pl.customWorkoutLessSec : pl.lessReps}
+            ariaLabel={isDuration ? (isMinUnit ? pl.customWorkoutLessMin : pl.customWorkoutLessSec) : pl.lessReps}
             disabled={disabled}
             onClick={() => onActualChange(Math.max(0, actual - step))}
           >
@@ -884,7 +903,7 @@ function CustomMetricCounter({
             {pl.done}
           </Button>
           <WorkoutStepperButton
-            ariaLabel={isDuration ? pl.customWorkoutMoreSec : pl.moreReps}
+            ariaLabel={isDuration ? (isMinUnit ? pl.customWorkoutMoreMin : pl.customWorkoutMoreSec) : pl.moreReps}
             disabled={disabled || actual >= maxValue}
             onClick={() => onActualChange(Math.min(maxValue, actual + step))}
           >
@@ -918,7 +937,10 @@ export type ActiveCustomWorkoutScreenProps = {
   setResults: SetLog[]
   restTimer: RestTimerState | null
   coachSuggestion?: string | null
+  /** For duration_sec: value in seconds. For reps: reps count. */
   actual: number
+  /** Duration display unit — 'sec' (default) or 'min' for cardio. */
+  durationUnit?: 'sec' | 'min'
   previousResult?: PreviousCustomSetResult
   /** Map of setNumber → previous result, for SetChecklist delta indicators. */
   previousResults?: Map<number, { reps?: number; durationSec?: number; weightKg?: number }>
@@ -1025,6 +1047,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     timerRunning,
     canEditPreviousSet = false,
     weightUnit = 'kg',
+    durationUnit,
     onBack,
     onToggleMenu,
     onShowPlan,
@@ -1319,6 +1342,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             timerRunning={timerRunning}
             onToggleTimer={onToggleTimer}
             weightUnit={weightUnit}
+            durationUnit={durationUnit ?? exerciseDef.durationDisplayUnit ?? 'sec'}
           />
         )}
         {canEditPreviousSet && onEditPreviousSet && (
@@ -1417,6 +1441,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           baselineSetCount={baselineSetCount}
           onEditLastSet={canEditPreviousSet ? onEditPreviousSet : undefined}
           weightUnit={weightUnit}
+          durationUnit={durationUnit ?? exerciseDef.durationDisplayUnit ?? 'sec'}
           previousResults={previousResults}
         />
       </div>
@@ -1447,6 +1472,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           onSetRest={onSetRest}
           onSkip={onSkipRest}
           onCollapse={onCollapseTimer}
+          setLabel={pl.restSetLabel((positionSetIndex ?? setIndex) + 1, planned.sets.length)}
         />
       )}
 

@@ -314,6 +314,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           onSetRest={onSetRest}
           onSkip={onSkipRest}
           onCollapse={onCollapseTimer}
+          setLabel={pl.restSetLabel(currentSetIndex + 1, day.sets.length)}
         />
       )}
 

@@ -457,6 +457,7 @@ export default function PlansPage() {
                         <Button
                           type="button"
                           size="md"
+                          className="max-w-full"
                           onClick={() => {
                             // Resume → go directly (workout already in progress).
                             if (customResume[plan.id]) {
@@ -473,13 +474,15 @@ export default function PlansPage() {
                           }}
                         >
                           <Play size={16} aria-hidden />
-                          {customResume[plan.id]
-                            ? pl.continueWorkout(
-                                customResume[plan.id]!.day,
-                                customResume[plan.id]!.set,
-                                customResume[plan.id]!.totalSets,
-                              )
-                            : pl.planTrain}
+                          <span className="truncate">
+                            {customResume[plan.id]
+                              ? pl.continueWorkout(
+                                  customResume[plan.id]!.day,
+                                  customResume[plan.id]!.set,
+                                  customResume[plan.id]!.totalSets,
+                                )
+                              : pl.planTrain}
+                          </span>
                         </Button>
                       ) : paused ? (
                         <Button

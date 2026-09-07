@@ -213,14 +213,15 @@ export function ProfileHero({
         </p>
       )}
 
-      {/* CTAs — edit profile + sync/login */}
-      <div className="mt-3.5 flex gap-2.5">
+      {/* CTAs — edit profile + sync/login. Stack vertically on narrow
+          viewports to avoid label overflow inside fixed-height buttons. */}
+      <div className="mt-3.5 flex flex-col gap-2.5 sm:flex-row">
         {/* Edit profile — only when connected + online */}
         {connected && online && (
           <Button
             variant="secondary"
             size="md"
-            className="flex-1 gap-2"
+            className="w-full gap-2 sm:w-auto sm:flex-1"
             onClick={onEditProfile}
           >
             <Pencil size={16} aria-hidden />
@@ -233,7 +234,7 @@ export function ProfileHero({
           <Button
             variant="secondary"
             size="md"
-            className="flex-1 gap-2"
+            className="w-full gap-2 sm:w-auto sm:flex-1"
             disabled={!online || syncing}
             onClick={onSyncNow}
           >
@@ -244,7 +245,7 @@ export function ProfileHero({
           <Button
             variant="secondary"
             size="md"
-            className="flex-1 gap-2"
+            className="w-full gap-2 sm:w-auto sm:flex-1"
             onClick={onLogin}
           >
             <LogIn size={16} aria-hidden />

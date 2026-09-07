@@ -113,6 +113,10 @@ export type ExerciseDefinition = {
    *  or 'starter' (auto-seeded by ensureDefaultExercises, not user-created).
    *  Defaults to 'user' for backwards compatibility with existing records. */
   source?: 'user' | 'ai' | 'starter'
+  /** Display unit for duration_sec exercises — 'sec' (default) or 'min'.
+   *  When 'min', the UI shows/accepts minutes and converts to seconds internally.
+   *  Only meaningful when primaryMetric === 'duration_sec'. */
+  durationDisplayUnit?: 'sec' | 'min'
 }
 
 export type MuscleGroup =
@@ -417,6 +421,15 @@ export type ExerciseStarterKey =
   | 'kettlebellSwing'
   | 'thrusters'
   | 'cleanAndPress'
+  // Cardio
+  | 'stairClimbing'
+  | 'running'
+  | 'cycling'
+  | 'rowingMachine'
+  | 'elliptical'
+  | 'jumpRope'
+  | 'jumpingJacks'
+  | 'highKnees'
 
 export const EXERCISE_STARTERS: Array<{
   key: ExerciseStarterKey
@@ -476,4 +489,13 @@ export const EXERCISE_STARTERS: Array<{
   { key: 'kettlebellSwing', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'full_body' },
   { key: 'thrusters', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'full_body' },
   { key: 'cleanAndPress', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'full_body' },
+  // Cardio — duration in minutes
+  { key: 'stairClimbing', primaryMetric: 'duration_sec', restDefaultSec: 60, muscleGroup: 'cardio' },
+  { key: 'running', primaryMetric: 'duration_sec', restDefaultSec: 60, muscleGroup: 'cardio' },
+  { key: 'cycling', primaryMetric: 'duration_sec', restDefaultSec: 60, muscleGroup: 'cardio' },
+  { key: 'rowingMachine', primaryMetric: 'duration_sec', restDefaultSec: 60, muscleGroup: 'cardio' },
+  { key: 'elliptical', primaryMetric: 'duration_sec', restDefaultSec: 60, muscleGroup: 'cardio' },
+  { key: 'jumpRope', primaryMetric: 'duration_sec', restDefaultSec: 60, muscleGroup: 'cardio' },
+  { key: 'jumpingJacks', primaryMetric: 'duration_sec', restDefaultSec: 60, muscleGroup: 'cardio' },
+  { key: 'highKnees', primaryMetric: 'duration_sec', restDefaultSec: 60, muscleGroup: 'cardio' },
 ]

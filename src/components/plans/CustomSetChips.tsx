@@ -2,10 +2,14 @@ import { cn } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
 import type { PrimaryMetric, SetPrescription } from '@/lib/exercise-model'
 import { metricTargetDisplayValue } from '@/lib/plan-resolver'
+import type { DurationUnit } from '@/lib/custom-prescription-format'
 
-function formatPrescriptionChip(set: SetPrescription, metric: PrimaryMetric): string {
+function formatPrescriptionChip(set: SetPrescription, metric: PrimaryMetric, durationUnit: DurationUnit = 'sec'): string {
   if (metric === 'duration_sec' && set.durationSec) {
     const v = metricTargetDisplayValue(set.durationSec)
+    if (durationUnit === 'min') {
+      return pl.durationMinValue(Math.round(v / 60))
+    }
     return `${v}${pl.durationUnitShort}`
   }
   const reps = set.reps ? metricTargetDisplayValue(set.reps) : 0
@@ -27,11 +31,13 @@ export function CustomSetChips({
   metric,
   className,
   size = 'md',
+  durationUnit = 'sec',
 }: {
   sets: SetPrescription[]
   metric: PrimaryMetric
   className?: string
   size?: 'sm' | 'md'
+  durationUnit?: DurationUnit
 }) {
   return (
     <ul className={cn('flex flex-wrap gap-1.5', className)} aria-label={pl.setColumn}>
@@ -50,7 +56,7 @@ export function CustomSetChips({
               size === 'sm' ? 'text-xs' : 'text-sm',
             )}
           >
-            {formatPrescriptionChip(set, metric)}
+            {formatPrescriptionChip(set, metric, durationUnit)}
           </span>
         </li>
       ))}

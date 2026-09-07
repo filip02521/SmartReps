@@ -59,7 +59,7 @@ export function WarmupPanel({
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sr-brand-primary)]/10 text-xs font-semibold text-[var(--sr-brand-primary)]">
                   {i + 1}
                 </span>
-                <span className="text-[var(--sr-text-primary)]">{s}</span>
+                <span className="min-w-0 break-words text-[var(--sr-text-primary)]">{s}</span>
               </li>
             ))}
           </ul>

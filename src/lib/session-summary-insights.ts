@@ -2,7 +2,7 @@ import type { LocalWorkoutSession } from '@/lib/db'
 import type { ExerciseDefinition, ExerciseLog, PrimaryMetric, SetLog } from '@/lib/exercise-model'
 import { pl } from '@/i18n/pl'
 import { formatExerciseSetSummary } from '@/lib/custom-exercise-stats'
-import { formatSetActualDisplay } from '@/lib/custom-prescription-format'
+import { formatSetActualDisplay, type DurationUnit } from '@/lib/custom-prescription-format'
 
 export type SetInsightKind = 'pr' | 'improved' | 'unchanged' | 'down' | 'failed' | 'none'
 
@@ -268,9 +268,10 @@ export function customSetInsightAria(
   insight: SetInsight | undefined,
   metric: PrimaryMetric,
   set: SetLog,
+  durationUnit: DurationUnit = 'sec',
 ): string | null {
   if (!insight || insight.kind === 'none' || insight.kind === 'unchanged') return null
-  const value = formatSetActualDisplay(set.actual, metric)
+  const value = formatSetActualDisplay(set.actual, metric, 'kg', durationUnit)
   if (insight.kind === 'pr') return pl.summarySetInsightPr(value)
   if (insight.kind === 'improved' && insight.deltaVsPrevious != null) {
     return pl.summarySetInsightImproved(value, insight.deltaVsPrevious)

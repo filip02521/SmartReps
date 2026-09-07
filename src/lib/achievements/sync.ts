@@ -47,6 +47,22 @@ export async function pushAchievementsToCloud(rows: LocalAchievementUnlock[]): P
   if (error) console.warn('[achievements] push failed', error.message)
 }
 
+/** Delete revoked achievements from cloud — used for rolling-window achievements
+ *  whose criteria are no longer met. Prevents resurrection from other devices. */
+export async function deleteAchievementsFromCloud(ids: AchievementId[]): Promise<void> {
+  if (!supabase) return
+  if (ids.length === 0) return
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) return
+
+  const { error } = await supabase
+    .from('user_achievements')
+    .delete()
+    .eq('user_id', userData.user!.id)
+    .in('achievement_id', ids)
+  if (error) console.warn('[achievements] delete failed', error.message)
+}
+
 export async function pullAchievementsFromCloud(): Promise<void> {
   if (!supabase) return
   const { data: userData } = await supabase.auth.getUser()

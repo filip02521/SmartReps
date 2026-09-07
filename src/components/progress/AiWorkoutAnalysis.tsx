@@ -13,6 +13,7 @@ import {
   acquireInflight,
   releaseInflight,
   recordCall,
+  recordFailedCall,
   formatCooldownRemaining,
 } from '@/lib/ai/rate-limiter'
 import { AiCoachHeader, AiCoachMessage } from '@/components/brand/AiCoachHeader'
@@ -83,12 +84,21 @@ export function AiWorkoutAnalysis() {
     // Load cached analysis result so it survives page refresh / tab switch
     void db.aiAnalysisCache
       .get(ANALYSIS_CACHE_ID)
-      .then((cached) => {
+      .then(async (cached) => {
         if (cached) {
           try {
             const age = Date.now() - new Date(cached.createdAt).getTime()
-            // Show cache age if fresh (< 24h), mark stale otherwise
-            if (age < ANALYSIS_TTL_MS) {
+            // Check if a newer completed session exists — if so, cache is stale
+            const latestSession = await db.workoutSessions
+              .orderBy('startedAt')
+              .filter((s) => s.status === 'completed')
+              .last()
+              .catch(() => undefined)
+            const sessionNewer = latestSession
+              ? new Date(latestSession.startedAt).getTime() > new Date(cached.createdAt).getTime()
+              : false
+            // Show cache age if fresh (< 24h) AND no newer session, mark stale otherwise
+            if (age < ANALYSIS_TTL_MS && !sessionNewer) {
               setCacheAge(formatAge(age))
             } else {
               setCacheAge(pl.aiAnalysisCacheStale)
@@ -145,6 +155,7 @@ export function AiWorkoutAnalysis() {
         }).catch(() => {})
       } catch (e) {
         if (controller.signal.aborted) return
+        recordFailedCall('workout_analysis')
         if (e instanceof AiApiError) {
           setError(
             e.kind === 'offline'
@@ -293,11 +304,11 @@ export function AiWorkoutAnalysis() {
                       key={i}
                       className="rounded-[var(--sr-radius-sm)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-2"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-[var(--sr-text-primary)]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 truncate font-medium text-[var(--sr-text-primary)]">
                           {label}
                         </span>
-                        <span className={cn('text-xs font-semibold', statusColor)}>
+                        <span className={cn('shrink-0 text-right text-xs font-semibold', statusColor)}>
                           {v.weeklySets} {pl.setsShort}/tyg — {statusLabel}
                         </span>
                       </div>

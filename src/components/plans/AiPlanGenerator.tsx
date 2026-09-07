@@ -14,6 +14,7 @@ import {
   acquireInflight,
   releaseInflight,
   recordCall,
+  recordFailedCall,
   formatCooldownRemaining,
 } from '@/lib/ai/rate-limiter'
 import { AiApiError } from '@/lib/ai/ai-client'
@@ -142,6 +143,7 @@ export function AiPlanGenerator({
       } catch (e) {
         if (controller.signal.aborted) return
         clearTimeout(timeout)
+        recordFailedCall('plan_generation')
         if (e instanceof AiApiError) {
           setError(
             e.kind === 'offline'

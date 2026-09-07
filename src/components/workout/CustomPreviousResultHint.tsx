@@ -1,5 +1,6 @@
 import { History } from 'lucide-react'
 import type { PrimaryMetric } from '@/lib/exercise-model'
+import type { DurationUnit } from '@/lib/custom-prescription-format'
 import {
   formatPreviousCustomContext,
   formatPreviousCustomValue,
@@ -14,18 +15,20 @@ export function CustomPreviousResultHint({
   metric,
   currentDayNumber,
   currentCycleAttempt,
+  durationUnit = 'sec',
   className,
 }: {
   result: PreviousCustomSetResult
   metric: PrimaryMetric
   currentDayNumber: number
   currentCycleAttempt: number
+  durationUnit?: DurationUnit
   className?: string
 }) {
-  if (!hasPreviousCustomDisplay(result, metric)) return null
+  if (!hasPreviousCustomDisplay(result, metric, durationUnit)) return null
 
   const context = formatPreviousCustomContext(result, currentDayNumber, currentCycleAttempt)
-  const value = formatPreviousCustomValue(result, metric)!
+  const value = formatPreviousCustomValue(result, metric, durationUnit)!
 
   return (
     <div className={cn('flex justify-center px-2', className)}>

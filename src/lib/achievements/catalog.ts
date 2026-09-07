@@ -11,7 +11,7 @@ import type {
 export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
   // ── Training ──
   { id: 'first_session', track: 'training', rarity: 'common', glyph: 'dumbbell' },
-  { id: 'habit_3_in_14', track: 'training', rarity: 'common', glyph: 'target' },
+  { id: 'habit_3_in_14', track: 'training', rarity: 'common', glyph: 'target', rolling: true },
   { id: 'first_custom_session', track: 'training', rarity: 'common', glyph: 'list' },
   { id: 'cycle_closed_strong', track: 'training', rarity: 'rare', glyph: 'flag' },
   { id: 'goal_pullups_30', track: 'training', rarity: 'rare', glyph: 'pull' },
@@ -53,7 +53,7 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
   },
 
   // ── Habit / Streak ──
-  { id: 'streak_1', track: 'habit', rarity: 'common', glyph: 'calendar' },
+  { id: 'streak_1', track: 'habit', rarity: 'common', glyph: 'calendar', rolling: true },
   { id: 'streak_4', track: 'habit', rarity: 'rare', glyph: 'calendar' },
   { id: 'streak_12', track: 'habit', rarity: 'rare', glyph: 'flame' },
   { id: 'streak_26', track: 'habit', rarity: 'legendary', glyph: 'flame' },
@@ -182,12 +182,13 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
     ],
   },
 
-  // ── Habit builder (progressive) ──
+  // ── Habit builder (progressive, rolling 14-day window) ──
   {
     id: 'habit_builder',
     track: 'habit',
     rarity: 'rare',
     glyph: 'target',
+    rolling: true,
     tiers: [
       { threshold: 4, rarity: 'common' },
       { threshold: 5, rarity: 'rare' },

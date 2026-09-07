@@ -39,8 +39,8 @@ type UsageRecord = {
  * Per-feature cooldown in milliseconds.
  *
  * Tuned for comfort + spam protection:
- * - weekly_report: 30 min — user might want fresh after a workout; weekKey
- *   cache already prevents auto-regeneration, cooldown only limits force
+ * - weekly_report: 24 h — force regeneration limited to once/day to control
+ *   costs; weekKey cache already prevents auto-regeneration (once per ISO week)
  * - post_workout: 2 min — race protection only; sessionId cache prevents
  *   duplicates for the same session
  * - workout_analysis: 30 min — user might want fresh after completing a
@@ -49,7 +49,9 @@ type UsageRecord = {
  *   no cache, but 3 min is enough to prevent rapid spam
  */
 const COOLDOWNS: Record<AiFeature, number> = {
-  weekly_report: 30 * 60 * 1000,
+  // 24h — weekly report should be regenerated at most once per day via force.
+  // Auto-generation is already prevented by weekKey cache (once per ISO week).
+  weekly_report: 24 * 60 * 60 * 1000,
   post_workout: 2 * 60 * 1000,
   workout_analysis: 30 * 60 * 1000,
   plan_generation: 3 * 60 * 1000,
@@ -226,6 +228,21 @@ export function recordCall(feature: AiFeature): void {
   const usage = loadUsage()
   usage.count += 1
   usage.lastCall[feature] = new Date().toISOString()
+  saveUsage(usage)
+}
+
+/**
+ * Record a failed AI call — increments daily count (so failed attempts
+ * consume quota and prevent runaway retry loops) but does NOT update
+ * lastCall (so cooldown is not triggered; the user can retry after a
+ * brief inflight release without waiting for the full cooldown).
+ *
+ * Do NOT call this for user-initiated aborts (signal.aborted) — only
+ * for genuine provider/network/auth/rate-limit errors.
+ */
+export function recordFailedCall(_feature: AiFeature): void {
+  const usage = loadUsage()
+  usage.count += 1
   saveUsage(usage)
 }
 

@@ -11,7 +11,7 @@ import type {
   EvaluateResult,
   LocalAchievementUnlock,
 } from './types'
-import { getAllUnlocks, putUnlock, hasBackfillFlag, setBackfillFlag, getSuppressedAchievements } from './store'
+import { getAllUnlocks, putUnlock, deleteUnlock, hasBackfillFlag, setBackfillFlag, getSuppressedAchievements } from './store'
 
 export async function evaluateAchievements(
   snap: AchievementSnapshot,
@@ -21,6 +21,7 @@ export async function evaluateAchievements(
   const byId = new Map(existing.map((u) => [u.id, u]))
   const newlyUnlocked: LocalAchievementUnlock[] = []
   const tierChanged: LocalAchievementUnlock[] = []
+  const revoked: AchievementId[] = []
   const firstRun = opts?.forceBackfillCheck || !hasBackfillFlag()
   // Suppressed achievements (force-removed via cloud reconcile) are never re-created
   const suppressed = getSuppressedAchievements()
@@ -36,6 +37,17 @@ export async function evaluateAchievements(
 
     if (existingRow) {
       const oldTierLevel = existingRow.tierLevel ?? 0
+
+      // Rolling-window achievements: revoke entirely when the metric drops
+      // below the first tier threshold (tiered) or below the met threshold
+      // (non-tiered). Unlike cumulative achievements, these measure current
+      // state and should not stay unlocked forever once the window shifts.
+      if (def.rolling && !met) {
+        await deleteUnlock(def.id)
+        byId.delete(def.id)
+        revoked.push(def.id)
+        continue
+      }
 
       if (isTiered) {
         // Tiered achievements: tier reflects current stats — upgrade OR downgrade
@@ -114,6 +126,7 @@ export async function evaluateAchievements(
     // N individual celebration sheets.
     backfill: firstRun && newlyUnlocked.length > 0,
     tierChanged,
+    revoked,
   }
 }
 

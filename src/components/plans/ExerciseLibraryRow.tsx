@@ -1,15 +1,17 @@
 import { ChevronRight, Pencil } from 'lucide-react'
 import { ExerciseSparkline } from '@/components/plans/ExerciseSparkline'
 import { ExerciseStatsIconButton } from '@/components/plans/ExerciseDetailSheet'
-import type { ExerciseDefinition, PrimaryMetric } from '@/lib/exercise-model'
+import type { ExerciseDefinition } from '@/lib/exercise-model'
 import type { ExerciseListSummary } from '@/lib/custom-exercise-stats'
 import { pl } from '@/i18n/pl'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { cn } from '@/lib/utils'
 
-function metricLabel(m: PrimaryMetric): string {
-  if (m === 'reps') return pl.exerciseMetricReps
-  if (m === 'duration_sec') return pl.exerciseMetricDuration
+function metricLabel(ex: ExerciseDefinition): string {
+  if (ex.primaryMetric === 'reps') return pl.exerciseMetricReps
+  if (ex.primaryMetric === 'duration_sec') {
+    return ex.durationDisplayUnit === 'min' ? pl.exerciseMetricDurationMin : pl.exerciseMetricDuration
+  }
   return pl.exerciseMetricRepsWeight
 }
 
@@ -40,7 +42,7 @@ export function ExerciseLibraryRow({
 
   const subtitle = hasHistory
     ? pl.exerciseListRowMeta(summary!.sessionCount, summary!.prLabel ?? '—')
-    : metricLabel(exercise.primaryMetric)
+    : metricLabel(exercise)
 
   return (
     <article

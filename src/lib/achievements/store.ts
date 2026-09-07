@@ -70,6 +70,12 @@ export async function putUnlock(row: LocalAchievementUnlock): Promise<void> {
   })
 }
 
+/** Delete an achievement unlock — used for rolling-window achievements whose
+ *  criteria are no longer met (e.g. habit_builder when <4 sessions in 14 days). */
+export async function deleteUnlock(id: AchievementId): Promise<void> {
+  await db.achievementUnlocks.delete(id)
+}
+
 export async function markUnlockSeen(id: AchievementId, seenAt = new Date().toISOString()): Promise<void> {
   const row = await db.achievementUnlocks.get(id)
   if (!row) return

@@ -45,6 +45,7 @@ export function ExerciseLibraryPanel({
   const [metric, setMetric] = useState<PrimaryMetric>('reps')
   const [rest, setRest] = useState(90)
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | ''>('')
+  const [durationUnit, setDurationUnit] = useState<'sec' | 'min'>('sec')
   const [usedIn, setUsedIn] = useState(0)
   const [archiveConfirm, setArchiveConfirm] = useState(false)
   const [detailExercise, setDetailExercise] = useState<ExerciseDefinition | null>(null)
@@ -80,6 +81,7 @@ export function ExerciseLibraryPanel({
     setMetric('reps')
     setRest(90)
     setMuscleGroup('')
+    setDurationUnit('sec')
     setUsedIn(0)
   }
 
@@ -90,6 +92,7 @@ export function ExerciseLibraryPanel({
     setMetric(ex.primaryMetric)
     setRest(ex.restDefaultSec)
     setMuscleGroup(ex.muscleGroup ?? '')
+    setDurationUnit(ex.durationDisplayUnit ?? 'sec')
     setUsedIn(await countPlansUsingExercise(ex.id))
   }
 
@@ -104,6 +107,7 @@ export function ExerciseLibraryPanel({
         primaryMetric: metric,
         restDefaultSec: rest,
         muscleGroup: muscleGroup || undefined,
+        durationDisplayUnit: metric === 'duration_sec' ? durationUnit : undefined,
       })
       showToast(pl.saveExercise, 'success')
       setEditing(null)
@@ -266,7 +270,13 @@ export function ExerciseLibraryPanel({
             </p>
             <SegmentedControl
               value={metric}
-              onChange={setMetric}
+              onChange={(v) => {
+                setMetric(v as PrimaryMetric)
+                // Auto-suggest 'min' when switching to duration and muscleGroup is cardio
+                if (v === 'duration_sec' && muscleGroup === 'cardio') {
+                  setDurationUnit('min')
+                }
+              }}
               options={[
                 { value: 'reps', label: pl.exerciseMetricReps },
                 { value: 'duration_sec', label: pl.exerciseMetricDuration },
@@ -274,6 +284,24 @@ export function ExerciseLibraryPanel({
               ]}
             />
           </div>
+          {metric === 'duration_sec' && (
+            <div>
+              <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
+                {pl.customDurationUnitLabel}
+              </p>
+              <SegmentedControl
+                value={durationUnit}
+                onChange={(v) => setDurationUnit(v as 'sec' | 'min')}
+                options={[
+                  { value: 'sec', label: pl.customDurationUnitSec },
+                  { value: 'min', label: pl.customDurationUnitMin },
+                ]}
+              />
+              <p className="mt-1.5 text-xs text-[var(--sr-text-muted)]">
+                {pl.customDurationUnitHint}
+              </p>
+            </div>
+          )}
           {metricWarn && (
             <p className="rounded-[var(--sr-radius-sm)] border border-[var(--sr-warning)]/30 bg-[var(--sr-warning-muted)] px-3 py-2 text-sm text-[var(--sr-text-secondary)]">
               {pl.exerciseMetricChangeWarn(usedIn)}
@@ -286,7 +314,14 @@ export function ExerciseLibraryPanel({
             <p className="mb-2 text-xs text-[var(--sr-text-muted)]">{pl.exerciseMuscleGroupHint}</p>
             <select
               value={muscleGroup}
-              onChange={(e) => setMuscleGroup(e.target.value as MuscleGroup | '')}
+              onChange={(e) => {
+                const g = e.target.value as MuscleGroup | ''
+                setMuscleGroup(g)
+                // Auto-suggest 'min' when selecting cardio for duration exercises
+                if (g === 'cardio' && metric === 'duration_sec') {
+                  setDurationUnit('min')
+                }
+              }}
               className={`w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-base text-[var(--sr-text-primary)] ${FOCUS_RING}`}
             >
               <option value="">{pl.planDash}</option>

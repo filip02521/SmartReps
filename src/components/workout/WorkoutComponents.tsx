@@ -1,6 +1,6 @@
 import { cn, formatRestTime } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
-import { Check, ChevronRight, Minus, Plus, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Minus, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { BrandLoader } from '@/components/ui/BrandLoader'
 import { OverlayPortal } from '@/components/ui/OverlayPortal'
@@ -8,7 +8,7 @@ import { Sheet } from '@/components/ui/Sheet'
 import { getSetLabel, getTargetReps, formatSetTarget } from '@/lib/progress-engine'
 import type { SetTarget } from '@/data/plans/types'
 import type { Program } from '@/data/plans/types'
-import { useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { ProgressRing } from '@/components/ui/ProgressRing'
 import { NumericDraftInput } from '@/components/ui/NumericDraftInput'
@@ -378,6 +378,7 @@ export function RestTimerPill({
   onExpand: () => void
   onAdd15?: () => void
 }) {
+  const isUrgent = remainingSec > 0 && remainingSec <= 5
   return (
     <div className="flex items-center gap-2 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-2 shadow-[var(--sr-shadow-card)]">
       <button
@@ -385,7 +386,8 @@ export function RestTimerPill({
         onClick={onExpand}
         aria-live="off"
         className={cn(
-          'flex min-h-12 flex-1 items-center justify-between rounded-[var(--sr-radius-full)] bg-[var(--sr-brand-primary-muted)] px-5 py-3 transition-all hover:bg-[var(--sr-brand-primary-muted)] hover:brightness-110 active:scale-[0.98]',
+          'flex min-h-12 flex-1 items-center justify-between rounded-[var(--sr-radius-full)] bg-[var(--sr-brand-primary-muted)] px-5 py-3 transition-all hover:brightness-110 active:scale-[0.98]',
+          isUrgent && 'bg-[var(--sr-success-muted)]',
           FOCUS_RING,
         )}
       >
@@ -393,10 +395,16 @@ export function RestTimerPill({
         <span className="sr-only" role="status" aria-live="polite">
           {formatRestTime(remainingSec)}
         </span>
-        <span className="tabular-nums text-2xl font-bold text-[var(--sr-text-primary)]" aria-hidden>
+        <span
+          className={cn(
+            'tabular-nums text-2xl font-bold',
+            isUrgent ? 'text-[var(--sr-success)]' : 'text-[var(--sr-text-primary)]',
+          )}
+          aria-hidden
+        >
           {formatRestTime(remainingSec)}
         </span>
-        <ChevronRight size={18} className="text-[var(--sr-text-muted)] rotate-[-90deg]" />
+        <ChevronDown size={18} className="rotate-180 text-[var(--sr-text-muted)]" />
       </button>
       {onAdd15 && (
         <Button variant="secondary" size="sm" className="min-h-12 shrink-0" onClick={onAdd15}>
@@ -417,6 +425,7 @@ export function RestTimerExpanded({
   onSkip,
   onCollapse,
   onSetRest,
+  setLabel,
 }: {
   remainingSec: number
   totalSec: number
@@ -427,12 +436,16 @@ export function RestTimerExpanded({
   onSkip: () => void
   onCollapse: () => void
   onSetRest?: (sec: number) => void
+  /** Context label like "Seria 2 z 5" — shown above the timer. */
+  setLabel?: string
 }) {
-  const [showSkipConfirm, setShowSkipConfirm] = useState(false)
   const trapRef = useFocusTrap(true)
   const safeTotal = totalSec > 0 ? totalSec : 1
   const progress = Math.min(1, Math.max(0, (safeTotal - remainingSec) / safeTotal))
   const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  // Last 5 seconds — pulse + color shift to signal urgency
+  const isUrgent = remainingSec > 0 && remainingSec <= 5
+  const isReady = remainingSec <= 0
 
   return (
     <OverlayPortal>
@@ -447,17 +460,34 @@ export function RestTimerExpanded({
       >
       <button
         type="button"
-        className="absolute right-4 top-4 min-h-11 min-w-11 rounded-[var(--sr-radius-md)] px-3 text-sm text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95"
+        aria-label={pl.collapseTimer}
+        className="absolute right-4 top-4 flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95"
         onClick={onCollapse}
       >
-        {pl.collapseTimer}
+        <ChevronDown size={24} aria-hidden />
       </button>
-      <p className="mb-4 sr-text-overline text-[var(--sr-text-muted)]">
-        {pl.restLabel}
+      <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+        {isReady ? pl.restReady : pl.restLabel}
       </p>
-      <ProgressRing progress={progress} size={220} reducedMotion={reducedMotion}>
+      {setLabel && (
+        <p className="mb-3 text-xs font-medium text-[var(--sr-text-muted)]">{setLabel}</p>
+      )}
+      <ProgressRing
+        progress={progress}
+        size={220}
+        reducedMotion={reducedMotion}
+        className={isUrgent && !reducedMotion ? 'animate-pulse' : undefined}
+        ringColor={isUrgent || isReady ? 'var(--sr-success)' : undefined}
+      >
         <span
-          className="tabular-nums text-5xl font-bold text-[var(--sr-text-primary)]"
+          className={cn(
+            'tabular-nums text-5xl font-bold',
+            isReady
+              ? 'text-[var(--sr-success)]'
+              : isUrgent
+                ? 'text-[var(--sr-success)]'
+                : 'text-[var(--sr-text-primary)]',
+          )}
           aria-live="polite"
         >
           {formatRestTime(remainingSec)}
@@ -480,7 +510,7 @@ export function RestTimerExpanded({
       <div className="mt-8 flex flex-wrap justify-center gap-3 px-4">
         <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd15}>{pl.add15s}</Button>
         <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd30}>{pl.add30s}</Button>
-        <Button variant="ghost" size="sm" className="min-h-11" onClick={() => setShowSkipConfirm(true)}>{pl.skipRest}</Button>
+        <Button variant="ghost" size="sm" className="min-h-11" onClick={onSkip}>{pl.skipRest}</Button>
       </div>
       {onSetRest && (
         <div className="mt-3 flex flex-wrap justify-center gap-2 px-4">
@@ -490,7 +520,7 @@ export function RestTimerExpanded({
               type="button"
               aria-label={pl.restPresetAria(sec)}
               className={cn(
-                'flex min-h-9 items-center rounded-full border border-[var(--sr-border-subtle)] px-3 text-xs font-medium text-[var(--sr-text-secondary)] transition-all hover:border-[var(--sr-border-strong)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+                'flex min-h-11 items-center rounded-full border border-[var(--sr-border-subtle)] px-4 text-xs font-medium text-[var(--sr-text-secondary)] transition-all hover:border-[var(--sr-border-strong)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
                 FOCUS_RING,
               )}
               onClick={() => onSetRest(sec)}
@@ -499,15 +529,6 @@ export function RestTimerExpanded({
             </button>
           ))}
         </div>
-      )}
-      {showSkipConfirm && (
-        <ConfirmSheet
-          title={pl.skipRest}
-          message={pl.skipRestConfirm}
-          confirmLabel={pl.skipRest}
-          onConfirm={() => { setShowSkipConfirm(false); onSkip() }}
-          onCancel={() => setShowSkipConfirm(false)}
-        />
       )}
       </div>
     </OverlayPortal>

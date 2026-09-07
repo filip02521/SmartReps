@@ -89,6 +89,11 @@ export type AchievementDef = {
    * Tiers must be sorted ascending by threshold. The highest met tier determines
    * the displayed rarity and visual treatment. */
   tiers?: AchievementTier[]
+  /** Rolling-window achievements are revoked when the metric drops below the
+   * first tier threshold (tiered) or the met threshold (non-tiered).
+   * Use for metrics that measure current state, not cumulative history
+   * (e.g. completedInLast14d, streakWeeks). */
+  rolling?: boolean
 }
 
 /** Resolved tier info for a met achievement (highest unlocked tier). */
@@ -183,4 +188,7 @@ export type EvaluateResult = {
   backfill: boolean
   /** Unlocks whose tier was upgraded or downgraded (not new). Pushed to cloud but not queued as unlock sheets. */
   tierChanged: LocalAchievementUnlock[]
+  /** Rolling-window achievements that were revoked because criteria are no
+   *  longer met. Deleted from cloud to prevent resurrection from other devices. */
+  revoked: AchievementId[]
 }

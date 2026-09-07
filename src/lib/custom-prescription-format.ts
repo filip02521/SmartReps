@@ -8,6 +8,32 @@ import { metricTargetDisplayValue } from '@/lib/plan-resolver'
 import { kgToDisplay, weightUnitLabel } from '@/lib/weight-units'
 import { pl } from '@/i18n/pl'
 
+/** Duration display unit — 'sec' (default) or 'min' for cardio-style exercises. */
+export type DurationUnit = 'sec' | 'min'
+
+/** Convert seconds to the display unit value. */
+export function secToDisplay(sec: number, unit: DurationUnit): number {
+  if (unit === 'min') return Math.round(sec / 60)
+  return sec
+}
+
+/** Convert a display-unit value back to seconds. */
+export function displayToSec(display: number, unit: DurationUnit): number {
+  if (unit === 'min') return Math.round(display * 60)
+  return display
+}
+
+/** Format a duration in seconds for display, respecting the unit.
+ *  sec: "45s", "60s"
+ *  min: "40 min", "1 min" */
+export function formatDurationDisplay(sec: number, unit: DurationUnit): string {
+  if (unit === 'min') {
+    const mins = Math.round(sec / 60)
+    return pl.durationMinValue(mins)
+  }
+  return pl.durationSecValue(sec)
+}
+
 export function formatMetricTarget(target: MetricTarget): string {
   switch (target.kind) {
     case 'fixed':
@@ -32,14 +58,16 @@ export function formatMetricTargetCompact(target: MetricTarget): string {
   }
 }
 
-/** Checklist cell: "12", "45s", "8 · 40kg". */
+/** Checklist cell: "12", "45s", "40 min", "8 · 40kg". */
 export function formatPrescriptionTarget(
   prescription: SetPrescription,
   metric: PrimaryMetric,
   weightUnit: 'kg' | 'lb' = 'kg',
+  durationUnit: DurationUnit = 'sec',
 ): string {
   if (metric === 'duration_sec' && prescription.durationSec) {
-    return `${formatMetricTarget(prescription.durationSec)}s`
+    const sec = metricTargetDisplayValue(prescription.durationSec)
+    return formatDurationDisplay(sec, durationUnit)
   }
   if (prescription.reps) {
     const reps = formatMetricTarget(prescription.reps)
@@ -50,7 +78,8 @@ export function formatPrescriptionTarget(
     return reps
   }
   if (prescription.durationSec) {
-    return `${formatMetricTarget(prescription.durationSec)}s`
+    const sec = metricTargetDisplayValue(prescription.durationSec)
+    return formatDurationDisplay(sec, durationUnit)
   }
   return '—'
 }
@@ -61,10 +90,15 @@ export function formatPrescriptionSetLabel(
   metric: PrimaryMetric,
   exerciseName: string,
   weightUnit: 'kg' | 'lb' = 'kg',
+  durationUnit: DurationUnit = 'sec',
 ): string {
   if (metric === 'duration_sec' && prescription.durationSec) {
-    const n = metricTargetDisplayValue(prescription.durationSec)
-    return pl.customSetLabelDuration(n, exerciseName)
+    const sec = metricTargetDisplayValue(prescription.durationSec)
+    if (durationUnit === 'min') {
+      const mins = Math.round(sec / 60)
+      return pl.customSetLabelDurationMin(mins, exerciseName)
+    }
+    return pl.customSetLabelDuration(sec, exerciseName)
   }
   if (prescription.reps) {
     const n = metricTargetDisplayValue(prescription.reps)
@@ -87,9 +121,10 @@ export function formatSetActualDisplay(
   actual: SetActual,
   metric: PrimaryMetric,
   weightUnit: 'kg' | 'lb' = 'kg',
+  durationUnit: DurationUnit = 'sec',
 ): string {
   if (metric === 'duration_sec') {
-    return `${actual.durationSec ?? 0}s`
+    return formatDurationDisplay(actual.durationSec ?? 0, durationUnit)
   }
   if (metric === 'reps_weight') {
     const reps = actual.reps ?? 0

@@ -44,6 +44,7 @@ import {
   acquireInflight,
   releaseInflight,
   recordCall,
+  recordFailedCall,
 } from '@/lib/ai/rate-limiter'
 import { listExercises } from '@/lib/custom-plan-service'
 import type { LocalAiInsight } from '@/lib/db'
@@ -266,6 +267,8 @@ export default function SessionSummary() {
       void enqueueSync('ai_insights', 'insert', insight)
       setCoachInsight(insight)
     } catch {
+      // AI call failed — count toward quota to prevent retry spam
+      if (aiConfig) recordFailedCall('post_workout')
       // Non-blocking — summary works without insight
     } finally {
       if (usedInflight) releaseInflight('post_workout')

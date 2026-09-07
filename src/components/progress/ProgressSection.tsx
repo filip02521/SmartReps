@@ -30,16 +30,16 @@ export function ProgressSection({
       )}
     >
       {title && (
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           {Icon && (
             <Icon
               size={16}
-              className="text-[var(--sr-text-muted)]"
+              className="shrink-0 text-[var(--sr-text-muted)]"
               strokeWidth={2.25}
               aria-hidden
             />
           )}
-          <p className="sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+          <p className="min-w-0 break-words sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
             {title}
           </p>
         </div>
