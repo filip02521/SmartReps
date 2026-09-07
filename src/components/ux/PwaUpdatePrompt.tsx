@@ -29,8 +29,15 @@ type UpdateState = 'idle' | 'available' | 'applying'
  */
 export function PwaUpdatePrompt() {
   const [state, setState] = useState<UpdateState>('idle')
+  const stateRef = useRef<UpdateState>('idle')
   const updateFnRef = useRef<(() => void) | null>(null)
   const applyTimerRef = useRef<number | undefined>(undefined)
+
+  // Keep stateRef in sync so event listeners can read the latest state
+  // without re-binding (controllerchange listener is registered once).
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
 
   const applyUpdate = useCallback(() => {
     if (state === 'applying') return
@@ -99,11 +106,11 @@ export function PwaUpdatePrompt() {
       void registration?.update().catch(() => {})
     }, UPDATE_CHECK_INTERVAL_MS)
 
-    // Auto-reload when the controlling SW changes (e.g. another tab applied the update)
+    // Auto-reload when the controlling SW changes — but ONLY if we triggered
+    // the update (state === 'applying'). This prevents reloading on first
+    // install and on cross-tab activations where the other tab already reloaded.
     const onControllerChange = () => {
-      // Only reload if we're in the applying state or a new SW took over
-      // unexpectedly — avoids reloading on first install.
-      if (navigator.serviceWorker.controller) {
+      if (stateRef.current === 'applying' && navigator.serviceWorker.controller) {
         window.clearTimeout(applyTimerRef.current)
         window.location.reload()
       }
