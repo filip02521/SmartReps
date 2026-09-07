@@ -328,7 +328,7 @@ function ProgramSection({
   )
 }
 
-type Scope = 'all' | 'pushups' | 'pullups' | 'custom'
+type Scope = 'activity' | 'pushups' | 'pullups'
 
 export function OverviewPanel({
   programDataMap,
@@ -359,58 +359,191 @@ export function OverviewPanel({
   onOpenExercise: (exerciseId: string) => void
   navigate: NavigateFunction
 }) {
-  const [scope, setScope] = useState<Scope>('all')
+  const [scope, setScope] = useState<Scope>('activity')
 
-  // Dostępne zakresy — tylko te które mają dane lub są włączone
+  // Dostępne zakładki — Aktywność zawsze + programy które są włączone
   const scopeOptions = useMemo(() => {
-    const opts: { value: Scope; label: string }[] = [{ value: 'all', label: pl.progressScopeAll }]
+    const opts: { value: Scope; label: string }[] = [{ value: 'activity', label: pl.progressScopeActivity }]
     if (programDataMap.has('pushups')) opts.push({ value: 'pushups', label: pl.progressScopePushups })
     if (programDataMap.has('pullups')) opts.push({ value: 'pullups', label: pl.progressScopePullups })
-    if (customSessionsAll.length > 0 || customOverviewStats != null) opts.push({ value: 'custom', label: pl.progressScopeCustom })
     return opts
-  }, [programDataMap, customSessionsAll, customOverviewStats])
+  }, [programDataMap])
 
-  // Filtruj programy według scope
-  const visiblePrograms: Program[] = useMemo(() => {
-    if (scope === 'all') return enabledPrograms
-    if (scope === 'pushups') return ['pushups']
-    if (scope === 'pullups') return ['pullups']
-    return []
-  }, [scope, enabledPrograms])
+  // Sesje builtin (nie-custom) — do filtrowania
+  const builtinSessions = useMemo(
+    () => allSessions.filter((s) => !isCustomWorkoutSession(s)),
+    [allSessions],
+  )
 
-  // Filtruj sesje według scope
+  // Aktywność: sesje custom + ogólna aktywność (bez programów builtin)
+  // Programy: tylko sesje tego programu
   const scopedSessions = useMemo(() => {
-    if (scope === 'all') return allSessions
-    if (scope === 'pushups') return allSessions.filter((s) => s.program === 'pushups' && !isCustomWorkoutSession(s))
-    if (scope === 'pullups') return allSessions.filter((s) => s.program === 'pullups' && !isCustomWorkoutSession(s))
-    return allSessions.filter(isCustomWorkoutSession)
-  }, [scope, allSessions])
+    if (scope === 'activity') return allSessions
+    return builtinSessions.filter((s) => s.program === scope)
+  }, [scope, allSessions, builtinSessions])
 
-  // Filtruj custom sessions według scope
-  const showCustom = scope === 'all' || scope === 'custom'
-
-  // Sekcje programów builtin — filtrowane według scope
-  const programSections = visiblePrograms
-    .map((prog) => programDataMap.get(prog))
-    .filter((d): d is ProgramData => d != null && d.stats != null)
-
-  const hasProgramData = programSections.length > 0
-  const hasCustomSessions = showCustom && customSessionsAll.length > 0
-  const showCustomSection = hasCustomSessions && customOverviewStats != null
-  // Empty state tylko gdy nie ma żadnych danych w wybranym scope
-  const hasScopedData = scopedSessions.length > 0 || hasProgramData || showCustomSection
-  const showEmptyState = !hasScopedData
-
-  // First section flag: if no program/custom/empty, calendar or records is first.
-  const calendarFirst = !hasProgramData && !showEmptyState && !showCustomSection
-
-  // Filtruj aktywność według scope
+  // Aktywność globalna — dla zakładki Aktywność użyj wszystkich sesji
+  // Dla programów przelicz aktywność tylko z sesji tego programu
   const scopedActivity = useMemo(() => {
-    if (!activity) return null
-    if (scope === 'all') return activity
+    if (scope === 'activity') return activity
     const passed = scopedSessions.filter((s) => s.status === 'completed' && s.passed)
     return buildActivityInsights(passed)
-  }, [activity, scope, scopedSessions])
+  }, [scope, activity, scopedSessions])
+
+  // ===== Zakładka AKTYWNOŚĆ =====
+  // Pokazuje: custom plans, aktywność globalną, balans mięśniowy, kalendarz, rekordy custom
+  // Nie pokazuje: sekcji programów builtin (pompki/podciąganie)
+  const showCustomSection = customSessionsAll.length > 0 && customOverviewStats != null
+  const hasActivityData = customSessionsAll.length > 0 || builtinSessions.length > 0
+
+  // ===== Zakładki PROGRAMÓW (pompki/podciąganie) =====
+  const programData = scope === 'pushups' || scope === 'pullups' ? programDataMap.get(scope) : undefined
+  const hasProgramData = programData != null && programData.stats != null
+
+  // Empty state — gdy wybrany scope nie ma żadnych danych
+  const showEmptyState =
+    (scope === 'activity' && !hasActivityData && !showCustomSection) ||
+    ((scope === 'pushups' || scope === 'pullups') && !hasProgramData)
+
+  // Renderuj sekcję custom (używana w zakładce Aktywność)
+  const customSection = showCustomSection && customOverviewStats ? (
+    <ProgressSection first icon={Dumbbell} title={pl.progressCustomStatsTitle}>
+      <MetricStrip
+        metrics={[
+          {
+            value: customOverviewStats.totalSessions,
+            label: pl.sessionsTotal,
+            hint: pl.progressCustomStatsHint,
+          },
+          {
+            value: customOverviewStats.exercisesTrained,
+            label: pl.progressCustomExercisesTrained,
+            hint: pl.progressCustomStatsHint,
+          },
+          {
+            value: customOverviewStats.totalVolume,
+            label: pl.progressCustomVolumeTotal,
+            hint: pl.progressCustomStatsHint,
+          },
+        ]}
+      />
+      {customVolumeStats && (customVolumeStats.volume14d > 0 || customVolumeStats.sessionsLast30d > 0) && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <NestedStat
+            size="md"
+            overline={pl.progressVolume14d}
+            value={customVolumeStats.volume14d}
+            hint={
+              customVolumeStats.volumeChangePct != null
+                ? customVolumeStats.volumeChangePct > 0
+                  ? pl.progressVolumeTrendUp(customVolumeStats.volumeChangePct)
+                  : customVolumeStats.volumeChangePct < 0
+                    ? pl.progressVolumeTrendDown(Math.abs(customVolumeStats.volumeChangePct))
+                    : pl.progressVolumeTrendFlat
+                : undefined
+            }
+          />
+          <NestedStat
+            size="md"
+            overline={pl.progressSessions30d}
+            value={customVolumeStats.sessionsLast30d}
+          />
+        </div>
+      )}
+      {customSessionChart.length >= 2 && (
+        <AccessibleChart
+          label={pl.progressCustomVolumeChartAria(customSessionChart.length)}
+          data={customSessionChart.map((p) => ({ date: p.dateLabel, volume: p.value, day: pl.dayLabel(p.dayNumber) }))}
+          columns={[
+            { key: 'date', header: pl.dateColumn },
+            { key: 'volume', header: pl.progressCustomVolumePerSession },
+            { key: 'day', header: pl.dayLabelShort },
+          ]}
+          className="mt-3 h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={customSessionChart}>
+              <XAxis
+                dataKey="dateLabel"
+                tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                stroke="var(--sr-border-subtle)"
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                stroke="var(--sr-border-subtle)"
+                width={28}
+              />
+              <Tooltip
+                contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
+                formatter={(value, _name, item) => {
+                  const row = item.payload as CustomSessionChartPoint
+                  return [
+                    `${value ?? 0} · ${pl.dayLabel(row.dayNumber)}`,
+                    pl.progressCustomVolumePerSession,
+                  ]
+                }}
+                labelFormatter={(label) => String(label)}
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke="var(--sr-brand-primary)"
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: 'var(--sr-brand-primary)' }}
+                activeDot={{ r: 5 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </AccessibleChart>
+      )}
+
+      {/* Wykres objętości tygodniowej — plany własne */}
+      {customWeeklyVolumeChart.length >= 2 && customWeeklyVolumeChart.some((p) => p.volume > 0) && (
+        <div className="mt-4">
+          <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+            {pl.progressWeeklyVolumeTitle}
+          </p>
+          <AccessibleChart
+            label={pl.progressWeeklyVolumeAria(customWeeklyVolumeChart.length)}
+            data={customWeeklyVolumeChart.map((p) => ({ week: p.weekLabel, volume: p.volume }))}
+            columns={[
+              { key: 'week', header: pl.dateColumn },
+              { key: 'volume', header: pl.progressWeeklyVolumeAxisLabel },
+            ]}
+            className="h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={customWeeklyVolumeChart}>
+                <XAxis
+                  dataKey="weekLabel"
+                  tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }}
+                  stroke="var(--sr-border-subtle)"
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                  stroke="var(--sr-border-subtle)"
+                  width={36}
+                />
+                <Tooltip
+                  contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
+                  formatter={(value) => [value ?? 0, pl.progressWeeklyVolumeTooltip]}
+                  labelFormatter={(label) => String(label)}
+                />
+                <Bar
+                  dataKey="volume"
+                  fill="var(--sr-brand-primary)"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={32}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </AccessibleChart>
+        </div>
+      )}
+    </ProgressSection>
+  ) : null
 
   return (
     <>
@@ -427,25 +560,109 @@ export function OverviewPanel({
         </div>
       )}
 
-      {/* Sekcje programów builtin — filtrowane według scope */}
-      {programSections.map((data, i) => (
-        <ProgramSection
-          key={data.program}
-          data={data}
-          allSessions={scopedSessions}
-          first={i === 0}
-        />
-      ))}
+      {/* ===== ZAKŁADKA: AKTYWNOŚĆ ===== */}
+      {scope === 'activity' && (
+        <>
+          {/* Statystyki planów własnych */}
+          {customSection}
 
-      {/* Globalna sekcja aktywności — raz, nie per program */}
-      {scopedActivity && hasScopedData && (
-        <ProgressSection icon={Activity} title={pl.progressActivityTitle}>
-          <ActivityInsightsPanel insights={scopedActivity} ariaLabel={pl.progressActivityAria} />
-        </ProgressSection>
+          {/* Globalna sekcja aktywności */}
+          {scopedActivity && hasActivityData && (
+            <ProgressSection first={!showCustomSection} icon={Activity} title={pl.progressActivityTitle}>
+              <ActivityInsightsPanel insights={scopedActivity} ariaLabel={pl.progressActivityAria} />
+            </ProgressSection>
+          )}
+
+          {/* Empty state gdy brak danych */}
+          {showEmptyState && (
+            <ProgressSection first icon={BarChart3} title={pl.progressEmptyTitle}>
+              <EmptyState
+                icon={<LogoMark size={48} />}
+                title={pl.firstWorkout}
+                description={pl.progressEmptyHint}
+                action={{
+                  label: pl.startFirstWorkout,
+                  onClick: () => void navigateToTrain(navigate, enabledPrograms[0] ?? 'pushups'),
+                }}
+              />
+            </ProgressSection>
+          )}
+
+          {/* Balans mięśniowy — wszystkie sesje */}
+          {allSessions.length > 0 && (
+            <ProgressSection icon={Activity} title={pl.muscleBalanceTitle} hint={pl.muscleBalanceHint}>
+              <MuscleBalanceHeatmap sessions={allSessions} />
+            </ProgressSection>
+          )}
+
+          {/* Kalendarz aktywności — wszystkie sesje */}
+          {allSessions.length > 0 && (
+            <ProgressSection icon={Calendar} title={pl.calendarTitle} hint={pl.calendarHint}>
+              <ActivityCalendar sessions={allSessions} customPlanNames={customPlanNames} navigate={navigate} />
+            </ProgressSection>
+          )}
+
+          {/* Rekordy — tylko custom PRs w zakładce Aktywność */}
+          <UnifiedRecordsSection
+            programRecordsList={[]}
+            customPrs={customPrs}
+            onOpenExercise={onOpenExercise}
+            first={!showCustomSection && !showEmptyState && allSessions.length === 0}
+            icon={Trophy}
+          />
+        </>
       )}
 
-      {/* Empty state gdy brak danych w wybranym scope */}
-      {showEmptyState && (
+      {/* ===== ZAKŁADKA: POMPKI ===== */}
+      {scope === 'pushups' && programData && hasProgramData && (
+        <>
+          <ProgramSection
+            data={programData}
+            allSessions={scopedSessions}
+            first
+          />
+          {/* Rekordy — tylko pompki */}
+          {programData.recordsWithDates && (
+            <UnifiedRecordsSection
+              programRecordsList={[{
+                program: 'pushups',
+                records: programData.recordsWithDates,
+                stats: programData.stats!,
+              }]}
+              customPrs={[]}
+              onOpenExercise={onOpenExercise}
+              icon={Trophy}
+            />
+          )}
+        </>
+      )}
+
+      {/* ===== ZAKŁADKA: PODCIĄGANIE ===== */}
+      {scope === 'pullups' && programData && hasProgramData && (
+        <>
+          <ProgramSection
+            data={programData}
+            allSessions={scopedSessions}
+            first
+          />
+          {/* Rekordy — tylko podciąganie */}
+          {programData.recordsWithDates && (
+            <UnifiedRecordsSection
+              programRecordsList={[{
+                program: 'pullups',
+                records: programData.recordsWithDates,
+                stats: programData.stats!,
+              }]}
+              customPrs={[]}
+              onOpenExercise={onOpenExercise}
+              icon={Trophy}
+            />
+          )}
+        </>
+      )}
+
+      {/* Empty state dla programów bez danych */}
+      {showEmptyState && (scope === 'pushups' || scope === 'pullups') && (
         <ProgressSection first icon={BarChart3} title={pl.progressEmptyTitle}>
           <EmptyState
             icon={<LogoMark size={48} />}
@@ -453,184 +670,11 @@ export function OverviewPanel({
             description={pl.progressEmptyHint}
             action={{
               label: pl.startFirstWorkout,
-              onClick: () => void navigateToTrain(navigate, enabledPrograms[0] ?? 'pushups'),
+              onClick: () => void navigateToTrain(navigate, scope),
             }}
           />
         </ProgressSection>
       )}
-
-      {/* Statystyki planów własnych — tylko w scope all lub custom */}
-      {showCustomSection && customOverviewStats && (
-        <ProgressSection
-          first={!hasProgramData && !showEmptyState}
-          icon={Dumbbell}
-          title={pl.progressCustomStatsTitle}
-        >
-          <MetricStrip
-            metrics={[
-              {
-                value: customOverviewStats.totalSessions,
-                label: pl.sessionsTotal,
-                hint: pl.progressCustomStatsHint,
-              },
-              {
-                value: customOverviewStats.exercisesTrained,
-                label: pl.progressCustomExercisesTrained,
-                hint: pl.progressCustomStatsHint,
-              },
-              {
-                value: customOverviewStats.totalVolume,
-                label: pl.progressCustomVolumeTotal,
-                hint: pl.progressCustomStatsHint,
-              },
-            ]}
-          />
-          {customVolumeStats && (customVolumeStats.volume14d > 0 || customVolumeStats.sessionsLast30d > 0) && (
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <NestedStat
-                size="md"
-                overline={pl.progressVolume14d}
-                value={customVolumeStats.volume14d}
-                hint={
-                  customVolumeStats.volumeChangePct != null
-                    ? customVolumeStats.volumeChangePct > 0
-                      ? pl.progressVolumeTrendUp(customVolumeStats.volumeChangePct)
-                      : customVolumeStats.volumeChangePct < 0
-                        ? pl.progressVolumeTrendDown(Math.abs(customVolumeStats.volumeChangePct))
-                        : pl.progressVolumeTrendFlat
-                    : undefined
-                }
-              />
-              <NestedStat
-                size="md"
-                overline={pl.progressSessions30d}
-                value={customVolumeStats.sessionsLast30d}
-              />
-            </div>
-          )}
-          {customSessionChart.length >= 2 && (
-            <AccessibleChart
-              label={pl.progressCustomVolumeChartAria(customSessionChart.length)}
-              data={customSessionChart.map((p) => ({ date: p.dateLabel, volume: p.value, day: pl.dayLabel(p.dayNumber) }))}
-              columns={[
-                { key: 'date', header: pl.dateColumn },
-                { key: 'volume', header: pl.progressCustomVolumePerSession },
-                { key: 'day', header: pl.dayLabelShort },
-              ]}
-              className="mt-3 h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={customSessionChart}>
-                  <XAxis
-                    dataKey="dateLabel"
-                    tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
-                    stroke="var(--sr-border-subtle)"
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
-                    stroke="var(--sr-border-subtle)"
-                    width={28}
-                  />
-                  <Tooltip
-                    contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
-                    formatter={(value, _name, item) => {
-                      const row = item.payload as CustomSessionChartPoint
-                      return [
-                        `${value ?? 0} · ${pl.dayLabel(row.dayNumber)}`,
-                        pl.progressCustomVolumePerSession,
-                      ]
-                    }}
-                    labelFormatter={(label) => String(label)}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="var(--sr-brand-primary)"
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: 'var(--sr-brand-primary)' }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </AccessibleChart>
-          )}
-
-          {/* Wykres objętości tygodniowej — plany własne (w sekcji custom) */}
-          {customWeeklyVolumeChart.length >= 2 && customWeeklyVolumeChart.some((p) => p.volume > 0) && (
-            <div className="mt-4">
-              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
-                {pl.progressWeeklyVolumeTitle}
-              </p>
-              <AccessibleChart
-                label={pl.progressWeeklyVolumeAria(customWeeklyVolumeChart.length)}
-                data={customWeeklyVolumeChart.map((p) => ({ week: p.weekLabel, volume: p.volume }))}
-                columns={[
-                  { key: 'week', header: pl.dateColumn },
-                  { key: 'volume', header: pl.progressWeeklyVolumeAxisLabel },
-                ]}
-                className="h-40 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={customWeeklyVolumeChart}>
-                    <XAxis
-                      dataKey="weekLabel"
-                      tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }}
-                      stroke="var(--sr-border-subtle)"
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
-                      stroke="var(--sr-border-subtle)"
-                      width={36}
-                    />
-                    <Tooltip
-                      contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
-                      formatter={(value) => [value ?? 0, pl.progressWeeklyVolumeTooltip]}
-                      labelFormatter={(label) => String(label)}
-                    />
-                    <Bar
-                      dataKey="volume"
-                      fill="var(--sr-brand-primary)"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={32}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </AccessibleChart>
-            </div>
-          )}
-        </ProgressSection>
-      )}
-
-      {/* Balans mięśniowy — heatmapa (filtrowana według scope) */}
-      {scopedSessions.length > 0 && (
-        <ProgressSection icon={Activity} title={pl.muscleBalanceTitle} hint={pl.muscleBalanceHint}>
-          <MuscleBalanceHeatmap sessions={scopedSessions} />
-        </ProgressSection>
-      )}
-
-      {/* Kalendarz aktywności (filtrowany według scope) */}
-      {scopedSessions.length > 0 && (
-        <ProgressSection first={calendarFirst} icon={Calendar} title={pl.calendarTitle} hint={pl.calendarHint}>
-          <ActivityCalendar sessions={scopedSessions} customPlanNames={customPlanNames} navigate={navigate} />
-        </ProgressSection>
-      )}
-
-      {/* Rekordy ujednolicone — filtrowane według scope */}
-      <UnifiedRecordsSection
-        programRecordsList={programSections
-          .filter((d) => d.recordsWithDates != null)
-          .map((d) => ({
-            program: d.program,
-            records: d.recordsWithDates!,
-            stats: d.stats!,
-          }))}
-        customPrs={showCustom ? customPrs : []}
-        onOpenExercise={onOpenExercise}
-        first={calendarFirst}
-        icon={Trophy}
-      />
     </>
   )
 }
