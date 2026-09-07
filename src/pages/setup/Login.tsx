@@ -296,6 +296,7 @@ export default function Login() {
           <span className="font-medium text-[var(--sr-text-primary)]">{signedInEmail}</span>
         </p>
         <Button className="mt-4" fullWidth disabled={loading} onClick={() => void continueSignedIn()}>
+          {loading && <Loader2 size={18} className="animate-spin" aria-hidden />}
           {pl.loginContinue}
         </Button>
         <Button
