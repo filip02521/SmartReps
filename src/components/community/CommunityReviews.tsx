@@ -471,7 +471,10 @@ export function CommunityReviewsSection({
           <ReviewItem
             review={{
               ...myReview,
-              author_display_name: '',
+              // Use the display name from the full reviews list (which joins
+              // public_profiles). Falls back to empty if not found yet.
+              author_display_name:
+                reviews.find((r) => r.user_id === currentUserId)?.author_display_name ?? '',
             }}
             isOwn
             onEdit={() => setFormOpen(true)}
