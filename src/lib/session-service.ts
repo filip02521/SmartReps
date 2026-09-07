@@ -125,7 +125,11 @@ export async function ensureWorkoutSessionPersisted(
 
 export async function saveWorkoutSession(session: LocalWorkoutSession): Promise<void> {
   await db.workoutSessions.put(session)
-  await enqueueSync('workout_sessions', 'update', session)
+  // Only sync completed sessions to cloud — abandoned/in_progress are local-only
+  // to avoid cluttering cloud history with failed attempts.
+  if (session.status === 'completed') {
+    await enqueueSync('workout_sessions', 'update', session)
+  }
 }
 
 export async function getLastPassedSession(
@@ -403,10 +407,7 @@ export async function abandonAllInProgress(program: Program): Promise<void> {
       await db.workoutSessions.put({ ...s, status: 'abandoned', completedAt: now })
     }
   })
-  // Enqueue sync after successful transaction
-  for (const s of orphans) {
-    await enqueueSync('workout_sessions', 'update', { ...s, status: 'abandoned', completedAt: now })
-  }
+  // Abandoned sessions are local-only — don't sync to cloud
   await clearActiveWorkout(program)
 }
 

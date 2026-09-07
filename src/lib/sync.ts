@@ -685,6 +685,8 @@ export async function syncAllLocalData(): Promise<SyncResult> {
     const tombstonedIds = new Set((await db.sessionTombstones.toArray()).map((t) => t.sessionId))
     for (const session of sessions) {
       if (tombstonedIds.has(session.id)) continue
+      // Only push completed sessions — abandoned/in_progress are local-only
+      if (session.status !== 'completed') continue
       try {
         await upsertSession(userId, session)
       } catch (err) {
@@ -1052,6 +1054,8 @@ export async function pullRemoteData(): Promise<SyncResult> {
     if (sessionsError) throw sessionsError
 
     for (const remote of remoteSessions ?? []) {
+      // Don't pull abandoned sessions from cloud — they're local-only noise
+      if (remote.status === 'abandoned') continue
       await mergeSessionRemote(userId, remote as RemoteSessionRow)
     }
 

@@ -78,7 +78,7 @@ export async function cleanupEmptyCustomInProgress(planId: string): Promise<void
       completedAt: now,
     }
     await db.workoutSessions.put(abandoned)
-    await enqueueSync('workout_sessions', 'update', abandoned)
+    // Abandoned sessions are local-only — don't sync to cloud
   }
 
   const activeAfter = await db.activeCustomWorkout.get(planId)
@@ -454,7 +454,7 @@ export async function abandonCustomWorkout(planId: string, sessionId: string) {
       completedAt: new Date().toISOString(),
     }
     await db.workoutSessions.put(abandoned)
-    await enqueueSync('workout_sessions', 'update', abandoned)
+    // Abandoned sessions are local-only — don't sync to cloud
   }
   await clearActiveCustomWorkout(planId)
 }

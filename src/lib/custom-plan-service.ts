@@ -372,7 +372,7 @@ export async function deleteCustomPlan(planId: string): Promise<void> {
         completedAt: new Date().toISOString(),
       }
       await db.workoutSessions.put(abandoned)
-      await enqueueSync('workout_sessions', 'update', abandoned)
+      // Abandoned sessions are local-only — don't sync to cloud
     }
   }
   const prog = await db.customProgramProgress.where('customPlanId').equals(planId).first()
