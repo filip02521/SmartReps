@@ -455,6 +455,13 @@ export async function pullCustomEntities(userId: string): Promise<number> {
           const localProg = await db.customProgramProgress.where('customPlanId').equals(row.plan_id).first()
           if (localProg?.id != null) await db.customProgramProgress.delete(localProg.id)
           await db.activeCustomWorkout.delete(row.plan_id)
+          // Also delete the remote plan if it still exists — the tombstone means
+          // it was deleted on some device, but the cloud delete may have failed.
+          try {
+            await supabase.from('custom_plans').delete().eq('user_id', userId).eq('id', row.plan_id)
+          } catch {
+            // Non-fatal — will retry on next sync
+          }
         }
       }
     } catch {
@@ -472,6 +479,12 @@ export async function pullCustomEntities(userId: string): Promise<number> {
           await db.exerciseTombstones.put({ exerciseId: row.exercise_id, deletedAt: row.deleted_at })
           const localEx = await db.exercises.get(row.exercise_id)
           if (localEx) await db.exercises.delete(row.exercise_id)
+          // Also delete the remote exercise if it still exists — same reason as plan tombstones.
+          try {
+            await supabase.from('user_exercises').delete().eq('user_id', userId).eq('id', row.exercise_id)
+          } catch {
+            // Non-fatal — will retry on next sync
+          }
         }
       }
     } catch {

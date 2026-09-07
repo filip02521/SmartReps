@@ -1030,6 +1030,19 @@ export async function pullRemoteData(): Promise<SyncResult> {
       if (localSession) {
         await db.workoutSessions.delete(r.session_id)
       }
+      // Also delete the remote session if it still exists — the tombstone
+      // means it was deleted on some device, but the cloud delete may have
+      // failed (network error, queue item dead-lettered, etc.). Without this,
+      // the session lingers in the cloud forever and is fetched on every pull.
+      try {
+        await supabase
+          .from('workout_sessions')
+          .delete()
+          .eq('user_id', userId)
+          .eq('id', r.session_id)
+      } catch {
+        // Non-fatal — will retry on next sync
+      }
     }
 
     const { data: remoteSessions, error: sessionsError } = await supabase
@@ -1138,6 +1151,16 @@ export async function pullRemoteData(): Promise<SyncResult> {
           await db.bodyWeightTombstones.put({ entryId: row.entry_id, deletedAt: row.deleted_at })
           const localEntry = await db.bodyWeight.get(row.entry_id)
           if (localEntry) await db.bodyWeight.delete(row.entry_id)
+          // Also delete the remote entry if it still exists — same reason as session tombstones.
+          try {
+            await supabase
+              .from('body_weight_entries')
+              .delete()
+              .eq('user_id', userId)
+              .eq('id', row.entry_id)
+          } catch {
+            // Non-fatal — will retry on next sync
+          }
         }
       }
     } catch {
