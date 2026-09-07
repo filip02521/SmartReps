@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UserPlus, UserCheck, UserX, Loader2, Dumbbell, Flame, Trophy, Heart, Users } from 'lucide-react'
+import { UserPlus, UserCheck, UserX, Loader2, Dumbbell, Flame, Trophy, Heart, Users, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
@@ -17,8 +17,13 @@ import {
   type FolloweeProfile,
   type FollowerProfile,
   type PublicProfile,
+  type PublicAchievementBadge,
 } from '@/lib/follow-system'
 import { refreshCommunityAuthorDisplayName } from '@/lib/community-api'
+import { ACHIEVEMENT_BY_ID, resolveDisplayGlyph, resolveDisplayRarity } from '@/lib/achievements/catalog'
+import { achievementTitle } from '@/lib/achievements/copy'
+import type { AchievementId } from '@/lib/achievements/types'
+import { GLYPHS } from '@/components/achievements/AchievementTile'
 import type { FollowData } from '@/hooks/useFollowData'
 
 /* ─── Follow button — used on community plan authors ─── */
@@ -116,6 +121,54 @@ export function FollowButton({
   )
 }
 
+/* ─── Mini achievement badge for follow cards ─── */
+
+function MiniAchievementBadge({ badge }: { badge: PublicAchievementBadge }) {
+  const def = ACHIEVEMENT_BY_ID[badge.achievement_id as AchievementId]
+  if (!def) return null
+  const glyphKey = resolveDisplayGlyph(def, badge.tier_level)
+  const Icon = GLYPHS[glyphKey] ?? GLYPHS[def.glyph] ?? Trophy
+  const rarity = resolveDisplayRarity(def, null, badge.tier_level)
+  const title = achievementTitle(badge.achievement_id as AchievementId)
+
+  const rarityClass =
+    rarity === 'legendary'
+      ? 'bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)] ring-[var(--sr-brand-primary)]'
+      : rarity === 'rare'
+        ? 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-secondary)] ring-[var(--sr-border-strong)]'
+        : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)] ring-[var(--sr-border-subtle)]'
+
+  return (
+    <span
+      className={cn(
+        'flex h-7 w-7 shrink-0 items-center justify-center rounded-full ring-1',
+        rarityClass,
+      )}
+      title={title}
+      aria-label={title}
+    >
+      <Icon size={14} aria-hidden />
+    </span>
+  )
+}
+
+function BadgeRow({ badges }: { badges: PublicAchievementBadge[] }) {
+  if (!badges || badges.length === 0) {
+    return (
+      <span className="sr-text-caption text-[var(--sr-text-muted)] italic">
+        {pl.followNoBadges}
+      </span>
+    )
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      {badges.map((b, i) => (
+        <MiniAchievementBadge key={`${b.achievement_id}-${i}`} badge={b} />
+      ))}
+    </div>
+  )
+}
+
 /* ─── Following list — users I follow with their stats ─── */
 
 function FolloweeCard({
@@ -158,7 +211,7 @@ function FolloweeCard({
           <UserX size={16} aria-hidden />
         </button>
       </div>
-      {/* Stats row */}
+      {/* Stats row — compact chips: sessions, streak, total reps */}
       <div className="mt-3 grid grid-cols-3 gap-2">
         <StatChip
           icon={<Dumbbell size={12} aria-hidden />}
@@ -171,10 +224,19 @@ function FolloweeCard({
           value={profile.current_streak_weeks}
         />
         <StatChip
-          icon={<Trophy size={12} aria-hidden />}
-          label={pl.followStatsPushupMax}
-          value={profile.pushup_max}
+          icon={<Zap size={12} aria-hidden />}
+          label={pl.followStatsTotalReps}
+          value={profile.total_reps}
         />
+      </div>
+      {/* Achievement badges row */}
+      <div className="mt-2.5 flex items-center justify-between gap-2">
+        <BadgeRow badges={profile.top_achievements ?? []} />
+        {profile.achievement_count > 0 && (
+          <span className="shrink-0 sr-text-caption text-[var(--sr-text-muted)] tabular-nums">
+            {pl.followStatsAchievementsCount(profile.achievement_count)}
+          </span>
+        )}
       </div>
       {confirmUnfollow && (
         <ConfirmSheet
@@ -438,7 +500,7 @@ function FollowerCard({ profile }: { profile: FollowerProfile }) {
           <Heart size={16} aria-hidden />
         </span>
       </div>
-      {/* Stats row */}
+      {/* Stats row — compact chips: sessions, streak, total reps */}
       <div className="mt-3 grid grid-cols-3 gap-2">
         <StatChip
           icon={<Dumbbell size={12} aria-hidden />}
@@ -451,10 +513,19 @@ function FollowerCard({ profile }: { profile: FollowerProfile }) {
           value={profile.current_streak_weeks}
         />
         <StatChip
-          icon={<Trophy size={12} aria-hidden />}
-          label={pl.followStatsPushupMax}
-          value={profile.pushup_max}
+          icon={<Zap size={12} aria-hidden />}
+          label={pl.followStatsTotalReps}
+          value={profile.total_reps}
         />
+      </div>
+      {/* Achievement badges row */}
+      <div className="mt-2.5 flex items-center justify-between gap-2">
+        <BadgeRow badges={profile.top_achievements ?? []} />
+        {profile.achievement_count > 0 && (
+          <span className="shrink-0 sr-text-caption text-[var(--sr-text-muted)] tabular-nums">
+            {pl.followStatsAchievementsCount(profile.achievement_count)}
+          </span>
+        )}
       </div>
     </div>
   )

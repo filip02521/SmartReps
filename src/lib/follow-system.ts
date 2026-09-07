@@ -1,5 +1,10 @@
 import { supabase } from '@/lib/supabase/client'
 
+export type PublicAchievementBadge = {
+  achievement_id: string
+  tier_level: number
+}
+
 export type PublicProfile = {
   user_id: string
   display_name: string
@@ -9,8 +14,8 @@ export type PublicProfile = {
   total_reps: number
   current_streak_weeks: number
   best_streak_weeks: number
-  pushup_max: number
-  pullup_max: number
+  achievement_count: number
+  top_achievements: PublicAchievementBadge[]
   updated_at?: string
 }
 
@@ -22,8 +27,8 @@ export type FolloweeProfile = {
   total_reps: number
   current_streak_weeks: number
   best_streak_weeks: number
-  pushup_max: number
-  pullup_max: number
+  achievement_count: number
+  top_achievements: PublicAchievementBadge[]
   followed_at: string
 }
 
@@ -35,8 +40,8 @@ export type FollowerProfile = {
   total_reps: number
   current_streak_weeks: number
   best_streak_weeks: number
-  pushup_max: number
-  pullup_max: number
+  achievement_count: number
+  top_achievements: PublicAchievementBadge[]
   followed_at: string
 }
 
