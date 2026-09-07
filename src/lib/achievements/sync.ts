@@ -1,7 +1,9 @@
 import { supabase } from '@/lib/supabase/client'
-import { ACHIEVEMENT_CATALOG } from './catalog'
+import { ACHIEVEMENT_CATALOG, isAchievementMet } from './catalog'
 import type { AchievementId, LocalAchievementUnlock } from './types'
 import { getAllUnlocks, mergeRemoteUnlocks } from './store'
+import { buildAchievementSnapshot } from './snapshot'
+import { db } from '@/lib/db'
 
 /** Set of valid achievement IDs — used to validate before pushing to cloud. */
 const VALID_IDS = new Set(ACHIEVEMENT_CATALOG.map((d) => d.id))
@@ -57,9 +59,29 @@ export async function pullAchievementsFromCloud(): Promise<void> {
 
   if (error || !data) return
   await mergeRemoteUnlocks(data)
-  // Push local-only unlocks that are valid (after merge, re-check)
+
   const local = await getAllUnlocks()
   const remoteIds = new Set(data.map((r) => r.achievement_id))
   const missing = local.filter((l) => !remoteIds.has(l.id))
-  if (missing.length) await pushAchievementsToCloud(missing)
+
+  // Reconcile: delete local achievements not in remote IF they are not currently
+  // met by the snapshot. This removes erroneously-unlocked achievements without
+  // wiping legitimate offline unlocks that haven't synced yet.
+  const toDelete: AchievementId[] = []
+  if (missing.length) {
+    const snap = await buildAchievementSnapshot({ force: true }).catch(() => null)
+    for (const unlock of missing) {
+      if (snap && !isAchievementMet(unlock.id, snap)) {
+        toDelete.push(unlock.id)
+      }
+    }
+    if (toDelete.length) {
+      await db.achievementUnlocks.bulkDelete(toDelete)
+    }
+  }
+
+  // Push remaining local-only unlocks (legitimate offline unlocks) to cloud
+  const deletedSet = new Set(toDelete)
+  const remaining = missing.filter((l) => !deletedSet.has(l.id))
+  if (remaining.length) await pushAchievementsToCloud(remaining)
 }
