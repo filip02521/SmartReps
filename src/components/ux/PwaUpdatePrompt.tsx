@@ -61,7 +61,7 @@ export function PwaUpdatePrompt() {
     const updateSW = registerSW({
       onNeedRefresh() {
         setState('available')
-        updateFnRef.current = () => updateSW
+        updateFnRef.current = updateSW
         // Notify other tabs so they can show the prompt too.
         try {
           const ch = new BroadcastChannel(UPDATE_CHANNEL)
