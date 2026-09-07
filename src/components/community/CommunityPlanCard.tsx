@@ -1,5 +1,6 @@
 import { ChevronRight, Heart } from 'lucide-react'
 import { Badge } from '@/components/ui/Card'
+import { FollowButton } from '@/components/follow/FollowManager'
 import { pl } from '@/i18n/pl'
 import type { CommunityPublicationRow } from '@/lib/community-api'
 import { communityTagLabel } from '@/lib/community-labels'
@@ -17,6 +18,8 @@ type Props = {
   likeDisabled?: boolean
   onLike?: () => void
   isOwn?: boolean
+  /** Show follow author button (only for non-own published plans). */
+  showFollow?: boolean
 }
 
 export function CommunityPlanCard({
@@ -28,6 +31,7 @@ export function CommunityPlanCard({
   likeDisabled,
   onLike,
   isOwn,
+  showFollow,
 }: Props) {
   const days = snapshotDayCount(row.snapshot_json)
   const exercises = snapshotExerciseCount(row.snapshot_json)
@@ -106,28 +110,38 @@ export function CommunityPlanCard({
           <span className="text-xs text-[var(--sr-text-muted)]">
             {!compact ? pl.communityImports(row.import_count) : null}
           </span>
-          <button
-            type="button"
-            className={cn(
-              FOCUS_RING,
-              'inline-flex min-h-12 min-w-12 items-center justify-center gap-1.5 rounded-[var(--sr-radius-md)] px-2.5 text-sm font-medium',
-              liked
-                ? 'text-[var(--sr-brand-primary)]'
-                : 'text-[var(--sr-text-secondary)]',
-              likeDisabled && 'opacity-50',
+          <div className="flex items-center gap-2">
+            {showFollow && (
+              <div onClick={(e) => { e.preventDefault(); e.stopPropagation() }}>
+                <FollowButton
+                  targetUserId={row.author_id}
+                  initiallyFollowing={false}
+                />
+              </div>
             )}
-            disabled={likeDisabled}
-            aria-pressed={liked}
-            aria-label={liked ? pl.communityUnlike : pl.communityLike}
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              onLike?.()
-            }}
-          >
-            <Heart className={cn('size-4', liked && 'fill-current')} aria-hidden />
-            <span>{row.like_count}</span>
-          </button>
+            <button
+              type="button"
+              className={cn(
+                FOCUS_RING,
+                'inline-flex min-h-12 min-w-12 items-center justify-center gap-1.5 rounded-[var(--sr-radius-md)] px-2.5 text-sm font-medium',
+                liked
+                  ? 'text-[var(--sr-brand-primary)]'
+                  : 'text-[var(--sr-text-secondary)]',
+                likeDisabled && 'opacity-50',
+              )}
+              disabled={likeDisabled}
+              aria-pressed={liked}
+              aria-label={liked ? pl.communityUnlike : pl.communityLike}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onLike?.()
+              }}
+            >
+              <Heart className={cn('size-4', liked && 'fill-current')} aria-hidden />
+              <span>{row.like_count}</span>
+            </button>
+          </div>
         </div>
       ) : null}
     </div>

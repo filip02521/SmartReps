@@ -262,6 +262,7 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
                 onLike={
                   userId === row.author_id ? undefined : () => void handleLike(row)
                 }
+                showFollow={userId !== row.author_id && !!userId}
                 onClick={() => navigate(`/community/${row.slug}`)}
               />
             </li>

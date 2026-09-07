@@ -498,6 +498,8 @@ export default function ProfilePage() {
           onClose={() => setShowFollowersSheet(false)}
           followers={followData.followers}
           loading={followData.loading}
+          error={followData.error}
+          onRetry={() => void followData.reload()}
         />
       )}
 

@@ -22,6 +22,7 @@ export interface FollowData {
   followers: FollowerProfile[]
   counts: FollowCounts
   loading: boolean
+  error: boolean
   currentUserId: string | null
   reload: () => Promise<void>
   unfollow: (followeeId: string) => Promise<void>
@@ -34,6 +35,7 @@ export function useFollowData(): FollowData {
   const [followers, setFollowers] = useState<FollowerProfile[]>([])
   const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const mountedRef = useRef(true)
   const requestIdRef = useRef(0)
@@ -49,13 +51,15 @@ export function useFollowData(): FollowData {
       return
     }
     const reqId = ++requestIdRef.current
+    setLoading(true)
+    setError(false)
     try {
       const { data } = await supabase.auth.getUser()
       if (!mountedRef.current || reqId !== requestIdRef.current) return
       const uid = data.user?.id ?? null
       setCurrentUserId(uid)
 
-      // Refresh stats first (so profile has fresh data)
+      // Refresh stats first (so profile has fresh data) — non-critical, ignore errors
       await refreshMyPublicProfileStats().catch(() => undefined)
       if (!mountedRef.current || reqId !== requestIdRef.current) return
 
@@ -74,7 +78,9 @@ export function useFollowData(): FollowData {
         setCounts(c)
       }
     } catch {
-      // Offline or error
+      if (mountedRef.current && reqId === requestIdRef.current) {
+        setError(true)
+      }
     } finally {
       if (mountedRef.current && reqId === requestIdRef.current) setLoading(false)
     }
@@ -109,6 +115,7 @@ export function useFollowData(): FollowData {
     followers,
     counts,
     loading,
+    error,
     currentUserId,
     reload,
     unfollow,

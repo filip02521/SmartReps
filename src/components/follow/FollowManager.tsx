@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { UserPlus, UserCheck, UserX, Loader2, Dumbbell, Flame, Trophy, Heart, Users } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
@@ -32,6 +33,7 @@ export function FollowButton({
   onToggled?: (following: boolean) => void
 }) {
   const online = useOnline()
+  const navigate = useNavigate()
   const [following, setFollowing] = useState(initiallyFollowing)
   const [busy, setBusy] = useState(false)
   const [confirmUnfollow, setConfirmUnfollow] = useState(false)
@@ -55,14 +57,18 @@ export function FollowButton({
       showToast(pl.followDone, 'success')
     } catch (e) {
       const msg = e instanceof Error ? e.message : ''
-      if (msg === 'not_authenticated') showToast(pl.followLoginRequired, 'info')
+      if (msg === 'not_authenticated') {
+        showToast(pl.followLoginRequired, 'info')
+        const returnTo = window.location.pathname + window.location.search
+        navigate(`/setup/login?returnTo=${encodeURIComponent(returnTo)}`)
+      }
       else if (msg === 'cannot_follow_self') showToast(pl.followCannotFollowSelf, 'info')
       else if (msg === 'user_not_public') showToast(pl.followUserNotPublic, 'info')
       else showToast(pl.followErrorGeneric, 'error')
     } finally {
       setBusy(false)
     }
-  }, [targetUserId, onToggled])
+  }, [targetUserId, onToggled, navigate])
 
   const handleUnfollow = useCallback(async () => {
     setConfirmUnfollow(false)
@@ -461,11 +467,15 @@ export function FollowersSheet({
   onClose,
   followers,
   loading,
+  error,
+  onRetry,
 }: {
   open: boolean
   onClose: () => void
   followers: FollowerProfile[]
   loading: boolean
+  error?: boolean
+  onRetry?: () => void
 }) {
   return (
     <Sheet open={open} onClose={onClose} title={pl.followFollowersSheetTitle(followers.length)}>
@@ -473,6 +483,13 @@ export function FollowersSheet({
         <div className="flex items-center justify-center py-8">
           <Loader2 size={24} className="animate-spin text-[var(--sr-text-muted)]" aria-hidden />
         </div>
+      ) : error ? (
+        <EmptyState
+          icon={<Users size={48} />}
+          title={pl.followLoadError}
+          description={pl.followLoadErrorHint}
+          action={onRetry ? { label: pl.followRetry, onClick: onRetry } : undefined}
+        />
       ) : followers.length === 0 ? (
         <EmptyState
           icon={<Users size={48} />}
@@ -518,6 +535,12 @@ export function FollowingSheet({
         <div className="flex items-center justify-center py-8">
           <Loader2 size={24} className="animate-spin text-[var(--sr-text-muted)]" aria-hidden />
         </div>
+      ) : followData.error ? (
+        <EmptyState
+          title={pl.followLoadError}
+          description={pl.followLoadErrorHint}
+          action={{ label: pl.followRetry, onClick: () => void followData.reload() }}
+        />
       ) : followData.following.length === 0 ? (
         <EmptyState
           title={pl.followEmpty}
