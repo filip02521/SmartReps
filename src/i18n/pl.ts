@@ -2060,6 +2060,7 @@ const plDict = {
   followStatsBestStreak: 'Najlepsza seria',
   followStatsAchievements: 'Odznaki',
   followStatsAchievementsCount: (n: number) => `${n} ${n === 1 ? 'odznaka' : n < 5 ? 'odznaki' : 'odznak'}`,
+  followStatsWeeksShort: 't',
   followNoBadges: 'Brak odznak',
   followEmpty: 'Nie obserwujesz jeszcze nikogo',
   followEmptyHint: 'Znajdź plany w katalogu społeczności i obserwuj autorów.',

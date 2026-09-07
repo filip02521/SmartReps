@@ -148,15 +148,15 @@ function AchievementTrophyBadge({ badge }: { badge: PublicAchievementBadge }) {
   if (tier) {
     return (
       <span
-        className="shrink-0"
+        className="shrink-0 transition-transform hover:scale-110 active:scale-95"
         title={title}
         aria-label={title}
       >
         <TrophyShape
           tier={tier}
           shape={shape}
-          px={32}
-          glyph={<Icon size={11} aria-hidden />}
+          px={36}
+          glyph={<Icon size={12} aria-hidden />}
           ariaHidden
         />
       </span>
@@ -175,30 +175,66 @@ function AchievementTrophyBadge({ badge }: { badge: PublicAchievementBadge }) {
   return (
     <span
       className={cn(
-        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1',
+        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 transition-transform hover:scale-110 active:scale-95',
         rarityClass,
       )}
       title={title}
       aria-label={title}
     >
-      <Icon size={15} aria-hidden />
+      <Icon size={16} aria-hidden />
     </span>
   )
 }
 
 function BadgeRow({ badges }: { badges: PublicAchievementBadge[] }) {
   if (!badges || badges.length === 0) {
-    return (
-      <span className="sr-text-caption text-[var(--sr-text-muted)] italic">
-        {pl.followNoBadges}
-      </span>
-    )
+    return null
   }
   return (
-    <div className="flex items-center gap-1 overflow-x-auto sr-no-scrollbar">
+    <div className="flex items-center gap-1.5 overflow-x-auto sr-no-scrollbar">
       {badges.map((b, i) => (
         <AchievementTrophyBadge key={`${b.achievement_id}-${i}`} badge={b} />
       ))}
+    </div>
+  )
+}
+
+/* ─── Avatar with deterministic color from name ─── */
+
+const AVATAR_COLORS = [
+  'bg-indigo-500/20 text-indigo-300',
+  'bg-cyan-500/20 text-cyan-300',
+  'bg-emerald-500/20 text-emerald-300',
+  'bg-amber-500/20 text-amber-300',
+  'bg-rose-500/20 text-rose-300',
+  'bg-violet-500/20 text-violet-300',
+  'bg-teal-500/20 text-teal-300',
+  'bg-orange-500/20 text-orange-300',
+]
+
+function avatarColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash << 5) - hash + name.charCodeAt(i)
+    hash |= 0
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+  const initial = (name || '?').charAt(0).toUpperCase()
+  const color = avatarColor(name || '?')
+  const sizeClass = size === 'sm' ? 'h-8 w-8 text-sm' : 'h-10 w-10 text-base'
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        'flex shrink-0 items-center justify-center rounded-full font-semibold',
+        sizeClass,
+        color,
+      )}
+    >
+      {initial}
     </div>
   )
 }
@@ -213,18 +249,16 @@ function FolloweeCard({
   onUnfollow: (followeeId: string) => void
 }) {
   const [confirmUnfollow, setConfirmUnfollow] = useState(false)
-  const initial = (profile.display_name || '?').charAt(0).toUpperCase()
+  const name = profile.display_name || pl.followAnonymous
+  const hasBadges = profile.top_achievements && profile.top_achievements.length > 0
 
   return (
-    <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3">
+    <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 transition-colors hover:border-[var(--sr-border-strong)]">
       <div className="flex items-center gap-3">
-        {/* Avatar with initial */}
-        <div aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)] font-semibold">
-          {initial}
-        </div>
+        <Avatar name={name} />
         <div className="min-w-0 flex-1">
           <p className="truncate sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
-            {profile.display_name || pl.followAnonymous}
+            {name}
           </p>
           {profile.bio && (
             <p className="truncate sr-text-caption text-[var(--sr-text-muted)]">
@@ -237,7 +271,7 @@ function FolloweeCard({
           type="button"
           className={cn(
             FOCUS_RING,
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-text-muted)] hover:text-[var(--sr-error)] hover:bg-[var(--sr-bg-surface)] transition-colors',
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-text-muted)] hover:text-[var(--sr-error)] hover:bg-[var(--sr-error-muted)] transition-colors',
           )}
           onClick={() => setConfirmUnfollow(true)}
           aria-label={pl.followUnfollowFromList}
@@ -245,33 +279,36 @@ function FolloweeCard({
           <UserX size={16} aria-hidden />
         </button>
       </div>
-      {/* Stats row — compact chips: sessions, streak, total reps */}
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <StatChip
-          icon={<Dumbbell size={12} aria-hidden />}
-          label={pl.followStatsTotalSessions}
-          value={profile.total_sessions}
-        />
-        <StatChip
-          icon={<Flame size={12} aria-hidden />}
-          label={pl.followStatsCurrentStreak}
-          value={profile.current_streak_weeks}
-        />
-        <StatChip
-          icon={<Zap size={12} aria-hidden />}
-          label={pl.followStatsTotalReps}
-          value={profile.total_reps}
-        />
-      </div>
-      {/* Achievement badges row */}
-      <div className="mt-2.5 flex items-center justify-between gap-2">
-        <BadgeRow badges={profile.top_achievements ?? []} />
-        {profile.achievement_count > 0 && (
-          <span className="shrink-0 sr-text-caption text-[var(--sr-text-muted)] tabular-nums">
-            {pl.followStatsAchievementsCount(profile.achievement_count)}
+      {/* Stats row — compact inline stats */}
+      <div className="mt-2.5 flex items-center gap-3 sr-text-caption text-[var(--sr-text-muted)]">
+        <span className="flex items-center gap-1 tabular-nums">
+          <Dumbbell size={11} aria-hidden className="text-[var(--sr-text-secondary)]" />
+          {profile.total_sessions}
+        </span>
+        {profile.current_streak_weeks > 0 && (
+          <span className="flex items-center gap-1 tabular-nums">
+            <Flame size={11} aria-hidden className="text-[var(--sr-warning)]" />
+            {profile.current_streak_weeks}{pl.followStatsWeeksShort}
+          </span>
+        )}
+        {profile.total_reps > 0 && (
+          <span className="flex items-center gap-1 tabular-nums">
+            <Zap size={11} aria-hidden className="text-[var(--sr-brand-secondary)]" />
+            {profile.total_reps}
           </span>
         )}
       </div>
+      {/* Achievement trophies row — only if user has badges */}
+      {hasBadges && (
+        <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-[var(--sr-border-subtle)] pt-2.5">
+          <BadgeRow badges={profile.top_achievements} />
+          {profile.achievement_count > 0 && (
+            <span className="shrink-0 sr-text-caption text-[var(--sr-text-muted)] tabular-nums">
+              {pl.followStatsAchievementsCount(profile.achievement_count)}
+            </span>
+          )}
+        </div>
+      )}
       {confirmUnfollow && (
         <ConfirmSheet
           title={pl.unfollowConfirm}
@@ -285,28 +322,6 @@ function FolloweeCard({
           onCancel={() => setConfirmUnfollow(false)}
         />
       )}
-    </div>
-  )
-}
-
-function StatChip({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: number
-}) {
-  return (
-    <div className="flex flex-col items-center gap-0.5 rounded-[var(--sr-radius-sm)] bg-[var(--sr-bg-surface)] px-1.5 py-1.5">
-      <span className="flex items-center gap-1 sr-text-caption text-[var(--sr-text-muted)] leading-tight text-center">
-        {icon}
-        {label}
-      </span>
-      <span className="tabular-nums font-semibold text-[var(--sr-text-primary)] leading-tight">
-        {value}
-      </span>
     </div>
   )
 }
@@ -504,21 +519,16 @@ export function PublicProfileSheet({
 /* ─── Follower card — someone who follows me ─── */
 
 function FollowerCard({ profile }: { profile: FollowerProfile }) {
-  const initial = (profile.display_name || '?').charAt(0).toUpperCase()
+  const name = profile.display_name || pl.followAnonymous
+  const hasBadges = profile.top_achievements && profile.top_achievements.length > 0
 
   return (
-    <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3">
+    <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 transition-colors hover:border-[var(--sr-border-strong)]">
       <div className="flex items-center gap-3">
-        {/* Avatar with initial */}
-        <div
-          aria-hidden
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--sr-brand-primary-muted)] font-semibold text-[var(--sr-brand-primary)]"
-        >
-          {initial}
-        </div>
+        <Avatar name={name} />
         <div className="min-w-0 flex-1">
           <p className="truncate sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
-            {profile.display_name || pl.followAnonymous}
+            {name}
           </p>
           {profile.bio && (
             <p className="truncate sr-text-caption text-[var(--sr-text-muted)]">
@@ -531,36 +541,39 @@ function FollowerCard({ profile }: { profile: FollowerProfile }) {
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-brand-primary)]"
           aria-label={pl.followFollowsYou}
         >
-          <Heart size={16} aria-hidden />
+          <Heart size={16} aria-hidden fill="currentColor" />
         </span>
       </div>
-      {/* Stats row — compact chips: sessions, streak, total reps */}
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <StatChip
-          icon={<Dumbbell size={12} aria-hidden />}
-          label={pl.followStatsTotalSessions}
-          value={profile.total_sessions}
-        />
-        <StatChip
-          icon={<Flame size={12} aria-hidden />}
-          label={pl.followStatsCurrentStreak}
-          value={profile.current_streak_weeks}
-        />
-        <StatChip
-          icon={<Zap size={12} aria-hidden />}
-          label={pl.followStatsTotalReps}
-          value={profile.total_reps}
-        />
-      </div>
-      {/* Achievement badges row */}
-      <div className="mt-2.5 flex items-center justify-between gap-2">
-        <BadgeRow badges={profile.top_achievements ?? []} />
-        {profile.achievement_count > 0 && (
-          <span className="shrink-0 sr-text-caption text-[var(--sr-text-muted)] tabular-nums">
-            {pl.followStatsAchievementsCount(profile.achievement_count)}
+      {/* Stats row — compact inline stats */}
+      <div className="mt-2.5 flex items-center gap-3 sr-text-caption text-[var(--sr-text-muted)]">
+        <span className="flex items-center gap-1 tabular-nums">
+          <Dumbbell size={11} aria-hidden className="text-[var(--sr-text-secondary)]" />
+          {profile.total_sessions}
+        </span>
+        {profile.current_streak_weeks > 0 && (
+          <span className="flex items-center gap-1 tabular-nums">
+            <Flame size={11} aria-hidden className="text-[var(--sr-warning)]" />
+            {profile.current_streak_weeks}{pl.followStatsWeeksShort}
+          </span>
+        )}
+        {profile.total_reps > 0 && (
+          <span className="flex items-center gap-1 tabular-nums">
+            <Zap size={11} aria-hidden className="text-[var(--sr-brand-secondary)]" />
+            {profile.total_reps}
           </span>
         )}
       </div>
+      {/* Achievement trophies row — only if user has badges */}
+      {hasBadges && (
+        <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-[var(--sr-border-subtle)] pt-2.5">
+          <BadgeRow badges={profile.top_achievements} />
+          {profile.achievement_count > 0 && (
+            <span className="shrink-0 sr-text-caption text-[var(--sr-text-muted)] tabular-nums">
+              {pl.followStatsAchievementsCount(profile.achievement_count)}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

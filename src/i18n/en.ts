@@ -2033,6 +2033,7 @@ export const en: Translation = {
   followStatsBestStreak: 'Best streak',
   followStatsAchievements: 'Badges',
   followStatsAchievementsCount: (n: number) => `${n} ${n === 1 ? 'badge' : 'badges'}`,
+  followStatsWeeksShort: 'w',
   followNoBadges: 'No badges',
   followEmpty: 'You are not following anyone yet',
   followEmptyHint: 'Find plans in the community catalog and follow their authors.',
