@@ -51,7 +51,7 @@ export function AppLayout() {
       </main>
       <nav
         className={cn(
-          'fixed bottom-0 left-0 right-0 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]/95 backdrop-blur-md safe-bottom shadow-[0_-4px_12px_-2px_rgba(0,0,0,0.12)] transition-transform duration-200 motion-reduce:transition-none',
+          'fixed bottom-0 left-0 right-0 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]/95 backdrop-blur-md safe-bottom shadow-[var(--sr-shadow-nav)] transition-transform duration-200 motion-reduce:transition-none',
           hideTabs ? 'pointer-events-none translate-y-full' : 'translate-y-0',
         )}
         style={{ zIndex: Z_TAB_BAR }}

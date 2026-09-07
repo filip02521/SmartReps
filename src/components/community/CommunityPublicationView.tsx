@@ -487,13 +487,13 @@ export function CommunityPublicationView({ slug, onBack }: Props) {
           <Button
             type="button"
             variant="ghost"
-            size="sm"
+            size="touch"
             fullWidth
             className="text-[var(--sr-text-muted)]"
             disabled={!online}
             onClick={() => setReportOpen(true)}
           >
-            <Flag className="size-3.5" aria-hidden />
+            <Flag className="size-4" aria-hidden />
             {pl.communityReport}
           </Button>
         )}

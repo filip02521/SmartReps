@@ -100,7 +100,7 @@ export function CollapsibleSection({
         role="region"
         aria-labelledby={headerId}
         className={cn(
-          'grid transition-all duration-200 ease-in-out',
+          'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out',
           open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
         )}
       >

@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/ux/Feedback'
 import { MetricStrip } from '@/components/ui/MetricStrip'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { pl } from '@/i18n/pl'
 import { buildActivityInsights } from '@/lib/weekly-recap'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
@@ -369,6 +369,13 @@ export function OverviewPanel({
     return opts
   }, [programDataMap])
 
+  // Reset scope to 'activity' if the current scope is no longer available
+  useEffect(() => {
+    if (!scopeOptions.some((o) => o.value === scope)) {
+      setScope('activity')
+    }
+  }, [scopeOptions, scope])
+
   // Sesje builtin (nie-custom) — do filtrowania
   const builtinSessions = useMemo(
     () => allSessions.filter((s) => !isCustomWorkoutSession(s)),
@@ -602,14 +609,17 @@ export function OverviewPanel({
             </ProgressSection>
           )}
 
-          {/* Rekordy — tylko custom PRs w zakładce Aktywność */}
-          <UnifiedRecordsSection
-            programRecordsList={[]}
-            customPrs={customPrs}
-            onOpenExercise={onOpenExercise}
-            first={!showCustomSection && !showEmptyState && allSessions.length === 0}
-            icon={Trophy}
-          />
+          {/* Rekordy — tylko custom PRs w zakładce Aktywność;
+              ukryj całkowicie gdy brak danych, aby nie dublować empty state */}
+          {customPrs.length > 0 && (
+            <UnifiedRecordsSection
+              programRecordsList={[]}
+              customPrs={customPrs}
+              onOpenExercise={onOpenExercise}
+              first={!showCustomSection && !showEmptyState && allSessions.length === 0}
+              icon={Trophy}
+            />
+          )}
         </>
       )}
 

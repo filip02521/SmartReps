@@ -523,6 +523,7 @@ export default function WorkoutPage() {
       return
     }
     if (negativeCountdown !== null && negativeCountdown > 0) return
+    // Guard set immediately before any async work to prevent double-tap races.
     finishingRef.current = true
     setNegativeCountdown(null)
     void initWorkoutAudio()

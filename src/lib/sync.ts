@@ -661,11 +661,19 @@ export async function syncAllLocalData(): Promise<SyncResult> {
 
   let errors = 0
 
+  // Profile — failure here must NOT abort the rest of the push.
+  // Each section is independently try-catched so one remote error
+  // doesn't block syncing other entity types.
   try {
     await upsertProfileEnabledPrograms(userId)
+  } catch (err) {
+    errors++
+    console.warn('[sync] profile upsert failed', err)
+  }
 
+  // Progress
+  try {
     const remoteProgress = await fetchRemoteProgressMap(userId)
-
     const progressRows = await db.programProgress.toArray()
     for (const row of progressRows) {
       try {
@@ -675,11 +683,22 @@ export async function syncAllLocalData(): Promise<SyncResult> {
         console.warn('[sync] progress failed', row.program, err)
       }
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] progress section failed', err)
+  }
 
-    // Custom plans/exercises before sessions — workout_sessions.custom_plan_id FK.
+  // Custom plans/exercises before sessions — workout_sessions.custom_plan_id FK.
+  try {
     const { pushCustomEntities } = await import('@/lib/custom-sync')
     errors += await pushCustomEntities(userId)
+  } catch (err) {
+    errors++
+    console.warn('[sync] custom entities push failed', err)
+  }
 
+  // Sessions
+  try {
     const sessions = await db.workoutSessions.toArray()
     // Skip sessions that have a tombstone — they were deleted on this device
     const tombstonedIds = new Set((await db.sessionTombstones.toArray()).map((t) => t.sessionId))
@@ -694,7 +713,13 @@ export async function syncAllLocalData(): Promise<SyncResult> {
         console.warn('[sync] session failed', session.id, err)
       }
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] sessions section failed', err)
+  }
 
+  // Max tests
+  try {
     const tests = await db.maxTests.toArray()
     for (const test of tests) {
       try {
@@ -704,7 +729,13 @@ export async function syncAllLocalData(): Promise<SyncResult> {
         console.warn('[sync] max_test failed', test.program, err)
       }
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] max_tests section failed', err)
+  }
 
+  // Body weight
+  try {
     const bodyWeights = await db.bodyWeight.toArray()
     for (const bw of bodyWeights) {
       try {
@@ -714,7 +745,13 @@ export async function syncAllLocalData(): Promise<SyncResult> {
         console.warn('[sync] body_weight failed', bw.id, err)
       }
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] body_weight section failed', err)
+  }
 
+  // Active workouts
+  try {
     const activeRows = await db.activeWorkout.toArray()
     for (const row of activeRows) {
       if (await hasPendingActiveWorkoutDelete(row.program)) continue
@@ -725,11 +762,17 @@ export async function syncAllLocalData(): Promise<SyncResult> {
         console.warn('[sync] active_workout failed', row.program, err)
       }
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] active_workout section failed', err)
+  }
 
+  // Flush queue — must always run even if earlier sections failed
+  try {
     errors += await flushSyncQueue()
   } catch (err) {
-    console.warn('[sync] syncAllLocalData failed', err)
     errors++
+    console.warn('[sync] flushSyncQueue failed', err)
   }
 
   return { ok: errors === 0, errors }
@@ -765,9 +808,21 @@ async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
     .map(mapRemoteSetRow)
   const programKind =
     remote.program_kind === 'custom' || remote.program === 'custom' ? 'custom' : 'builtin'
-  const remoteLogs = Array.isArray(remote.exercise_logs_json)
-    ? (remote.exercise_logs_json as LocalWorkoutSession['exerciseLogs'])
-    : undefined
+  // Postgres jsonb can return as either a parsed object or a raw string.
+  // Handle both to avoid silently dropping custom exercise logs.
+  const rawLogs = remote.exercise_logs_json
+  const remoteLogs: LocalWorkoutSession['exerciseLogs'] | undefined = Array.isArray(rawLogs)
+    ? (rawLogs as LocalWorkoutSession['exerciseLogs'])
+    : typeof rawLogs === 'string' && rawLogs.length > 0
+      ? (() => {
+          try {
+            const parsed = JSON.parse(rawLogs)
+            return Array.isArray(parsed) ? (parsed as LocalWorkoutSession['exerciseLogs']) : undefined
+          } catch {
+            return undefined
+          }
+        })()
+      : undefined
 
   if (
     local &&
@@ -820,7 +875,11 @@ async function reconcileActiveWorkoutsAfterPull(remotePrograms: Set<string>): Pr
       await db.activeWorkout.delete(local.program)
       continue
     }
-    await db.activeWorkout.delete(local.program)
+    // No remote active workout and no pending delete — the local active
+    // workout may have been created on this device and not yet pushed.
+    // Don't delete it; the push phase will upload it to the remote.
+    // If it was genuinely finished on another device, the tombstone or
+    // the session status check in mergeActiveRemote handles cleanup.
   }
 }
 
@@ -873,7 +932,22 @@ async function mergeMaxTestRemote(remote: RemoteMaxTestRow) {
     .filter((t) => new Date(t.testedAt).getTime() === remoteMs)
     .first()
 
-  if (existing) return
+  if (existing) {
+    // Update if remote has different data (edited on another device).
+    // Only update if values actually differ to avoid unnecessary writes.
+    if (
+      existing.reps !== remote.reps ||
+      existing.selectedCycleId !== remote.selected_cycle_id ||
+      existing.wasManualOverride !== remote.was_manual_override
+    ) {
+      await db.maxTests.update(existing.id!, {
+        reps: remote.reps,
+        selectedCycleId: remote.selected_cycle_id,
+        wasManualOverride: remote.was_manual_override,
+      })
+    }
+    return
+  }
 
   await db.maxTests.add({
     program: remote.program as Program,
@@ -894,7 +968,21 @@ async function mergeBodyWeightRemote(remote: RemoteBodyWeightRow) {
   const all = await db.bodyWeight.toArray()
   const existing = all.find((e) => new Date(e.measuredAt).getTime() === remoteMs)
 
-  if (existing) return
+  if (existing) {
+    // Update if remote has different data (edited on another device).
+    // Without updatedAt, we can't do LWW — but updating with remote data
+    // is safe because the remote is the source of truth for edits made
+    // on other devices. Only update if values actually differ to avoid
+    // unnecessary Dexie writes.
+    const remoteNote = remote.note ?? undefined
+    if (existing.weightKg !== remote.weight_kg || existing.note !== remoteNote) {
+      await db.bodyWeight.update(existing.id, {
+        weightKg: remote.weight_kg,
+        note: remoteNote,
+      })
+    }
+    return
+  }
 
   // Store as ISO 8601 to keep local format consistent.
   await db.bodyWeight.add({
@@ -995,10 +1083,17 @@ export async function pullRemoteData(): Promise<SyncResult> {
 
   let errors = 0
 
+  // Profile — failure here must NOT abort the rest of the pull.
   try {
     const profilePull = await pullProfileEnabledPrograms(userId)
     errors += profilePull.errors
+  } catch (err) {
+    errors++
+    console.warn('[sync] pull profile failed', err)
+  }
 
+  // Progress
+  try {
     const { data: remoteProgress, error: progressError } = await supabase
       .from('program_progress')
       .select('*')
@@ -1014,11 +1109,14 @@ export async function pullRemoteData(): Promise<SyncResult> {
     for (const remote of remoteProgress ?? []) {
       await mergeProgressRemote(userId, remote as RemoteProgressRow)
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] pull progress failed', err)
+  }
 
-    // Pull session tombstones BEFORE workout_sessions — this prevents
-    // temporarily resurrecting a deleted session that another device removed.
-    // mergeSessionRemote checks tombstones before inserting, so they must be
-    // present locally before the session merge runs.
+  // Session tombstones — must be pulled BEFORE workout_sessions to prevent
+  // temporarily resurrecting a deleted session that another device removed.
+  try {
     const { data: remoteTombstones, error: tombstoneError } = await supabase
       .from('session_tombstones')
       .select('session_id, deleted_at')
@@ -1046,7 +1144,13 @@ export async function pullRemoteData(): Promise<SyncResult> {
         // Non-fatal — will retry on next sync
       }
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] pull session tombstones failed', err)
+  }
 
+  // Sessions
+  try {
     const { data: remoteSessions, error: sessionsError } = await supabase
       .from('workout_sessions')
       .select('*, set_results(*)')
@@ -1058,7 +1162,13 @@ export async function pullRemoteData(): Promise<SyncResult> {
       if (remote.status === 'abandoned') continue
       await mergeSessionRemote(userId, remote as RemoteSessionRow)
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] pull sessions failed', err)
+  }
 
+  // Active workouts
+  try {
     const { data: remoteActive, error: activeError } = await supabase
       .from('active_workout_state')
       .select('*')
@@ -1071,7 +1181,13 @@ export async function pullRemoteData(): Promise<SyncResult> {
     await reconcileActiveWorkoutsAfterPull(
       new Set((remoteActive ?? []).map((r) => (r as RemoteActiveRow).program)),
     )
+  } catch (err) {
+    errors++
+    console.warn('[sync] pull active workouts failed', err)
+  }
 
+  // Max tests
+  try {
     const { data: remoteTests, error: testsError } = await supabase
       .from('max_tests')
       .select('*')
@@ -1082,7 +1198,13 @@ export async function pullRemoteData(): Promise<SyncResult> {
     for (const remote of remoteTests ?? []) {
       await mergeMaxTestRemote(remote as RemoteMaxTestRow)
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] pull max tests failed', err)
+  }
 
+  // Body weight
+  try {
     const { data: remoteBodyWeight, error: bodyWeightError } = await supabase
       .from('body_weight_entries')
       .select('*')
@@ -1093,8 +1215,13 @@ export async function pullRemoteData(): Promise<SyncResult> {
     for (const remote of remoteBodyWeight ?? []) {
       await mergeBodyWeightRemote(remote as RemoteBodyWeightRow)
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] pull body weight failed', err)
+  }
 
-    // Pull AI insights
+  // AI insights
+  try {
     const { data: remoteInsights, error: insightsError } = await supabase
       .from('ai_insights')
       .select('*')
@@ -1111,8 +1238,13 @@ export async function pullRemoteData(): Promise<SyncResult> {
     } catch {
       /* best-effort */
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] pull ai insights failed', err)
+  }
 
-    // Push local tombstones to cloud (that haven't been pushed yet)
+  // Push local tombstones to cloud (that haven't been pushed yet)
+  try {
     const localTombstones = await db.sessionTombstones.toArray()
     for (const tombstone of localTombstones) {
       try {
@@ -1127,8 +1259,13 @@ export async function pullRemoteData(): Promise<SyncResult> {
         // Non-fatal — will retry on next sync
       }
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] push session tombstones failed', err)
+  }
 
-    // Push local body-weight tombstones to cloud
+  // Push local body-weight tombstones to cloud
+  try {
     const localBwTombstones = await db.bodyWeightTombstones.toArray()
     for (const tombstone of localBwTombstones) {
       try {
@@ -1143,39 +1280,45 @@ export async function pullRemoteData(): Promise<SyncResult> {
         // Non-fatal — will retry on next sync
       }
     }
+  } catch (err) {
+    errors++
+    console.warn('[sync] push body-weight tombstones failed', err)
+  }
 
-    // Pull body-weight tombstones from cloud — delete local entries deleted on another device
-    try {
-      const { data: remoteBwTombstones, error: rbtErr } = await supabase
-        .from('body_weight_tombstones')
-        .select('entry_id, deleted_at')
-        .eq('user_id', userId)
-      if (!rbtErr && remoteBwTombstones) {
-        for (const row of remoteBwTombstones as { entry_id: string; deleted_at: string }[]) {
-          await db.bodyWeightTombstones.put({ entryId: row.entry_id, deletedAt: row.deleted_at })
-          const localEntry = await db.bodyWeight.get(row.entry_id)
-          if (localEntry) await db.bodyWeight.delete(row.entry_id)
-          // Also delete the remote entry if it still exists — same reason as session tombstones.
-          try {
-            await supabase
-              .from('body_weight_entries')
-              .delete()
-              .eq('user_id', userId)
-              .eq('id', row.entry_id)
-          } catch {
-            // Non-fatal — will retry on next sync
-          }
+  // Pull body-weight tombstones from cloud — delete local entries deleted on another device
+  try {
+    const { data: remoteBwTombstones, error: rbtErr } = await supabase
+      .from('body_weight_tombstones')
+      .select('entry_id, deleted_at')
+      .eq('user_id', userId)
+    if (!rbtErr && remoteBwTombstones) {
+      for (const row of remoteBwTombstones as { entry_id: string; deleted_at: string }[]) {
+        await db.bodyWeightTombstones.put({ entryId: row.entry_id, deletedAt: row.deleted_at })
+        const localEntry = await db.bodyWeight.get(row.entry_id)
+        if (localEntry) await db.bodyWeight.delete(row.entry_id)
+        // Also delete the remote entry if it still exists — same reason as session tombstones.
+        try {
+          await supabase
+            .from('body_weight_entries')
+            .delete()
+            .eq('user_id', userId)
+            .eq('id', row.entry_id)
+        } catch {
+          // Non-fatal — will retry on next sync
         }
       }
-    } catch {
-      // Tombstone table may not exist yet — best-effort
     }
+  } catch {
+    // Tombstone table may not exist yet — best-effort
+  }
 
+  // Custom entities (plans, exercises, progress, active custom workouts)
+  try {
     const { pullCustomEntities } = await import('@/lib/custom-sync')
     errors += await pullCustomEntities(userId)
   } catch (err) {
-    console.warn('[sync] pullRemoteData failed', err)
     errors++
+    console.warn('[sync] pull custom entities failed', err)
   }
 
   return { ok: errors === 0, errors }

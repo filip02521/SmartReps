@@ -154,8 +154,10 @@ export function ProgramHomeCard({
 
   return (
     <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
-      {/* Header — icon + title + badge inline, menu button right */}
-      <div className="flex items-center justify-between gap-3">
+      {/* Header — icon + title + badge inline, menu button right.
+          Na wąskich ekranach (375px) badge + menu mogą się nie zmieścić,
+          dlatego grupa po prawej zawija się pod tytuł gdy brakuje miejsca. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <ProgramIconBadge program={program} />
           <div className="min-w-0 flex-1">
@@ -172,7 +174,7 @@ export function ProgramHomeCard({
             aria-haspopup="dialog"
             aria-expanded={showMenu}
             className={cn(
-              'flex min-h-9 min-w-9 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
               FOCUS_RING,
             )}
             onClick={() => setShowMenu(true)}
@@ -301,7 +303,7 @@ export function ProgramHomeCard({
 
           {/* Progress bar — accent-colored, subtle */}
           <div
-            className="mb-2.5 h-1.5 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
+            className="mb-2.5 h-2 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
             role="progressbar"
             aria-valuenow={pct}
             aria-valuemin={0}

@@ -262,7 +262,9 @@ async function reconcileActiveCustomAfterPull(remotePlanIds: Set<string>): Promi
       await db.activeCustomWorkout.delete(local.customPlanId)
       continue
     }
-    await db.activeCustomWorkout.delete(local.customPlanId)
+    // No remote active custom workout and no pending delete — the local
+    // active workout may have been created on this device and not yet pushed.
+    // Don't delete it; the push phase will upload it to the remote.
   }
 }
 
@@ -274,7 +276,9 @@ async function reconcileCustomProgressAfterPull(remotePlanIds: Set<string>): Pro
       if (local.id != null) await db.customProgramProgress.delete(local.id)
       continue
     }
-    if (local.id != null) await db.customProgramProgress.delete(local.id)
+    // No remote progress and no pending delete — the local progress may
+    // have been created on this device and not yet pushed. Don't delete it;
+    // the push phase will upload it to the remote.
   }
 }
 
@@ -289,10 +293,10 @@ async function reconcileCustomPlansAfterPull(remotePlanIds: Set<string>): Promis
       await db.activeCustomWorkout.delete(local.id)
       continue
     }
-    await db.customPlans.delete(local.id)
-    const prog = await db.customProgramProgress.where('customPlanId').equals(local.id).first()
-    if (prog?.id != null) await db.customProgramProgress.delete(prog.id)
-    await db.activeCustomWorkout.delete(local.id)
+    // No remote plan and no pending delete — the local plan may have been
+    // created on this device and not yet pushed. Don't delete it; the push
+    // phase will upload it to the remote. If it was genuinely deleted on
+    // another device, the custom_plan_tombstones pull handles that.
   }
 }
 

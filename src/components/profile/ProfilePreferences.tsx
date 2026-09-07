@@ -305,7 +305,7 @@ export function AiCoachSection({
         label={pl.aiBaseUrlLabel}
         value={baseUrlDraft}
         onChange={(e) => setBaseUrlDraft(e.target.value)}
-        placeholder="https://api.openai.com/v1"
+        placeholder={pl.aiBaseUrlPlaceholder}
       />
       <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.aiBaseUrlHint}</p>
 

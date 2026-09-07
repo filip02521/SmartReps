@@ -177,8 +177,8 @@ export default function Onboarding() {
         <SegmentedControl
           size="compact"
           options={[
-            { value: 'pl' as const, label: 'PL' },
-            { value: 'en' as const, label: 'EN' },
+            { value: 'pl' as const, label: pl.onboardingLanguagePl },
+            { value: 'en' as const, label: pl.onboardingLanguageEn },
           ]}
           value={lang}
           onChange={handleLangChange}

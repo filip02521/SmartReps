@@ -38,22 +38,30 @@ describe('custom sync reconciliation', () => {
     })
   })
 
-  it('removes local custom plans missing from remote', async () => {
+  it('keeps local custom plans missing from remote (no pending delete)', async () => {
+    // Plans missing from remote are kept — they may have been created locally
+    // and not yet pushed. Tombstones handle cross-device deletion.
     mockDb.customPlans.toArray.mockResolvedValue([
-      { id: 'gone', name: 'Old', updatedAt: '2026-01-01' },
+      { id: 'local-only', name: 'Draft', updatedAt: '2026-01-01' },
       { id: 'kept', name: 'Keep', updatedAt: '2026-01-01' },
     ])
     await reconcileCustomPlansAfterPull(new Set(['kept']))
-    expect(mockDb.customPlans.delete).toHaveBeenCalledWith('gone')
-    expect(mockDb.customPlans.delete).not.toHaveBeenCalledWith('kept')
+    expect(mockDb.customPlans.delete).not.toHaveBeenCalled()
   })
 
-  it('removes local active custom workout when remote cleared', async () => {
-    mockDb.activeCustomWorkout.toArray.mockResolvedValue([
-      { customPlanId: 'plan-a', sessionId: 's1', updatedAt: '2026-01-01' },
+  it('deletes local custom plan when pending delete in queue', async () => {
+    mockDb.customPlans.toArray.mockResolvedValue([
+      { id: 'doomed', name: 'Old', updatedAt: '2026-01-01' },
     ])
-    await reconcileActiveCustomAfterPull(new Set())
-    expect(mockDb.activeCustomWorkout.delete).toHaveBeenCalledWith('plan-a')
+    mockDb.syncQueue.toArray.mockResolvedValue([
+      {
+        table: 'custom_plans',
+        action: 'delete',
+        payload: JSON.stringify({ id: 'doomed' }),
+      },
+    ])
+    await reconcileCustomPlansAfterPull(new Set())
+    expect(mockDb.customPlans.delete).toHaveBeenCalledWith('doomed')
   })
 
   it('skips plan delete when pending upsert in queue', async () => {
@@ -69,9 +77,51 @@ describe('custom sync reconciliation', () => {
     expect(mockDb.customPlans.delete).not.toHaveBeenCalled()
   })
 
-  it('removes orphan custom progress when plan gone from remote', async () => {
+  it('keeps local active custom workout when remote cleared (no pending delete)', async () => {
+    // Active workout missing from remote is kept — it may have been started
+    // locally and not yet pushed.
+    mockDb.activeCustomWorkout.toArray.mockResolvedValue([
+      { customPlanId: 'plan-a', sessionId: 's1', updatedAt: '2026-01-01' },
+    ])
+    await reconcileActiveCustomAfterPull(new Set())
+    expect(mockDb.activeCustomWorkout.delete).not.toHaveBeenCalled()
+  })
+
+  it('deletes local active custom workout when pending delete in queue', async () => {
+    mockDb.activeCustomWorkout.toArray.mockResolvedValue([
+      { customPlanId: 'plan-a', sessionId: 's1', updatedAt: '2026-01-01' },
+    ])
+    mockDb.syncQueue.toArray.mockResolvedValue([
+      {
+        table: 'active_custom_workout',
+        action: 'delete',
+        payload: JSON.stringify({ customPlanId: 'plan-a' }),
+      },
+    ])
+    await reconcileActiveCustomAfterPull(new Set())
+    expect(mockDb.activeCustomWorkout.delete).toHaveBeenCalledWith('plan-a')
+  })
+
+  it('keeps orphan custom progress when plan gone from remote (no pending delete)', async () => {
+    // Progress missing from remote is kept — it may have been created locally
+    // and not yet pushed.
     mockDb.customProgramProgress.toArray.mockResolvedValue([
-      { id: 7, customPlanId: 'gone-plan' },
+      { id: 7, customPlanId: 'local-only-plan' },
+    ])
+    await reconcileCustomProgressAfterPull(new Set())
+    expect(mockDb.customProgramProgress.delete).not.toHaveBeenCalled()
+  })
+
+  it('deletes orphan custom progress when pending plan delete in queue', async () => {
+    mockDb.customProgramProgress.toArray.mockResolvedValue([
+      { id: 7, customPlanId: 'doomed-plan' },
+    ])
+    mockDb.syncQueue.toArray.mockResolvedValue([
+      {
+        table: 'custom_plans',
+        action: 'delete',
+        payload: JSON.stringify({ id: 'doomed-plan' }),
+      },
     ])
     await reconcileCustomProgressAfterPull(new Set())
     expect(mockDb.customProgramProgress.delete).toHaveBeenCalledWith(7)

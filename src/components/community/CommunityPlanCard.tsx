@@ -17,7 +17,7 @@ function CardRating({ avg, count }: { avg: number; count: number }) {
   const avgStr = avg.toFixed(1)
   return (
     <span
-      className="inline-flex items-center gap-0.5"
+      className="inline-flex items-center gap-0.5 leading-none"
       aria-label={pl.communityRatingAria(avgStr, count)}
       title={pl.communityRatingAria(avgStr, count)}
     >
@@ -25,7 +25,7 @@ function CardRating({ avg, count }: { avg: number; count: number }) {
         <Star
           key={i}
           className={cn(
-            'size-3',
+            'size-3.5 shrink-0',
             i < rounded
               ? 'fill-[var(--sr-warning)] text-[var(--sr-warning)]'
               : 'text-[var(--sr-text-muted)]',

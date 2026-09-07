@@ -179,6 +179,7 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
 
       <SegmentedControl
         size="compact"
+        aria-label={pl.communitySortLabel}
         value={sort}
         onChange={(v) => setSort(v)}
         options={[
@@ -189,9 +190,14 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
         ]}
       />
 
-      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="group"
+        aria-label={pl.communityTagFilterLabel}
+      >
         <button
           type="button"
+          aria-pressed={tag == null}
           className={cn(
             FOCUS_RING,
             'shrink-0 rounded-[var(--sr-radius-full)] px-2.5 py-1.5 text-xs font-medium',
@@ -207,6 +213,7 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
           <button
             key={t}
             type="button"
+            aria-pressed={tag === t}
             className={cn(
               FOCUS_RING,
               'shrink-0 rounded-[var(--sr-radius-full)] px-2.5 py-1.5 text-xs font-medium',

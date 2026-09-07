@@ -97,7 +97,7 @@ function SaveBar({
   onSaveDraft: () => void
 }) {
   return (
-    <div className="sticky bottom-0 -mx-4 mt-4 flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+    <div className="sticky bottom-0 -mx-4 mt-4 flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-4 py-3 shadow-[var(--sr-shadow-sticky-top)]">
       <Button type="button" size="touch" fullWidth onClick={onActivate}>
         {plan.status === 'active'
           ? pl.planSaveActive
