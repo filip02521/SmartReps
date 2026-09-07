@@ -128,10 +128,12 @@ async function backfillStarterMuscleGroups(active: ExerciseDefinition[]): Promis
   for (const starter of EXERCISE_STARTERS) {
     const name = STARTER_LABELS[starter.key]
     const match = byName.get(name.toLowerCase())
-    if (match && !match.muscleGroup) {
+    if (match && (!match.muscleGroup || (match.source !== 'ai' && match.source !== 'starter'))) {
       const updated: ExerciseDefinition = {
         ...match,
         muscleGroup: starter.muscleGroup,
+        // Oznacz istniejące starter exercises jako 'starter' — nie są tworzone przez usera
+        source: match.source === 'ai' ? 'ai' : 'starter',
         updatedAt: new Date().toISOString(),
       }
       await db.exercises.put(updated)
@@ -163,8 +165,9 @@ export async function saveExercise(
     restDefaultSec: number
     archived?: boolean
     muscleGroup?: MuscleGroup
-    /** Origin — defaults to 'user'. Set to 'ai' when saving from AI plan generator. */
-    source?: 'user' | 'ai'
+    /** Origin — defaults to 'user'. Set to 'ai' when saving from AI plan generator,
+     *  or 'starter' when seeding default exercises (not user-created). */
+    source?: 'user' | 'ai' | 'starter'
   },
 ): Promise<ExerciseDefinition> {
   const now = new Date().toISOString()
@@ -235,6 +238,7 @@ export async function seedStarterExercises(): Promise<{
       primaryMetric: starter.primaryMetric,
       restDefaultSec: starter.restDefaultSec,
       muscleGroup: starter.muscleGroup,
+      source: 'starter',
     })
     created.push(ex)
     byName.set(name.toLowerCase(), ex)

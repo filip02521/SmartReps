@@ -327,7 +327,7 @@ function mapExercise(row: RemoteExercise): ExerciseDefinition {
     restDefaultSec: row.rest_default_sec,
     archived: row.archived,
     muscleGroup: (row.muscle_group ?? undefined) as ExerciseDefinition['muscleGroup'],
-    source: (row.source === 'ai' ? 'ai' : 'user') as ExerciseDefinition['source'],
+    source: (row.source === 'ai' ? 'ai' : row.source === 'starter' ? 'starter' : 'user') as ExerciseDefinition['source'],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

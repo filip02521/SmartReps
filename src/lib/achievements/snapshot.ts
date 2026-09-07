@@ -285,7 +285,8 @@ export async function buildAchievementSnapshot(opts?: {
       (e) =>
         !e.id.startsWith('builtin:') &&
         !exerciseTombstones.some((t) => t.exerciseId === e.id) &&
-        e.source !== 'ai',
+        e.source !== 'ai' &&
+        e.source !== 'starter',
     ).length,
     aiInsightCount: aiInsights.filter((i) => i.source === 'ai').length,
     impact,
