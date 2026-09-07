@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
-import { format } from 'date-fns'
-import { dateFnsLocale } from '@/lib/date-locale'
 import { OverviewPanel } from '@/components/progress/OverviewPanel'
 import { HistoryPanel } from '@/components/progress/HistoryPanel'
 import { AiWorkoutAnalysis } from '@/components/progress/AiWorkoutAnalysis'
@@ -18,10 +16,13 @@ import {
   getProgramVolumeStats,
   getDayCycleTrend,
   getWeeklyVolumeChart,
+  getMaxSetPerSession,
   type ProgramRecordsWithDates,
   type ProgramVolumeStats,
   type DayCycleTrend,
   type WeeklyVolumePoint,
+  type SessionChartPoint,
+  type ProgramStats,
 } from '@/lib/stats-engine'
 import { buildActivityInsights } from '@/lib/weekly-recap'
 import { useAppStore } from '@/stores/app-store'
@@ -30,6 +31,18 @@ import { TAB_PAGE_SHELL, FOCUS_RING } from '@/lib/ui-chrome'
 import { cn } from '@/lib/utils'
 import type { Program } from '@/data/plans/types'
 import type { LocalProgramProgress, LocalWorkoutSession } from '@/lib/db'
+
+type ProgramData = {
+  program: Program
+  progress: LocalProgramProgress | undefined
+  stats: ProgramStats | null
+  sessions: LocalWorkoutSession[]
+  recordsWithDates: ProgramRecordsWithDates | null
+  volumeStats: ProgramVolumeStats | null
+  dayCycleTrend: DayCycleTrend[]
+  weeklyVolumeChart: WeeklyVolumePoint[]
+  maxSetChart: SessionChartPoint[]
+}
 import {
   computeCustomExercisePrs,
   getCustomVolumeStats,
@@ -55,7 +68,6 @@ import { runAchievementCheck } from '@/lib/achievements/schedule'
 import type { LocalAchievementUnlock } from '@/lib/achievements/types'
 import { ProgressChromeNav, type ProgressTab } from '@/components/progress/ProgressChromeNav'
 import { ACHIEVEMENT_CATALOG } from '@/lib/achievements/catalog'
-import type { ProgramStats } from '@/lib/stats-engine'
 
 function parseTab(raw: string | null): ProgressTab | 'records' | null {
   // New tabs
@@ -85,20 +97,10 @@ export default function ProgressPage() {
   const [error, setError] = useState<string | null>(null)
   const [reloadEpoch, setReloadEpoch] = useState(0)
 
-  // Program data (builtin)
-  const [program, setProgram] = useState<Program>(() =>
-    settings.enabledPrograms[0] ?? 'pushups',
-  )
-  const [tests, setTests] = useState<{ date: string; dateLabel: string; reps: number }[]>([])
-  const [sessions, setSessions] = useState<LocalWorkoutSession[]>([])
+  // Program data (builtin) — loaded for ALL enabled programs
+  const [programDataMap, setProgramDataMap] = useState<Map<Program, ProgramData>>(new Map())
   // All builtin sessions (pushups + pullups) for history — not just the selected program
   const [allBuiltinSessions, setAllBuiltinSessions] = useState<LocalWorkoutSession[]>([])
-  const [progress, setProgress] = useState<LocalProgramProgress | undefined>(undefined)
-  const [stats, setStats] = useState<ProgramStats | null>(null)
-  const [recordsWithDates, setRecordsWithDates] = useState<ProgramRecordsWithDates | null>(null)
-  const [volumeStats, setVolumeStats] = useState<ProgramVolumeStats | null>(null)
-  const [dayCycleTrend, setDayCycleTrend] = useState<DayCycleTrend[]>([])
-  const [weeklyVolumeChart, setWeeklyVolumeChart] = useState<WeeklyVolumePoint[]>([])
 
   // Custom data
   const [customPrs, setCustomPrs] = useState<ExercisePr[]>([])
@@ -129,8 +131,28 @@ export default function ProgressPage() {
       setLoading(true)
       setError(null)
       try {
-        const initialProgram = settings.enabledPrograms[0] ?? 'pushups'
-        await loadProgramData(initialProgram)
+        // Load data for ALL enabled programs
+        const enabled = settings.enabledPrograms
+        const dataMap = new Map<Program, ProgramData>()
+        for (const prog of enabled) {
+          const p = await getProgramProgress(prog)
+          const progStats = p ? await getProgramStats(prog, p) : null
+          const dayCycleTrend = p ? await getDayCycleTrend(prog, p.cycleId, p.cycleAttempt) : []
+          const sess = await db.workoutSessions.where('program').equals(prog).toArray()
+          sess.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+          dataMap.set(prog, {
+            program: prog,
+            progress: p,
+            stats: progStats,
+            sessions: sess,
+            recordsWithDates: await getProgramRecordsWithDates(prog),
+            volumeStats: await getProgramVolumeStats(prog),
+            dayCycleTrend,
+            weeklyVolumeChart: await getWeeklyVolumeChart(prog),
+            maxSetChart: await getMaxSetPerSession(prog),
+          })
+        }
+        setProgramDataMap(dataMap)
 
         // All builtin sessions (pushups + pullups) for history tab — exclude custom
         const builtinHistory = (await db.workoutSessions.toArray())
@@ -177,34 +199,6 @@ export default function ProgressPage() {
     }
     void load()
   }, [reloadEpoch, lastSyncedAt, settings.enabledPrograms])
-
-  async function loadProgramData(prog: Program) {
-    setProgram(prog)
-    const p = await getProgramProgress(prog)
-    setProgress(p)
-    if (p) {
-      setStats(await getProgramStats(prog, p))
-      setDayCycleTrend(await getDayCycleTrend(prog, p.cycleId, p.cycleAttempt))
-    } else {
-      setStats(null)
-      setDayCycleTrend([])
-    }
-
-    const rows = await db.maxTests.where('program').equals(prog).sortBy('testedAt')
-    setTests(
-      rows.map((r) => ({
-        date: r.testedAt.slice(0, 10),
-        dateLabel: format(new Date(r.testedAt), 'd MMM', { locale: dateFnsLocale() }),
-        reps: r.reps,
-      })),
-    )
-    const sess = await db.workoutSessions.where('program').equals(prog).toArray()
-    sess.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-    setSessions(sess)
-    setRecordsWithDates(await getProgramRecordsWithDates(prog))
-    setVolumeStats(await getProgramVolumeStats(prog))
-    setWeeklyVolumeChart(await getWeeklyVolumeChart(prog))
-  }
 
   // URL sync + legacy redirect
   useEffect(() => {
@@ -272,23 +266,28 @@ export default function ProgressPage() {
     [allBuiltinSessions, customSessionsAll],
   )
 
-  const hasAnyData = tests.length > 0 || sessions.length > 0 || customSessionsAll.length > 0
+  const hasAnyData =
+    [...programDataMap.values()].some((d) => d.sessions.length > 0) ||
+    customSessionsAll.length > 0
 
   const activityInsights = useMemo(() => {
     const passed = allSessions.filter((s) => s.status === 'completed' && s.passed)
     return buildActivityInsights(passed)
   }, [allSessions])
 
+  const totalPassedSessions =
+    [...programDataMap.values()].reduce(
+      (sum, d) => sum + (d.stats?.passedSessionCount ?? 0),
+      0,
+    ) + customSessionsAll.filter((s) => s.status === 'completed').length
   const statusSubtitle =
     tab === 'achievements'
       ? pl.achievementsStatusCount(achievementUnlocks.length, ACHIEVEMENT_CATALOG.length)
       : tab === 'history'
         ? pl.progressHistoryCount(allSessions.filter(isProgressHistorySession).length)
-        : !stats
+        : totalPassedSessions === 0
           ? undefined
-          : stats.passedSessionCount === 0
-            ? pl.progressStatusEmpty
-            : pl.progressStatusSessions(stats.passedSessionCount)
+          : pl.progressStatusSessions(totalPassedSessions)
 
   if (loading) {
     return (
@@ -328,16 +327,10 @@ export default function ProgressPage() {
         {tab === 'overview' && (
           <>
           <OverviewPanel
-            program={program}
+            programDataMap={programDataMap}
             enabledPrograms={settings.enabledPrograms}
-            onProgramChange={(p) => void loadProgramData(p)}
-            stats={stats}
-            progress={progress}
-            tests={tests}
             activity={activityInsights}
             hasAnyData={hasAnyData}
-            volumeStats={volumeStats}
-            dayCycleTrend={dayCycleTrend}
             allSessions={allSessions}
             customSessionsAll={customSessionsAll}
             customPrs={customPrs}
@@ -345,8 +338,6 @@ export default function ProgressPage() {
             customSessionChart={customSessionChart}
             customOverviewStats={customOverviewStats}
             customPlanNames={customPlanNames}
-            recordsWithDates={recordsWithDates}
-            weeklyVolumeChart={weeklyVolumeChart}
             customWeeklyVolumeChart={customWeeklyVolumeChart}
             onOpenExercise={(id) => void openExerciseDetail(id)}
             navigate={navigate}
@@ -391,7 +382,7 @@ export default function ProgressPage() {
             allSessions={allSessions}
             customPlanNames={customPlanNames}
             enabledPrograms={settings.enabledPrograms}
-            currentCycleId={progress?.cycleId}
+            currentCycleId={programDataMap.values().next().value?.progress?.cycleId}
             navigate={navigate}
             onSessionDeleted={() => setReloadEpoch((n) => n + 1)}
           />

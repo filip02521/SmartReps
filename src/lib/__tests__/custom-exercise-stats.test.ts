@@ -64,4 +64,33 @@ describe('custom-exercise-stats', () => {
     }
     expect(exercisePrDisplay(base)).toBe(`15 ${pl.repsUnit}`)
   })
+
+  it('formatExerciseSetSummary for duration in minutes', () => {
+    expect(
+      formatExerciseSetSummary(
+        'duration_sec',
+        setLog({ setNumber: 1, actual: { durationSec: 2400 } }),
+        'kg',
+        'min',
+      ),
+    ).toBe('40 min')
+  })
+
+  it('exercisePrDisplay shows minutes for cardio exercises', () => {
+    const cardioExercise: ExerciseDefinition = {
+      ...repsExercise,
+      id: 'ex-cardio',
+      primaryMetric: 'duration_sec',
+      durationDisplayUnit: 'min',
+    }
+    expect(
+      exercisePrDisplay({
+        exercise: cardioExercise,
+        prReps: null,
+        prDurationSec: 1800,
+        prWeightKg: null,
+        prVolumeKg: null,
+      }),
+    ).toBe('30 min')
+  })
 })

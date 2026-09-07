@@ -91,6 +91,24 @@ export default defineConfig({
           if (id.includes('node_modules/recharts') || id.includes('node_modules/es-toolkit')) {
             return 'recharts'
           }
+          // Force React + JSX runtime into a dedicated chunk to avoid Rolldown
+          // circular-dependency bug where CJS interop helpers (e.g. the jsx
+          // factory wrapper) are re-exported through shared component chunks
+          // and called before the exporting chunk has finished evaluating.
+          // Symptoms: "r is not a function" at module init time in production.
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react/jsx-runtime') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/scheduler/')
+          ) {
+            return 'react-vendor'
+          }
+          // Lucide icons — same circular-dep issue: icon factory functions
+          // are re-exported through shared chunks and called at module init.
+          if (id.includes('node_modules/lucide-react')) {
+            return 'lucide'
+          }
         },
       },
     },

@@ -11,7 +11,7 @@ import {
   resolveBuiltinProgramForExercise,
   type BuiltinLibraryProgram,
 } from '@/lib/builtin-exercise-bridge'
-import { formatPrescriptionTarget, formatSetActualDisplay } from '@/lib/custom-prescription-format'
+import { formatPrescriptionTarget, formatSetActualDisplay, formatDurationDisplay, type DurationUnit } from '@/lib/custom-prescription-format'
 import { kgToDisplay, weightUnitLabel } from '@/lib/weight-units'
 import { pl } from '@/i18n/pl'
 
@@ -104,9 +104,10 @@ export function formatExerciseSetSummary(
   metric: PrimaryMetric,
   set: SetLog,
   weightUnit: 'kg' | 'lb' = 'kg',
+  durationUnit: DurationUnit = 'sec',
 ): string {
   if (metric === 'duration_sec') {
-    return `${set.actual.durationSec ?? 0}s`
+    return formatDurationDisplay(set.actual.durationSec ?? 0, durationUnit)
   }
   if (metric === 'reps_weight') {
     const reps = set.actual.reps ?? 0
@@ -393,7 +394,7 @@ export async function computeExerciseDetailStats(
       date: at,
       planName,
       dayNumber: session.dayNumber,
-      summary: best ? formatExerciseSetSummary(metric, best) : '—',
+      summary: best ? formatExerciseSetSummary(metric, best, weightUnit, exercise.durationDisplayUnit ?? 'sec') : '—',
       setsPassed: sessionPassed,
       setsTotal: log.sets.length,
     })
@@ -492,7 +493,7 @@ export function exercisePrDisplay(
 ): string {
   const m = stats.exercise.primaryMetric
   if (m === 'duration_sec' && stats.prDurationSec != null) {
-    return `${stats.prDurationSec}s`
+    return formatDurationDisplay(stats.prDurationSec, stats.exercise.durationDisplayUnit ?? 'sec')
   }
   if (m === 'reps_weight') {
     const parts: string[] = []

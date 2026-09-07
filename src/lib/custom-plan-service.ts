@@ -161,6 +161,12 @@ async function backfillStarterMuscleGroups(active: ExerciseDefinition[]): Promis
         muscleGroup: starter.muscleGroup,
         // Oznacz istniejące starter exercises jako 'starter' — nie są tworzone przez usera
         source: match.source === 'ai' ? 'ai' : 'starter',
+        // Backfill durationDisplayUnit dla cardio starterów (dodane po początkowym seedzie)
+        durationDisplayUnit:
+          starter.primaryMetric === 'duration_sec'
+            ? (match.durationDisplayUnit ??
+              (starter.muscleGroup === 'cardio' ? 'min' : 'sec'))
+            : match.durationDisplayUnit,
         updatedAt: new Date().toISOString(),
       }
       await db.exercises.put(updated)

@@ -12,10 +12,18 @@ import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
 import { kgToDisplay, weightUnitLabel } from '@/lib/weight-units'
+import { formatDurationDisplay } from '@/lib/custom-prescription-format'
 import type { ExercisePr } from '@/lib/custom-stats'
 import type { ExerciseTrend } from '@/lib/custom-exercise-stats'
 import type { ProgramRecordsWithDates, ProgramStats } from '@/lib/stats-engine'
 import { hasAnyProgramRecords } from '@/lib/progress-history'
+import type { Program } from '@/data/plans/types'
+
+type ProgramRecordEntry = {
+  program: Program
+  records: ProgramRecordsWithDates
+  stats: ProgramStats
+}
 
 function trendDotClass(trend: ExerciseTrend): string | null {
   if (trend === 'up') return 'bg-[var(--sr-success)]'
@@ -28,7 +36,9 @@ function formatExercisePrLine(pr: ExercisePr, weightUnit: 'kg' | 'lb' = 'kg'): s
   return (
     [
       pr.maxReps != null ? `${pr.maxReps} ${pl.repsUnit}` : null,
-      pr.maxDurationSec != null ? `${pr.maxDurationSec}${pl.durationUnitShort}` : null,
+      pr.maxDurationSec != null
+        ? formatDurationDisplay(pr.maxDurationSec, pr.durationDisplayUnit ?? 'sec')
+        : null,
       pr.maxWeightKg != null ? `${kgToDisplay(pr.maxWeightKg, weightUnit)} ${weightUnitLabel(weightUnit)}` : null,
     ]
       .filter(Boolean)
@@ -37,28 +47,28 @@ function formatExercisePrLine(pr: ExercisePr, weightUnit: 'kg' | 'lb' = 'kg'): s
 }
 
 export function UnifiedRecordsSection({
-  programRecords,
-  programStats,
+  programRecordsList,
   customPrs,
   onOpenExercise,
   first,
   icon,
 }: {
-  programRecords: ProgramRecordsWithDates | null
-  programStats: ProgramStats | null
+  programRecordsList: ProgramRecordEntry[]
   customPrs: ExercisePr[]
   onOpenExercise: (exerciseId: string) => void
   first?: boolean
   icon?: LucideIcon
 }) {
   const weightUnit = useAppStore((s) => s.settings.weightUnit)
-  const hasProgramRecords =
-    programRecords && programStats && hasAnyProgramRecords({
-      bestTest: programStats.maxTestRecord ?? null,
-      bestMaxSet: programRecords.bestMaxSet ?? null,
-      bestSessionTotal: programRecords.bestSessionTotal ?? null,
-      highestCycleName: programRecords.highestCycleName ?? null,
-    })
+  const validProgramEntries = programRecordsList.filter((e) =>
+    hasAnyProgramRecords({
+      bestTest: e.stats.maxTestRecord ?? null,
+      bestMaxSet: e.records.bestMaxSet ?? null,
+      bestSessionTotal: e.records.bestSessionTotal ?? null,
+      highestCycleName: e.records.highestCycleName ?? null,
+    }),
+  )
+  const hasProgramRecords = validProgramEntries.length > 0
   const hasCustomRecords = customPrs.length > 0
 
   if (!hasProgramRecords && !hasCustomRecords) {
@@ -75,56 +85,60 @@ export function UnifiedRecordsSection({
   return (
     <ProgressSection first={first} icon={icon} title={pl.progressRecordsSectionTitle}>
       <div id="progress-records">
-        {/* Programy wbudowane */}
-        {hasProgramRecords && programRecords && programStats && (
-          <div className="mb-4">
-            <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
-              {pl.progressRecordsPrograms}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <NestedStat
-                size="md"
-                overline={pl.recordBestMaxSet}
-                value={programRecords.bestMaxSet ?? pl.noValue}
-                hint={
-                  programRecords.bestMaxSetDate
-                    ? pl.progressRecordDate(
-                        format(new Date(programRecords.bestMaxSetDate), 'd MMM yyyy', {
-                          locale: dateFnsLocale(),
-                        }),
-                      )
-                    : undefined
-                }
-              />
-              <NestedStat
-                size="md"
-                overline={pl.recordBestSession}
-                value={programRecords.bestSessionTotal ?? pl.noValue}
-                hint={
-                  programRecords.bestSessionTotalDate
-                    ? pl.progressRecordDate(
-                        format(
-                          new Date(programRecords.bestSessionTotalDate),
-                          'd MMM yyyy',
-                          { locale: dateFnsLocale() },
-                        ),
-                      )
-                    : undefined
-                }
-              />
-              <NestedStat
-                size="md"
-                overline={pl.totalRepsLabel}
-                value={programStats.totalRepsAllTime ?? pl.noValue}
-              />
-              <NestedStat
-                size="md"
-                overline={pl.recordHighestCycle}
-                value={programRecords.highestCycleName ?? pl.noValue}
-              />
+        {/* Programy wbudowane — po jednej sekcji per program */}
+        {validProgramEntries.map((entry) => {
+          const { program, records, stats } = entry
+          const label = program === 'pushups' ? pl.pushupsProgram : program === 'pullups' ? pl.pullupsProgram : program
+          return (
+            <div key={program} className="mb-4">
+              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
+                {label}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <NestedStat
+                  size="md"
+                  overline={pl.recordBestMaxSet}
+                  value={records.bestMaxSet ?? pl.noValue}
+                  hint={
+                    records.bestMaxSetDate
+                      ? pl.progressRecordDate(
+                          format(new Date(records.bestMaxSetDate), 'd MMM yyyy', {
+                            locale: dateFnsLocale(),
+                          }),
+                        )
+                      : undefined
+                  }
+                />
+                <NestedStat
+                  size="md"
+                  overline={pl.recordBestSession}
+                  value={records.bestSessionTotal ?? pl.noValue}
+                  hint={
+                    records.bestSessionTotalDate
+                      ? pl.progressRecordDate(
+                          format(
+                            new Date(records.bestSessionTotalDate),
+                            'd MMM yyyy',
+                            { locale: dateFnsLocale() },
+                          ),
+                        )
+                      : undefined
+                  }
+                />
+                <NestedStat
+                  size="md"
+                  overline={pl.totalRepsLabel}
+                  value={stats.totalRepsAllTime ?? pl.noValue}
+                />
+                <NestedStat
+                  size="md"
+                  overline={pl.recordHighestCycle}
+                  value={records.highestCycleName ?? pl.noValue}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })}
 
         {/* Własne ćwiczenia */}
         {hasCustomRecords && (

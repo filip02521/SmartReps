@@ -16,7 +16,8 @@ export async function dismissAchievementUi(page: Page) {
       return
     }
     // Sheet header + body may both expose "Zamknij" — take the last (primary).
-    await dialog.first().getByRole('button', { name: 'Zamknij' }).last().click()
+    // Use force to handle detached-from-DOM re-renders during sheet animation.
+    await dialog.first().getByRole('button', { name: 'Zamknij' }).last().click({ force: true })
     await page.waitForTimeout(250)
   }
 }

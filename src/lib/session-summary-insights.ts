@@ -2,7 +2,7 @@ import type { LocalWorkoutSession } from '@/lib/db'
 import type { ExerciseDefinition, ExerciseLog, PrimaryMetric, SetLog } from '@/lib/exercise-model'
 import { pl } from '@/i18n/pl'
 import { formatExerciseSetSummary } from '@/lib/custom-exercise-stats'
-import { formatSetActualDisplay, type DurationUnit } from '@/lib/custom-prescription-format'
+import { formatSetActualDisplay, secToDisplay, type DurationUnit } from '@/lib/custom-prescription-format'
 
 export type SetInsightKind = 'pr' | 'improved' | 'unchanged' | 'down' | 'failed' | 'none'
 
@@ -192,7 +192,7 @@ export function computeCustomSessionInsights(params: {
         id: `ex-pr-${log.exerciseId}`,
         tone: 'pr',
         label: pl.summaryHighlightExercisePr(name),
-        value: formatExerciseSetSummary(metric, exerciseBestSet),
+        value: formatExerciseSetSummary(metric, exerciseBestSet, 'kg', def?.durationDisplayUnit ?? 'sec'),
       })
     }
 
@@ -252,14 +252,20 @@ export function formatBuiltinSetInsightBadge(insight: SetInsight | undefined): s
   return null
 }
 
-export function formatCustomSetInsightBadge(insight: SetInsight | undefined): string | null {
+export function formatCustomSetInsightBadge(
+  insight: SetInsight | undefined,
+  metric: PrimaryMetric = 'reps',
+  durationUnit: DurationUnit = 'sec',
+): string | null {
   if (!insight) return null
   if (insight.kind === 'pr') return pl.summarySetBadgePr
+  const convertDelta = (d: number) =>
+    metric === 'duration_sec' && durationUnit === 'min' ? secToDisplay(d, 'min') : d
   if (insight.kind === 'improved' && insight.deltaVsPrevious != null) {
-    return pl.summarySetBadgeImproved(insight.deltaVsPrevious)
+    return pl.summarySetBadgeImproved(convertDelta(insight.deltaVsPrevious))
   }
   if (insight.kind === 'down' && insight.deltaVsPrevious != null) {
-    return pl.summarySetBadgeDown(insight.deltaVsPrevious)
+    return pl.summarySetBadgeDown(convertDelta(insight.deltaVsPrevious))
   }
   return null
 }
@@ -272,12 +278,14 @@ export function customSetInsightAria(
 ): string | null {
   if (!insight || insight.kind === 'none' || insight.kind === 'unchanged') return null
   const value = formatSetActualDisplay(set.actual, metric, 'kg', durationUnit)
+  const convertDelta = (d: number) =>
+    metric === 'duration_sec' && durationUnit === 'min' ? secToDisplay(d, 'min') : d
   if (insight.kind === 'pr') return pl.summarySetInsightPr(value)
   if (insight.kind === 'improved' && insight.deltaVsPrevious != null) {
-    return pl.summarySetInsightImproved(value, insight.deltaVsPrevious)
+    return pl.summarySetInsightImproved(value, convertDelta(insight.deltaVsPrevious))
   }
   if (insight.kind === 'down' && insight.deltaVsPrevious != null) {
-    return pl.summarySetInsightDown(value, insight.deltaVsPrevious)
+    return pl.summarySetInsightDown(value, convertDelta(insight.deltaVsPrevious))
   }
   if (insight.kind === 'failed') return pl.summarySetInsightFailed(value)
   return null

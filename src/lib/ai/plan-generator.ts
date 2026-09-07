@@ -175,6 +175,7 @@ export async function generatePlan(
       if (!def) {
         // Create a TEMPORARY exercise definition (NOT persisted yet)
         const metric = sanitizeMetric(aiEx.primaryMetric)
+        const muscleGroup = sanitizeMuscleGroup(aiEx.muscleGroup)
         const restDefault = clampRest(aiEx.restBetweenSetsSec, 90)
         def = {
           id: generateId(),
@@ -182,7 +183,9 @@ export async function generatePlan(
           primaryMetric: metric,
           restDefaultSec: restDefault,
           archived: false,
-          muscleGroup: sanitizeMuscleGroup(aiEx.muscleGroup),
+          muscleGroup,
+          durationDisplayUnit:
+            metric === 'duration_sec' && muscleGroup === 'cardio' ? 'min' : 'sec',
           createdAt: now,
           updatedAt: now,
         }
@@ -355,6 +358,7 @@ export async function commitGeneratedPlan(result: PlanGenerationResult): Promise
         primaryMetric: tempEx.primaryMetric,
         restDefaultSec: tempEx.restDefaultSec,
         muscleGroup: tempEx.muscleGroup,
+        durationDisplayUnit: tempEx.durationDisplayUnit,
         source: 'ai',
       })
       // If saveExercise returned a different ID (dedup hit), remap

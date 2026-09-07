@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
@@ -20,6 +20,8 @@ import {
 import { AiApiError } from '@/lib/ai/ai-client'
 import type { PlanGenerationInput } from '@/lib/ai/prompts'
 import type { MetricTarget, SetPrescription } from '@/lib/exercise-model'
+import { formatDurationDisplay, type DurationUnit } from '@/lib/custom-prescription-format'
+import { weightUnitLabel } from '@/lib/weight-units'
 import { AiCoachHeader, AiCoachMessage } from '@/components/brand/AiCoachHeader'
 import { Check, AlertTriangle, RotateCcw, Sparkles } from 'lucide-react'
 
@@ -35,11 +37,20 @@ function formatTarget(t: MetricTarget | undefined): string {
 }
 
 /** Format a set prescription for the preview. */
-function formatSet(set: SetPrescription): string {
+function formatSet(
+  set: SetPrescription,
+  weightUnit: 'kg' | 'lb' = 'kg',
+  durationUnit: DurationUnit = 'sec',
+): string {
   const parts: string[] = []
   if (set.reps) parts.push(`${formatTarget(set.reps)} ${pl.repUnit}`)
-  if (set.durationSec) parts.push(`${formatTarget(set.durationSec)} ${pl.durationUnitShort}`)
-  if (set.weightKg) parts.push(`${formatTarget(set.weightKg)} ${pl.weightUnitShort}`)
+  if (set.durationSec) {
+    const sec = set.durationSec.kind === 'max' ? set.durationSec.minValue : set.durationSec.value
+    parts.push(formatDurationDisplay(sec, durationUnit))
+  }
+  if (set.weightKg) {
+    parts.push(`${formatTarget(set.weightKg)} ${weightUnitLabel(weightUnit)}`)
+  }
   return parts.join(' · ') || pl.planDash
 }
 
@@ -57,6 +68,14 @@ export function AiPlanGenerator({
   const [error, setError] = useState('')
   const [result, setResult] = useState<PlanGenerationResult | null>(null)
   const [exerciseNames, setExerciseNames] = useState<Map<string, string>>(new Map())
+  const exerciseDurationUnits = useMemo<Map<string, DurationUnit>>(() => {
+    const m = new Map<string, DurationUnit>()
+    if (!result) return m
+    for (const ex of result.newExercises) {
+      m.set(ex.id, ex.durationDisplayUnit ?? 'sec')
+    }
+    return m
+  }, [result])
   const [importing, setImporting] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -455,6 +474,7 @@ export function AiPlanGenerator({
                 <ul className="mt-2 flex flex-col gap-1.5">
                   {d.exercises.map((ex, j) => {
                     const exName = exerciseNames.get(ex.exerciseId) ?? pl.exerciseFallbackName
+                    const exDurationUnit = exerciseDurationUnits.get(ex.exerciseId) ?? 'sec'
                     return (
                       <li key={j} className="text-sm text-[var(--sr-text-secondary)]">
                         <span className="font-medium">{j + 1}. {exName}</span>
@@ -465,7 +485,7 @@ export function AiPlanGenerator({
                         <ul className="mt-0.5 pl-4 text-xs text-[var(--sr-text-muted)]">
                           {ex.sets.map((s, si) => (
                             <li key={si}>
-                              {pl.setLabel}{si + 1}: {formatSet(s)}
+                              {pl.setLabel}{si + 1}: {formatSet(s, settings.weightUnit, exDurationUnit)}
                               {ex.restBetweenSetsSec ? ` · ${pl.restLabel} ${ex.restBetweenSetsSec}${pl.durationUnitShort}` : ''}
                             </li>
                           ))}

@@ -231,7 +231,8 @@ export type SessionChartPoint = {
   dayNumber: number
 }
 
-/** Max-set (last set actual) per completed passed session — progression chart for training, not just tests. */
+/** Max-set (last set actual) per completed session — progression chart for training, not just tests.
+ *  Includes failed sessions (passed=false) so the user can see regressions on the chart. */
 export async function getMaxSetPerSession(program: Program): Promise<SessionChartPoint[]> {
   const sessions = await db.workoutSessions
     .where('program')

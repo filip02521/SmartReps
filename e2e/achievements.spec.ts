@@ -147,7 +147,7 @@ test.describe('achievements', () => {
     for (let i = 0; i < 6; i++) {
       const sheet = page.getByRole('heading', { name: 'Nowa odznaka' })
       if (!(await sheet.isVisible().catch(() => false))) break
-      await page.getByRole('button', { name: 'Zamknij' }).click()
+      await page.getByRole('button', { name: 'Zamknij' }).click({ force: true })
       await page.waitForTimeout(300)
     }
     await expect(page.getByRole('heading', { name: 'Nowa odznaka' })).not.toBeVisible()

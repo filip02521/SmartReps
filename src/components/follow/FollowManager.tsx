@@ -22,9 +22,10 @@ import {
 import { refreshCommunityAuthorDisplayName } from '@/lib/community-api'
 import { ACHIEVEMENT_BY_ID, resolveDisplayGlyph, resolveDisplayRarity } from '@/lib/achievements/catalog'
 import { achievementTitle } from '@/lib/achievements/copy'
-import type { AchievementId } from '@/lib/achievements/types'
+import type { AchievementId, AchievementDef, LocalAchievementUnlock } from '@/lib/achievements/types'
 import { GLYPHS } from '@/components/achievements/AchievementTile'
 import { TrophyShape } from '@/components/achievements/TrophyShape'
+import { AchievementDetailSheet } from '@/components/achievements/AchievementDetailSheet'
 import { trophyShapeFor, trophyTierFor } from '@/lib/achievements/trophy-tier'
 import type { FollowData } from '@/hooks/useFollowData'
 
@@ -134,7 +135,10 @@ export function FollowButton({
 
 /* ─── Achievement trophy badge for follow cards ─── */
 
-function AchievementTrophyBadge({ badge }: { badge: PublicAchievementBadge }) {
+function AchievementTrophyBadge({ badge, onOpen }: {
+  badge: PublicAchievementBadge
+  onOpen: (def: AchievementDef, unlock: LocalAchievementUnlock) => void
+}) {
   const def = ACHIEVEMENT_BY_ID[badge.achievement_id as AchievementId]
   if (!def) return null
   const glyphKey = resolveDisplayGlyph(def, badge.tier_level)
@@ -143,12 +147,23 @@ function AchievementTrophyBadge({ badge }: { badge: PublicAchievementBadge }) {
   const shape = trophyShapeFor(def)
   const title = achievementTitle(badge.achievement_id as AchievementId)
 
+  const handleClick = () => {
+    onOpen(def, {
+      id: def.id,
+      unlockedAt: badge.unlocked_at ?? new Date().toISOString(),
+      seenAt: null,
+      tierLevel: badge.tier_level ?? null,
+    })
+  }
+
   // If the achievement has a trophy tier (gold/diamond/silver), render the full
   // metallic TrophyShape. Otherwise, render a simple icon badge.
   if (tier) {
     return (
-      <span
-        className="shrink-0 transition-transform hover:scale-110 active:scale-95"
+      <button
+        type="button"
+        onClick={handleClick}
+        className={cn('shrink-0 transition-transform hover:scale-110 active:scale-95', FOCUS_RING)}
         title={title}
         aria-label={title}
       >
@@ -159,7 +174,7 @@ function AchievementTrophyBadge({ badge }: { badge: PublicAchievementBadge }) {
           glyph={<Icon size={12} aria-hidden />}
           ariaHidden
         />
-      </span>
+      </button>
     )
   }
 
@@ -173,27 +188,33 @@ function AchievementTrophyBadge({ badge }: { badge: PublicAchievementBadge }) {
         : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)] ring-[var(--sr-border-subtle)]'
 
   return (
-    <span
+    <button
+      type="button"
+      onClick={handleClick}
       className={cn(
         'flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 transition-transform hover:scale-110 active:scale-95',
         rarityClass,
+        FOCUS_RING,
       )}
       title={title}
       aria-label={title}
     >
       <Icon size={16} aria-hidden />
-    </span>
+    </button>
   )
 }
 
-function BadgeRow({ badges }: { badges: PublicAchievementBadge[] }) {
+function BadgeRow({ badges, onOpen }: {
+  badges: PublicAchievementBadge[]
+  onOpen: (def: AchievementDef, unlock: LocalAchievementUnlock) => void
+}) {
   if (!badges || badges.length === 0) {
     return null
   }
   return (
     <div className="flex items-center gap-2 overflow-visible">
       {badges.map((b, i) => (
-        <AchievementTrophyBadge key={`${b.achievement_id}-${i}`} badge={b} />
+        <AchievementTrophyBadge key={`${b.achievement_id}-${i}`} badge={b} onOpen={onOpen} />
       ))}
     </div>
   )
@@ -249,6 +270,10 @@ function FolloweeCard({
   onUnfollow: (followeeId: string) => void
 }) {
   const [confirmUnfollow, setConfirmUnfollow] = useState(false)
+  const [badgeDetail, setBadgeDetail] = useState<{
+    def: AchievementDef
+    unlock: LocalAchievementUnlock
+  } | null>(null)
   const name = profile.display_name || pl.followAnonymous
   const hasBadges = profile.top_achievements && profile.top_achievements.length > 0
 
@@ -301,7 +326,7 @@ function FolloweeCard({
       {/* Achievement trophies row — only if user has badges */}
       {hasBadges && (
         <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-[var(--sr-border-subtle)] pt-2.5">
-          <BadgeRow badges={profile.top_achievements} />
+          <BadgeRow badges={profile.top_achievements} onOpen={(def, unlock) => setBadgeDetail({ def, unlock })} />
           {profile.achievement_count > 0 && (
             <span className="shrink-0 sr-text-caption text-[var(--sr-text-muted)] tabular-nums">
               {pl.followStatsAchievementsCount(profile.achievement_count)}
@@ -322,6 +347,12 @@ function FolloweeCard({
           onCancel={() => setConfirmUnfollow(false)}
         />
       )}
+      <AchievementDetailSheet
+        open={badgeDetail !== null}
+        onClose={() => setBadgeDetail(null)}
+        def={badgeDetail?.def ?? ACHIEVEMENT_BY_ID.first_session}
+        unlock={badgeDetail?.unlock}
+      />
     </div>
   )
 }
@@ -520,6 +551,10 @@ export function PublicProfileSheet({
 /* ─── Follower card — someone who follows me ─── */
 
 function FollowerCard({ profile }: { profile: FollowerProfile }) {
+  const [badgeDetail, setBadgeDetail] = useState<{
+    def: AchievementDef
+    unlock: LocalAchievementUnlock
+  } | null>(null)
   const name = profile.display_name || pl.followAnonymous
   const hasBadges = profile.top_achievements && profile.top_achievements.length > 0
 
@@ -567,7 +602,7 @@ function FollowerCard({ profile }: { profile: FollowerProfile }) {
       {/* Achievement trophies row — only if user has badges */}
       {hasBadges && (
         <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-[var(--sr-border-subtle)] pt-2.5">
-          <BadgeRow badges={profile.top_achievements} />
+          <BadgeRow badges={profile.top_achievements} onOpen={(def, unlock) => setBadgeDetail({ def, unlock })} />
           {profile.achievement_count > 0 && (
             <span className="shrink-0 sr-text-caption text-[var(--sr-text-muted)] tabular-nums">
               {pl.followStatsAchievementsCount(profile.achievement_count)}
@@ -575,6 +610,12 @@ function FollowerCard({ profile }: { profile: FollowerProfile }) {
           )}
         </div>
       )}
+      <AchievementDetailSheet
+        open={badgeDetail !== null}
+        onClose={() => setBadgeDetail(null)}
+        def={badgeDetail?.def ?? ACHIEVEMENT_BY_ID.first_session}
+        unlock={badgeDetail?.unlock}
+      />
     </div>
   )
 }

@@ -39,6 +39,7 @@ import {
   getPrimaryMetricTarget,
   isExactPrescription,
   isMaxPrescription,
+  secToDisplay,
   type DurationUnit,
 } from '@/lib/custom-prescription-format'
 import type { PreviousCustomSetResult } from '@/lib/custom-session-service'
@@ -217,7 +218,12 @@ function CustomSetRow({
     state === 'done' &&
     result != null &&
     previousResult != null
-  const delta = showDelta ? computeCustomDelta(result.actual, previousResult, metric) : 0
+  const rawDelta = showDelta ? computeCustomDelta(result.actual, previousResult, metric) : 0
+  // Dla min-based exercises konwertuj deltę sekund na minuty
+  const delta =
+    rawDelta != null && metric === 'duration_sec' && durationUnit === 'min'
+      ? secToDisplay(rawDelta, 'min')
+      : rawDelta
 
   return (
     <button
@@ -745,12 +751,12 @@ function CustomMetricCounter({
       </p>
       {isExact && (
         <p className="text-center text-sm text-[var(--sr-text-secondary)]">
-          {pl.exactLiveHint(targetReps)}
+          {pl.exactLiveHint(isMinUnit ? displayTargetReps : targetReps)}
         </p>
       )}
       {isMax && (
         <p className="text-center text-sm text-[var(--sr-text-secondary)]">
-          {pl.customMaxLiveHint(targetReps)}
+          {pl.customMaxLiveHint(isMinUnit ? displayTargetReps : targetReps)}
         </p>
       )}
       {isMin && isDuration && (

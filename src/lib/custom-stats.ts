@@ -15,6 +15,8 @@ export type ExercisePr = {
   maxReps: number | null
   maxDurationSec: number | null
   maxWeightKg: number | null
+  /** Display unit for duration — 'sec' (default) or 'min'. */
+  durationDisplayUnit?: 'sec' | 'min'
   lastSessionAt: string | null
   sessionCount: number
   sparkline: number[]
@@ -106,6 +108,7 @@ export async function computeCustomExercisePrs(): Promise<ExercisePr[]> {
       maxReps,
       maxDurationSec,
       maxWeightKg,
+      durationDisplayUnit: ex.durationDisplayUnit,
       lastSessionAt,
       sessionCount,
       sparkline: chartValues.slice(-8),

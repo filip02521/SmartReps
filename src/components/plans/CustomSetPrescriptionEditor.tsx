@@ -71,7 +71,7 @@ export function CustomSetPrescriptionEditor({
   const isMinUnit = metric === 'duration_sec' && durationUnit === 'min'
   const primaryTarget =
     metric === 'duration_sec'
-      ? (prescription.durationSec ?? { kind: 'min', value: isMinUnit ? 5 : 30 })
+      ? (prescription.durationSec ?? { kind: 'min', value: isMinUnit ? 300 : 30 })
       : (prescription.reps ?? { kind: 'fixed', value: 8 })
   const weightTarget = prescription.weightKg ?? { kind: 'fixed' as const, value: 20 }
 

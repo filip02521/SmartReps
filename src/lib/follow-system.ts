@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase/client'
 export type PublicAchievementBadge = {
   achievement_id: string
   tier_level: number
+  unlocked_at?: string
 }
 
 export type PublicProfile = {

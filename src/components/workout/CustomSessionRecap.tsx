@@ -13,6 +13,7 @@ import type {
 import {
   formatPrescriptionTarget,
   formatSetActualDisplay,
+  secToDisplay,
 } from '@/lib/custom-prescription-format'
 import {
   customSessionPassedSets,
@@ -193,12 +194,16 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
               <tbody>
                 {log.sets.map((set, idx) => {
                   const prevSet = findPreviousSet(previous, log.exerciseId, set.setNumber)
-                  const diff =
+                  const rawDiff =
                     prevSet != null
                       ? primaryMetricValue(metric, set) - primaryMetricValue(metric, prevSet)
                       : null
+                  const diff =
+                    rawDiff != null && metric === 'duration_sec' && durationUnit === 'min'
+                      ? secToDisplay(rawDiff, 'min')
+                      : rawDiff
                   const setInsight = insights?.setInsights.get(`${log.exerciseId}:${set.setNumber}`)
-                  const badge = formatCustomSetInsightBadge(setInsight)
+                  const badge = formatCustomSetInsightBadge(setInsight, metric, durationUnit)
                   const ariaLabel = customSetInsightAria(setInsight, metric, set, durationUnit)
                   return (
                     <tr

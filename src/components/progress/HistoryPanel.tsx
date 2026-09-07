@@ -91,9 +91,22 @@ export function HistoryPanel({
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [selectedSession, setSelectedSession] = useState<LocalWorkoutSession | null>(null)
   const [detailExercises, setDetailExercises] = useState<Map<string, ExerciseDefinition>>(new Map())
+  const [allExercises, setAllExercises] = useState<Map<string, ExerciseDefinition>>(new Map())
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const weightUnit = useAppStore((s) => s.settings.weightUnit)
+
+  // Wczytaj wszystkie ćwiczenia raz, by poprawnie formatować podsumowania sesji (duration unit, weight unit)
+  useEffect(() => {
+    let cancelled = false
+    db.exercises.toArray().then((rows) => {
+      if (cancelled) return
+      const map = new Map<string, ExerciseDefinition>()
+      for (const r of rows) map.set(r.id, r)
+      setAllExercises(map)
+    })
+    return () => { cancelled = true }
+  }, [])
 
   async function openSessionDetail(s: LocalWorkoutSession) {
     setSelectedSession(s)
@@ -168,7 +181,7 @@ export function HistoryPanel({
     return formatCustomSessionSummary(
       s.exerciseLogs?.length ?? 0,
       sessionTotalSets(s),
-      computeCustomSessionDetail(s.exerciseLogs),
+      computeCustomSessionDetail(s.exerciseLogs, allExercises, weightUnit),
     )
   }
 
@@ -502,7 +515,7 @@ export function HistoryPanel({
                                   : 'text-[var(--sr-error)]',
                               )}
                             >
-                              {formatExerciseSetSummary(metric, set, weightUnit)}
+                              {formatExerciseSetSummary(metric, set, weightUnit, def?.durationDisplayUnit ?? 'sec')}
                               {!set.passed && ` · ${pl.failedShort}`}
                             </span>
                           </li>

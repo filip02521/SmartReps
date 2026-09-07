@@ -16,6 +16,7 @@ import { suggestSubstitutes } from '@/lib/exercise-substitution'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import {
   formatPrescriptionSetLabel,
+  formatDurationDisplay,
 } from '@/lib/custom-prescription-format'
 import { metricTargetDisplayValue } from '@/lib/plan-resolver'
 import {
@@ -808,16 +809,23 @@ export default function CustomWorkoutPage() {
     if (nextExerciseIndex !== store.currentExerciseIndex) {
       return pl.customWorkoutNextExercise(nextDef.name)
     }
+    const nextDurationUnit = nextDef.durationDisplayUnit ?? 'sec'
     const baseLabel = pl.customNextSet(
       nextSetIndex + 1,
-      formatPrescriptionSetLabel(nextPrescription, nextDef.primaryMetric, nextDef.name),
+      formatPrescriptionSetLabel(
+        nextPrescription,
+        nextDef.primaryMetric,
+        nextDef.name,
+        weightUnit,
+        nextDurationUnit,
+      ),
     )
     // Append "Ostatnio: X" if we have previous data for this set
     const prev = previousResults.get(nextSetIndex + 1)
     if (prev) {
       let prevValue: string | undefined
       if (nextDef.primaryMetric === 'duration_sec' && prev.durationSec != null) {
-        prevValue = `${prev.durationSec}s`
+        prevValue = formatDurationDisplay(prev.durationSec, nextDurationUnit)
       } else if (prev.reps != null) {
         prevValue = prev.weightKg
           ? `${prev.reps}×${prev.weightKg}kg`
