@@ -128,6 +128,15 @@ html[data-offline='1'] .safe-header {
   100% { transform: translateY(120px) scale(0.3); opacity: 0; }
 }
 
+/* ── Hide scrollbar (for horizontal badge rows) ── */
+.sr-no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.sr-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Achievement tile visuals ── */
 
 @keyframes sr-ach-pulse {

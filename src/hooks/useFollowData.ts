@@ -59,6 +59,18 @@ export function useFollowData(): FollowData {
       const uid = data.user?.id ?? null
       setCurrentUserId(uid)
 
+      // Not logged in — skip all authenticated RPCs, show empty state
+      if (!uid) {
+        if (mountedRef.current && reqId === requestIdRef.current) {
+          setProfile(null)
+          setFollowing([])
+          setFollowers([])
+          setCounts({ followers: 0, following: 0 })
+          setLoading(false)
+        }
+        return
+      }
+
       // Refresh stats first (so profile has fresh data) — non-critical, ignore errors
       await refreshMyPublicProfileStats().catch(() => undefined)
       if (!mountedRef.current || reqId !== requestIdRef.current) return
@@ -97,6 +109,13 @@ export function useFollowData(): FollowData {
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [reload, online])
+
+  // Refresh when a follow action happens anywhere in the app (community cards, etc.)
+  useEffect(() => {
+    const onFollowChanged = () => void reload()
+    window.addEventListener('sr-follow-changed', onFollowChanged)
+    return () => window.removeEventListener('sr-follow-changed', onFollowChanged)
+  }, [reload])
 
   const unfollow = useCallback(async (followeeId: string) => {
     try {

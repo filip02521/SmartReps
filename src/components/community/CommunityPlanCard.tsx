@@ -7,6 +7,7 @@ import { communityTagLabel } from '@/lib/community-labels'
 import { snapshotDayCount, snapshotExerciseCount } from '@/lib/community-import'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { cn } from '@/lib/utils'
+import { useIsFollowing } from '@/hooks/useIsFollowing'
 
 type Props = {
   row: CommunityPublicationRow
@@ -37,6 +38,7 @@ export function CommunityPlanCard({
   const exercises = snapshotExerciseCount(row.snapshot_json)
   const desc = row.description.trim()
   const canLike = Boolean(onLike)
+  const isFollowing = useIsFollowing(showFollow ? row.author_id : null)
 
   return (
     <div
@@ -111,11 +113,11 @@ export function CommunityPlanCard({
             {!compact ? pl.communityImports(row.import_count) : null}
           </span>
           <div className="flex items-center gap-2">
-            {showFollow && (
+            {showFollow && isFollowing !== null && (
               <div onClick={(e) => { e.preventDefault(); e.stopPropagation() }}>
                 <FollowButton
                   targetUserId={row.author_id}
-                  initiallyFollowing={false}
+                  initiallyFollowing={isFollowing}
                 />
               </div>
             )}

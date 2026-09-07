@@ -24,6 +24,8 @@ import { ACHIEVEMENT_BY_ID, resolveDisplayGlyph, resolveDisplayRarity } from '@/
 import { achievementTitle } from '@/lib/achievements/copy'
 import type { AchievementId } from '@/lib/achievements/types'
 import { GLYPHS } from '@/components/achievements/AchievementTile'
+import { TrophyShape } from '@/components/achievements/TrophyShape'
+import { trophyShapeFor, trophyTierFor } from '@/lib/achievements/trophy-tier'
 import type { FollowData } from '@/hooks/useFollowData'
 
 /* ─── Follow button — used on community plan authors ─── */
@@ -59,6 +61,7 @@ export function FollowButton({
       const result = await toggleFollow(targetUserId)
       setFollowing(result.following)
       onToggled?.(result.following)
+      window.dispatchEvent(new Event('sr-follow-changed'))
       showToast(pl.followDone, 'success')
     } catch (e) {
       const msg = e instanceof Error ? e.message : ''
@@ -82,13 +85,21 @@ export function FollowButton({
       const result = await toggleFollow(targetUserId)
       setFollowing(result.following)
       onToggled?.(result.following)
+      window.dispatchEvent(new Event('sr-follow-changed'))
       showToast(pl.unfollowDone, 'success')
-    } catch {
-      showToast(pl.followErrorGeneric, 'error')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ''
+      if (msg === 'not_authenticated') {
+        showToast(pl.followLoginRequired, 'info')
+        const returnTo = window.location.pathname + window.location.search
+        navigate(`/setup/login?returnTo=${encodeURIComponent(returnTo)}`)
+      } else {
+        showToast(pl.followErrorGeneric, 'error')
+      }
     } finally {
       setBusy(false)
     }
-  }, [targetUserId, onToggled])
+  }, [targetUserId, onToggled, navigate])
 
   return (
     <>
@@ -121,16 +132,39 @@ export function FollowButton({
   )
 }
 
-/* ─── Mini achievement badge for follow cards ─── */
+/* ─── Achievement trophy badge for follow cards ─── */
 
-function MiniAchievementBadge({ badge }: { badge: PublicAchievementBadge }) {
+function AchievementTrophyBadge({ badge }: { badge: PublicAchievementBadge }) {
   const def = ACHIEVEMENT_BY_ID[badge.achievement_id as AchievementId]
   if (!def) return null
   const glyphKey = resolveDisplayGlyph(def, badge.tier_level)
   const Icon = GLYPHS[glyphKey] ?? GLYPHS[def.glyph] ?? Trophy
-  const rarity = resolveDisplayRarity(def, null, badge.tier_level)
+  const tier = trophyTierFor(def, true, badge.tier_level)
+  const shape = trophyShapeFor(def)
   const title = achievementTitle(badge.achievement_id as AchievementId)
 
+  // If the achievement has a trophy tier (gold/diamond/silver), render the full
+  // metallic TrophyShape. Otherwise, render a simple icon badge.
+  if (tier) {
+    return (
+      <span
+        className="shrink-0"
+        title={title}
+        aria-label={title}
+      >
+        <TrophyShape
+          tier={tier}
+          shape={shape}
+          px={32}
+          glyph={<Icon size={11} aria-hidden />}
+          ariaHidden
+        />
+      </span>
+    )
+  }
+
+  // Non-trophy achievements: simple icon badge with rarity-based color
+  const rarity = resolveDisplayRarity(def, null, badge.tier_level)
   const rarityClass =
     rarity === 'legendary'
       ? 'bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)] ring-[var(--sr-brand-primary)]'
@@ -141,13 +175,13 @@ function MiniAchievementBadge({ badge }: { badge: PublicAchievementBadge }) {
   return (
     <span
       className={cn(
-        'flex h-7 w-7 shrink-0 items-center justify-center rounded-full ring-1',
+        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1',
         rarityClass,
       )}
       title={title}
       aria-label={title}
     >
-      <Icon size={14} aria-hidden />
+      <Icon size={15} aria-hidden />
     </span>
   )
 }
@@ -161,9 +195,9 @@ function BadgeRow({ badges }: { badges: PublicAchievementBadge[] }) {
     )
   }
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1 overflow-x-auto sr-no-scrollbar">
       {badges.map((b, i) => (
-        <MiniAchievementBadge key={`${b.achievement_id}-${i}`} badge={b} />
+        <AchievementTrophyBadge key={`${b.achievement_id}-${i}`} badge={b} />
       ))}
     </div>
   )
@@ -265,12 +299,12 @@ function StatChip({
   value: number
 }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 rounded-[var(--sr-radius-sm)] bg-[var(--sr-bg-surface)] px-2 py-1.5">
-      <span className="flex items-center gap-1 sr-text-caption text-[var(--sr-text-muted)]">
+    <div className="flex flex-col items-center gap-0.5 rounded-[var(--sr-radius-sm)] bg-[var(--sr-bg-surface)] px-1.5 py-1.5">
+      <span className="flex items-center gap-1 sr-text-caption text-[var(--sr-text-muted)] leading-tight text-center">
         {icon}
         {label}
       </span>
-      <span className="tabular-nums font-semibold text-[var(--sr-text-primary)]">
+      <span className="tabular-nums font-semibold text-[var(--sr-text-primary)] leading-tight">
         {value}
       </span>
     </div>
