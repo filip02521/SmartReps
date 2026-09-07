@@ -112,6 +112,13 @@ export async function ensureAccountForSession(userId: string): Promise<AccountEn
       track('account_switch_prompt_shown')
       return 'needs_confirm'
     }
+    // Clear suppressed achievements — different account
+    try {
+      const { clearSuppressedAchievements } = await import('@/lib/achievements/store')
+      clearSuppressedAchievements()
+    } catch {
+      /* best-effort */
+    }
     await clearAllLocalData()
     useAppStore.setState({ lastAuthUserId: userId })
     showToast(pl.accountSwitchCleared, 'info')
@@ -124,6 +131,13 @@ export async function ensureAccountForSession(userId: string): Promise<AccountEn
     // no account and must be cleared before attributing it to the new user.
     // Without this, a new account inherits stale guest achievements.
     if (await hasLocalTrainingData()) {
+      // Clear suppressed achievements — guest data is being discarded
+      try {
+        const { clearSuppressedAchievements } = await import('@/lib/achievements/store')
+        clearSuppressedAchievements()
+      } catch {
+        /* best-effort */
+      }
       await clearAllLocalData()
       useAppStore.setState({ lastAuthUserId: userId })
       showToast(pl.accountSwitchCleared, 'info')

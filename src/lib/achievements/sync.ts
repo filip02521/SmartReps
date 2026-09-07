@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 import { ACHIEVEMENT_CATALOG, isAchievementMet } from './catalog'
 import type { AchievementId, LocalAchievementUnlock } from './types'
-import { getAllUnlocks, mergeRemoteUnlocks, setSuppressedAchievements, clearSuppressedAchievements } from './store'
+import { getAllUnlocks, mergeRemoteUnlocks, setSuppressedAchievements, clearSuppressedAchievements, getSuppressedAchievements } from './store'
 import { buildAchievementSnapshot } from './snapshot'
 import { db } from '@/lib/db'
 
@@ -79,6 +79,10 @@ export async function pullAchievementsFromCloud(): Promise<void> {
     }
     if (toDelete.length) {
       await db.achievementUnlocks.bulkDelete(toDelete)
+      // Add to suppressed list so evaluateAchievements won't re-create them
+      const existing = getSuppressedAchievements()
+      const merged = new Set([...existing, ...toDelete])
+      setSuppressedAchievements([...merged])
     }
   }
 

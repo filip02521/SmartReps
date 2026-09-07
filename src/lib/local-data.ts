@@ -44,10 +44,11 @@ export async function clearAllLocalData(): Promise<void> {
   ])
   // Clear backfill flag so the next account starts fresh — otherwise the first
   // evaluation after account switch would skip the backfill check.
+  // NOTE: suppressed achievements list is NOT cleared here — it's tied to the
+  // cloud account, not local data. It's cleared explicitly on account switch/logout.
   try {
-    const { clearBackfillFlag, clearSuppressedAchievements } = await import('@/lib/achievements/store')
+    const { clearBackfillFlag } = await import('@/lib/achievements/store')
     clearBackfillFlag()
-    clearSuppressedAchievements()
   } catch {
     /* best-effort */
   }

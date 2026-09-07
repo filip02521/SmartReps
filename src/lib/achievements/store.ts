@@ -142,9 +142,9 @@ export function getSuppressedAchievements(): Set<AchievementId> {
   }
 }
 
-export function setSuppressedAchievements(ids: AchievementId[]): void {
+export function setSuppressedAchievements(ids: readonly string[]): void {
   try {
-    const valid = ids.filter((id) => VALID_ACHIEVEMENT_IDS.has(id))
+    const valid = ids.filter((id) => VALID_ACHIEVEMENT_IDS.has(id as AchievementId))
     localStorage.setItem(SUPPRESSED_KEY, JSON.stringify(valid))
   } catch {
     /* ignore */

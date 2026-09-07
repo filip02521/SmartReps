@@ -174,6 +174,9 @@ export default function ProfilePage() {
   const logoutAndClear = async () => {
     try {
       await signOutUser()
+      // Clear suppressed achievements — different account, different badges
+      const { clearSuppressedAchievements } = await import('@/lib/achievements/store')
+      clearSuppressedAchievements()
       await clearAllLocalData()
       setEmail(null)
       setShowLogoutConfirm(false)
@@ -186,26 +189,43 @@ export default function ProfilePage() {
   const clearLocal = async () => {
     setClearingLocal(true)
     try {
+      // Read local achievements + fetch remote BEFORE clearing
+      // so we can compute the suppressed list (false badges to never re-create)
+      const { isSupabaseConfigured, supabase } = await import('@/lib/supabase/client')
+      let suppressedIds: string[] = []
+      if (isSupabaseConfigured) {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          const { getAllUnlocks } = await import('@/lib/achievements/store')
+          const localBefore = await getAllUnlocks()
+          const { data: remote } = await supabase
+            .from('user_achievements')
+            .select('achievement_id')
+            .eq('user_id', session.user.id)
+          const remoteIds = new Set((remote ?? []).map((r) => r.achievement_id))
+          suppressedIds = localBefore
+            .filter((l) => !remoteIds.has(l.id))
+            .map((l) => l.id)
+        }
+      }
+
       await clearAllLocalData()
       setShowClearConfirm(false)
-      // If user is logged in, pull fresh data from cloud instead of going to onboarding
-      const { isSupabaseConfigured, supabase } = await import('@/lib/supabase/client')
+
+      // Set suppressed list BEFORE sync so scheduleAchievementCheck won't re-create
+      // false achievements during the sync flow
+      if (suppressedIds.length > 0) {
+        const { setSuppressedAchievements } = await import('@/lib/achievements/store')
+        setSuppressedAchievements(suppressedIds)
+      }
+
       if (isSupabaseConfigured) {
         const { data: { session } } = await supabase.auth.getSession()
         if (session?.user) {
           // Restore from cloud — pull all data + achievements
+          // scheduleAchievementCheck will skip suppressed IDs
           await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
-          // Wait for any pending achievement evaluation to complete
-          // (scheduleAchievementCheck is fire-and-forget and may re-create
-          // false achievements AFTER forceReconcileFromCloud runs)
-          const { runAchievementEvaluation } = await import('@/lib/achievements/run')
-          try {
-            await runAchievementEvaluation({ skipCloud: true })
-          } catch {
-            /* best-effort */
-          }
           // Force-reconcile achievements: cloud is source of truth
-          // This runs AFTER evaluation completes, so it overrides any re-created unlocks
           const { forceReconcileFromCloud } = await import('@/lib/achievements/sync')
           await forceReconcileFromCloud()
           // Reload page data

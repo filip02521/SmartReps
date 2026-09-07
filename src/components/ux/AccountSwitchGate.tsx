@@ -48,6 +48,9 @@ export function AccountSwitchGate() {
     setBusy(true)
     try {
       track('account_switch_cleared')
+      // Clear suppressed achievements — switching to a different account
+      const { clearSuppressedAchievements } = await import('@/lib/achievements/store')
+      clearSuppressedAchievements()
       await clearAllLocalData()
       useAppStore.setState({ lastAuthUserId: pending.userId })
       clearAccountSwitchPending()
