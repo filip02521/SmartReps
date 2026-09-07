@@ -13,6 +13,8 @@ import { NestedStat } from '@/components/ui/NestedStat'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { useMemo, useState } from 'react'
 import { pl } from '@/i18n/pl'
+import { buildActivityInsights } from '@/lib/weekly-recap'
+import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import type { LocalProgramProgress, LocalWorkoutSession } from '@/lib/db'
 import type {
   ProgramStats,
@@ -326,11 +328,12 @@ function ProgramSection({
   )
 }
 
+type Scope = 'all' | 'pushups' | 'pullups' | 'custom'
+
 export function OverviewPanel({
   programDataMap,
   enabledPrograms,
   activity,
-  hasAnyData,
   allSessions,
   customSessionsAll,
   customPrs,
@@ -345,7 +348,6 @@ export function OverviewPanel({
   programDataMap: Map<Program, ProgramData>
   enabledPrograms: Program[]
   activity: ActivityInsights | null
-  hasAnyData: boolean
   allSessions: LocalWorkoutSession[]
   customSessionsAll: LocalWorkoutSession[]
   customPrs: ExercisePr[]
@@ -357,40 +359,92 @@ export function OverviewPanel({
   onOpenExercise: (exerciseId: string) => void
   navigate: NavigateFunction
 }) {
-  // Sekcje programów builtin — po jednej dla każdego włączonego programu
-  const programSections = enabledPrograms
+  const [scope, setScope] = useState<Scope>('all')
+
+  // Dostępne zakresy — tylko te które mają dane lub są włączone
+  const scopeOptions = useMemo(() => {
+    const opts: { value: Scope; label: string }[] = [{ value: 'all', label: pl.progressScopeAll }]
+    if (programDataMap.has('pushups')) opts.push({ value: 'pushups', label: pl.progressScopePushups })
+    if (programDataMap.has('pullups')) opts.push({ value: 'pullups', label: pl.progressScopePullups })
+    if (customSessionsAll.length > 0 || customOverviewStats != null) opts.push({ value: 'custom', label: pl.progressScopeCustom })
+    return opts
+  }, [programDataMap, customSessionsAll, customOverviewStats])
+
+  // Filtruj programy według scope
+  const visiblePrograms: Program[] = useMemo(() => {
+    if (scope === 'all') return enabledPrograms
+    if (scope === 'pushups') return ['pushups']
+    if (scope === 'pullups') return ['pullups']
+    return []
+  }, [scope, enabledPrograms])
+
+  // Filtruj sesje według scope
+  const scopedSessions = useMemo(() => {
+    if (scope === 'all') return allSessions
+    if (scope === 'pushups') return allSessions.filter((s) => s.program === 'pushups' && !isCustomWorkoutSession(s))
+    if (scope === 'pullups') return allSessions.filter((s) => s.program === 'pullups' && !isCustomWorkoutSession(s))
+    return allSessions.filter(isCustomWorkoutSession)
+  }, [scope, allSessions])
+
+  // Filtruj custom sessions według scope
+  const showCustom = scope === 'all' || scope === 'custom'
+
+  // Sekcje programów builtin — filtrowane według scope
+  const programSections = visiblePrograms
     .map((prog) => programDataMap.get(prog))
     .filter((d): d is ProgramData => d != null && d.stats != null)
 
   const hasProgramData = programSections.length > 0
-  const hasCustomSessions = customSessionsAll.length > 0
+  const hasCustomSessions = showCustom && customSessionsAll.length > 0
   const showCustomSection = hasCustomSessions && customOverviewStats != null
-  // Empty state tylko gdy nie ma żadnych danych — ani programów z sesjami, ani custom, ani żadnych sesji
-  const showEmptyState = !hasProgramData && !showCustomSection && !hasAnyData && allSessions.length === 0
+  // Empty state tylko gdy nie ma żadnych danych w wybranym scope
+  const hasScopedData = scopedSessions.length > 0 || hasProgramData || showCustomSection
+  const showEmptyState = !hasScopedData
 
   // First section flag: if no program/custom/empty, calendar or records is first.
   const calendarFirst = !hasProgramData && !showEmptyState && !showCustomSection
 
+  // Filtruj aktywność według scope
+  const scopedActivity = useMemo(() => {
+    if (!activity) return null
+    if (scope === 'all') return activity
+    const passed = scopedSessions.filter((s) => s.status === 'completed' && s.passed)
+    return buildActivityInsights(passed)
+  }, [activity, scope, scopedSessions])
+
   return (
     <>
-      {/* Sekcje programów builtin — bez przełącznika, po jednej per program */}
+      {/* Filtr zakresu — pokazuj tylko gdy jest więcej niż jedna opcja */}
+      {scopeOptions.length > 1 && (
+        <div className="mb-4">
+          <SegmentedControl
+            stretch
+            aria-label={pl.progressScopeLabel}
+            value={scope}
+            onChange={(v) => setScope(v as Scope)}
+            options={scopeOptions}
+          />
+        </div>
+      )}
+
+      {/* Sekcje programów builtin — filtrowane według scope */}
       {programSections.map((data, i) => (
         <ProgramSection
           key={data.program}
           data={data}
-          allSessions={allSessions}
+          allSessions={scopedSessions}
           first={i === 0}
         />
       ))}
 
       {/* Globalna sekcja aktywności — raz, nie per program */}
-      {activity && hasAnyData && (
+      {scopedActivity && hasScopedData && (
         <ProgressSection icon={Activity} title={pl.progressActivityTitle}>
-          <ActivityInsightsPanel insights={activity} ariaLabel={pl.progressActivityAria} />
+          <ActivityInsightsPanel insights={scopedActivity} ariaLabel={pl.progressActivityAria} />
         </ProgressSection>
       )}
 
-      {/* Empty state gdy brak danych */}
+      {/* Empty state gdy brak danych w wybranym scope */}
       {showEmptyState && (
         <ProgressSection first icon={BarChart3} title={pl.progressEmptyTitle}>
           <EmptyState
@@ -405,7 +459,7 @@ export function OverviewPanel({
         </ProgressSection>
       )}
 
-      {/* Statystyki planów własnych */}
+      {/* Statystyki planów własnych — tylko w scope all lub custom */}
       {showCustomSection && customOverviewStats && (
         <ProgressSection
           first={!hasProgramData && !showEmptyState}
@@ -549,21 +603,21 @@ export function OverviewPanel({
         </ProgressSection>
       )}
 
-      {/* Balans mięśniowy — heatmapa */}
-      {allSessions.length > 0 && (
+      {/* Balans mięśniowy — heatmapa (filtrowana według scope) */}
+      {scopedSessions.length > 0 && (
         <ProgressSection icon={Activity} title={pl.muscleBalanceTitle} hint={pl.muscleBalanceHint}>
-          <MuscleBalanceHeatmap sessions={allSessions} />
+          <MuscleBalanceHeatmap sessions={scopedSessions} />
         </ProgressSection>
       )}
 
-      {/* Kalendarz aktywności */}
-      {allSessions.length > 0 && (
+      {/* Kalendarz aktywności (filtrowany według scope) */}
+      {scopedSessions.length > 0 && (
         <ProgressSection first={calendarFirst} icon={Calendar} title={pl.calendarTitle} hint={pl.calendarHint}>
-          <ActivityCalendar sessions={allSessions} customPlanNames={customPlanNames} navigate={navigate} />
+          <ActivityCalendar sessions={scopedSessions} customPlanNames={customPlanNames} navigate={navigate} />
         </ProgressSection>
       )}
 
-      {/* Rekordy ujednolicone — łącznie z wszystkich programów */}
+      {/* Rekordy ujednolicone — filtrowane według scope */}
       <UnifiedRecordsSection
         programRecordsList={programSections
           .filter((d) => d.recordsWithDates != null)
@@ -572,7 +626,7 @@ export function OverviewPanel({
             records: d.recordsWithDates!,
             stats: d.stats!,
           }))}
-        customPrs={customPrs}
+        customPrs={showCustom ? customPrs : []}
         onOpenExercise={onOpenExercise}
         first={calendarFirst}
         icon={Trophy}

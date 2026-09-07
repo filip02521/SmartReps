@@ -330,7 +330,6 @@ export default function ProgressPage() {
             programDataMap={programDataMap}
             enabledPrograms={settings.enabledPrograms}
             activity={activityInsights}
-            hasAnyData={hasAnyData}
             allSessions={allSessions}
             customSessionsAll={customSessionsAll}
             customPrs={customPrs}
