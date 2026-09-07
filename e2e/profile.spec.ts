@@ -126,9 +126,18 @@ async function openSettingsSheet(page: Page) {
   await expect(page.getByRole('heading', { name: 'Ustawienia', exact: true })).toBeVisible({ timeout: 10_000 })
 }
 
+/** Expand the "Dane i backup" collapsible section in settings. */
+async function expandDataSection(page: import('@playwright/test').Page) {
+  const header = page.getByRole('button', { name: 'Dane i backup' })
+  await header.click()
+  // Wait for the section to expand
+  await page.waitForTimeout(300)
+}
+
 test.describe('Profile data actions', () => {
   test('clear local data navigates to onboarding', async ({ page }) => {
     await openSettingsSheet(page)
+    await expandDataSection(page)
     await page.getByRole('button', { name: 'Wyczyść lokalne dane' }).click()
     await page.getByRole('button', { name: 'Potwierdź' }).click()
     await expect(page).toHaveURL(/\/setup\/onboarding/, { timeout: 15_000 })
@@ -136,6 +145,7 @@ test.describe('Profile data actions', () => {
 
   test('export buttons visible in data section', async ({ page }) => {
     await openSettingsSheet(page)
+    await expandDataSection(page)
     await expect(page.getByRole('button', { name: 'Eksport CSV wszystkich programów' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Eksport backupu (JSON)' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Import backupu' })).toBeVisible()
@@ -154,6 +164,7 @@ test.describe('Profile data actions', () => {
 
   test('import sheet opens from data section', async ({ page }) => {
     await openSettingsSheet(page)
+    await expandDataSection(page)
     await page.getByRole('button', { name: 'Import backupu' }).click()
     await expect(page.getByRole('heading', { name: 'Import backupu' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Importuj sesje (CSV)' })).toBeVisible()

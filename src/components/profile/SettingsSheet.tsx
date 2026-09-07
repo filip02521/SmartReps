@@ -1,10 +1,18 @@
-import type { ReactNode } from 'react'
 import { Sheet } from '@/components/ui/Sheet'
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
 import { AccountHero } from './AccountHero'
-import { ProfilePreferences } from './ProfilePreferences'
+import { AppearanceSection, TrainingSection, RemindersSection, AiCoachSection } from './ProfilePreferences'
 import { ProfileDataSection } from './ProfileDataSection'
 import type { UserSettings } from '@/stores/app-store'
 import { pl } from '@/i18n/pl'
+import {
+  User,
+  Palette,
+  Dumbbell,
+  Bell,
+  Bot,
+  Database,
+} from 'lucide-react'
 
 type SettingsSheetProps = {
   open: boolean
@@ -45,19 +53,6 @@ type SettingsSheetProps = {
   onExportCsv: () => void
   onClearLocal: () => void
   onDeleteAccount: () => void
-}
-
-/** Group header — visual separator with label, breaks up the long settings scroll. */
-function GroupHeader({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex items-center gap-2 pt-2">
-      <div className="h-px flex-1 bg-[var(--sr-border-subtle)]" />
-      <span className="text-xs font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-        {children}
-      </span>
-      <div className="h-px flex-1 bg-[var(--sr-border-subtle)]" />
-    </div>
-  )
 }
 
 export function SettingsSheet({
@@ -103,68 +98,114 @@ export function SettingsSheet({
       onClose={onClose}
       title={pl.settingsTitle}
     >
-      <div className="flex flex-col gap-4 pb-4">
-        {/* Group: Account & sync */}
-        <GroupHeader>{pl.profileSettingsGroupAccount}</GroupHeader>
-        <AccountHero
-          syncing={syncing}
-          online={online}
-          showLogout={showLogout}
-          onSyncNow={onSyncNow}
-          onLogin={onLogin}
-          onLogout={onLogout}
-        />
+      <div className="flex flex-col gap-3 pb-4">
+        {/* Konto i synchronizacja — domyślnie otwarte */}
+        <CollapsibleSection
+          title={pl.profileSettingsGroupAccount}
+          icon={User}
+          defaultOpen
+        >
+          <AccountHero
+            syncing={syncing}
+            online={online}
+            showLogout={showLogout}
+            onSyncNow={onSyncNow}
+            onLogin={onLogin}
+            onLogout={onLogout}
+          />
+        </CollapsibleSection>
 
-        {/* Group: Preferences (appearance, training, reminders, AI coach) */}
-        <GroupHeader>{pl.profileSettingsGroupPreferences}</GroupHeader>
-        <ProfilePreferences
-          theme={settings.theme}
-          highContrast={settings.highContrast}
-          timerSound={settings.timerSound}
-          timerVibration={settings.timerVibration}
-          keepScreenOn={settings.keepScreenOn}
-          pushNotifications={settings.pushNotifications}
-          workoutReminders={settings.workoutReminders}
-          reminderHour={settings.reminderHour}
-          weightUnit={settings.weightUnit}
-          language={settings.language}
-          aiApiKey={settings.aiApiKey ?? ''}
-          aiModel={settings.aiModel ?? 'gpt-4o-mini'}
-          aiBaseUrl={settings.aiBaseUrl ?? ''}
-          aiProactiveCoach={settings.aiProactiveCoach}
-          aiReasoningEffort={settings.aiReasoningEffort}
-          pushDescription={pushDescription}
-          remindersDenied={remindersDenied}
-          pushDisabled={pushDisabled}
-          localRemindersDisabled={localRemindersDisabled}
-          showReminderHour={showReminderHour}
-          onThemeChange={onThemeChange}
-          onHighContrastChange={onHighContrastChange}
-          onTimerSoundChange={onTimerSoundChange}
-          onTimerVibrationChange={onTimerVibrationChange}
-          onKeepScreenOnChange={onKeepScreenOnChange}
-          onPushChange={onPushChange}
-          onLocalRemindersChange={onLocalRemindersChange}
-          onReminderHourChange={onReminderHourChange}
-          onWeightUnitChange={onWeightUnitChange}
-          onLanguageChange={onLanguageChange}
-          onAiApiKeySave={onAiApiKeySave}
-          onAiModelSave={onAiModelSave}
-          onAiBaseUrlSave={onAiBaseUrlSave}
-          onAiProactiveCoachChange={onAiProactiveCoachChange}
-          onAiReasoningEffortChange={onAiReasoningEffortChange}
-        />
+        {/* Wygląd i język */}
+        <CollapsibleSection
+          title={pl.profileSettingsGroupAppearance}
+          hint={pl.profileSettingsHintAppearance}
+          icon={Palette}
+        >
+          <AppearanceSection
+            theme={settings.theme}
+            highContrast={settings.highContrast}
+            language={settings.language}
+            onThemeChange={onThemeChange}
+            onHighContrastChange={onHighContrastChange}
+            onLanguageChange={onLanguageChange}
+          />
+        </CollapsibleSection>
 
-        {/* Group: Data & backup */}
-        <GroupHeader>{pl.profileSettingsGroupData}</GroupHeader>
-        <ProfileDataSection
-          showDeleteAccount={showDeleteAccount}
-          onImport={onImport}
-          onExportJson={onExportJson}
-          onExportCsv={onExportCsv}
-          onClearLocal={onClearLocal}
-          onDeleteAccount={onDeleteAccount}
-        />
+        {/* Trening */}
+        <CollapsibleSection
+          title={pl.profileSettingsGroupTraining}
+          hint={pl.profileSettingsHintTraining}
+          icon={Dumbbell}
+        >
+          <TrainingSection
+            weightUnit={settings.weightUnit}
+            timerSound={settings.timerSound}
+            timerVibration={settings.timerVibration}
+            keepScreenOn={settings.keepScreenOn}
+            onWeightUnitChange={onWeightUnitChange}
+            onTimerSoundChange={onTimerSoundChange}
+            onTimerVibrationChange={onTimerVibrationChange}
+            onKeepScreenOnChange={onKeepScreenOnChange}
+          />
+        </CollapsibleSection>
+
+        {/* Przypomnienia */}
+        <CollapsibleSection
+          title={pl.profileSettingsGroupReminders}
+          hint={pl.profileSettingsHintReminders}
+          icon={Bell}
+        >
+          <RemindersSection
+            pushNotifications={settings.pushNotifications}
+            workoutReminders={settings.workoutReminders}
+            reminderHour={settings.reminderHour}
+            pushDescription={pushDescription}
+            remindersDenied={remindersDenied}
+            pushDisabled={pushDisabled}
+            localRemindersDisabled={localRemindersDisabled}
+            showReminderHour={showReminderHour}
+            onPushChange={onPushChange}
+            onLocalRemindersChange={onLocalRemindersChange}
+            onReminderHourChange={onReminderHourChange}
+          />
+        </CollapsibleSection>
+
+        {/* Trener AI */}
+        <CollapsibleSection
+          title={pl.profileSettingsGroupAi}
+          hint={pl.profileSettingsHintAi}
+          icon={Bot}
+        >
+          <AiCoachSection
+            aiApiKey={settings.aiApiKey ?? ''}
+            aiModel={settings.aiModel ?? 'gpt-4o-mini'}
+            aiBaseUrl={settings.aiBaseUrl ?? ''}
+            aiProactiveCoach={settings.aiProactiveCoach}
+            aiReasoningEffort={settings.aiReasoningEffort}
+            onAiApiKeySave={onAiApiKeySave}
+            onAiModelSave={onAiModelSave}
+            onAiBaseUrlSave={onAiBaseUrlSave}
+            onAiProactiveCoachChange={onAiProactiveCoachChange}
+            onAiReasoningEffortChange={onAiReasoningEffortChange}
+          />
+        </CollapsibleSection>
+
+        {/* Dane i backup */}
+        <CollapsibleSection
+          title={pl.profileSettingsGroupData}
+          hint={pl.profileSettingsHintData}
+          icon={Database}
+          tone="danger"
+        >
+          <ProfileDataSection
+            showDeleteAccount={showDeleteAccount}
+            onImport={onImport}
+            onExportJson={onExportJson}
+            onExportCsv={onExportCsv}
+            onClearLocal={onClearLocal}
+            onDeleteAccount={onDeleteAccount}
+          />
+        </CollapsibleSection>
       </div>
     </Sheet>
   )

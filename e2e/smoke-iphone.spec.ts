@@ -144,6 +144,9 @@ test.describe('iPhone SE smoke', () => {
   test('profile import sheet is not clipped by tab bar', async ({ page }) => {
     await seedOnboardedWithProgress(page)
     await page.getByRole('button', { name: 'Ustawienia' }).click()
+    // Expand the "Dane i backup" collapsible section
+    await page.getByRole('button', { name: 'Dane i backup' }).click()
+    await page.waitForTimeout(300)
     await page.getByRole('button', { name: 'Import backupu' }).click()
     const csvAction = page.getByRole('button', { name: 'Importuj sesje (CSV)' })
     await expect(csvAction).toBeVisible({ timeout: 10_000 })

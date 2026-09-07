@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { PageSection } from '@/components/ui/PageSection'
 import { TextField } from '@/components/ui/TextField'
 import { SwitchRow } from '@/components/ui/Switch'
 import { Button } from '@/components/ui/Button'
 import { AiCoachHeader } from '@/components/brand/AiCoachHeader'
 import { pl } from '@/i18n/pl'
 import type { UserSettings } from '@/stores/app-store'
-
-const SECTION = 'mt-6'
 
 type Theme = UserSettings['theme']
 
@@ -18,73 +15,209 @@ const AI_PRESETS = {
   groq: { baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
 } as const
 
-export function ProfilePreferences({
+/* ── Appearance & language ── */
+export function AppearanceSection({
   theme,
   highContrast,
+  language,
+  onThemeChange,
+  onHighContrastChange,
+  onLanguageChange,
+}: {
+  theme: Theme
+  highContrast: boolean
+  language: 'pl' | 'en'
+  onThemeChange: (t: Theme) => void
+  onHighContrastChange: (on: boolean) => void
+  onLanguageChange: (lang: 'pl' | 'en') => void
+}) {
+  return (
+    <>
+      <SegmentedControl
+        options={[
+          { value: 'system' as const, label: pl.themeSystem },
+          { value: 'dark' as const, label: pl.themeDark },
+          { value: 'light' as const, label: pl.themeLight },
+        ]}
+        value={theme}
+        onChange={onThemeChange}
+      />
+      <SwitchRow
+        id="high-contrast"
+        className="mt-4"
+        label={pl.highContrast}
+        checked={highContrast}
+        onChange={onHighContrastChange}
+      />
+      <div className="mt-4">
+        <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
+          {pl.languageLabel}
+        </p>
+        <SegmentedControl
+          options={[
+            { value: 'pl' as const, label: pl.languagePl },
+            { value: 'en' as const, label: pl.languageEn },
+          ]}
+          value={language}
+          onChange={onLanguageChange}
+        />
+      </div>
+    </>
+  )
+}
+
+/* ── Training ── */
+export function TrainingSection({
+  weightUnit,
   timerSound,
   timerVibration,
   keepScreenOn,
+  onWeightUnitChange,
+  onTimerSoundChange,
+  onTimerVibrationChange,
+  onKeepScreenOnChange,
+}: {
+  weightUnit: 'kg' | 'lb'
+  timerSound: boolean
+  timerVibration: boolean
+  keepScreenOn: boolean
+  onWeightUnitChange: (unit: 'kg' | 'lb') => void
+  onTimerSoundChange: (on: boolean) => void
+  onTimerVibrationChange: (on: boolean) => void
+  onKeepScreenOnChange: (on: boolean) => void
+}) {
+  return (
+    <>
+      <div className="mb-3">
+        <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
+          {pl.weightUnitLabel}
+        </p>
+        <SegmentedControl
+          options={[
+            { value: 'kg' as const, label: pl.weightUnitKg },
+            { value: 'lb' as const, label: pl.weightUnitLb },
+          ]}
+          value={weightUnit}
+          onChange={onWeightUnitChange}
+        />
+      </div>
+      <div className="flex flex-col">
+        <SwitchRow
+          id="timer-sound"
+          label={pl.timerSound}
+          description={pl.timerSoundHint}
+          checked={timerSound}
+          onChange={onTimerSoundChange}
+        />
+        <SwitchRow
+          id="timer-vibration"
+          label={pl.timerVibration}
+          description={pl.timerVibrationHint}
+          checked={timerVibration}
+          onChange={onTimerVibrationChange}
+        />
+        <SwitchRow
+          id="keep-screen-on"
+          label={pl.keepScreenOn}
+          description={pl.keepScreenOnHint}
+          checked={keepScreenOn}
+          onChange={onKeepScreenOnChange}
+        />
+      </div>
+    </>
+  )
+}
+
+/* ── Reminders ── */
+export function RemindersSection({
   pushNotifications,
   workoutReminders,
   reminderHour,
-  weightUnit,
-  language,
-  aiApiKey,
-  aiModel,
-  aiBaseUrl,
-  aiProactiveCoach,
-  aiReasoningEffort,
   pushDescription,
   remindersDenied,
   pushDisabled,
   localRemindersDisabled,
   showReminderHour,
-  onThemeChange,
-  onHighContrastChange,
-  onTimerSoundChange,
-  onTimerVibrationChange,
-  onKeepScreenOnChange,
   onPushChange,
   onLocalRemindersChange,
   onReminderHourChange,
-  onWeightUnitChange,
-  onLanguageChange,
+}: {
+  pushNotifications: boolean
+  workoutReminders: boolean
+  reminderHour: number
+  pushDescription: string
+  remindersDenied: boolean
+  pushDisabled: boolean
+  localRemindersDisabled: boolean
+  showReminderHour: boolean
+  onPushChange: (on: boolean) => void
+  onLocalRemindersChange: (on: boolean) => void
+  onReminderHourChange: (hour: number) => void
+}) {
+  return (
+    <>
+      <div className="flex flex-col">
+        <SwitchRow
+          id="push-notifications"
+          label={pl.pushNotifications}
+          description={pushDescription}
+          checked={pushNotifications}
+          disabled={pushDisabled}
+          onChange={onPushChange}
+        />
+        <SwitchRow
+          id="workout-reminders"
+          label={pl.workoutReminders}
+          description={pl.workoutRemindersHint}
+          checked={workoutReminders && !pushNotifications}
+          disabled={localRemindersDisabled}
+          onChange={onLocalRemindersChange}
+        />
+      </div>
+      {remindersDenied && (
+        <>
+          <p className="mt-2 text-xs text-[var(--sr-warning)]">{pl.workoutRemindersDenied}</p>
+          <p className="mt-1 text-xs text-[var(--sr-warning)]">{pl.pushOsSettingsHint}</p>
+        </>
+      )}
+      {showReminderHour && (
+        <label className="mt-4 block text-sm">
+          <span className="font-medium">{pl.reminderHourLabel}</span>
+          <select
+            className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-3 text-base text-[var(--sr-text-primary)]"
+            value={reminderHour}
+            onChange={(e) => onReminderHourChange(Number(e.target.value))}
+          >
+            {Array.from({ length: 24 }, (_, h) => (
+              <option key={h} value={h}>
+                {pl.reminderHourOption(h)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+    </>
+  )
+}
+
+/* ── AI Coach ── */
+export function AiCoachSection({
+  aiApiKey,
+  aiModel,
+  aiBaseUrl,
+  aiProactiveCoach,
+  aiReasoningEffort,
   onAiApiKeySave,
   onAiModelSave,
   onAiBaseUrlSave,
   onAiProactiveCoachChange,
   onAiReasoningEffortChange,
 }: {
-  theme: Theme
-  highContrast: boolean
-  timerSound: boolean
-  timerVibration: boolean
-  keepScreenOn: boolean
-  pushNotifications: boolean
-  workoutReminders: boolean
-  reminderHour: number
-  weightUnit: 'kg' | 'lb'
-  language: 'pl' | 'en'
   aiApiKey: string
   aiModel: string
   aiBaseUrl: string
   aiProactiveCoach: boolean
   aiReasoningEffort: 'auto' | 'low' | 'medium' | 'high'
-  pushDescription: string
-  remindersDenied: boolean
-  pushDisabled: boolean
-  localRemindersDisabled: boolean
-  showReminderHour: boolean
-  onThemeChange: (t: Theme) => void
-  onHighContrastChange: (on: boolean) => void
-  onTimerSoundChange: (on: boolean) => void
-  onTimerVibrationChange: (on: boolean) => void
-  onKeepScreenOnChange: (on: boolean) => void
-  onPushChange: (on: boolean) => void
-  onLocalRemindersChange: (on: boolean) => void
-  onReminderHourChange: (hour: number) => void
-  onWeightUnitChange: (unit: 'kg' | 'lb') => void
-  onLanguageChange: (lang: 'pl' | 'en') => void
   onAiApiKeySave: (key: string) => void
   onAiModelSave: (model: string) => void
   onAiBaseUrlSave: (url: string) => void
@@ -107,252 +240,135 @@ export function ProfilePreferences({
 
   return (
     <>
-      <PageSection title={pl.appearance} className={SECTION}>
+      <AiCoachHeader
+        size="sm"
+        subtitle={pl.aiCoachTagline}
+        status={apiKeyDraft.trim() ? pl.aiCoachConfigConnected : pl.aiCoachConfigDisconnected}
+      />
+
+      <div className="mt-4">
+        <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
+          {pl.aiProviderLabel}
+        </p>
         <SegmentedControl
-          options={[
-            { value: 'system' as const, label: pl.themeSystem },
-            { value: 'dark' as const, label: pl.themeDark },
-            { value: 'light' as const, label: pl.themeLight },
-          ]}
-          value={theme}
-          onChange={onThemeChange}
-        />
-        <SwitchRow
-          id="high-contrast"
-          className="mt-4"
-          label={pl.highContrast}
-          checked={highContrast}
-          onChange={onHighContrastChange}
-        />
-      </PageSection>
-
-      <PageSection title={pl.trainingSettings} className={SECTION}>
-        <div className="mb-3">
-          <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
-            {pl.languageLabel}
-          </p>
-          <SegmentedControl
-            options={[
-              { value: 'pl' as const, label: pl.languagePl },
-              { value: 'en' as const, label: pl.languageEn },
-            ]}
-            value={language}
-            onChange={onLanguageChange}
-          />
-        </div>
-        <div className="mb-3">
-          <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
-            {pl.weightUnitLabel}
-          </p>
-          <SegmentedControl
-            options={[
-              { value: 'kg' as const, label: pl.weightUnitKg },
-              { value: 'lb' as const, label: pl.weightUnitLb },
-            ]}
-            value={weightUnit}
-            onChange={onWeightUnitChange}
-          />
-        </div>
-        <div className="flex flex-col">
-          <SwitchRow
-            id="timer-sound"
-            label={pl.timerSound}
-            description={pl.timerSoundHint}
-            checked={timerSound}
-            onChange={onTimerSoundChange}
-          />
-          <SwitchRow
-            id="timer-vibration"
-            label={pl.timerVibration}
-            description={pl.timerVibrationHint}
-            checked={timerVibration}
-            onChange={onTimerVibrationChange}
-          />
-          <SwitchRow
-            id="keep-screen-on"
-            label={pl.keepScreenOn}
-            description={pl.keepScreenOnHint}
-            checked={keepScreenOn}
-            onChange={onKeepScreenOnChange}
-          />
-        </div>
-      </PageSection>
-
-      <PageSection title={pl.remindersSection} className={SECTION}>
-        <div className="flex flex-col">
-          <SwitchRow
-            id="push-notifications"
-            label={pl.pushNotifications}
-            description={pushDescription}
-            checked={pushNotifications}
-            disabled={pushDisabled}
-            onChange={onPushChange}
-          />
-          <SwitchRow
-            id="workout-reminders"
-            label={pl.workoutReminders}
-            description={pl.workoutRemindersHint}
-            checked={workoutReminders && !pushNotifications}
-            disabled={localRemindersDisabled}
-            onChange={onLocalRemindersChange}
-          />
-        </div>
-        {remindersDenied && (
-          <>
-            <p className="mt-2 text-xs text-[var(--sr-warning)]">{pl.workoutRemindersDenied}</p>
-            <p className="mt-1 text-xs text-[var(--sr-warning)]">{pl.pushOsSettingsHint}</p>
-          </>
-        )}
-        {showReminderHour && (
-          <label className="mt-4 block text-sm">
-            <span className="font-medium">{pl.reminderHourLabel}</span>
-            <select
-              className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-3 text-base text-[var(--sr-text-primary)]"
-              value={reminderHour}
-              onChange={(e) => onReminderHourChange(Number(e.target.value))}
-            >
-              {Array.from({ length: 24 }, (_, h) => (
-                <option key={h} value={h}>
-                  {pl.reminderHourOption(h)}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </PageSection>
-
-      <PageSection title={pl.aiCoachConfigTitle} hint={pl.aiCoachConfigHint} className={SECTION}>
-        {/* Coach status header — shows connection state */}
-        <AiCoachHeader
-          size="sm"
-          subtitle={pl.aiCoachTagline}
-          status={apiKeyDraft.trim() ? pl.aiCoachConfigConnected : pl.aiCoachConfigDisconnected}
-        />
-
-        <div className="mt-4">
-          <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
-            {pl.aiProviderLabel}
-          </p>
-          <SegmentedControl
-            value={(() => {
-              if (!baseUrlDraft || baseUrlDraft === AI_PRESETS.openai.baseUrl) return 'openai'
-              if (baseUrlDraft === AI_PRESETS.gemini.baseUrl) return 'gemini'
-              if (baseUrlDraft === AI_PRESETS.groq.baseUrl) return 'groq'
-              return 'custom'
-            })()}
-            onChange={(v) => {
-              const preset = AI_PRESETS[v as keyof typeof AI_PRESETS]
-              if (preset) {
-                setBaseUrlDraft(preset.baseUrl)
-                setModelDraft(preset.model)
-              }
-            }}
-            options={[
-              { value: 'openai', label: pl.aiProviderOpenai },
-              { value: 'gemini', label: pl.aiProviderGemini },
-              { value: 'groq', label: pl.aiProviderGroq },
-              { value: 'custom', label: pl.aiProviderCustom },
-            ]}
-          />
-          <p className="mt-2 text-xs text-[var(--sr-text-muted)]">
-            {(() => {
-              const url = baseUrlDraft
-              if (!url || url === AI_PRESETS.openai.baseUrl) return pl.aiProviderHintOpenai
-              if (url === AI_PRESETS.gemini.baseUrl) return pl.aiProviderHintGemini
-              if (url === AI_PRESETS.groq.baseUrl) return pl.aiProviderHintGroq
-              return pl.aiProviderHintCustom
-            })()}
-          </p>
-        </div>
-
-        <TextField
-          id="ai-api-key"
-          className="mt-3"
-          label={pl.aiApiKeyLabel}
-          placeholder={pl.aiApiKeyPlaceholder}
-          type="password"
-          value={apiKeyDraft}
-          onChange={(e) => setApiKeyDraft(e.target.value)}
-        />
-        <TextField
-          id="ai-model"
-          className="mt-3"
-          label={pl.aiModelLabel}
-          value={modelDraft}
-          onChange={(e) => setModelDraft(e.target.value)}
-        />
-        <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.aiModelHint}</p>
-        <TextField
-          id="ai-base-url"
-          className="mt-3"
-          label={pl.aiBaseUrlLabel}
-          value={baseUrlDraft}
-          onChange={(e) => setBaseUrlDraft(e.target.value)}
-          placeholder="https://api.openai.com/v1"
-        />
-        <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.aiBaseUrlHint}</p>
-
-        {/* Reasoning effort — controls thinking depth for Gemini models only */}
-        {baseUrlDraft.includes('googleapis') && (
-          <div className="mt-4">
-            <p className="sr-text-overline text-[var(--sr-text-muted)]">
-              {pl.aiReasoningEffortLabel}
-            </p>
-            <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
-              {pl.aiReasoningEffortHint}
-            </p>
-            <SegmentedControl
-              className="mt-2"
-              value={aiReasoningEffort}
-              onChange={(v) => onAiReasoningEffortChange(v as 'auto' | 'low' | 'medium' | 'high')}
-              options={[
-                { value: 'auto', label: pl.aiReasoningEffortAuto },
-                { value: 'low', label: pl.aiReasoningEffortLow },
-                { value: 'medium', label: pl.aiReasoningEffortMedium },
-                { value: 'high', label: pl.aiReasoningEffortHigh },
-              ]}
-            />
-          </div>
-        )}
-
-        <Button
-          type="button"
-          className="mt-3"
-          size="sm"
-          onClick={() => {
-            const trimmedUrl = baseUrlDraft.trim()
-            // Validate URL if provided
-            if (trimmedUrl) {
-              try {
-                const u = new URL(trimmedUrl)
-                if (!u.protocol.startsWith('http')) throw new Error('invalid protocol')
-              } catch {
-                setBaseUrlError(pl.aiBaseUrlInvalid)
-                return
-              }
+          value={(() => {
+            if (!baseUrlDraft || baseUrlDraft === AI_PRESETS.openai.baseUrl) return 'openai'
+            if (baseUrlDraft === AI_PRESETS.gemini.baseUrl) return 'gemini'
+            if (baseUrlDraft === AI_PRESETS.groq.baseUrl) return 'groq'
+            return 'custom'
+          })()}
+          onChange={(v) => {
+            const preset = AI_PRESETS[v as keyof typeof AI_PRESETS]
+            if (preset) {
+              setBaseUrlDraft(preset.baseUrl)
+              setModelDraft(preset.model)
             }
-            setBaseUrlError('')
-            onAiApiKeySave(apiKeyDraft.trim())
-            onAiModelSave(modelDraft.trim() || 'gpt-4o-mini')
-            onAiBaseUrlSave(trimmedUrl)
           }}
-        >
-          {pl.aiCoachConfigSave}
-        </Button>
-        {baseUrlError && (
-          <p className="mt-1.5 text-xs text-[var(--sr-error)]">{baseUrlError}</p>
-        )}
+          options={[
+            { value: 'openai', label: pl.aiProviderOpenai },
+            { value: 'gemini', label: pl.aiProviderGemini },
+            { value: 'groq', label: pl.aiProviderGroq },
+            { value: 'custom', label: pl.aiProviderCustom },
+          ]}
+        />
+        <p className="mt-2 text-xs text-[var(--sr-text-muted)]">
+          {(() => {
+            const url = baseUrlDraft
+            if (!url || url === AI_PRESETS.openai.baseUrl) return pl.aiProviderHintOpenai
+            if (url === AI_PRESETS.gemini.baseUrl) return pl.aiProviderHintGemini
+            if (url === AI_PRESETS.groq.baseUrl) return pl.aiProviderHintGroq
+            return pl.aiProviderHintCustom
+          })()}
+        </p>
+      </div>
 
-        {apiKeyDraft.trim() && (
-          <SwitchRow
-            id="ai-proactive-coach"
-            checked={aiProactiveCoach}
-            onChange={onAiProactiveCoachChange}
-            label={pl.coachSettingsProactive}
-            description={pl.coachSettingsProactiveDesc}
+      <TextField
+        id="ai-api-key"
+        className="mt-3"
+        label={pl.aiApiKeyLabel}
+        placeholder={pl.aiApiKeyPlaceholder}
+        type="password"
+        value={apiKeyDraft}
+        onChange={(e) => setApiKeyDraft(e.target.value)}
+      />
+      <TextField
+        id="ai-model"
+        className="mt-3"
+        label={pl.aiModelLabel}
+        value={modelDraft}
+        onChange={(e) => setModelDraft(e.target.value)}
+      />
+      <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.aiModelHint}</p>
+      <TextField
+        id="ai-base-url"
+        className="mt-3"
+        label={pl.aiBaseUrlLabel}
+        value={baseUrlDraft}
+        onChange={(e) => setBaseUrlDraft(e.target.value)}
+        placeholder="https://api.openai.com/v1"
+      />
+      <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.aiBaseUrlHint}</p>
+
+      {/* Reasoning effort — controls thinking depth for Gemini models only */}
+      {baseUrlDraft.includes('googleapis') && (
+        <div className="mt-4">
+          <p className="sr-text-overline text-[var(--sr-text-muted)]">
+            {pl.aiReasoningEffortLabel}
+          </p>
+          <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
+            {pl.aiReasoningEffortHint}
+          </p>
+          <SegmentedControl
+            className="mt-2"
+            value={aiReasoningEffort}
+            onChange={(v) => onAiReasoningEffortChange(v as 'auto' | 'low' | 'medium' | 'high')}
+            options={[
+              { value: 'auto', label: pl.aiReasoningEffortAuto },
+              { value: 'low', label: pl.aiReasoningEffortLow },
+              { value: 'medium', label: pl.aiReasoningEffortMedium },
+              { value: 'high', label: pl.aiReasoningEffortHigh },
+            ]}
           />
-        )}
-      </PageSection>
+        </div>
+      )}
+
+      <Button
+        type="button"
+        className="mt-3"
+        size="sm"
+        onClick={() => {
+          const trimmedUrl = baseUrlDraft.trim()
+          // Validate URL if provided
+          if (trimmedUrl) {
+            try {
+              const u = new URL(trimmedUrl)
+              if (!u.protocol.startsWith('http')) throw new Error('invalid protocol')
+            } catch {
+              setBaseUrlError(pl.aiBaseUrlInvalid)
+              return
+            }
+          }
+          setBaseUrlError('')
+          onAiApiKeySave(apiKeyDraft.trim())
+          onAiModelSave(modelDraft.trim() || 'gpt-4o-mini')
+          onAiBaseUrlSave(trimmedUrl)
+        }}
+      >
+        {pl.aiCoachConfigSave}
+      </Button>
+      {baseUrlError && (
+        <p className="mt-1.5 text-xs text-[var(--sr-error)]">{baseUrlError}</p>
+      )}
+
+      {apiKeyDraft.trim() && (
+        <SwitchRow
+          id="ai-proactive-coach"
+          checked={aiProactiveCoach}
+          onChange={onAiProactiveCoachChange}
+          label={pl.coachSettingsProactive}
+          description={pl.coachSettingsProactiveDesc}
+        />
+      )}
     </>
   )
 }
