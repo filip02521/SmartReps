@@ -1,4 +1,4 @@
-import { ChevronRight, Heart } from 'lucide-react'
+import { ChevronRight, Heart, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/Card'
 import { FollowButton } from '@/components/follow/FollowManager'
 import { pl } from '@/i18n/pl'
@@ -8,6 +8,40 @@ import { snapshotDayCount, snapshotExerciseCount } from '@/lib/community-import'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { cn } from '@/lib/utils'
 import { useIsFollowing } from '@/hooks/useIsFollowing'
+
+/** Compact inline star rating for catalog cards — shows filled stars for the
+ *  rounded average plus the review count. Returns null when no reviews. */
+function CardRating({ avg, count }: { avg: number; count: number }) {
+  if (count === 0) return null
+  const rounded = Math.round(avg)
+  const avgStr = avg.toFixed(1)
+  return (
+    <span
+      className="inline-flex items-center gap-0.5"
+      aria-label={pl.communityRatingAria(avgStr, count)}
+      title={pl.communityRatingAria(avgStr, count)}
+    >
+      {Array.from({ length: 5 }, (_, i) => (
+        <Star
+          key={i}
+          className={cn(
+            'size-3',
+            i < rounded
+              ? 'fill-[var(--sr-warning)] text-[var(--sr-warning)]'
+              : 'text-[var(--sr-text-muted)]',
+          )}
+          aria-hidden
+        />
+      ))}
+      <span className="ml-1 text-xs font-medium text-[var(--sr-text-secondary)]">
+        {avgStr}
+      </span>
+      <span className="text-xs text-[var(--sr-text-muted)]">
+        ({count})
+      </span>
+    </span>
+  )
+}
 
 type Props = {
   row: CommunityPublicationRow
@@ -90,12 +124,16 @@ export function CommunityPlanCard({
                 ))}
               </div>
             ) : null}
+            {/* Rating + likes + imports — static layout (no like button) */}
             {!canLike ? (
-              <div className="mt-2 inline-flex items-center gap-1 text-xs text-[var(--sr-text-muted)]">
-                <Heart className={cn('size-3.5', liked && 'fill-current')} aria-hidden />
-                <span>{row.like_count}</span>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--sr-text-muted)]">
+                <CardRating avg={row.avg_rating} count={row.review_count} />
+                <span className="inline-flex items-center gap-1">
+                  <Heart className={cn('size-3.5', liked && 'fill-current')} aria-hidden />
+                  <span>{row.like_count}</span>
+                </span>
                 {!compact ? (
-                  <span className="ml-2">{pl.communityImports(row.import_count)}</span>
+                  <span>{pl.communityImports(row.import_count)}</span>
                 ) : null}
               </div>
             ) : null}
@@ -109,9 +147,10 @@ export function CommunityPlanCard({
 
       {canLike ? (
         <div className="mt-2 flex items-center justify-between gap-2 border-t border-[var(--sr-border-subtle)] pt-2">
-          <span className="text-xs text-[var(--sr-text-muted)]">
-            {!compact ? pl.communityImports(row.import_count) : null}
-          </span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--sr-text-muted)]">
+            <CardRating avg={row.avg_rating} count={row.review_count} />
+            {!compact ? <span>{pl.communityImports(row.import_count)}</span> : null}
+          </div>
           <div className="flex items-center gap-2">
             {showFollow && isFollowing !== null && (
               <div onClick={(e) => { e.preventDefault(); e.stopPropagation() }}>

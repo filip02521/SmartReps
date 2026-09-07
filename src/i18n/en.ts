@@ -1954,6 +1954,11 @@ export const en: Translation = {
   communitySortPopular: 'Popular',
   communitySortNewest: 'Newest',
   communitySortImports: 'Imports',
+  communitySortRating: 'Top rated',
+  communityRatingCount: (n: number) => (n === 1 ? '1 review' : `${n} reviews`),
+  communityRatingNoReviews: 'No reviews',
+  communityRatingAria: (avg: string, count: number) =>
+    count === 0 ? 'No reviews' : `Average ${avg} out of 5 (${count} ${count === 1 ? 'review' : 'reviews'})`,
   communityEmpty: 'Plans from others will appear here.',
   communityEmptyHint: 'You can publish your own from the Mine tab.',
   communityEmptyCta: 'My plans',

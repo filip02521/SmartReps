@@ -19,6 +19,8 @@ export type CommunityPublicationRow = {
   like_count: number
   import_count: number
   trained_count: number
+  avg_rating: number
+  review_count: number
   content_version: number
   status: CommunityPublicationStatus
   published_at: string | null
@@ -26,7 +28,7 @@ export type CommunityPublicationRow = {
   updated_at: string
 }
 
-export type CommunitySort = 'popular' | 'newest' | 'imports'
+export type CommunitySort = 'popular' | 'newest' | 'imports' | 'rating'
 
 function mapRow(row: Record<string, unknown>): CommunityPublicationRow {
   const snapshot = parseCommunitySnapshot(row.snapshot_json) ?? {
@@ -51,6 +53,8 @@ function mapRow(row: Record<string, unknown>): CommunityPublicationRow {
     like_count: Number(row.like_count ?? 0),
     import_count: Number(row.import_count ?? 0),
     trained_count: Number(row.trained_count ?? 0),
+    avg_rating: Number(row.avg_rating ?? 0),
+    review_count: Number(row.review_count ?? 0),
     content_version: Number(row.content_version ?? 1),
     status: row.status as CommunityPublicationStatus,
     published_at: (row.published_at as string | null) ?? null,
@@ -60,7 +64,7 @@ function mapRow(row: Record<string, unknown>): CommunityPublicationRow {
 }
 
 const LIST_SELECT =
-  'id, author_id, source_custom_plan_id, slug, title, description, tags, snapshot_json, author_display_name, like_count, import_count, trained_count, content_version, status, published_at, first_published_at, updated_at'
+  'id, author_id, source_custom_plan_id, slug, title, description, tags, snapshot_json, author_display_name, like_count, import_count, trained_count, avg_rating, review_count, content_version, status, published_at, first_published_at, updated_at'
 
 export async function listCommunityPublications(opts: {
   sort: CommunitySort
@@ -86,6 +90,11 @@ export async function listCommunityPublications(opts: {
     q = q
       .order('import_count', { ascending: false })
       .order('like_count', { ascending: false })
+      .order('published_at', { ascending: false, nullsFirst: false })
+  } else if (opts.sort === 'rating') {
+    q = q
+      .order('avg_rating', { ascending: false })
+      .order('review_count', { ascending: false })
       .order('published_at', { ascending: false, nullsFirst: false })
   } else {
     q = q.order('published_at', { ascending: false, nullsFirst: false })

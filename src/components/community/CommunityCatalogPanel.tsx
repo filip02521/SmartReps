@@ -185,6 +185,7 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
           { value: 'popular', label: pl.communitySortPopular },
           { value: 'newest', label: pl.communitySortNewest },
           { value: 'imports', label: pl.communitySortImports },
+          { value: 'rating', label: pl.communitySortRating },
         ]}
       />
 

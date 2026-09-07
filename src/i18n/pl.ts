@@ -1981,6 +1981,11 @@ const plDict = {
   communitySortPopular: 'Popularne',
   communitySortNewest: 'Najnowsze',
   communitySortImports: 'Importy',
+  communitySortRating: 'Najlepiej oceniane',
+  communityRatingCount: (n: number) => (n === 1 ? '1 ocena' : `${n} ocen`),
+  communityRatingNoReviews: 'Brak ocen',
+  communityRatingAria: (avg: string, count: number) =>
+    count === 0 ? 'Brak ocen' : `Średnia ${avg} z 5 (${count} ${count === 1 ? 'ocena' : 'ocen'})`,
   communityEmpty: 'Tu pojawią się plany od innych.',
   communityEmptyHint: 'Możesz opublikować własny z zakładki Moje.',
   communityEmptyCta: 'Moje plany',

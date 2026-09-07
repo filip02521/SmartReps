@@ -17,6 +17,12 @@ export function sortCommunityRows(
       if (b.like_count !== a.like_count) return b.like_count - a.like_count
       return time(b.published_at) - time(a.published_at)
     }
+    if (sort === 'rating') {
+      // Only plans with reviews rank by rating; among equal ratings, more reviews win
+      if (b.avg_rating !== a.avg_rating) return b.avg_rating - a.avg_rating
+      if (b.review_count !== a.review_count) return b.review_count - a.review_count
+      return time(b.published_at) - time(a.published_at)
+    }
     return time(b.published_at) - time(a.published_at)
   })
   return copy
