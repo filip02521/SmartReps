@@ -155,7 +155,7 @@ export function WorkoutCelebrationOverlay({
       style={{ zIndex: Z_CELEBRATION }}
     >
       {/* Confetti layer */}
-      <ConfettiCanvas active={active && !prefersReduced} durationMs={2500} particleCount={100} />
+      <ConfettiCanvas active={!prefersReduced} durationMs={2500} particleCount={100} />
 
       {/* Content */}
       <div
