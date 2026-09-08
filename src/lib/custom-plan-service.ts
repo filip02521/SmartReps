@@ -229,7 +229,7 @@ export async function saveExercise(
     source: input.source ?? existing?.source ?? 'user',
     durationDisplayUnit:
       input.primaryMetric === 'duration_sec'
-        ? (input.durationDisplayUnit ?? existing?.durationDisplayUnit ?? 'sec')
+        ? (input.durationDisplayUnit ?? existing?.durationDisplayUnit ?? 'min')
         : undefined,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,

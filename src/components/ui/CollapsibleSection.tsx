@@ -78,7 +78,7 @@ export function CollapsibleSection({
           >
             {title}
           </span>
-          {hint && (
+          {hint && !open && (
             <span className="mt-0.5 block text-xs text-[var(--sr-text-muted)]">
               {hint}
             </span>

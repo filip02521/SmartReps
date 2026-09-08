@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TextField } from '@/components/ui/TextField'
 import { SwitchRow } from '@/components/ui/Switch'
 import { Button } from '@/components/ui/Button'
+import { InfoHint } from '@/components/ui/InfoHint'
 import { AiCoachHeader } from '@/components/brand/AiCoachHeader'
 import { pl } from '@/i18n/pl'
 import type { UserSettings } from '@/stores/app-store'
@@ -33,25 +35,38 @@ export function AppearanceSection({
 }) {
   return (
     <>
-      <SegmentedControl
-        options={[
-          { value: 'system' as const, label: pl.themeSystem },
-          { value: 'dark' as const, label: pl.themeDark },
-          { value: 'light' as const, label: pl.themeLight },
-        ]}
-        value={theme}
-        onChange={onThemeChange}
-      />
-      <SwitchRow
-        id="high-contrast"
-        className="mt-4"
-        label={pl.highContrast}
-        checked={highContrast}
-        onChange={onHighContrastChange}
-      />
-      <div className="mt-4">
+      <div>
+        <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
+          {pl.themeLabel}
+          <InfoHint text={pl.themeHint} className="ml-1.5" />
+        </p>
+        <SegmentedControl
+          options={[
+            { value: 'system' as const, label: pl.themeSystem },
+            { value: 'dark' as const, label: pl.themeDark },
+            { value: 'light' as const, label: pl.themeLight },
+          ]}
+          value={theme}
+          onChange={onThemeChange}
+        />
+      </div>
+      <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-4">
+        <SwitchRow
+          id="high-contrast"
+          label={
+            <>
+              {pl.highContrast}
+              <InfoHint text={pl.highContrastHint} className="ml-1.5" />
+            </>
+          }
+          checked={highContrast}
+          onChange={onHighContrastChange}
+        />
+      </div>
+      <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-4">
         <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
           {pl.languageLabel}
+          <InfoHint text={pl.languageHint} className="ml-1.5" />
         </p>
         <SegmentedControl
           options={[
@@ -88,9 +103,10 @@ export function TrainingSection({
 }) {
   return (
     <>
-      <div className="mb-3">
+      <div>
         <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
           {pl.weightUnitLabel}
+          <InfoHint text={pl.weightUnitHint} className="ml-1.5" />
         </p>
         <SegmentedControl
           options={[
@@ -101,28 +117,30 @@ export function TrainingSection({
           onChange={onWeightUnitChange}
         />
       </div>
-      <div className="flex flex-col">
-        <SwitchRow
-          id="timer-sound"
-          label={pl.timerSound}
-          description={pl.timerSoundHint}
-          checked={timerSound}
-          onChange={onTimerSoundChange}
-        />
-        <SwitchRow
-          id="timer-vibration"
-          label={pl.timerVibration}
-          description={pl.timerVibrationHint}
-          checked={timerVibration}
-          onChange={onTimerVibrationChange}
-        />
-        <SwitchRow
-          id="keep-screen-on"
-          label={pl.keepScreenOn}
-          description={pl.keepScreenOnHint}
-          checked={keepScreenOn}
-          onChange={onKeepScreenOnChange}
-        />
+      <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-4">
+        <div className="flex flex-col">
+          <SwitchRow
+            id="timer-sound"
+            label={pl.timerSound}
+            description={pl.timerSoundHint}
+            checked={timerSound}
+            onChange={onTimerSoundChange}
+          />
+          <SwitchRow
+            id="timer-vibration"
+            label={pl.timerVibration}
+            description={pl.timerVibrationHint}
+            checked={timerVibration}
+            onChange={onTimerVibrationChange}
+          />
+          <SwitchRow
+            id="keep-screen-on"
+            label={pl.keepScreenOn}
+            description={pl.keepScreenOnHint}
+            checked={keepScreenOn}
+            onChange={onKeepScreenOnChange}
+          />
+        </div>
       </div>
     </>
   )
@@ -175,14 +193,20 @@ export function RemindersSection({
         />
       </div>
       {remindersDenied && (
-        <>
-          <p className="mt-2 text-xs text-[var(--sr-warning)]">{pl.workoutRemindersDenied}</p>
-          <p className="mt-1 text-xs text-[var(--sr-warning)]">{pl.pushOsSettingsHint}</p>
-        </>
+        <div className="mt-3 flex items-start gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/30 bg-[var(--sr-warning)]/10 p-3">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-[var(--sr-warning)]" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-[var(--sr-warning)]">{pl.workoutRemindersDenied}</p>
+            <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.pushOsSettingsHint}</p>
+          </div>
+        </div>
       )}
       {showReminderHour && (
-        <label className="mt-4 block text-sm">
-          <span className="font-medium">{pl.reminderHourLabel}</span>
+        <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-4">
+          <p className="text-sm font-medium text-[var(--sr-text-secondary)]">
+            {pl.reminderHourLabel}
+            <InfoHint text={pl.reminderHourHint} className="ml-1.5" />
+          </p>
           <select
             className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-3 text-base text-[var(--sr-text-primary)]"
             value={reminderHour}
@@ -194,7 +218,7 @@ export function RemindersSection({
               </option>
             ))}
           </select>
-        </label>
+        </div>
       )}
     </>
   )
@@ -228,6 +252,7 @@ export function AiCoachSection({
   const [modelDraft, setModelDraft] = useState(aiModel)
   const [baseUrlDraft, setBaseUrlDraft] = useState(aiBaseUrl)
   const [baseUrlError, setBaseUrlError] = useState('')
+  const [saved, setSaved] = useState(false)
   useEffect(() => {
     setApiKeyDraft(aiApiKey)
   }, [aiApiKey])
@@ -238,136 +263,176 @@ export function AiCoachSection({
     setBaseUrlDraft(aiBaseUrl)
   }, [aiBaseUrl])
 
+  const connected = apiKeyDraft.trim().length > 0
+
+  function handleSave() {
+    const trimmedUrl = baseUrlDraft.trim()
+    if (trimmedUrl) {
+      try {
+        const u = new URL(trimmedUrl)
+        if (!u.protocol.startsWith('http')) throw new Error('invalid protocol')
+      } catch {
+        setBaseUrlError(pl.aiBaseUrlInvalid)
+        return
+      }
+    }
+    setBaseUrlError('')
+    onAiApiKeySave(apiKeyDraft.trim())
+    onAiModelSave(modelDraft.trim() || 'gpt-4o-mini')
+    onAiBaseUrlSave(trimmedUrl)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  const providerHint = (() => {
+    const url = baseUrlDraft
+    if (!url || url === AI_PRESETS.openai.baseUrl) return pl.aiProviderHintOpenai
+    if (url === AI_PRESETS.gemini.baseUrl) return pl.aiProviderHintGemini
+    if (url === AI_PRESETS.groq.baseUrl) return pl.aiProviderHintGroq
+    return pl.aiProviderHintCustom
+  })()
+
   return (
     <>
       <AiCoachHeader
         size="sm"
         subtitle={pl.aiCoachTagline}
-        status={apiKeyDraft.trim() ? pl.aiCoachConfigConnected : pl.aiCoachConfigDisconnected}
+        status={connected ? pl.aiCoachConfigConnected : pl.aiCoachConfigDisconnected}
       />
 
+      {/* Provider — choose OpenAI / Gemini / Groq / custom */}
       <div className="mt-4">
-        <p className="mb-2 text-sm font-medium text-[var(--sr-text-secondary)]">
-          {pl.aiProviderLabel}
+        <p className="sr-text-overline text-[var(--sr-text-muted)]">
+          {pl.aiCoachSubsectionProvider}
+          <InfoHint text={providerHint} className="ml-1.5" />
         </p>
-        <SegmentedControl
-          value={(() => {
-            if (!baseUrlDraft || baseUrlDraft === AI_PRESETS.openai.baseUrl) return 'openai'
-            if (baseUrlDraft === AI_PRESETS.gemini.baseUrl) return 'gemini'
-            if (baseUrlDraft === AI_PRESETS.groq.baseUrl) return 'groq'
-            return 'custom'
-          })()}
-          onChange={(v) => {
-            const preset = AI_PRESETS[v as keyof typeof AI_PRESETS]
-            if (preset) {
-              setBaseUrlDraft(preset.baseUrl)
-              setModelDraft(preset.model)
-            }
-          }}
-          options={[
-            { value: 'openai', label: pl.aiProviderOpenai },
-            { value: 'gemini', label: pl.aiProviderGemini },
-            { value: 'groq', label: pl.aiProviderGroq },
-            { value: 'custom', label: pl.aiProviderCustom },
-          ]}
-        />
-        <p className="mt-2 text-xs text-[var(--sr-text-muted)]">
-          {(() => {
-            const url = baseUrlDraft
-            if (!url || url === AI_PRESETS.openai.baseUrl) return pl.aiProviderHintOpenai
-            if (url === AI_PRESETS.gemini.baseUrl) return pl.aiProviderHintGemini
-            if (url === AI_PRESETS.groq.baseUrl) return pl.aiProviderHintGroq
-            return pl.aiProviderHintCustom
-          })()}
-        </p>
+        <div className="mt-2">
+          <SegmentedControl
+            stretch
+            value={(() => {
+              if (!baseUrlDraft || baseUrlDraft === AI_PRESETS.openai.baseUrl) return 'openai'
+              if (baseUrlDraft === AI_PRESETS.gemini.baseUrl) return 'gemini'
+              if (baseUrlDraft === AI_PRESETS.groq.baseUrl) return 'groq'
+              return 'custom'
+            })()}
+            onChange={(v) => {
+              const preset = AI_PRESETS[v as keyof typeof AI_PRESETS]
+              if (preset) {
+                setBaseUrlDraft(preset.baseUrl)
+                setModelDraft(preset.model)
+              }
+            }}
+            options={[
+              { value: 'openai', label: pl.aiProviderOpenai },
+              { value: 'gemini', label: pl.aiProviderGemini },
+              { value: 'groq', label: pl.aiProviderGroq },
+              { value: 'custom', label: pl.aiProviderCustom },
+            ]}
+          />
+        </div>
       </div>
 
-      <TextField
-        id="ai-api-key"
-        className="mt-3"
-        label={pl.aiApiKeyLabel}
-        placeholder={pl.aiApiKeyPlaceholder}
-        type="password"
-        value={apiKeyDraft}
-        onChange={(e) => setApiKeyDraft(e.target.value)}
-      />
-      <TextField
-        id="ai-model"
-        className="mt-3"
-        label={pl.aiModelLabel}
-        value={modelDraft}
-        onChange={(e) => setModelDraft(e.target.value)}
-      />
-      <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.aiModelHint}</p>
-      <TextField
-        id="ai-base-url"
-        className="mt-3"
-        label={pl.aiBaseUrlLabel}
-        value={baseUrlDraft}
-        onChange={(e) => setBaseUrlDraft(e.target.value)}
-        placeholder={pl.aiBaseUrlPlaceholder}
-      />
-      <p className="mt-1 text-xs text-[var(--sr-text-muted)]">{pl.aiBaseUrlHint}</p>
+      {/* Connection — API key, model, base URL (only for custom provider) */}
+      <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-4">
+        <p className="sr-text-overline text-[var(--sr-text-muted)]">
+          {pl.aiCoachSubsectionConnection}
+          <InfoHint text={pl.aiCoachConnectionHint} className="ml-1.5" />
+        </p>
+        <TextField
+          id="ai-api-key"
+          className="mt-3"
+          label={pl.aiApiKeyLabel}
+          placeholder={pl.aiApiKeyPlaceholder}
+          type="password"
+          value={apiKeyDraft}
+          onChange={(e) => setApiKeyDraft(e.target.value)}
+        />
+        <TextField
+          id="ai-model"
+          className="mt-3"
+          label={
+            <>
+              {pl.aiModelLabel}
+              <InfoHint text={pl.aiModelHint} className="ml-1.5" />
+            </>
+          }
+          value={modelDraft}
+          onChange={(e) => setModelDraft(e.target.value)}
+        />
+        {/* Base URL only for custom provider — presets fill it automatically */}
+        {(!baseUrlDraft ||
+          !Object.values(AI_PRESETS).some((p) => p.baseUrl === baseUrlDraft)) && (
+          <TextField
+            id="ai-base-url"
+            className="mt-3"
+            label={
+              <>
+                {pl.aiBaseUrlLabel}
+                <InfoHint text={pl.aiBaseUrlHint} className="ml-1.5" />
+              </>
+            }
+            value={baseUrlDraft}
+            onChange={(e) => setBaseUrlDraft(e.target.value)}
+            placeholder={pl.aiBaseUrlPlaceholder}
+          />
+        )}
+      </div>
 
-      {/* Reasoning effort — controls thinking depth for Gemini models only */}
-      {baseUrlDraft.includes('googleapis') && (
-        <div className="mt-4">
+      {/* Options — reasoning effort (Gemini only) + proactive coach */}
+      {connected && (
+        <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-4">
           <p className="sr-text-overline text-[var(--sr-text-muted)]">
-            {pl.aiReasoningEffortLabel}
+            {pl.aiCoachSubsectionOptions}
           </p>
-          <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
-            {pl.aiReasoningEffortHint}
-          </p>
-          <SegmentedControl
-            className="mt-2"
-            value={aiReasoningEffort}
-            onChange={(v) => onAiReasoningEffortChange(v as 'auto' | 'low' | 'medium' | 'high')}
-            options={[
-              { value: 'auto', label: pl.aiReasoningEffortAuto },
-              { value: 'low', label: pl.aiReasoningEffortLow },
-              { value: 'medium', label: pl.aiReasoningEffortMedium },
-              { value: 'high', label: pl.aiReasoningEffortHigh },
-            ]}
+
+          {baseUrlDraft.includes('googleapis') && (
+            <div className="mt-3">
+              <p className="text-sm font-medium text-[var(--sr-text-secondary)]">
+                {pl.aiReasoningEffortLabel}
+                <InfoHint text={pl.aiReasoningEffortHint} className="ml-1.5" />
+              </p>
+              <SegmentedControl
+                className="mt-2"
+                value={aiReasoningEffort}
+                onChange={(v) => onAiReasoningEffortChange(v as 'auto' | 'low' | 'medium' | 'high')}
+                options={[
+                  { value: 'auto', label: pl.aiReasoningEffortAuto },
+                  { value: 'low', label: pl.aiReasoningEffortLow },
+                  { value: 'medium', label: pl.aiReasoningEffortMedium },
+                  { value: 'high', label: pl.aiReasoningEffortHigh },
+                ]}
+              />
+            </div>
+          )}
+
+          <SwitchRow
+            id="ai-proactive-coach"
+            className="mt-4"
+            checked={aiProactiveCoach}
+            onChange={onAiProactiveCoachChange}
+            label={pl.coachSettingsProactive}
+            description={pl.coachSettingsProactiveDesc}
           />
         </div>
       )}
 
-      <Button
-        type="button"
-        className="mt-3"
-        size="sm"
-        onClick={() => {
-          const trimmedUrl = baseUrlDraft.trim()
-          // Validate URL if provided
-          if (trimmedUrl) {
-            try {
-              const u = new URL(trimmedUrl)
-              if (!u.protocol.startsWith('http')) throw new Error('invalid protocol')
-            } catch {
-              setBaseUrlError(pl.aiBaseUrlInvalid)
-              return
-            }
-          }
-          setBaseUrlError('')
-          onAiApiKeySave(apiKeyDraft.trim())
-          onAiModelSave(modelDraft.trim() || 'gpt-4o-mini')
-          onAiBaseUrlSave(trimmedUrl)
-        }}
-      >
-        {pl.aiCoachConfigSave}
-      </Button>
+      {/* Save + feedback */}
+      <div className="mt-5 flex items-center gap-3">
+        <Button
+          type="button"
+          size="md"
+          onClick={handleSave}
+        >
+          {pl.aiCoachConfigSave}
+        </Button>
+        {saved && (
+          <span className="text-xs font-medium text-[var(--sr-success)]">
+            {pl.aiCoachConfigSaved}
+          </span>
+        )}
+      </div>
       {baseUrlError && (
         <p className="mt-1.5 text-xs text-[var(--sr-error)]">{baseUrlError}</p>
-      )}
-
-      {apiKeyDraft.trim() && (
-        <SwitchRow
-          id="ai-proactive-coach"
-          checked={aiProactiveCoach}
-          onChange={onAiProactiveCoachChange}
-          label={pl.coachSettingsProactive}
-          description={pl.coachSettingsProactiveDesc}
-        />
       )}
     </>
   )

@@ -32,3 +32,4 @@ supabase/.temp/
 
 # Vercel
 .vercel
+backups/

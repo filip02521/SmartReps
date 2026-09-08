@@ -115,8 +115,10 @@ export type HomeLoadResult = {
     reps14d: number
     streakWeeks: number
     bestStreakWeeks: number
+    goalTarget: number
     statusHeadline: string
     statusSubtitle?: string
+    quickCta?: QuickCta
     allResting: boolean
     dateLabel: string
     programs: HomeProgramBar[]
@@ -165,6 +167,20 @@ export function formatHomeDate(d = new Date()): string {
     month: 'long',
     ...(sameYear ? {} : { year: 'numeric' }),
   })
+}
+
+export type GreetingKey =
+  | 'homeGreetingMorning'
+  | 'homeGreetingAfternoon'
+  | 'homeGreetingEvening'
+  | 'homeGreetingGeneric'
+
+export function getGreetingKey(d = new Date()): GreetingKey {
+  const hour = d.getHours()
+  if (hour >= 5 && hour < 12) return 'homeGreetingMorning'
+  if (hour >= 12 && hour < 18) return 'homeGreetingAfternoon'
+  if (hour >= 18 && hour < 23) return 'homeGreetingEvening'
+  return 'homeGreetingGeneric'
 }
 
 export function deriveProgramBucket(
@@ -231,9 +247,18 @@ export function isAllResting(cards: ProgramCardModel[]): boolean {
   )
 }
 
+export type QuickCtaKind = 'workout' | 'workout-force' | 'setup' | 'scroll'
+
+export type QuickCta = {
+  label: string
+  program: Program
+  kind: QuickCtaKind
+}
+
 export type HomeStatusDisplay = {
   headline: string
   subtitle?: string
+  quickCta?: QuickCta
 }
 
 export function buildStatusDisplay(cards: ProgramCardModel[]): HomeStatusDisplay {
@@ -254,16 +279,90 @@ export function buildStatusDisplay(cards: ProgramCardModel[]): HomeStatusDisplay
     cards.every((c) => c.bucket === 'paused' || c.bucket === 'unconfigured')
 
   if (hasResume) {
-    if (otherReady) return { headline: pl.homeStatusResumeAndReady }
-    if (hasResumeStale && !hasResumeFresh) return { headline: pl.homeStatusResumeStale }
-    return { headline: pl.homeStatusResume }
+    // Stale resume takes priority for the card we highlight
+    const resumeCard =
+      cards.find((c) => c.bucket === 'resume_stale') ??
+      cards.find((c) => c.bucket === 'resume')
+    const programLabel = resumeCard?.label ?? pl.pushupsProgram
+    const isStaleOnly = hasResumeStale && !hasResumeFresh
+
+    if (otherReady) {
+      const readyCard = cards.find((c) => c.bucket === 'ready')
+      const otherLabel = readyCard?.label ?? pl.pullupsProgram
+      return {
+        headline: pl.homeStatusResumeHeadline(programLabel),
+        subtitle: pl.homeStatusResumeAndReadySubtitle(otherLabel),
+        quickCta: resumeCard
+          ? {
+              label: isStaleOnly
+                ? pl.homeQuickCtaScroll
+                : resumeCard.resume
+                  ? pl.homeQuickCtaResume(programLabel, resumeCard.resume.set, resumeCard.resume.total)
+                  : pl.homeQuickCtaResume(programLabel, 1, 1),
+              program: resumeCard.program,
+              kind: isStaleOnly ? 'scroll' : 'workout-force',
+            }
+          : undefined,
+      }
+    }
+    if (isStaleOnly) {
+      return {
+        headline: pl.homeStatusResumeHeadline(programLabel),
+        subtitle: pl.homeStatusResumeStaleSubtitle,
+        quickCta: resumeCard
+          ? { label: pl.homeQuickCtaScroll, program: resumeCard.program, kind: 'scroll' }
+          : undefined,
+      }
+    }
+    return {
+      headline: pl.homeStatusResumeHeadline(programLabel),
+      subtitle: resumeCard?.resume
+        ? pl.homeStatusResumeSubtitle(resumeCard.resume.set, resumeCard.resume.total)
+        : undefined,
+      quickCta: resumeCard
+        ? {
+            label: resumeCard.resume
+              ? pl.homeQuickCtaResume(programLabel, resumeCard.resume.set, resumeCard.resume.total)
+              : pl.homeQuickCtaResume(programLabel, 1, 1),
+            program: resumeCard.program,
+            kind: 'workout-force',
+          }
+        : undefined,
+    }
   }
-  if (testReady) return { headline: pl.homeStatusTestReady }
+  if (testReady) {
+    const testCard = cards.find((c) => c.bucket === 'test_pending_ready')
+    return {
+      headline: pl.homeStatusTestReadyHeadline,
+      subtitle: testCard ? pl.homeStatusTestReadySubtitle(testCard.label) : undefined,
+      quickCta: testCard
+        ? { label: pl.homeQuickCtaTest(testCard.label), program: testCard.program, kind: 'setup' }
+        : undefined,
+    }
+  }
   if (testRest) {
     const label = testRest.stats?.nextWorkoutLabel ?? pl.today
-    return { headline: pl.homeStatusTestRest(label) }
+    return {
+      headline: pl.homeStatusTestRestHeadline,
+      subtitle: pl.homeStatusTestRestSubtitle(testRest.label, label),
+    }
   }
-  if (anyReady) return { headline: pl.homeStatusReady }
+  if (anyReady) {
+    const readyCard = cards.find((c) => c.bucket === 'ready')
+    const day = readyCard?.progress?.currentDay ?? 1
+    const total = readyCard?.cycleDayCount ?? 0
+    return {
+      headline: pl.homeStatusReadyHeadline(day, total),
+      subtitle: readyCard ? pl.homeStatusReadySubtitle(readyCard.label) : undefined,
+      quickCta: readyCard
+        ? {
+            label: pl.homeQuickCtaStart(readyCard.label, day),
+            program: readyCard.program,
+            kind: 'workout',
+          }
+        : undefined,
+    }
+  }
   if (allResting) {
     const restingCards = configured.filter((c) => c.bucket === 'resting' && c.progress)
     let soonest: ProgramCardModel | null = null
@@ -277,14 +376,37 @@ export function buildStatusDisplay(cards: ProgramCardModel[]): HomeStatusDisplay
       }
     }
     const next = soonest?.stats?.nextWorkoutLabel ?? pl.today
+
+    // If all resting but user can train anyway (force), offer it for the soonest program.
+    if (soonest) {
+      return {
+        headline: pl.homeStatusRestHeadline,
+        subtitle: pl.homeStatusRestSubtitle(next),
+        quickCta: {
+          label: pl.homeQuickCtaTrainAnyway(soonest.label),
+          program: soonest.program,
+          kind: 'workout-force',
+        },
+      }
+    }
+
     return {
       headline: pl.homeStatusRestHeadline,
       subtitle: pl.homeStatusRestSubtitle(next),
     }
   }
-  if (allPaused) return { headline: pl.homeStatusAllPaused }
-  if (allUnconfigured) return { headline: pl.homeStatusSetup }
-  if (setupOnly) return { headline: pl.homeStatusSetupMixed }
+  if (allPaused) return { headline: pl.homeStatusAllPaused, subtitle: pl.homeStatusAllPausedSubtitle }
+  if (allUnconfigured) {
+    const firstCard = cards[0]
+    return {
+      headline: pl.homeStatusSetupHeadline,
+      subtitle: pl.homeStatusSetupSubtitle,
+      quickCta: firstCard
+        ? { label: pl.homeQuickCtaSetup(firstCard.label), program: firstCard.program, kind: 'setup' }
+        : undefined,
+    }
+  }
+  if (setupOnly) return { headline: pl.homeStatusSetupMixedHeadline }
   return { headline: pl.homeStatusFallback }
 }
 
@@ -544,6 +666,16 @@ export async function loadHomeDashboard(
   const reps14d = activity.reps14d
   const daysSince = daysSinceLastPassedSession(completedAll)
 
+  // Adaptive 14-day goal — based on last 8 weeks of training frequency.
+  // Falls back to 3 for new users; scales up for consistent trainers.
+  const fiftySixDaysAgo = new Date()
+  fiftySixDaysAgo.setDate(fiftySixDaysAgo.getDate() - 56)
+  const sessionsLast56d = completedAll.filter(
+    (s) => new Date(s.startedAt) >= fiftySixDaysAgo,
+  ).length
+  const sessionsPer14d = Math.round(sessionsLast56d / 4)
+  const goalTarget = Math.max(3, sessionsPer14d)
+
   const cardModels = await Promise.all(
     enabledPrograms.map(async (program): Promise<ProgramCardModel> => {
       try {
@@ -704,8 +836,10 @@ export async function loadHomeDashboard(
       reps14d,
       streakWeeks: activity.streakWeeks,
       bestStreakWeeks: activity.bestStreakWeeks,
+      goalTarget,
       statusHeadline: status.headline,
       statusSubtitle: status.subtitle,
+      quickCta: status.quickCta,
       allResting: isAllResting(cards),
       dateLabel: formatHomeDate(),
       programs,

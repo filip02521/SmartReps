@@ -394,7 +394,7 @@ export async function computeExerciseDetailStats(
       date: at,
       planName,
       dayNumber: session.dayNumber,
-      summary: best ? formatExerciseSetSummary(metric, best, weightUnit, exercise.durationDisplayUnit ?? 'sec') : '—',
+      summary: best ? formatExerciseSetSummary(metric, best, weightUnit, exercise.durationDisplayUnit ?? 'min') : '—',
       setsPassed: sessionPassed,
       setsTotal: log.sets.length,
     })
@@ -451,8 +451,8 @@ export async function computeExerciseDetailStats(
         .sort((a, b) => a.setNumber - b.setNumber)
         .map((set) => ({
           setNumber: set.setNumber,
-          actualLabel: formatSetActualDisplay(set.actual, metric, weightUnit, exercise.durationDisplayUnit ?? 'sec'),
-          targetLabel: formatPrescriptionTarget(set.prescription, metric, weightUnit, exercise.durationDisplayUnit ?? 'sec'),
+          actualLabel: formatSetActualDisplay(set.actual, metric, weightUnit, exercise.durationDisplayUnit ?? 'min'),
+          targetLabel: formatPrescriptionTarget(set.prescription, metric, weightUnit, exercise.durationDisplayUnit ?? 'min'),
           passed: set.passed,
         }))
     }
@@ -493,7 +493,7 @@ export function exercisePrDisplay(
 ): string {
   const m = stats.exercise.primaryMetric
   if (m === 'duration_sec' && stats.prDurationSec != null) {
-    return formatDurationDisplay(stats.prDurationSec, stats.exercise.durationDisplayUnit ?? 'sec')
+    return formatDurationDisplay(stats.prDurationSec, stats.exercise.durationDisplayUnit ?? 'min')
   }
   if (m === 'reps_weight') {
     const parts: string[] = []

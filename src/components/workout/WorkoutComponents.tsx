@@ -118,10 +118,16 @@ export function RepCounter({
   const maxReps = isExact ? targetReps : 999
 
   return (
-    <div className={cn('flex flex-col items-center gap-4 py-4', disabled && 'opacity-60')}>
-      <p className="sr-text-overline text-[var(--sr-text-muted)]">
-        {getSetLabel(target, program)}
-      </p>
+    <div className={cn('flex flex-col items-center gap-3 py-3', disabled && 'opacity-60')}>
+      <div className="flex items-center gap-2">
+        <p className="sr-text-overline text-[var(--sr-text-muted)]">
+          {getSetLabel(target, program)}
+        </p>
+        {/* Target badge — prominent goal indicator */}
+        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]">
+          {pl.workoutTargetLabel}: {targetReps}
+        </span>
+      </div>
       {isExact && (
         <p className="text-center text-sm text-[var(--sr-text-secondary)]">
           {pl.exactLiveHint(targetReps)}
@@ -355,7 +361,7 @@ export function SetChecklist({
 
 export function NegativeBanner() {
   return (
-    <div role="status" aria-live="polite" aria-atomic="true" className="sticky top-0 z-10 mx-4 mb-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-pullups-accent)]/40 bg-[var(--sr-pullups-accent)]/10 px-4 py-2.5 text-sm font-medium text-[var(--sr-pullups-accent)]">
+    <div role="status" aria-live="polite" aria-atomic="true" className="sticky top-0 z-10 mx-4 mt-3 mb-1 rounded-[var(--sr-radius-md)] border border-[var(--sr-pullups-accent)]/40 bg-[var(--sr-pullups-accent)]/10 px-4 py-2.5 text-sm font-medium text-[var(--sr-pullups-accent)]">
       {pl.negativeBanner}
     </div>
   )
@@ -363,7 +369,7 @@ export function NegativeBanner() {
 
 export function NegativeCountdown({ seconds }: { seconds: number }) {
   return (
-    <div role="status" aria-live="polite" aria-atomic="true" className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-pullups-accent)]/15 px-4 py-2 text-center text-sm font-medium text-[var(--sr-pullups-accent)]">
+    <div role="status" aria-live="polite" aria-atomic="true" className="mx-4 mt-1 mb-1 rounded-[var(--sr-radius-md)] bg-[var(--sr-pullups-accent)]/15 px-4 py-2 text-center text-sm font-medium text-[var(--sr-pullups-accent)]">
       {pl.negativeCountdown(seconds)}
     </div>
   )

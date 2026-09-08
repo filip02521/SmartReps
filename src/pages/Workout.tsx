@@ -29,6 +29,7 @@ import {
   getMostRecentSetActual,
   hasAnyCompletedSessions,
 } from '@/lib/session-service'
+import { trackError } from '@/lib/analytics'
 import { getRestNextSetLabel } from '@/lib/workout-rest-label'
 import { getSmartRestSuggestion } from '@/lib/ai/proactive-coach'
 import { getProgramProgress, reconcileActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
@@ -73,6 +74,7 @@ export default function WorkoutPage() {
   const [failedIndex, setFailedIndex] = useState<number | undefined>()
   const [initialized, setInitialized] = useState(false)
   const [initError, setInitError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [lastActual, setLastActual] = useState<number | undefined>()
   const [previousResults, setPreviousResults] = useState<Map<number, number>>(new Map())
   const [coachSuggestion, setCoachSuggestion] = useState<string | null>(null)
@@ -393,7 +395,7 @@ export default function WorkoutPage() {
       onComplete: () => {
         onRestComplete({ sound: timerSound, vibration: timerVibration })
         useWorkoutStore.getState().setRestTimer(skipRest())
-        void persistState()
+        void persistState().catch((err) => trackError(err, 'workout.restComplete'))
         checklistRef.current
           ?.querySelector('[data-active-set="true"]')
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -416,11 +418,11 @@ export default function WorkoutPage() {
   // the user switches tabs or closes the browser mid-workout without tapping Done.
   useEffect(() => {
     const handlePersist = () => {
-      void persistState()
+      void persistState().catch((err) => trackError(err, 'workout.visibility'))
     }
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       // Best-effort persist — async, may not complete before unload
-      void persistState()
+      void persistState().catch((err) => trackError(err, 'workout.beforeunload'))
       // Prompt user to confirm leaving (browser-native)
       e.preventDefault()
       e.returnValue = ''
@@ -482,7 +484,7 @@ export default function WorkoutPage() {
   const mutateRestTimer = (next: ReturnType<typeof skipRest>) => {
     useWorkoutStore.getState().setRestTimer(next)
     setCoachSuggestion(null)
-    void persistState()
+    void persistState().catch((err) => trackError(err, 'workout.mutateRestTimer'))
   }
 
   const handleEditPreviousSet = async () => {
@@ -507,8 +509,9 @@ export default function WorkoutPage() {
     try {
       await persistState()
       await loadPreviousActual(editIndex, progress.cycleAttempt, progress.currentDay)
-    } catch {
-      setInitError(pl.errorSaveSet)
+    } catch (err) {
+      trackError(err, 'workout.editPreviousSet')
+      setSaveError(pl.errorSaveSet)
     }
   }
 
@@ -526,6 +529,7 @@ export default function WorkoutPage() {
     // Guard set immediately before any async work to prevent double-tap races.
     finishingRef.current = true
     setNegativeCountdown(null)
+    setSaveError(null)
     void initWorkoutAudio()
 
     try {
@@ -568,14 +572,25 @@ export default function WorkoutPage() {
       setFailedIndex(undefined)
 
       const afterSet = useWorkoutStore.getState()
-      await ensureWorkoutSessionPersisted(sessionMeta, {
-        currentSetIndex: afterSet.currentSetIndex,
-        setResults: afterSet.setResults,
-        restTimerJson: afterSet.restTimer ? JSON.stringify(afterSet.restTimer) : null,
-        failedRetryUsed: afterSet.failedRetryUsed,
-      })
+      let persistOk = true
+      try {
+        await ensureWorkoutSessionPersisted(sessionMeta, {
+          currentSetIndex: afterSet.currentSetIndex,
+          setResults: afterSet.setResults,
+          restTimerJson: afterSet.restTimer ? JSON.stringify(afterSet.restTimer) : null,
+          failedRetryUsed: afterSet.failedRetryUsed,
+        })
+      } catch (err) {
+        trackError(err, 'workout.persistSet')
+        persistOk = false
+      }
 
       if (nextSetIndex >= day.sets.length) {
+        if (!persistOk) {
+          setSaveError(pl.errorSaveSet)
+          finishingRef.current = false
+          return
+        }
         await finalizeSuccessfulDay(sessionMeta, allResults)
         workout.reset()
         navigate(`/workout/${program}/summary?session=${sessionMeta.id}`, { replace: true })
@@ -586,7 +601,14 @@ export default function WorkoutPage() {
       const restSec = day.restBetweenSetsSec > 0 ? day.restBetweenSetsSec : 60
       workout.setRestTimer(createRestTimer(restSec, 'expanded'))
       setActual(getTargetReps(day.sets[nextSetIndex]))
-      await persistState()
+      if (persistOk) {
+        try {
+          await persistState()
+        } catch (err) {
+          trackError(err, 'workout.persistState')
+          persistOk = false
+        }
+      }
       await loadPreviousActual(nextSetIndex, progress.cycleAttempt, progress.currentDay)
       // Smart rest suggestion — compare next set target with most recent session actual
       // (regardless of cycle attempt, to show progress across cycles)
@@ -597,10 +619,12 @@ export default function WorkoutPage() {
         ? await hasAnyCompletedSessions(program, sessionMeta?.id)
         : true
       setCoachSuggestion(getSmartRestSuggestion(prevActual, getTargetReps(day.sets[nextSetIndex]), 'reps', hasHistory))
+      if (!persistOk) setSaveError(pl.errorSaveSet)
       finishingRef.current = false
-    } catch {
+    } catch (err) {
+      trackError(err, 'workout.handleDone')
       finishingRef.current = false
-      setInitError(pl.errorSaveSet)
+      setSaveError(pl.errorSaveSet)
     }
   }
 
@@ -821,9 +845,10 @@ export default function WorkoutPage() {
           useWorkoutStore.getState().reset()
           setSessionMeta(null)
           navigate('/', { replace: true })
-        } catch {
+        } catch (err) {
           finishingRef.current = false
-          setInitError(pl.errorSaveSet)
+          trackError(err, 'workout.confirmCancel')
+          setSaveError(pl.errorSaveSet)
         }
       })()}
       onDismissCancel={() => setShowCancelConfirm(false)}
@@ -845,6 +870,8 @@ export default function WorkoutPage() {
       onDismissLeave={() => setShowLeaveConfirm(false)}
       onClosePlan={() => setShowPlanSheet(false)}
       onCloseMenu={() => setShowMenu(false)}
+      saveError={saveError}
+      onDismissSaveError={() => setSaveError(null)}
     />
   )
 }

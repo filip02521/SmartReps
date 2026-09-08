@@ -153,7 +153,8 @@ test.describe('Profile data actions', () => {
   })
 
   test('unconfigured program shows setup on training CTA', async ({ page }) => {
-    await openProfile(page)
+    await seedLocalAppState(page)
+    await page.goto('/plans?tab=programs')
     await expect(page.getByRole('heading', { name: 'Pompki', level: 3 })).toBeVisible({
       timeout: 15_000,
     })

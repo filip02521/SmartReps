@@ -3,6 +3,7 @@ import { useEffect, useState, type RefObject, ReactNode } from 'react'
 import { Check, ChevronRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
+import { ErrorBanner } from '@/components/ux/Feedback'
 import {
   ConfirmSheet,
   RestTimerExpanded,
@@ -460,7 +461,7 @@ function CustomDayExerciseRail({
   if (exercises.length <= 1) return null
 
   return (
-    <div className="mx-4 mb-3">
+    <div className="mx-4 mt-3 mb-3">
       <div
         className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         aria-label={pl.customWorkoutExerciseOf(currentExerciseIndex + 1, exercises.length)}
@@ -605,12 +606,12 @@ function CustomDayPlanSheet({
                     : undefined
                 }
                 className={cn(
-                  'w-full rounded-[var(--sr-radius-md)] px-3 py-3 text-left',
+                  'w-full rounded-[var(--sr-radius-md)] border px-3 py-3 text-left transition-colors',
                   active
-                    ? 'border-2 border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]'
+                    ? 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]'
                     : done
-                      ? 'bg-[var(--sr-success-muted)]'
-                      : 'bg-[var(--sr-bg-surface)]',
+                      ? 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]'
+                      : 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',
                   canJump &&
                     'cursor-pointer hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sr-brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sr-bg-base)]',
                 )}
@@ -653,8 +654,8 @@ function CustomDayPlanSheet({
                       )}
                     >
                       {doneSet && setLog
-                        ? formatSetActualDisplay(setLog.actual, metric, 'kg', def?.durationDisplayUnit ?? 'sec')
-                        : formatPrescriptionTarget(s, metric, 'kg', def?.durationDisplayUnit ?? 'sec')}
+                        ? formatSetActualDisplay(setLog.actual, metric, 'kg', def?.durationDisplayUnit ?? 'min')
+                        : formatPrescriptionTarget(s, metric, 'kg', def?.durationDisplayUnit ?? 'min')}
                     </span>
                   )
                 })}
@@ -745,10 +746,24 @@ function CustomMetricCounter({
   const unitLabel = weightUnitLabel(weightUnit)
 
   return (
-    <div className={cn('flex flex-col items-center gap-4 py-4', disabled && 'opacity-60')}>
-      <p className="px-2 text-center sr-text-overline text-[var(--sr-text-muted)]">
-        {formatPrescriptionSetLabel(prescription, metric, exerciseName, weightUnit, durationUnit)}
-      </p>
+    <div className={cn('flex flex-col items-center gap-3 py-3', disabled && 'opacity-60')}>
+      <div className="flex items-center gap-2">
+        <p className="px-2 text-center sr-text-overline text-[var(--sr-text-muted)]">
+          {formatPrescriptionSetLabel(prescription, metric, exerciseName, weightUnit, durationUnit)}
+        </p>
+        {/* Target badge — prominent goal indicator */}
+        {targetReps > 0 && !isRepsWeight && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]">
+            {pl.workoutTargetLabel}: {isMinUnit ? displayTargetReps : targetReps}
+          </span>
+        )}
+        {/* Target badge for reps_weight — shows reps target */}
+        {isRepsWeight && targetReps > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]">
+            {pl.workoutTargetLabel}: {targetReps}
+          </span>
+        )}
+      </div>
       {isExact && (
         <p className="text-center text-sm text-[var(--sr-text-secondary)]">
           {pl.exactLiveHint(isMinUnit ? displayTargetReps : targetReps)}
@@ -958,6 +973,8 @@ export type ActiveCustomWorkoutScreenProps = {
   showPlanSheet: boolean
   failedRetryVisible: boolean
   pulseFlash?: boolean
+  saveError?: string | null
+  onDismissSaveError?: () => void
   nextLabel: string
   checklistRef?: RefObject<HTMLDivElement | null>
   sessionHasProgress?: boolean
@@ -1045,6 +1062,8 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     showPlanSheet,
     failedRetryVisible,
     pulseFlash,
+    saveError,
+    onDismissSaveError,
     nextLabel,
     checklistRef,
     sessionHasProgress = false,
@@ -1144,61 +1163,83 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col safe-top safe-bottom">
-      <header className="flex shrink-0 items-center justify-between px-2 py-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className={cn(
-            'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
-            FOCUS_RING,
-          )}
-          aria-label={pl.back}
-        >
-          <ArrowLeft size={22} />
-        </button>
-        <div className="min-w-0 flex-1 px-1 text-center">
-          {onExerciseStats ? (
-            <button
-              type="button"
-              onClick={onExerciseStats}
-              className="mx-auto flex max-w-full min-h-11 items-center justify-center gap-1.5 rounded-[var(--sr-radius-sm)] px-2 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
-              aria-label={pl.exerciseDetailOpenFor(exerciseDef.name)}
-            >
-              <span className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+      <header className="shrink-0 border-b border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]">
+        <div className="flex items-center justify-between px-2 py-2.5">
+          <button
+            type="button"
+            onClick={onBack}
+            className={cn(
+              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              FOCUS_RING,
+            )}
+            aria-label={pl.back}
+          >
+            <ArrowLeft size={22} />
+          </button>
+          <div className="min-w-0 flex-1 px-1 text-center">
+            {onExerciseStats ? (
+              <button
+                type="button"
+                onClick={onExerciseStats}
+                className="mx-auto flex max-w-full min-h-11 items-center justify-center gap-1.5 rounded-[var(--sr-radius-sm)] px-2 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
+                aria-label={pl.exerciseDetailOpenFor(exerciseDef.name)}
+              >
+                <span className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+                  {exerciseDef.name}
+                </span>
+                <BarChart2 size={15} className="shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
+              </button>
+            ) : (
+              <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
                 {exerciseDef.name}
-              </span>
-              <BarChart2 size={15} className="shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
-            </button>
-          ) : (
-            <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
-              {exerciseDef.name}
-            </p>
-          )}
-          <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">{setLine}</p>
-          {(groupBadge || headerSub || sessionStartedAt) && (
-            <div className="mt-0.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
-              {(groupBadge || headerSub) && (
-                <p className="min-w-0 truncate sr-text-caption text-[var(--sr-text-muted)]">
-                  {[groupBadge, headerSub].filter(Boolean).join(' · ')}
-                </p>
-              )}
-              {sessionStartedAt && <SessionElapsedLabel startedAt={sessionStartedAt} />}
-            </div>
-          )}
+              </p>
+            )}
+            <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">{setLine}</p>
+            {(groupBadge || headerSub || sessionStartedAt) && (
+              <div className="mt-0.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
+                {(groupBadge || headerSub) && (
+                  <p className="min-w-0 truncate sr-text-caption text-[var(--sr-text-muted)]">
+                    {[groupBadge, headerSub].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+                {sessionStartedAt && <SessionElapsedLabel startedAt={sessionStartedAt} />}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            aria-label={pl.menuWorkout}
+            aria-expanded={showMenu}
+            onClick={onToggleMenu}
+            className={cn(
+              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              FOCUS_RING,
+            )}
+          >
+            <MoreVertical size={20} />
+          </button>
         </div>
-        <button
-          type="button"
-          aria-label={pl.menuWorkout}
-          aria-expanded={showMenu}
-          onClick={onToggleMenu}
-          className={cn(
-            'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
-            FOCUS_RING,
-          )}
+        {/* Progress bar — visual indicator of set completion for current exercise */}
+        <div
+          className="h-1 w-full bg-[var(--sr-bg-surface)]"
+          role="progressbar"
+          aria-valuenow={Math.min(setResults.length, planned.sets.length)}
+          aria-valuemin={0}
+          aria-valuemax={planned.sets.length}
+          aria-label={pl.customWorkoutProgressAria(setResults.length, planned.sets.length)}
         >
-          <MoreVertical size={20} />
-        </button>
+          <div
+            className="h-full bg-[var(--sr-brand-primary)] transition-[width] duration-300 motion-reduce:transition-none"
+            style={{ width: `${Math.min(100, (setResults.length / Math.max(1, planned.sets.length)) * 100)}%` }}
+          />
+        </div>
       </header>
+
+      {saveError && onDismissSaveError && (
+        <div className="mx-4 mt-3 mb-1">
+          <ErrorBanner message={saveError} onRetry={onDismissSaveError} />
+        </div>
+      )}
 
       {showMenu && (
         <Sheet open onClose={onCloseMenu} title={pl.menuWorkout}>
@@ -1286,30 +1327,32 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
       />
 
       {planned.note?.trim() && (
-        <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2 text-sm text-[var(--sr-text-secondary)]">
-          <span className="font-medium text-[var(--sr-text-primary)]">
-            {pl.customWorkoutExerciseNote}:{' '}
+        <div className="mx-4 mt-3 mb-1 flex items-start gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2.5 text-sm">
+          <span className="flex-1 text-[var(--sr-text-secondary)]">
+            <span className="font-medium text-[var(--sr-text-primary)]">
+              {pl.customWorkoutExerciseNote}:{' '}
+            </span>
+            {planned.note.trim()}
           </span>
-          {planned.note.trim()}
         </div>
       )}
 
       {showHint && (
-        <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary-muted)] px-3 py-2 text-sm">
-          {pl.customWorkoutHint}
-          <button type="button" className="ml-2 min-h-11 underline underline-offset-2 transition-colors hover:text-[var(--sr-text-primary)] active:scale-95" onClick={onDismissHint}>
+        <div className="mx-4 mt-3 mb-1 flex items-start gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_60%,var(--sr-bg-elevated))] px-3 py-2.5 text-sm">
+          <span className="flex-1 text-[var(--sr-text-secondary)]">{pl.customWorkoutHint}</span>
+          <button type="button" className="min-h-9 shrink-0 rounded-[var(--sr-radius-sm)] px-2 text-sm font-semibold text-[var(--sr-brand-primary)] underline underline-offset-2 transition-colors hover:text-[var(--sr-brand-primary-hover)] active:scale-95" onClick={onDismissHint}>
             {pl.ok}
           </button>
         </div>
       )}
 
       {failedRetryVisible && (
-        <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] px-3 py-2 text-sm text-[var(--sr-text-secondary)]">
+        <div className="mx-4 mt-3 mb-1 flex items-start gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)] px-3 py-2.5 text-sm text-[var(--sr-error)]">
           {pl.customFailBannerHint}
         </div>
       )}
 
-      <div className="flex-shrink-0 px-4">
+      <div className="flex-shrink-0 px-4 pt-3">
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {pl.customWorkoutHeaderAria(
             planName,
@@ -1348,7 +1391,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             timerRunning={timerRunning}
             onToggleTimer={onToggleTimer}
             weightUnit={weightUnit}
-            durationUnit={durationUnit ?? exerciseDef.durationDisplayUnit ?? 'sec'}
+            durationUnit={durationUnit ?? exerciseDef.durationDisplayUnit ?? 'min'}
           />
         )}
         {canEditPreviousSet && onEditPreviousSet && (
@@ -1366,7 +1409,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
         )}
       </div>
 
-      <div ref={checklistRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-28">
+      <div ref={checklistRef} className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-28">
         {showRestAdjust || showSetAdjust ? (
           <div className="mb-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]/40 px-3 py-2.5">
             {showRestAdjust && onRestChange ? (
@@ -1430,8 +1473,8 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           </div>
         ) : (
           <div className="mb-3">
-            <p className="sr-text-overline text-[var(--sr-text-muted)]">
-              {pl.customWorkoutSetsSection}
+            <p className="sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+              {pl.customWorkoutSetsSectionCount(setResults.length, planned.sets.length)}
             </p>
             <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
               {pl.customWorkoutRestChip(planned.restBetweenSetsSec)}
@@ -1447,7 +1490,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           baselineSetCount={baselineSetCount}
           onEditLastSet={canEditPreviousSet ? onEditPreviousSet : undefined}
           weightUnit={weightUnit}
-          durationUnit={durationUnit ?? exerciseDef.durationDisplayUnit ?? 'sec'}
+          durationUnit={durationUnit ?? exerciseDef.durationDisplayUnit ?? 'min'}
           previousResults={previousResults}
         />
       </div>

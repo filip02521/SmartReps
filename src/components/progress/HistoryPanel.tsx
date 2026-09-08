@@ -515,7 +515,7 @@ export function HistoryPanel({
                                   : 'text-[var(--sr-error)]',
                               )}
                             >
-                              {formatExerciseSetSummary(metric, set, weightUnit, def?.durationDisplayUnit ?? 'sec')}
+                              {formatExerciseSetSummary(metric, set, weightUnit, def?.durationDisplayUnit ?? 'min')}
                               {!set.passed && ` · ${pl.failedShort}`}
                             </span>
                           </li>

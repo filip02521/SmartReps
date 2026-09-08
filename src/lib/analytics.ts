@@ -68,10 +68,16 @@ export function track(event: AnalyticsEventName, payload?: AnalyticsPayload): vo
 }
 
 export function trackError(error: unknown, context?: string): void {
-  console.error('[error]', context, error)
+  // Log full error details for debugging — DexieError needs .name/.inner to diagnose
+  const name = error instanceof Error ? error.name : typeof error
+  const message = error instanceof Error ? error.message : String(error)
+  const inner = error && typeof error === 'object' && 'inner' in error
+    ? (error as { inner: unknown }).inner
+    : undefined
+  console.error('[error]', context, { name, message, inner, error })
   track(AnalyticsEvents.clientError, {
     context: context ?? null,
-    message: error instanceof Error ? error.message.slice(0, 120) : 'unknown',
+    message: message.slice(0, 120),
   })
   if (sentryReady) {
     Sentry.captureException(error, { extra: { context } })

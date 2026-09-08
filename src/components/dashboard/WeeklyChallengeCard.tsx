@@ -315,7 +315,7 @@ export function WeeklyChallengeCard() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Trophy size={18} className="text-[var(--sr-brand-primary)]" aria-hidden />
-            <h2 className="sr-text-h3">{pl.challengeTitle}</h2>
+            <h3 className="sr-text-h3">{pl.challengeTitle}</h3>
           </div>
           <p className="mt-0.5 sr-text-overline text-[var(--sr-text-muted)]">
             {pl.challengeWeekKey(challenge.week_key)}

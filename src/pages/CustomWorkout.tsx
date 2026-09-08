@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { ErrorBanner, PageLoader } from '@/components/ux/Feedback'
+import { PageLoader } from '@/components/ux/Feedback'
 import { ActiveCustomWorkoutScreen } from '@/components/workout/ActiveCustomWorkoutScreen'
 import { ExerciseDetailSheet } from '@/components/plans/ExerciseDetailSheet'
 import { ExerciseLibraryPanel } from '@/components/plans/ExerciseLibraryPanel'
@@ -809,7 +809,7 @@ export default function CustomWorkoutPage() {
     if (nextExerciseIndex !== store.currentExerciseIndex) {
       return pl.customWorkoutNextExercise(nextDef.name)
     }
-    const nextDurationUnit = nextDef.durationDisplayUnit ?? 'sec'
+    const nextDurationUnit = nextDef.durationDisplayUnit ?? 'min'
     const baseLabel = pl.customNextSet(
       nextSetIndex + 1,
       formatPrescriptionSetLabel(
@@ -1701,11 +1701,6 @@ export default function CustomWorkoutPage() {
 
   return (
     <>
-      {saveError && (
-        <div className="mx-auto max-w-lg px-4 pt-4 safe-top">
-          <ErrorBanner message={saveError} onRetry={() => setSaveError(null)} />
-        </div>
-      )}
       <ActiveCustomWorkoutScreen
         planName={plan.name}
         dayNumber={store.dayNumber}
@@ -1746,7 +1741,7 @@ export default function CustomWorkoutPage() {
         timerRunning={timerRunning}
         canEditPreviousSet={canEditPreviousSet}
         weightUnit={weightUnit}
-        durationUnit={exDef.durationDisplayUnit ?? 'sec'}
+        durationUnit={exDef.durationDisplayUnit ?? 'min'}
         onBack={() => {
           if (!sessionHasProgress) {
             discardEphemeralSession()
@@ -1831,6 +1826,8 @@ export default function CustomWorkoutPage() {
         canSwapExercise={canSwapExercise}
         onSwapExercise={() => setSwapOpen(true)}
         onAddExercise={() => setAddExerciseOpen(true)}
+        saveError={saveError}
+        onDismissSaveError={() => setSaveError(null)}
       />
       <ExerciseDetailSheet
         open={detailExercise != null}

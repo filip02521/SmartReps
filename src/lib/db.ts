@@ -119,6 +119,17 @@ export type AiAnalysisCache = {
   createdAt: string
 }
 
+/** Draft of an AI-generated plan — persisted so it survives refresh / accidental close.
+ *  Single-slot design (id='draft'): only the most recent generation is kept. */
+export type AiPlanDraft = {
+  id: string
+  /** Serialized PlanGenerationResult JSON (plan + rationale + newExercises). */
+  resultJson: string
+  /** Serialized exercise name lookup Map (exerciseId → name) for preview. */
+  exerciseNamesJson: string
+  createdAt: string
+}
+
 export type LocalAiInsight = {
   id: string
   type: AiInsightType
@@ -175,6 +186,7 @@ class SmartRepsDB extends Dexie {
   bodyWeight!: EntityTable<BodyWeightEntry, 'id'>
   aiInsights!: EntityTable<LocalAiInsight, 'id'>
   aiAnalysisCache!: EntityTable<AiAnalysisCache, 'id'>
+  aiPlanDrafts!: EntityTable<AiPlanDraft, 'id'>
   sessionTombstones!: EntityTable<SessionTombstone, 'sessionId'>
   customPlanTombstones!: EntityTable<CustomPlanTombstone, 'planId'>
   exerciseTombstones!: EntityTable<ExerciseTombstone, 'exerciseId'>
@@ -363,7 +375,46 @@ class SmartRepsDB extends Dexie {
       exerciseTombstones: 'exerciseId, deletedAt',
       bodyWeightTombstones: 'entryId, deletedAt',
     })
+
+    // v12: AI plan draft cache — persists generated plans across refresh / accidental close
+    this.version(12).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, startedAt, [program+status], customPlanId',
+      activeWorkout: 'program',
+      activeCustomWorkout: 'customPlanId',
+      syncQueue: '++id, createdAt',
+      maxTests: '++id, program, testedAt, &[program+testedAt]',
+      exercises: 'id, updatedAt, archived',
+      customPlans: 'id, status, updatedAt',
+      customProgramProgress: '++id, &customPlanId, updatedAt',
+      achievementUnlocks: 'id, unlockedAt',
+      bodyWeight: 'id, measuredAt',
+      aiInsights: 'id, type, sessionId, weekKey, createdAt',
+      sessionTombstones: 'sessionId, deletedAt',
+      aiAnalysisCache: 'id, createdAt',
+      customPlanTombstones: 'planId, deletedAt',
+      exerciseTombstones: 'exerciseId, deletedAt',
+      bodyWeightTombstones: 'entryId, deletedAt',
+      aiPlanDrafts: 'id, createdAt',
+    })
   }
 }
 
 export const db = new SmartRepsDB()
+
+// Diagnostics — log when the DB is blocked or ready so we can diagnose
+// "DexieError" issues that appear after schema upgrades or HMR reloads.
+db.on('blocked', () => {
+  console.warn('[db] blocked — another tab/instance holds an older version. Close other tabs and reload.')
+})
+db.on('ready', () => {
+  console.debug('[db] ready')
+})
+
+// Vite HMR: close the DB connection before the module is reloaded so the new
+// instance can open without a versionchange/blocked race.
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    try { db.close() } catch { /* ignore */ }
+  })
+}

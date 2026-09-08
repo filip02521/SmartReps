@@ -18,6 +18,7 @@ export function MetricStrip({
 }) {
   const items = metrics.slice(0, 3)
   const frac = goal ? Math.min(goal.current, goal.max) / Math.max(goal.max, 1) : 0
+  const goalMet = goal && frac >= 1
 
   return (
     <div className={cn(className)}>
@@ -46,27 +47,35 @@ export function MetricStrip({
       </div>
 
       {goal && (
-        <div className="mt-3">
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">{goal.label}</p>
-            <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
-              {Math.min(goal.current, goal.max)}/{goal.max}
-            </p>
-          </div>
+        <div
+          className={cn(
+            'mt-2 flex items-center gap-2.5 rounded-[var(--sr-radius-md)] border px-3 py-2',
+            goalMet
+              ? 'border-[color-mix(in_srgb,var(--sr-success)_30%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-success)_6%,var(--sr-bg-surface))]'
+              : 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',
+          )}
+        >
           <div
-            className="h-2 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
+            className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--sr-bg-elevated)]"
             role="progressbar"
             aria-valuenow={Math.min(goal.current, goal.max)}
             aria-valuemin={0}
             aria-valuemax={goal.max}
+            aria-label={goal.label}
           >
             <div
               className={cn(
-                'h-full rounded-full bg-[var(--sr-brand-primary)] transition-[width] duration-500 motion-reduce:transition-none',
-                frac >= 1 && 'bg-[var(--sr-success)]',
+                'h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none',
+                goalMet ? 'bg-[var(--sr-success)]' : 'bg-[var(--sr-brand-primary)]',
               )}
               style={{ width: `${frac * 100}%` }}
             />
+          </div>
+          <div className="flex shrink-0 items-baseline gap-1.5">
+            <span className="sr-text-caption font-semibold tabular-nums text-[var(--sr-text-primary)]">
+              {Math.min(goal.current, goal.max)}/{goal.max}
+            </span>
+            <span className="sr-text-caption text-[var(--sr-text-muted)]">{goal.label}</span>
           </div>
         </div>
       )}

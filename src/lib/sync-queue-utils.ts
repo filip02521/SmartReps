@@ -8,7 +8,13 @@ export async function hasPendingSyncQueue(
   match: (payload: unknown) => boolean,
 ): Promise<boolean> {
   const wanted = Array.isArray(actions) ? actions : [actions]
-  const items = await db.syncQueue.toArray()
+  let items: import('@/lib/db').SyncQueueItem[]
+  try {
+    items = await db.syncQueue.toArray()
+  } catch (err) {
+    console.warn('[sync-queue] hasPendingSyncQueue — DB error', err instanceof Error ? err.name : typeof err)
+    return false
+  }
   for (const item of items) {
     if (item.table !== table || !wanted.includes(item.action as SyncAction)) continue
     try {

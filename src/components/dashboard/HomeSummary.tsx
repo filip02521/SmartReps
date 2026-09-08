@@ -1,27 +1,71 @@
-import { Activity } from 'lucide-react'
-import type { HomeLoadResult } from '@/lib/home-summary'
+import { Play, ChevronDown } from 'lucide-react'
+import type { HomeLoadResult, QuickCta } from '@/lib/home-summary'
+import { getGreetingKey } from '@/lib/home-summary'
+import { Button } from '@/components/ui/Button'
 import { MetricStrip } from '@/components/ui/MetricStrip'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
 import { StreakChainCard } from '@/components/dashboard/StreakChainCard'
 import { pl } from '@/i18n/pl'
+import { cn } from '@/lib/utils'
 import type { LocalWorkoutSession } from '@/lib/db'
 
 type Summary = HomeLoadResult['summary']
 
-export function HomeStatusHeader({ summary }: { summary: Summary }) {
+export function HomeStatusHeader({
+  summary,
+  displayName,
+  onQuickCta,
+}: {
+  summary: Summary
+  displayName?: string
+  onQuickCta?: (cta: QuickCta) => void
+}) {
+  const greetingKey = getGreetingKey()
+  const cta = summary.quickCta
+  const showCta = cta && onQuickCta
+  const isScroll = cta?.kind === 'scroll'
   return (
     <header className="mb-5">
-      <p className="sr-text-body-sm capitalize text-[var(--sr-text-secondary)]">
-        {summary.dateLabel}
-      </p>
-      <h2 className="mt-1 sr-text-h2 leading-snug text-[var(--sr-text-primary)]">
+      {/* Date + greeting — compact eyebrow */}
+      <div className="flex items-baseline gap-2">
+        <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+          {summary.dateLabel}
+        </p>
+        {displayName && (
+          <>
+            <span className="sr-text-body-sm text-[var(--sr-text-muted)]" aria-hidden>·</span>
+            <p className="sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
+              {pl[greetingKey](displayName)}
+            </p>
+          </>
+        )}
+      </div>
+      {/* Headline — dominant, immediate answer to "what should I do?" */}
+      <h2 className="mt-1.5 sr-text-h2 leading-snug text-[var(--sr-text-primary)]">
         {summary.statusHeadline}
       </h2>
       {summary.statusSubtitle && (
-        <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
+        <p className="mt-0.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
           {summary.statusSubtitle}
         </p>
+      )}
+      {/* Quick CTA — primary action, one tap away */}
+      {showCta && cta && onQuickCta && (
+        <Button
+          size="touch"
+          fullWidth
+          className={cn('mt-3', !isScroll && 'sr-pulse-cta')}
+          onClick={() => onQuickCta(cta)}
+        >
+          <span className="flex items-center justify-center gap-2">
+            {isScroll ? (
+              <ChevronDown size={18} aria-hidden />
+            ) : (
+              <Play size={18} className="fill-current" aria-hidden />
+            )}
+            {cta.label}
+          </span>
+        </Button>
       )}
     </header>
   )
@@ -35,8 +79,10 @@ export function HomeActivitySection({
   sessions: LocalWorkoutSession[]
 }) {
   return (
-    <section className="mb-6" aria-label={pl.homeActivityTitle}>
-      <SectionHeader icon={Activity} title={pl.homeActivityTitle} />
+    <section aria-label={pl.homeActivityTitle}>
+      <p className="mb-2 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+        {pl.homeActivityTitle}
+      </p>
       <MetricStrip
         metrics={[
           {
@@ -49,24 +95,25 @@ export function HomeActivitySection({
             label: pl.homeReps14d,
             hint: pl.homeReps14dHint,
           },
+          {
+            value: summary.streakWeeks,
+            label: pl.homeStreakWeeksLabel,
+            hint: pl.homeStreakWeeksHint,
+          },
         ]}
         goal={{
-          label: pl.homeGoal3in14,
+          label: pl.homeGoalNin14(summary.goalTarget),
           current: summary.sessions14d,
-          max: 3,
+          max: summary.goalTarget,
         }}
       />
-      <ActivityInsightsPanel insights={summary.activity} />
+      <ActivityInsightsPanel
+        insights={summary.activity}
+        compact
+        customLastWorkout={summary.customLastWorkout}
+      />
       {/* Streak chain — visual retention driver, tappable to Progress */}
-      <StreakChainCard sessions={sessions} />
-      {summary.customLastWorkout && (
-        <p className="mt-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
-          {pl.customLastWorkoutInsight(
-            summary.customLastWorkout.planName,
-            summary.customLastWorkout.whenLabel,
-          )}
-        </p>
-      )}
+      <StreakChainCard sessions={sessions} compact />
     </section>
   )
 }

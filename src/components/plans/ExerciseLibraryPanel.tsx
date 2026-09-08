@@ -92,7 +92,7 @@ export function ExerciseLibraryPanel({
     setMetric(ex.primaryMetric)
     setRest(ex.restDefaultSec)
     setMuscleGroup(ex.muscleGroup ?? '')
-    setDurationUnit(ex.durationDisplayUnit ?? 'sec')
+    setDurationUnit(ex.durationDisplayUnit ?? 'min')
     setUsedIn(await countPlansUsingExercise(ex.id))
   }
 
@@ -272,8 +272,8 @@ export function ExerciseLibraryPanel({
               value={metric}
               onChange={(v) => {
                 setMetric(v as PrimaryMetric)
-                // Auto-suggest 'min' when switching to duration and muscleGroup is cardio
-                if (v === 'duration_sec' && muscleGroup === 'cardio') {
+                // Duration exercises default to minutes (more natural for cardio/time-based)
+                if (v === 'duration_sec') {
                   setDurationUnit('min')
                 }
               }}
@@ -401,6 +401,7 @@ export function ExerciseLibraryPanel({
         open={muscleSheetOpen}
         onClose={() => setMuscleSheetOpen(false)}
         title={pl.exerciseMuscleGroup}
+        elevated
       >
         <ul className="flex flex-col gap-1 pb-2">
           <li>

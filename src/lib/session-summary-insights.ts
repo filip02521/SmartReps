@@ -192,7 +192,7 @@ export function computeCustomSessionInsights(params: {
         id: `ex-pr-${log.exerciseId}`,
         tone: 'pr',
         label: pl.summaryHighlightExercisePr(name),
-        value: formatExerciseSetSummary(metric, exerciseBestSet, 'kg', def?.durationDisplayUnit ?? 'sec'),
+        value: formatExerciseSetSummary(metric, exerciseBestSet, 'kg', def?.durationDisplayUnit ?? 'min'),
       })
     }
 

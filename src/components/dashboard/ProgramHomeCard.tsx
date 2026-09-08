@@ -105,9 +105,9 @@ export function ProgramHomeCard({
       <ProgramAccentCard program={program}>
         <div className="flex items-center gap-3">
           <ProgramIconBadge program={program} />
-          <h2 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
+          <h3 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
             {model.label}
-          </h2>
+          </h3>
         </div>
         <div className="mt-3">
           <ErrorBanner message={model.loadError} onRetry={onReload} />
@@ -123,9 +123,9 @@ export function ProgramHomeCard({
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <ProgramIconBadge program={program} />
             <div className="min-w-0 flex-1">
-              <h2 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
+              <h3 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
                 {model.label}
-              </h2>
+              </h3>
             </div>
           </div>
           <Badge variant="info">{pl.notConfigured}</Badge>
@@ -161,9 +161,9 @@ export function ProgramHomeCard({
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <ProgramIconBadge program={program} />
           <div className="min-w-0 flex-1">
-            <h2 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
+            <h3 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
               {model.label}
-            </h2>
+            </h3>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">

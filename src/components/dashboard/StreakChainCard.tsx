@@ -146,7 +146,13 @@ function nextMilestone(current: number): number | null {
   return null
 }
 
-export function StreakChainCard({ sessions }: { sessions: LocalWorkoutSession[] }) {
+export function StreakChainCard({
+  sessions,
+  compact = false,
+}: {
+  sessions: LocalWorkoutSession[]
+  compact?: boolean
+}) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const completed = useMemo(
     () => sessions.filter((s) => s.status === 'completed'),
@@ -210,6 +216,7 @@ export function StreakChainCard({ sessions }: { sessions: LocalWorkoutSession[] 
       className={cn(
         FOCUS_RING,
         'group mt-3 flex w-full flex-col gap-3 rounded-[var(--sr-radius-lg)] border p-4 text-left transition-colors hover:bg-[var(--sr-bg-elevated)]',
+        compact && 'p-3 gap-2',
         isAtRisk
           ? 'border-[color-mix(in_srgb,var(--sr-warning)_35%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-warning)_6%,var(--sr-bg-surface))]'
           : streak > 0
@@ -264,24 +271,47 @@ export function StreakChainCard({ sessions }: { sessions: LocalWorkoutSession[] 
         </div>
       </div>
 
-      {/* Chain visualization — connected cells */}
-      <div className="flex items-center gap-1" role="img" aria-label={pl.streakHeatmapMiniAria(streak)}>
-        {cells.map((cell) => {
-          const visual = cellVisual(cell.sessions, cell.isPartOfStreak)
-          return (
+      {/* Chain visualization — full 12-week in default, 3-dot mini in compact */}
+      {!compact ? (
+        <div className="flex items-center gap-1" role="img" aria-label={pl.streakHeatmapMiniAria(streak)}>
+          {cells.map((cell) => {
+            const visual = cellVisual(cell.sessions, cell.isPartOfStreak)
+            return (
+              <div
+                key={cell.weekKey}
+                title={pl.streakHeatmapCellAria(cell.sessions, 0, cell.label)}
+                className={cn(
+                  'h-7 flex-1 rounded-[var(--sr-radius-sm)] border transition-colors',
+                  visual.bg,
+                  visual.border,
+                  cell.isCurrent && 'ring-2 ring-[var(--sr-brand-primary)] ring-offset-1 ring-offset-[var(--sr-bg-surface)]',
+                )}
+              />
+            )
+          })}
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5" role="img" aria-label={pl.streakHeatmapMiniAria(streak)}>
+          {cells.slice(-3).map((cell) => (
             <div
               key={cell.weekKey}
               title={pl.streakHeatmapCellAria(cell.sessions, 0, cell.label)}
               className={cn(
-                'h-7 flex-1 rounded-[var(--sr-radius-sm)] border transition-colors',
-                visual.bg,
-                visual.border,
-                cell.isCurrent && 'ring-2 ring-[var(--sr-brand-primary)] ring-offset-1 ring-offset-[var(--sr-bg-surface)]',
+                'h-1.5 w-1.5 rounded-full transition-colors',
+                cell.sessions >= 5
+                  ? 'bg-[var(--sr-brand-primary)]'
+                  : cell.sessions >= 3
+                    ? 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_60%,transparent)]'
+                    : cell.sessions > 0
+                      ? 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_35%,transparent)]'
+                      : cell.isPartOfStreak
+                        ? 'bg-[color-mix(in_srgb,var(--sr-warning)_40%,transparent)]'
+                        : 'bg-[var(--sr-border-subtle)]',
               )}
             />
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Bottom row: at-risk warning OR milestone progress */}
       {isAtRisk ? (

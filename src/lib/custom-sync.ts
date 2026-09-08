@@ -34,7 +34,7 @@ export async function upsertUserExercise(userId: string, ex: ExerciseDefinition)
     archived: ex.archived,
     muscle_group: ex.muscleGroup ?? null,
     source: ex.source ?? 'user',
-    duration_display_unit: ex.durationDisplayUnit ?? 'sec',
+    duration_display_unit: ex.durationDisplayUnit ?? 'min',
     created_at: ex.createdAt,
     updated_at: ex.updatedAt,
   })

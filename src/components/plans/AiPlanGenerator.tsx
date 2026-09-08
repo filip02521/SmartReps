@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
@@ -24,6 +24,9 @@ import { formatDurationDisplay, type DurationUnit } from '@/lib/custom-prescript
 import { weightUnitLabel } from '@/lib/weight-units'
 import { AiCoachHeader, AiCoachMessage } from '@/components/brand/AiCoachHeader'
 import { Check, AlertTriangle, RotateCcw, Sparkles } from 'lucide-react'
+import { db } from '@/lib/db'
+
+const PLAN_DRAFT_ID = 'draft'
 
 type Step = 'form' | 'generating' | 'result' | 'error'
 
@@ -72,12 +75,43 @@ export function AiPlanGenerator({
     const m = new Map<string, DurationUnit>()
     if (!result) return m
     for (const ex of result.newExercises) {
-      m.set(ex.id, ex.durationDisplayUnit ?? 'sec')
+      m.set(ex.id, ex.durationDisplayUnit ?? 'min')
     }
     return m
   }, [result])
   const [importing, setImporting] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Abort any in-flight AI request on unmount — safety net beyond handleClose
+  useEffect(() => {
+    const ref = abortRef
+    return () => {
+      ref.current?.abort()
+    }
+  }, [])
+
+  // Restore draft plan when Sheet opens — survives refresh / accidental close
+  useEffect(() => {
+    if (!open) return
+    void db.aiPlanDrafts
+      .get(PLAN_DRAFT_ID)
+      .then((draft) => {
+        if (!draft) return
+        try {
+          const restored = JSON.parse(draft.resultJson) as PlanGenerationResult
+          const names = new Map<string, string>(
+            JSON.parse(draft.exerciseNamesJson) as [string, string][],
+          )
+          setResult(restored)
+          setExerciseNames(names)
+          setStep('result')
+        } catch {
+          // Corrupted draft — clear it so it doesn't block future generations
+          void db.aiPlanDrafts.delete(PLAN_DRAFT_ID).catch(() => {})
+        }
+      })
+      .catch(() => {})
+  }, [open])
 
   // Form state
   const [description, setDescription] = useState('')
@@ -159,6 +193,13 @@ export function AiPlanGenerator({
         setExerciseNames(names)
         setResult(res)
         setStep('result')
+        // Persist draft so it survives refresh / accidental close
+        void db.aiPlanDrafts.put({
+          id: PLAN_DRAFT_ID,
+          resultJson: JSON.stringify(res),
+          exerciseNamesJson: JSON.stringify([...names.entries()]),
+          createdAt: new Date().toISOString(),
+        }).catch(() => {})
       } catch (e) {
         if (controller.signal.aborted) return
         clearTimeout(timeout)
@@ -194,6 +235,8 @@ export function AiPlanGenerator({
     void (async () => {
       try {
         await commitGeneratedPlan(result)
+        // Clear draft — plan was imported, no longer needed
+        void db.aiPlanDrafts.delete(PLAN_DRAFT_ID).catch(() => {})
         showToast(pl.aiImported, 'success')
         onGenerated()
         handleClose()
@@ -228,6 +271,8 @@ export function AiPlanGenerator({
     setStep('form')
     setResult(null)
     setExerciseNames(new Map())
+    // Clear draft — user explicitly discarded
+    void db.aiPlanDrafts.delete(PLAN_DRAFT_ID).catch(() => {})
   }
 
   return (

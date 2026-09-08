@@ -108,7 +108,7 @@ describe('deriveProgramBucket', () => {
 })
 
 describe('buildStatusDisplay', () => {
-  it('soft copy when resume and other ready', () => {
+  it('contextual headline when resume and other ready', () => {
     const status = buildStatusDisplay([
       card({
         program: 'pushups',
@@ -118,8 +118,10 @@ describe('buildStatusDisplay', () => {
       }),
       card({ program: 'pullups', bucket: 'ready', progress: prog({ program: 'pullups' }) }),
     ])
-    expect(status.headline).toBe(pl.homeStatusResumeAndReady)
-    expect(status.subtitle).toBeUndefined()
+    expect(status.headline).toBe(pl.homeStatusResumeHeadline(pl.pushupsProgram))
+    expect(status.subtitle).toBe(pl.homeStatusResumeAndReadySubtitle(pl.pullupsProgram))
+    expect(status.quickCta?.kind).toBe('workout-force')
+    expect(status.quickCta?.program).toBe('pushups')
   })
 
   it('picks soonest nextWorkoutAfter when all resting', () => {
@@ -177,6 +179,100 @@ describe('buildStatusDisplay', () => {
       }),
     ])
     expect(status.headline).toBe(pl.homeStatusAllPaused)
+  })
+
+  it('contextual headline with day/total when ready', () => {
+    const status = buildStatusDisplay([
+      card({
+        program: 'pushups',
+        bucket: 'ready',
+        progress: prog({ currentDay: 5 }),
+        cycleDayCount: 21,
+      }),
+    ])
+    expect(status.headline).toBe(pl.homeStatusReadyHeadline(5, 21))
+    expect(status.subtitle).toBe(pl.homeStatusReadySubtitle(pl.pushupsProgram))
+    expect(status.quickCta?.kind).toBe('workout')
+    expect(status.quickCta?.program).toBe('pushups')
+  })
+
+  it('scroll quickCta when stale resume only', () => {
+    const status = buildStatusDisplay([
+      card({
+        program: 'pushups',
+        bucket: 'resume_stale',
+        resume: resumeStale,
+        progress: prog({}),
+      }),
+    ])
+    expect(status.headline).toBe(pl.homeStatusResumeHeadline(pl.pushupsProgram))
+    expect(status.subtitle).toBe(pl.homeStatusResumeStaleSubtitle)
+    expect(status.quickCta?.kind).toBe('scroll')
+  })
+
+  it('setup quickCta when all unconfigured', () => {
+    const status = buildStatusDisplay([
+      card({ program: 'pushups', bucket: 'unconfigured' }),
+    ])
+    expect(status.headline).toBe(pl.homeStatusSetupHeadline)
+    expect(status.subtitle).toBe(pl.homeStatusSetupSubtitle)
+    expect(status.quickCta?.kind).toBe('setup')
+    expect(status.quickCta?.program).toBe('pushups')
+  })
+
+  it('ready program takes priority when one resting and other ready', () => {
+    const future = new Date()
+    future.setDate(future.getDate() + 2)
+    const status = buildStatusDisplay([
+      card({
+        program: 'pushups',
+        bucket: 'resting',
+        progress: prog({ nextWorkoutAfter: future.toISOString() }),
+        stats: {
+          lastSession: undefined,
+          nextWorkoutLabel: 'za 2 dni',
+          lastTotalReps: null,
+          maxLastSetTrend: { current: 0, previous: null, delta: null },
+          passedSessionCount: 0,
+          totalRepsAllTime: 0,
+          streakWeeks: 0,
+          maxTestRecord: null,
+          completedDaysInCycle: 0,
+          cycleDaysTotal: 12,
+        },
+      }),
+      card({ program: 'pullups', bucket: 'ready', progress: prog({ program: 'pullups' }) }),
+    ])
+    // Ready program takes priority — user can train pullups now
+    expect(status.quickCta?.kind).toBe('workout')
+    expect(status.quickCta?.program).toBe('pullups')
+  })
+
+  it('train-anyway quickCta when all resting', () => {
+    const future = new Date()
+    future.setDate(future.getDate() + 2)
+    const status = buildStatusDisplay([
+      card({
+        program: 'pushups',
+        bucket: 'resting',
+        progress: prog({ nextWorkoutAfter: future.toISOString() }),
+        stats: {
+          lastSession: undefined,
+          nextWorkoutLabel: 'za 2 dni',
+          lastTotalReps: null,
+          maxLastSetTrend: { current: 0, previous: null, delta: null },
+          passedSessionCount: 0,
+          totalRepsAllTime: 0,
+          streakWeeks: 0,
+          maxTestRecord: null,
+          completedDaysInCycle: 0,
+          cycleDaysTotal: 12,
+        },
+      }),
+    ])
+    expect(status.headline).toBe(pl.homeStatusRestHeadline)
+    expect(status.quickCta?.kind).toBe('workout-force')
+    expect(status.quickCta?.program).toBe('pushups')
   })
 })
 

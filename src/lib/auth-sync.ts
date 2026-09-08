@@ -413,7 +413,17 @@ export async function completeSignInFlow(
       return
     }
 
-    consumeAuthFromOnboarding()
+    const fromOnboarding = consumeAuthFromOnboarding()
+    // User chose "I have an account" from onboarding — skip the wizard and
+    // go directly to the dashboard. They can configure programs later via
+    // soft onboarding (ProgramHomeCard on Dashboard). Without this, a brand-new
+    // account (no cloud progress yet) bounces back to /setup/onboarding.
+    if (fromOnboarding) {
+      const { settings, setSettings } = useAppStore.getState()
+      if (!settings.onboardingComplete) {
+        setSettings({ onboardingComplete: true })
+      }
+    }
     if (navigate) {
       try {
         await resolvePostAuthNavigation(navigate, opts?.returnTo ?? consumeAuthReturnTo())

@@ -35,6 +35,7 @@ export async function clearAllLocalData(): Promise<void> {
     db.customProgramProgress.clear(),
     db.aiInsights.clear(),
     db.aiAnalysisCache.clear(),
+    db.aiPlanDrafts.clear(),
     db.sessionTombstones.clear(),
     db.achievementUnlocks.clear(),
     db.bodyWeight.clear(),

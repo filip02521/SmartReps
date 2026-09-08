@@ -25,6 +25,7 @@ import { Sheet } from '@/components/ui/Sheet'
 import { SessionElapsedLabel } from '@/components/workout/SessionElapsedLabel'
 import { Z_REST_PILL } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
+import { ErrorBanner } from '@/components/ux/Feedback'
 
 export type ActiveWorkoutScreenProps = {
   program: Program
@@ -78,6 +79,8 @@ export type ActiveWorkoutScreenProps = {
   onDismissLeave: () => void
   onClosePlan: () => void
   onCloseMenu: () => void
+  saveError?: string | null
+  onDismissSaveError?: () => void
 }
 
 export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
@@ -131,6 +134,8 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     onDismissLeave,
     onClosePlan,
     onCloseMenu,
+    saveError,
+    onDismissSaveError,
   } = props
 
   const currentTarget = day.sets[currentSetIndex]
@@ -149,38 +154,54 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col safe-top safe-bottom">
-      <header className="flex shrink-0 items-center justify-between gap-1 px-2 py-2.5">
-        <button
-          type="button"
-          onClick={onBack}
-          className={cn(
-            'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
-            FOCUS_RING,
-          )}
-          aria-label={pl.back}
-        >
-          <ArrowLeft size={22} />
-        </button>
-        <div className="min-w-0 flex-1 px-1 text-center">
-          <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
-            {pl.workoutHeader(programLabel, progress.currentDay, currentSetIndex + 1, day.sets.length)}
-          </p>
-          {sessionStartedAt && (
-            <SessionElapsedLabel startedAt={sessionStartedAt} className="mt-0.5" />
-          )}
+      <header className="shrink-0 border-b border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]">
+        <div className="flex items-center justify-between gap-1 px-2 py-2.5">
+          <button
+            type="button"
+            onClick={onBack}
+            className={cn(
+              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              FOCUS_RING,
+            )}
+            aria-label={pl.back}
+          >
+            <ArrowLeft size={22} />
+          </button>
+          <div className="min-w-0 flex-1 px-1 text-center">
+            <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+              {pl.workoutHeader(programLabel, progress.currentDay, currentSetIndex + 1, day.sets.length)}
+            </p>
+            {sessionStartedAt && (
+              <SessionElapsedLabel startedAt={sessionStartedAt} className="mt-0.5" />
+            )}
+          </div>
+          <button
+            type="button"
+            aria-label={pl.menuWorkout}
+            aria-expanded={showMenu}
+            onClick={onToggleMenu}
+            className={cn(
+              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              FOCUS_RING,
+            )}
+          >
+            <MoreVertical size={20} />
+          </button>
         </div>
-        <button
-          type="button"
-          aria-label={pl.menuWorkout}
-          aria-expanded={showMenu}
-          onClick={onToggleMenu}
-          className={cn(
-            'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
-            FOCUS_RING,
-          )}
+        {/* Progress bar — visual indicator of set completion */}
+        <div
+          className="h-1 w-full bg-[var(--sr-bg-surface)]"
+          role="progressbar"
+          aria-valuenow={Math.min(setResults.length, day.sets.length)}
+          aria-valuemin={0}
+          aria-valuemax={day.sets.length}
+          aria-label={pl.workoutProgressAria(setResults.length, day.sets.length)}
         >
-          <MoreVertical size={20} />
-        </button>
+          <div
+            className="h-full bg-[var(--sr-brand-primary)] transition-[width] duration-300 motion-reduce:transition-none"
+            style={{ width: `${Math.min(100, (setResults.length / day.sets.length) * 100)}%` }}
+          />
+        </div>
       </header>
 
       {showMenu && (
@@ -219,27 +240,33 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         </Sheet>
       )}
 
+      {saveError && (
+        <div className="mx-4 mt-3 mb-1">
+          <ErrorBanner message={saveError} onRetry={onDismissSaveError} />
+        </div>
+      )}
+
       {cycleVariant === 'negative' && <NegativeBanner />}
       {preparingNegative && (
         <NegativeCountdown seconds={negativeCountdown!} />
       )}
 
       {showHint && (
-        <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary-muted)] px-3 py-2 text-sm">
-          {pl.workoutHint}
-          <button type="button" className="ml-2 min-h-11 underline underline-offset-2 transition-colors hover:text-[var(--sr-text-primary)] active:scale-95" onClick={onDismissHint}>{pl.ok}</button>
+        <div className="mx-4 mt-3 mb-1 flex items-start gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_60%,var(--sr-bg-elevated))] px-3 py-2.5 text-sm">
+          <span className="flex-1 text-[var(--sr-text-secondary)]">{pl.workoutHint}</span>
+          <button type="button" className="min-h-9 shrink-0 rounded-[var(--sr-radius-sm)] px-2 text-sm font-semibold text-[var(--sr-brand-primary)] underline underline-offset-2 transition-colors hover:text-[var(--sr-brand-primary-hover)] active:scale-95" onClick={onDismissHint}>{pl.ok}</button>
         </div>
       )}
 
       {failedRetryVisible && (
-        <div className="mx-4 mb-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-error-muted)] px-3 py-2 text-sm text-[var(--sr-error)]">
+        <div className="mx-4 mt-3 mb-1 flex items-start gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)] px-3 py-2.5 text-sm text-[var(--sr-error)]">
           {currentTarget.kind === 'exact'
             ? pl.workoutFailExactBanner(actual, targetReps)
             : pl.workoutFailBanner(actual, targetReps)}
         </div>
       )}
 
-      <div className="flex-shrink-0 px-4">
+      <div className="flex-shrink-0 px-4 pt-3">
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {pl.setColumn} {currentSetIndex + 1} z {day.sets.length}, {pl.targetColumn.toLowerCase()} {targetReps} {unit}
         </p>
@@ -276,7 +303,10 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         )}
       </div>
 
-      <div ref={checklistRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-28">
+      <div ref={checklistRef} className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-28">
+        <p className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+          {pl.workoutSetsSectionTitle} · {setResults.length}/{day.sets.length}
+        </p>
         <SetChecklist
           sets={day.sets}
           currentIndex={currentSetIndex}

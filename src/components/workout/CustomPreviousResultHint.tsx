@@ -33,12 +33,12 @@ export function CustomPreviousResultHint({
   return (
     <div className={cn('flex justify-center px-2', className)}>
       <p
-        className="inline-flex max-w-full flex-wrap items-center justify-center gap-x-1.5 gap-y-1 rounded-[var(--sr-radius-full)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-3 py-1.5 text-xs leading-snug text-[var(--sr-text-secondary)]"
+        className="inline-flex max-w-full flex-wrap items-center justify-center gap-x-1.5 gap-y-1 rounded-full border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-1.5 text-xs leading-snug text-[var(--sr-text-secondary)]"
         aria-label={pl.customPreviousAria(context, value)}
       >
         <History
           size={13}
-          className="shrink-0 text-[var(--sr-brand-primary)]"
+          className="shrink-0 text-[var(--sr-text-muted)]"
           aria-hidden
         />
         <span className="font-medium text-[var(--sr-text-muted)]">{pl.customPreviousLabel}</span>
@@ -47,7 +47,7 @@ export function CustomPreviousResultHint({
             <span aria-hidden className="text-[var(--sr-text-muted)]">
               ·
             </span>
-            <span className="font-medium text-[var(--sr-brand-primary)]">{context}</span>
+            <span className="font-medium text-[var(--sr-text-secondary)]">{context}</span>
           </>
         ) : null}
         <span aria-hidden className="text-[var(--sr-text-muted)]">

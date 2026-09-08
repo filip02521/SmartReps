@@ -537,6 +537,8 @@ test.describe('custom plans smoke', () => {
     await page.getByRole('button', { name: /Dzień 1/ }).click()
     await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).click()
     await page.getByRole('button', { name: 'Pompki' }).first().click()
+    // Sheet closes; exercise appears in day list — click it to open detail
+    await page.getByRole('button', { name: /Pompki/ }).first().click()
     await expect(page.getByLabel('Notatka (opcjonalnie)')).toBeVisible({ timeout: 10_000 })
   })
 

@@ -52,16 +52,16 @@ type EditorView =
   | { screen: 'hub' }
   | { screen: 'day'; dayIndex: number }
   | { screen: 'exercise'; dayIndex: number; exerciseIndex: number }
-  | { screen: 'pick'; dayIndex: number }
-  | { screen: 'pickReplace'; dayIndex: number; exerciseIndex: number }
 
 function defaultSets(
   metric: ExerciseDefinition['primaryMetric'],
   durationUnit?: 'sec' | 'min',
 ): SetPrescription[] {
   if (metric === 'duration_sec') {
+    // Default to minutes for duration exercises (cardio-friendly)
+    const unit = durationUnit ?? 'min'
     // For min-based exercises (cardio), default to 5 min (300s); for sec, 30s
-    const defaultSec = durationUnit === 'min' ? 300 : 30
+    const defaultSec = unit === 'min' ? 300 : 30
     return [{ durationSec: { kind: 'min', value: defaultSec } }]
   }
   if (metric === 'reps_weight') {
@@ -139,6 +139,7 @@ export function CustomPlanEditor({
   const [showDeload, setShowDeload] = useState(false)
   const [expandedExercise, setExpandedExercise] = useState<number | null>(null)
   const [expandedDay, setExpandedDay] = useState<number | null>(null)
+  const [pickSheet, setPickSheet] = useState<{ dayIndex: number; replaceIndex?: number } | null>(null)
   const exerciseNameTimer = useRef<number | null>(null)
   const activeDay = activeWorkoutDayNumber ?? null
 
@@ -274,7 +275,7 @@ export function CustomPlanEditor({
   }
 
   const day =
-    view.screen === 'day' || view.screen === 'exercise' || view.screen === 'pick' || view.screen === 'pickReplace'
+    view.screen === 'day' || view.screen === 'exercise'
       ? plan.days[view.dayIndex]
       : undefined
   const exerciseIndex = view.screen === 'exercise' ? view.exerciseIndex : 0
@@ -284,8 +285,6 @@ export function CustomPlanEditor({
     view.screen === 'exercise' && day != null ? isDayLocked(day.dayNumber) : false
 
   function sheetTitle() {
-    if (view.screen === 'pick') return pl.exercisePickTitle
-    if (view.screen === 'pickReplace') return pl.exerciseReplaceTitle
     if (view.screen === 'day' && day) return pl.planDayLabel(day.dayNumber)
     if (view.screen === 'exercise') return exDef?.name ?? pl.planEllipsis
     return plan.name.trim() || pl.newCustomPlan
@@ -331,7 +330,8 @@ export function CustomPlanEditor({
     const next = { ...plan, days }
     updatePlan(next)
     setExercises((prev) => (prev.some((e) => e.id === ex.id) ? prev : [...prev, ex]))
-    setView({ screen: 'exercise', dayIndex: dayIdx, exerciseIndex: d.exercises.length })
+    setPickSheet(null)
+    showToast(pl.exerciseAddedToDay(ex.name), 'success')
   }
 
   /** Replace the exercise definition at (dayIdx, exIdx) while keeping sets, rests, notes, progression. */
@@ -351,7 +351,8 @@ export function CustomPlanEditor({
     days[dayIdx] = { ...d, exercises }
     updatePlan({ ...plan, days })
     setExercises((prev) => (prev.some((e) => e.id === ex.id) ? prev : [...prev, ex]))
-    setView({ screen: 'exercise', dayIndex: dayIdx, exerciseIndex: exIdx })
+    setPickSheet(null)
+    showToast(pl.exerciseReplacedInDay(ex.name), 'success')
   }
 
   const filterExplicit = useAppStore((s) => s.settings.customPlansFilterExplicit)
@@ -935,7 +936,7 @@ export function CustomPlanEditor({
                         label: pl.planAddExercise,
                         onClick: () => {
                           if (!guardDayEdit(view.dayIndex)) return
-                          setView({ screen: 'pick', dayIndex: view.dayIndex })
+                          setPickSheet({ dayIndex: view.dayIndex })
                         },
                       }
                     : undefined
@@ -998,7 +999,7 @@ export function CustomPlanEditor({
                             size="sm"
                             sets={pe.sets}
                             metric={def.primaryMetric}
-                            durationUnit={def.durationDisplayUnit ?? 'sec'}
+                            durationUnit={def.durationDisplayUnit ?? 'min'}
                           />
                         )}
                       </button>
@@ -1234,7 +1235,7 @@ export function CustomPlanEditor({
               disabled={isDayLocked(day.dayNumber)}
               onClick={() => {
                 if (!guardDayEdit(view.dayIndex)) return
-                setView({ screen: 'pick', dayIndex: view.dayIndex })
+                setPickSheet({ dayIndex: view.dayIndex })
               }}
               className={cn(
                 'flex min-h-11 w-full items-center justify-center gap-1.5 rounded-[var(--sr-radius-md)] border border-dashed border-[var(--sr-border-subtle)] text-sm font-medium text-[var(--sr-text-secondary)] transition-colors hover:border-[var(--sr-brand-primary)] hover:text-[var(--sr-brand-primary)] active:scale-[0.99]',
@@ -1247,62 +1248,6 @@ export function CustomPlanEditor({
             </button>
             )}
 
-            <SaveBar
-              plan={plan}
-              onActivate={() => void handleActivate()}
-              onSaveDraft={() => void handleSaveDraft()}
-            />
-          </div>
-        )}
-
-        {view.screen === 'pick' && (
-          <div className="flex flex-col gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              className="self-start gap-1.5"
-              onClick={() => setView({ screen: 'day', dayIndex: view.dayIndex })}
-              aria-label={pl.planBack}
-            >
-              <ArrowLeft size={18} aria-hidden />
-              {pl.planBack}
-            </Button>
-            <p className="text-sm text-[var(--sr-text-muted)]">
-              {pl.exercisePickHint}
-            </p>
-            <ExerciseLibraryPanel
-              mode="pick"
-              onPick={(ex) => appendExercise(view.dayIndex, ex)}
-              onExercisesChange={setExercises}
-            />
-            <SaveBar
-              plan={plan}
-              onActivate={() => void handleActivate()}
-              onSaveDraft={() => void handleSaveDraft()}
-            />
-          </div>
-        )}
-
-        {view.screen === 'pickReplace' && (
-          <div className="flex flex-col gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              className="self-start gap-1.5"
-              onClick={() => setView({ screen: 'exercise', dayIndex: view.dayIndex, exerciseIndex: view.exerciseIndex })}
-              aria-label={pl.planBack}
-            >
-              <ArrowLeft size={18} aria-hidden />
-              {pl.planBack}
-            </Button>
-            <p className="text-sm text-[var(--sr-text-muted)]">
-              {pl.exerciseReplaceHint(exDef?.name ?? '')}
-            </p>
-            <ExerciseLibraryPanel
-              mode="pick"
-              onPick={(ex) => replaceExercise(view.dayIndex, view.exerciseIndex, ex)}
-              onExercisesChange={setExercises}
-            />
             <SaveBar
               plan={plan}
               onActivate={() => void handleActivate()}
@@ -1330,7 +1275,7 @@ export function CustomPlanEditor({
                 size="sm"
                 className="gap-1.5"
                 disabled={exerciseDayLocked}
-                onClick={() => setView({ screen: 'pickReplace', dayIndex: view.dayIndex, exerciseIndex: view.exerciseIndex })}
+                onClick={() => setPickSheet({ dayIndex: view.dayIndex, replaceIndex: view.exerciseIndex })}
               >
                 <Repeat size={16} aria-hidden />
                 {pl.exerciseReplace}
@@ -1419,7 +1364,7 @@ export function CustomPlanEditor({
                         metric={exDef?.primaryMetric ?? 'reps'}
                         prescription={s}
                         disabled={exerciseDayLocked}
-                        durationUnit={exDef?.durationDisplayUnit ?? 'sec'}
+                        durationUnit={exDef?.durationDisplayUnit ?? 'min'}
                         onChange={(next) => updateSet(view.dayIndex, view.exerciseIndex, i, next)}
                       />
                     </li>
@@ -1556,6 +1501,38 @@ export function CustomPlanEditor({
           onCancel={() => setDeleteDayIndex(null)}
         />
       )}
+
+      <Sheet
+        open={pickSheet !== null}
+        onClose={() => setPickSheet(null)}
+        title={pickSheet?.replaceIndex != null ? pl.exerciseReplaceTitle : pl.exercisePickTitle}
+        elevated
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-[var(--sr-text-muted)]">
+            {pickSheet?.replaceIndex != null
+              ? pl.exerciseReplaceHint(
+                  pickSheet.dayIndex < plan.days.length
+                    ? plan.days[pickSheet.dayIndex]?.exercises[pickSheet.replaceIndex]?.exerciseId
+                      ? exercises.find((e) => e.id === plan.days[pickSheet.dayIndex]!.exercises[pickSheet.replaceIndex!]!.exerciseId)?.name ?? ''
+                      : ''
+                    : '',
+                )
+              : pl.exercisePickHint}
+          </p>
+          <ExerciseLibraryPanel
+            mode="pick"
+            onPick={(ex) => {
+              if (pickSheet?.replaceIndex != null) {
+                replaceExercise(pickSheet.dayIndex, pickSheet.replaceIndex, ex)
+              } else if (pickSheet) {
+                appendExercise(pickSheet.dayIndex, ex)
+              }
+            }}
+            onExercisesChange={setExercises}
+          />
+        </div>
+      </Sheet>
     </>
   )
 }

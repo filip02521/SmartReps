@@ -37,7 +37,7 @@ function formatExercisePrLine(pr: ExercisePr, weightUnit: 'kg' | 'lb' = 'kg'): s
     [
       pr.maxReps != null ? `${pr.maxReps} ${pl.repsUnit}` : null,
       pr.maxDurationSec != null
-        ? formatDurationDisplay(pr.maxDurationSec, pr.durationDisplayUnit ?? 'sec')
+        ? formatDurationDisplay(pr.maxDurationSec, pr.durationDisplayUnit ?? 'min')
         : null,
       pr.maxWeightKg != null ? `${kgToDisplay(pr.maxWeightKg, weightUnit)} ${weightUnitLabel(weightUnit)}` : null,
     ]

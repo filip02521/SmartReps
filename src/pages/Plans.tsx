@@ -20,11 +20,14 @@ import { CustomPlanEditor } from '@/components/plans/CustomPlanEditor'
 import { AiPlanGenerator } from '@/components/plans/AiPlanGenerator'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { CustomWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
+import { ProgramSettingsCard } from '@/components/profile/ProgramSettingsCard'
 import { getTargetReps } from '@/lib/progress-engine'
 import { db } from '@/lib/db'
 import { pl } from '@/i18n/pl'
 import { TAB_PAGE_SHELL, FOCUS_RING } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
+import { getProgramProgress, reconcileActiveWorkout, setProgramPaused } from '@/lib/program-service'
+import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import type { Program } from '@/data/plans/types'
 import type { LocalProgramProgress } from '@/lib/db'
 import type { CustomPlan, CustomProgramProgress, ExerciseDefinition } from '@/lib/exercise-model'
@@ -82,6 +85,7 @@ function firstDayNames(plan: CustomPlan, exercises: ExerciseDefinition[]): strin
 export default function PlansPage() {
   const navigate = useNavigate()
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
+  const { settings, setSettings } = useAppStore()
   const [searchParams, setSearchParams] = useSearchParams()
   useSeo({ title: pl.seoPlansTitle, description: pl.seoPlansDescription, path: '/plans' })
   const highlightId = searchParams.get('highlight')
@@ -117,6 +121,10 @@ export default function PlansPage() {
     dayNumber: number
   } | null>(null)
   const [deletePlan, setDeletePlan] = useState<CustomPlan | null>(null)
+  const [pendingChangeLevel, setPendingChangeLevel] = useState<Program | null>(null)
+  const [pendingRetest, setPendingRetest] = useState<Program | null>(null)
+  const [pendingDisable, setPendingDisable] = useState<Program | null>(null)
+  const [programsReady, setProgramsReady] = useState(false)
   const online = useOnline()
   const communityMine = searchParams.get('mine') === '1'
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -216,6 +224,91 @@ export default function PlansPage() {
     await reloadCustom()
   }
 
+  async function reloadPrograms() {
+    const map: Partial<Record<Program, LocalProgramProgress>> = {}
+    for (const p of settings.enabledPrograms) {
+      const prog = await getProgramProgress(p)
+      if (prog) map[p] = prog
+    }
+    setProgressByProgram(map)
+    setProgramsReady(true)
+  }
+
+  const retest = async (program: Program) => {
+    const active = await reconcileActiveWorkout(program)
+    if (active) {
+      setPendingRetest(program)
+      return
+    }
+    await beginProgramSetup(navigate, program, { retest: true })
+  }
+
+  const confirmRetest = async () => {
+    if (!pendingRetest) return
+    const program = pendingRetest
+    setPendingRetest(null)
+    await beginProgramSetup(navigate, program, { retest: true })
+  }
+
+  const changeLevel = async (program: Program) => {
+    const active = await reconcileActiveWorkout(program)
+    if (active) {
+      setPendingChangeLevel(program)
+      return
+    }
+    await beginLevelChange(navigate, program)
+  }
+
+  const confirmChangeLevel = async () => {
+    if (!pendingChangeLevel) return
+    const program = pendingChangeLevel
+    setPendingChangeLevel(null)
+    await beginLevelChange(navigate, program)
+  }
+
+  const addProgram = (program: Program) => {
+    if (settings.enabledPrograms.includes(program)) return
+    setSettings({ enabledPrograms: [...settings.enabledPrograms, program] })
+  }
+
+  const disableProgram = (program: Program) => {
+    const next = settings.enabledPrograms.filter((p) => p !== program)
+    setSettings({ enabledPrograms: next })
+    setPendingDisable(null)
+  }
+
+  const togglePause = async (program: Program) => {
+    const prog = progressByProgram[program]
+    if (!prog) return
+    await setProgramPaused(program, prog.status !== 'paused')
+    await reloadPrograms()
+  }
+
+  const missingPrograms = (['pushups', 'pullups'] as Program[]).filter(
+    (p) => !settings.enabledPrograms.includes(p),
+  )
+
+  const showProgramsLoading =
+    !programsReady &&
+    Object.keys(progressByProgram).length === 0 &&
+    settings.enabledPrograms.length > 0
+
+  const toggleCustomPlanTraining = (plan: CustomPlan, checked: boolean) => {
+    const current = settings.customPlansFilterExplicit
+      ? [...settings.enabledCustomPlanIds]
+      : customPlans.filter((p) => p.status === 'active').map((p) => p.id)
+    const next = checked
+      ? Array.from(new Set([...current, plan.id]))
+      : current.filter((id) => id !== plan.id)
+    setSettings({
+      customPlansFilterExplicit: true,
+      enabledCustomPlanIds: next,
+    })
+  }
+
+  const isCustomPlanOnTraining = (plan: CustomPlan) =>
+    !settings.customPlansFilterExplicit || settings.enabledCustomPlanIds.includes(plan.id)
+
   useEffect(() => {
     void (async () => {
       const rows = await db.programProgress.toArray()
@@ -224,6 +317,7 @@ export default function PlansPage() {
         map[row.program] = row
       }
       setProgressByProgram(map)
+      setProgramsReady(true)
     })()
     void reloadCustom()
   }, [lastSyncedAt])
@@ -448,8 +542,8 @@ export default function PlansPage() {
                           ) : null}
                         </div>
                       </div>
-                      <Badge variant={isActive ? 'success' : 'default'}>
-                        {isActive ? pl.planStatusActive : pl.planStatusDraft}
+                      <Badge variant={paused ? 'warning' : isActive ? 'success' : 'default'}>
+                        {paused ? pl.planStatusPaused : isActive ? pl.planStatusActive : pl.planStatusDraft}
                       </Badge>
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -569,7 +663,60 @@ export default function PlansPage() {
           <EmptyState icon={<LogoMark size={48} />} title={pl.noPlans} />
         ) : (
           <>
-            <PageSection title={pl.pushupsProgram} hint={pl.plansProgramHint}>
+            <PageSection title={pl.programs} hint={pl.plansProgramHint}>
+              {showProgramsLoading ? (
+                <div className="flex flex-col gap-4" aria-busy aria-label={pl.profileProgramsLoading}>
+                  <SkeletonCard className="min-h-[7rem]" />
+                  {settings.enabledPrograms.length > 1 && <SkeletonCard className="min-h-[7rem]" />}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {settings.enabledPrograms.length === 0 && (
+                    <p className="text-pretty sr-text-body-sm text-[var(--sr-text-secondary)]">
+                      {pl.profileProgramsEmpty}
+                    </p>
+                  )}
+
+                  {settings.enabledPrograms.map((program) => (
+                    <ProgramSettingsCard
+                      key={program}
+                      program={program}
+                      progress={progressByProgram[program]}
+                      canDisable={true}
+                      onSetupOnTraining={() => navigate(`/?program=${program}`)}
+                      onChangeLevel={() => void changeLevel(program)}
+                      onRetest={() => void retest(program)}
+                      onTogglePause={() => void togglePause(program)}
+                      onDisable={() => setPendingDisable(program)}
+                    />
+                  ))}
+
+                  {missingPrograms.length > 0 && (
+                    <div className="rounded-[var(--sr-radius-md)] border border-dashed border-[var(--sr-border-strong)] bg-[var(--sr-bg-surface)]/60 px-3 py-3.5">
+                      <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
+                        {pl.addProgram}
+                      </p>
+                      <div className="flex flex-col gap-2">
+                        {missingPrograms.map((p) => (
+                          <Button
+                            key={p}
+                            variant="secondary"
+                            size="md"
+                            fullWidth
+                            className="justify-start px-4"
+                            onClick={() => addProgram(p)}
+                          >
+                            {p === 'pushups' ? pl.addProgramPushups : pl.addProgramPullups}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </PageSection>
+
+            <PageSection title={pl.pushupsProgram} hint={pl.plansProgramHint} className="mt-6">
               <CycleList
                 program="pushups"
                 cycles={pushups}
@@ -707,6 +854,19 @@ export default function PlansPage() {
                 )}
               </Button>
             ) : null}
+            {morePlan.status === 'active' ? (
+              <Button
+                type="button"
+                variant="secondary"
+                fullWidth
+                onClick={() => {
+                  toggleCustomPlanTraining(morePlan, !isCustomPlanOnTraining(morePlan))
+                  setMorePlan(null)
+                }}
+              >
+                {isCustomPlanOnTraining(morePlan) ? pl.planHideFromTraining : pl.planShowOnTraining}
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="danger"
@@ -731,6 +891,41 @@ export default function PlansPage() {
           variant="danger"
           onConfirm={() => void confirmDeletePlan(deletePlan)}
           onCancel={() => setDeletePlan(null)}
+        />
+      )}
+
+      {pendingChangeLevel && (
+        <ConfirmSheet
+          title={pl.menuChangeLevel}
+          message={pl.changeLevelActiveWarning}
+          confirmLabel={pl.confirm}
+          variant="danger"
+          onConfirm={() => void confirmChangeLevel()}
+          onCancel={() => setPendingChangeLevel(null)}
+        />
+      )}
+      {pendingRetest && (
+        <ConfirmSheet
+          title={pl.menuRetest}
+          message={pl.changeLevelActiveWarning}
+          confirmLabel={pl.confirm}
+          variant="danger"
+          onConfirm={() => void confirmRetest()}
+          onCancel={() => setPendingRetest(null)}
+        />
+      )}
+      {pendingDisable && (
+        <ConfirmSheet
+          title={pl.disableProgram}
+          message={
+            settings.enabledPrograms.length === 1
+              ? pl.disableProgramConfirmLast
+              : pl.disableProgramConfirm
+          }
+          confirmLabel={pl.confirm}
+          variant="danger"
+          onConfirm={() => disableProgram(pendingDisable)}
+          onCancel={() => setPendingDisable(null)}
         />
       )}
 

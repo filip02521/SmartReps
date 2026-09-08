@@ -15,6 +15,9 @@ import {
   Sparkles,
   ChevronDown,
   RefreshCw,
+  Clock,
+  Trophy,
+  Layers,
 } from 'lucide-react'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { format, formatDistanceToNow } from 'date-fns'
@@ -23,6 +26,10 @@ import { dateFnsLocale } from '@/lib/date-locale'
 type WeeklyMetrics = {
   sessions: number
   totalReps: number
+  totalVolume?: number
+  trainingDays?: number
+  avgDurationMin?: number
+  prCount?: number
   streakWeeks: number
   repsWeekChangePct: number | null
   weekStart: string
@@ -50,10 +57,16 @@ function formatWeekRange(weekStart: string, weekEnd: string): string {
 }
 
 /** Truncate body to a single-line teaser for the collapsed state. */
-function teaser(body: string, maxLen = 110): string {
+function teaser(body: string, maxLen = 120): string {
   const single = body.replace(/\s+/g, ' ').trim()
   if (single.length <= maxLen) return single
   return `${single.slice(0, maxLen).trimEnd()}…`
+}
+
+/** Compact number formatting for volume (e.g. 12 400 → 12.4k). */
+function formatCompact(value: number): string {
+  if (value >= 10000) return `${(value / 1000).toFixed(1)}k`
+  return value.toLocaleString()
 }
 
 function MetricTile({
@@ -68,10 +81,10 @@ function MetricTile({
   accent: string
 }) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-[var(--sr-radius-sm)] bg-[var(--sr-bg-surface)] px-2 py-2.5 text-center">
-      <div className="flex items-center gap-1.5" style={{ color: accent }}>
+    <div className="flex flex-col items-center gap-1.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-1.5 py-2.5 text-center transition-colors hover:border-[var(--sr-border-strong)]">
+      <div className="flex items-center gap-1" style={{ color: accent }}>
         {icon}
-        <span className="text-base font-bold tabular-nums text-[var(--sr-text-primary)]">
+        <span className="text-base font-bold tabular-nums leading-none text-[var(--sr-text-primary)]">
           {value}
         </span>
       </div>
@@ -158,10 +171,19 @@ export function WeeklyReportCard({
     locale: dateFnsLocale(),
   })
 
+  // Detail metrics (expanded only) — secondary stats from the week
+  const hasDetailMetrics = metrics && (
+    metrics.trainingDays != null ||
+    metrics.avgDurationMin != null ||
+    metrics.prCount != null ||
+    metrics.totalVolume != null
+  )
+
   return (
     <section
       aria-live="polite"
-      className="sr-coach-msg-in mb-6 overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] shadow-[var(--sr-shadow-card)]"
+      aria-label={pl.coachWeeklyReportSectionAria}
+      className="sr-coach-msg-in overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] shadow-[var(--sr-shadow-card)]"
     >
       {/* Header — clickable to toggle expand/collapse */}
       <div
@@ -196,7 +218,7 @@ export function WeeklyReportCard({
             )}
           </div>
           {weekRange && (
-            <p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--sr-text-muted)]">
+            <p className="mt-1 flex items-center gap-1 text-xs text-[var(--sr-text-muted)]">
               <Calendar size={11} aria-hidden />
               {weekRange}
             </p>
@@ -225,7 +247,7 @@ export function WeeklyReportCard({
         />
       </div>
 
-      {/* Metrics grid — always visible (key at-a-glance data) */}
+      {/* Primary metrics grid — always visible (key at-a-glance data) */}
       {metrics && (
         <div className="grid grid-cols-4 gap-2 p-4 pb-2">
           <MetricTile
@@ -237,7 +259,7 @@ export function WeeklyReportCard({
           <MetricTile
             icon={<span className="text-xs font-bold" aria-hidden>Σ</span>}
             label={pl.coachWeeklyMetricReps}
-            value={String(metrics.totalReps)}
+            value={formatCompact(metrics.totalReps)}
             accent="var(--sr-brand-primary)"
           />
           <MetricTile
@@ -255,29 +277,70 @@ export function WeeklyReportCard({
         </div>
       )}
 
-      {/* Collapsed teaser — preview of the coach insight */}
+      {/* Collapsed teaser — preview of the coach insight + expand hint */}
       {!expanded && (
         <div className="px-4 pb-4 pt-1">
           <p className="text-sm leading-relaxed text-[var(--sr-text-secondary)]">
             {teaser(insight.body)}
           </p>
-          <p className="mt-1.5 text-[10px] font-medium uppercase tracking-wide text-[var(--sr-brand-primary)]">
-            {pl.coachWeeklyReportExpand} ↓
+          <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[var(--sr-brand-primary)]">
+            <ChevronDown size={12} aria-hidden />
+            {pl.coachWeeklyReportExpandHint}
           </p>
         </div>
       )}
 
-      {/* Expanded body — full coach insight + actions */}
+      {/* Expanded body — full coach insight + detail metrics + actions */}
       {expanded && (
         <div id={`weekly-report-body-${panelId}`} className="px-4 pb-4 pt-1">
+          {/* Coach message — left accent border for visual distinction */}
           {regenerating ? (
-            <p className="animate-pulse text-sm text-[var(--sr-text-muted)]">
-              {pl.coachWeeklyReportRegenerating}
-            </p>
+            <div className="mt-2 rounded-[var(--sr-radius-sm)] border-l-2 border-[var(--sr-brand-primary)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_40%,var(--sr-bg-surface))] px-3 py-2.5">
+              <p className="animate-pulse text-sm text-[var(--sr-text-muted)]">
+                {pl.coachWeeklyReportRegenerating}
+              </p>
+            </div>
           ) : (
-            <p className="whitespace-pre-line text-sm leading-relaxed text-[var(--sr-text-secondary)]">
-              {insight.body}
-            </p>
+            <div className="mt-2 rounded-[var(--sr-radius-sm)] border-l-2 border-[var(--sr-brand-primary)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_40%,var(--sr-bg-surface))] px-3 py-2.5">
+              <p className="whitespace-pre-line text-sm leading-relaxed text-[var(--sr-text-secondary)]">
+                {insight.body}
+              </p>
+            </div>
+          )}
+
+          {/* Detail metrics — secondary stats, expanded only */}
+          {hasDetailMetrics && !regenerating && (
+            <div className="mt-4">
+              <p className="mb-2 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+                {pl.coachWeeklyDetailLabel}
+              </p>
+              <div className="grid grid-cols-4 gap-2">
+                <MetricTile
+                  icon={<Calendar size={14} aria-hidden />}
+                  label={pl.coachWeeklyMetricDays}
+                  value={String(metrics.trainingDays ?? 0)}
+                  accent="var(--sr-brand-primary)"
+                />
+                <MetricTile
+                  icon={<Clock size={14} aria-hidden />}
+                  label={pl.coachWeeklyMetricDuration}
+                  value={pl.coachWeeklyMetricDurationValue(metrics.avgDurationMin ?? 0)}
+                  accent="var(--sr-brand-primary)"
+                />
+                <MetricTile
+                  icon={<Trophy size={14} aria-hidden />}
+                  label={pl.coachWeeklyMetricPrs}
+                  value={String(metrics.prCount ?? 0)}
+                  accent={(metrics.prCount ?? 0) > 0 ? 'var(--sr-warning)' : 'var(--sr-text-muted)'}
+                />
+                <MetricTile
+                  icon={<Layers size={14} aria-hidden />}
+                  label={pl.coachWeeklyMetricVolume}
+                  value={formatCompact(metrics.totalVolume ?? 0)}
+                  accent="var(--sr-brand-primary)"
+                />
+              </div>
+            </div>
           )}
 
           <div className="mt-3 flex flex-wrap items-center gap-2">

@@ -178,7 +178,7 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
         const def = exerciseMap.get(log.exerciseId)
         const metric: PrimaryMetric = def?.primaryMetric ?? 'reps'
         const name = def?.name ?? pl.planDash
-        const durationUnit = def?.durationDisplayUnit ?? 'sec'
+        const durationUnit = def?.durationDisplayUnit ?? 'min'
         return (
           <Card key={`${log.exerciseId}-${log.order}`} className="mb-3 overflow-x-auto p-4 transition-colors hover:border-[var(--sr-border-strong)]">
             <p className="mb-3 font-semibold text-[var(--sr-text-primary)]">{name}</p>

@@ -99,7 +99,7 @@ function exerciseSetChips(
   weightUnit: 'kg' | 'lb',
 ): string[] {
   if (!def) return pe.sets.map(() => '—')
-  return pe.sets.map((s) => formatPrescriptionTarget(s, def.primaryMetric, weightUnit, def.durationDisplayUnit ?? 'sec'))
+  return pe.sets.map((s) => formatPrescriptionTarget(s, def.primaryMetric, weightUnit, def.durationDisplayUnit ?? 'min'))
 }
 
 function cloneDay(day: PlanDay): PlanDay {

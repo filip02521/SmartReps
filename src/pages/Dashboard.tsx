@@ -23,7 +23,7 @@ import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
 import { Dumbbell } from 'lucide-react'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
-import { beginLevelChange } from '@/lib/setup-flow'
+import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { db, type LocalAiInsight, type LocalWorkoutSession } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
@@ -42,6 +42,7 @@ import {
   loadHomeDashboard,
   localDayKey,
   type HomeLoadResult,
+  type QuickCta,
 } from '@/lib/home-summary'
 import type { Program } from '@/data/plans/types'
 
@@ -365,6 +366,23 @@ export default function Dashboard() {
     return () => { cancelled = true; controller.abort() }
   }, [hydrated, hasCompletedFirstWorkout, reloadEpoch, searchParams, setSearchParams])
 
+  const handleQuickCta = useCallback((cta: QuickCta) => {
+    switch (cta.kind) {
+      case 'workout':
+        navigate(`/workout/${cta.program}`)
+        break
+      case 'workout-force':
+        navigate(`/workout/${cta.program}?force=1`)
+        break
+      case 'setup':
+        void beginProgramSetup(navigate, cta.program)
+        break
+      case 'scroll':
+        scrollToProgram(cta.program)
+        break
+    }
+  }, [navigate])
+
   if (!hydrated) {
     return (
       <div className={TAB_PAGE_SHELL}>
@@ -397,66 +415,26 @@ export default function Dashboard() {
       )}
 
       {loading && !home ? (
-        <div className="space-y-4" aria-busy aria-label={pl.loading}>
-          {/* Status header skeleton */}
-          <SkeletonCard className="min-h-[5rem]" />
-          {/* Activity metrics skeleton */}
-          <SkeletonCard className="min-h-[7rem]" />
+        <div className="space-y-6" aria-busy aria-label={pl.loading}>
+          {/* Status header skeleton (with quick CTA) */}
+          <SkeletonCard className="min-h-[8rem]" />
           {/* Program cards skeleton */}
           <SkeletonCard className="min-h-[14rem]" />
           <SkeletonCard className="min-h-[14rem]" />
+          {/* Activity metrics skeleton */}
+          <SkeletonCard className="min-h-[10rem]" />
         </div>
       ) : home ? (
         <>
-          <HomeStatusHeader summary={home.summary} />
+          {/* 1. Hero status — date + greeting + contextual headline + quick CTA */}
+          <HomeStatusHeader
+            summary={home.summary}
+            displayName={settings.displayName || undefined}
+            onQuickCta={handleQuickCta}
+          />
 
-          {/* Quick activity stats + streak heatmap — visible immediately under today's status */}
-          <HomeActivitySection summary={home.summary} sessions={heatmapSessions} />
-
-          {/* Proactive coach: weekly report card */}
-          {weeklyReportGenerating && !weeklyReport && (
-            <section
-              aria-busy
-              aria-live="polite"
-              className="sr-coach-msg-in mb-6 overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] shadow-[var(--sr-shadow-card)]"
-            >
-              <div className="flex items-center gap-3 border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)] p-4">
-                <AiCoachMark size="sm" pulse />
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-bold leading-tight text-[var(--sr-text-primary)]">
-                    {pl.coachWeeklyReportTitle}
-                  </h3>
-                  <p className="mt-0.5 animate-pulse text-xs text-[var(--sr-text-muted)]">
-                    {pl.coachWeeklyReportGenerating}
-                  </p>
-                </div>
-              </div>
-              {/* Skeleton metrics grid — mirrors the real 4-tile layout */}
-              <div className="grid grid-cols-4 gap-2 p-4">
-                {[0, 1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="flex h-14 animate-pulse flex-col items-center justify-center gap-1 rounded-[var(--sr-radius-sm)] bg-[var(--sr-bg-surface)]"
-                  >
-                    <div className="h-3 w-8 rounded bg-[var(--sr-border-subtle)]" />
-                    <div className="h-2 w-10 rounded bg-[var(--sr-border-subtle)]" />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-          {weeklyReport && !weeklyReport.dismissedAt && (
-            <WeeklyReportCard
-              key={weeklyReport.id}
-              insight={weeklyReport}
-              onDismissed={() => setWeeklyReport(null)}
-              onConnectAi={() => navigate('/profile')}
-              onRegenerate={() => setSearchParams({ weekly_report: 'force' }, { replace: true })}
-              regenerating={weeklyReportGenerating}
-            />
-          )}
-
-          <div className="mt-4">
+          {/* 2. Attention band — InstallCoach XOR HomeTip (per UX wireframe) */}
+          <div className="mt-5">
             <InstallCoach demotePrimary onVisibilityChange={onInstallVisibility} />
 
             {showTip && home.tip && (
@@ -484,6 +462,7 @@ export default function Dashboard() {
             )}
           </div>
 
+          {/* 3. Training cards — primary action, no scroll needed */}
           {settings.enabledPrograms.length === 0 ? (
             <EmptyState
               icon={<LogoMark size={48} />}
@@ -531,9 +510,61 @@ export default function Dashboard() {
             <CustomPlansHomeSection hideEmptyDiscover />
           )}
 
-          <WeeklyChallengeCard />
+          {/* 4. Activity metrics — retrospective, below training cards */}
+          <div className="mt-6">
+            <HomeActivitySection summary={home.summary} sessions={heatmapSessions} />
+          </div>
 
-          <CommunityHomeTeaser />
+          {/* 5. Proactive coach: weekly report card */}
+          <section aria-label={pl.coachWeeklyReportSectionAria} className="mt-6">
+            {weeklyReportGenerating && !weeklyReport && (
+              <div
+                aria-busy
+                aria-live="polite"
+                className="sr-coach-msg-in overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] shadow-[var(--sr-shadow-card)]"
+              >
+                <div className="flex items-center gap-3 border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)] p-4">
+                  <AiCoachMark size="sm" pulse />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-bold leading-tight text-[var(--sr-text-primary)]">
+                      {pl.coachWeeklyReportTitle}
+                    </h3>
+                    <p className="mt-0.5 animate-pulse text-xs text-[var(--sr-text-muted)]">
+                      {pl.coachWeeklyReportGenerating}
+                    </p>
+                  </div>
+                </div>
+                {/* Skeleton metrics grid — mirrors the real 4-tile layout */}
+                <div className="grid grid-cols-4 gap-2 p-4">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="flex h-14 animate-pulse flex-col items-center justify-center gap-1 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]"
+                    >
+                      <div className="h-3 w-8 rounded bg-[var(--sr-border-subtle)]" />
+                      <div className="h-2 w-10 rounded bg-[var(--sr-border-subtle)]" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {weeklyReport && !weeklyReport.dismissedAt && (
+              <WeeklyReportCard
+                key={weeklyReport.id}
+                insight={weeklyReport}
+                onDismissed={() => setWeeklyReport(null)}
+                onConnectAi={() => navigate('/profile')}
+                onRegenerate={() => setSearchParams({ weekly_report: 'force' }, { replace: true })}
+                regenerating={weeklyReportGenerating}
+              />
+            )}
+          </section>
+
+          {/* 6. Community */}
+          <div className="mt-6">
+            <WeeklyChallengeCard />
+            <CommunityHomeTeaser />
+          </div>
         </>
       ) : null}
     </div>

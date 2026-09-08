@@ -50,31 +50,43 @@ export async function enqueueSync(table: string, action: SyncAction, payload: un
     // Non-serializable payload (circular refs, BigInt, etc.) — skip rather than crash sync
     return
   }
-  // Deduplicate: if there's already a pending item for the same table+action+payload,
-  // skip adding a duplicate. This prevents the queue from growing unboundedly when
-  // the same entity is updated repeatedly while offline.
-  // Use filter() instead of where() because syncQueue doesn't have a 'table' index.
-  const all = await db.syncQueue.toArray()
-  const existing = all.find(
-    (item) => item.table === table && item.action === action && item.payload === payloadJson,
-  )
-  if (existing) return
 
-  await db.syncQueue.add({
-    table,
-    action,
-    payload: payloadJson,
-    createdAt: new Date().toISOString(),
-  })
+  // Sync queue is best-effort — a DB error here must NOT propagate and block
+  // the workout. Log and bail; the next sync attempt will retry.
+  try {
+    // Deduplicate: if there's already a pending item for the same table+action+payload,
+    // skip adding a duplicate. This prevents the queue from growing unboundedly when
+    // the same entity is updated repeatedly while offline.
+    // Use filter() instead of where() because syncQueue doesn't have a 'table' index.
+    const all = await db.syncQueue.toArray()
+    const existing = all.find(
+      (item) => item.table === table && item.action === action && item.payload === payloadJson,
+    )
+    if (existing) return
 
-  // Cap: if the queue exceeds the cap, remove oldest items.
-  // This prevents unbounded growth in pathological offline scenarios.
-  const count = await db.syncQueue.count()
-  if (count > SYNC_QUEUE_CAP) {
-    const oldest = await db.syncQueue.orderBy('createdAt').limit(count - SYNC_QUEUE_CAP).toArray()
-    for (const item of oldest) {
-      await db.syncQueue.delete(item.id!)
+    await db.syncQueue.add({
+      table,
+      action,
+      payload: payloadJson,
+      createdAt: new Date().toISOString(),
+    })
+
+    // Cap: if the queue exceeds the cap, remove oldest items.
+    // This prevents unbounded growth in pathological offline scenarios.
+    const count = await db.syncQueue.count()
+    if (count > SYNC_QUEUE_CAP) {
+      const oldest = await db.syncQueue.orderBy('createdAt').limit(count - SYNC_QUEUE_CAP).toArray()
+      for (const item of oldest) {
+        await db.syncQueue.delete(item.id!)
+      }
     }
+  } catch (err) {
+    console.warn('[sync] enqueueSync failed — DB may be blocked or closed', {
+      table,
+      action,
+      error: err instanceof Error ? err.name : typeof err,
+      message: err instanceof Error ? err.message : String(err),
+    })
   }
 }
 
@@ -1366,7 +1378,13 @@ export async function enqueueActiveCustomWorkoutSync(
 }
 
 async function dropPendingActiveCustomWorkoutUpdates(customPlanId: string) {
-  const items = await db.syncQueue.toArray()
+  let items: import('@/lib/db').SyncQueueItem[]
+  try {
+    items = await db.syncQueue.toArray()
+  } catch (err) {
+    console.warn('[sync] dropPendingActiveCustomWorkoutUpdates — DB error', err instanceof Error ? err.name : typeof err)
+    return
+  }
   for (const item of items) {
     if (item.table !== 'active_custom_workout') continue
     if (item.action !== 'update' && item.action !== 'insert') continue
@@ -1383,7 +1401,13 @@ async function dropPendingActiveCustomWorkoutUpdates(customPlanId: string) {
 }
 
 async function dropPendingActiveWorkoutUpdates(program: string) {
-  const items = await db.syncQueue.toArray()
+  let items: import('@/lib/db').SyncQueueItem[]
+  try {
+    items = await db.syncQueue.toArray()
+  } catch (err) {
+    console.warn('[sync] dropPendingActiveWorkoutUpdates — DB error', err instanceof Error ? err.name : typeof err)
+    return
+  }
   for (const item of items) {
     if (item.table !== 'active_workout') continue
     if (item.action !== 'update' && item.action !== 'insert') continue

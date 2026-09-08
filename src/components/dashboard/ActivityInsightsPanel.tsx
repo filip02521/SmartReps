@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Minus, Sparkles } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Sparkles, Dumbbell } from 'lucide-react'
 import type { ActivityInsights } from '@/lib/weekly-recap'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
@@ -97,9 +97,13 @@ function TrendBadge({
 export function ActivityInsightsPanel({
   insights,
   ariaLabel = pl.homeActivityInsightsAria,
+  compact = false,
+  customLastWorkout = null,
 }: {
   insights: ActivityInsights
   ariaLabel?: string
+  compact?: boolean
+  customLastWorkout?: { planName: string; whenLabel: string } | null
 }) {
   const headline = repsHeadline(insights)
   const trend = resolveTrend(insights)
@@ -114,9 +118,53 @@ export function ActivityInsightsPanel({
         ? pl.homeActivitySessionsEarlier(insights.sessionsPrev14d)
         : null
 
-  if (!headline && !recordNote) return null
+  if (!headline && !recordNote && !customLastWorkout) return null
 
   const chrome = trendAccent(trend)
+
+  // Compact mode — subtle card with inline icon + text, integrated with MetricStrip
+  if (compact) {
+    const TrendIcon =
+      trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : trend === 'new' ? Sparkles : Minus
+    return (
+      <div
+        className="mt-2 flex items-start gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2.5"
+        aria-label={ariaLabel}
+      >
+        <TrendIcon
+          size={16}
+          strokeWidth={2.5}
+          className="mt-0.5 shrink-0"
+          style={{ color: chrome.accent }}
+          aria-hidden
+        />
+        <div className="min-w-0 space-y-0.5">
+          {headline && (
+            <p className="sr-text-body-sm font-medium leading-snug text-[var(--sr-text-primary)]">
+              {headline}
+            </p>
+          )}
+          {earlierLine && (
+            <p className="sr-text-caption tabular-nums text-[var(--sr-text-muted)]">
+              {earlierLine}
+            </p>
+          )}
+          {recordNote && (
+            <p className="sr-text-caption text-[var(--sr-text-muted)]">{recordNote}</p>
+          )}
+          {customLastWorkout && (
+            <p className="flex items-center gap-1 sr-text-caption text-[var(--sr-text-muted)]">
+              <Dumbbell size={14} aria-hidden />
+              {pl.customLastWorkoutInsight(
+                customLastWorkout.planName,
+                customLastWorkout.whenLabel,
+              )}
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

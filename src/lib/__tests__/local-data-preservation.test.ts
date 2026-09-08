@@ -69,6 +69,7 @@ vi.mock('@/lib/db', () => ({
     customProgramProgress: { clear: vi.fn() },
     aiInsights: { clear: vi.fn() },
     aiAnalysisCache: { clear: vi.fn() },
+    aiPlanDrafts: { clear: vi.fn() },
     sessionTombstones: { clear: vi.fn() },
     achievementUnlocks: { clear: vi.fn() },
     bodyWeight: { clear: vi.fn() },

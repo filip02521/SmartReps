@@ -281,7 +281,7 @@ test.describe('SmartReps routing critical paths', () => {
     await expect(page.getByText('Zacznij trening', { exact: true })).toBeVisible({
       timeout: 15_000,
     })
-    await expect(page.getByRole('heading', { name: 'Podciąganie', level: 2 })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Podciąganie', level: 3 })).toBeVisible({
       timeout: 15_000,
     })
     await page.getByRole('button', { name: /Rozpocznij Dzień 1/ }).click()
