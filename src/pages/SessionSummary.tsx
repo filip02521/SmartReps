@@ -19,7 +19,7 @@ import { getSessionComparison } from '@/lib/session-service'
 import { computeBuiltinSessionInsights, type BuiltinSessionInsights } from '@/lib/session-summary-insights'
 import { getSummaryActions, shouldShowLoginCloudPrompt } from '@/lib/summary-actions'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
-import { track } from '@/lib/analytics'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 import { useWorkoutStore } from '@/stores/workout-store'
 import { useAppStore } from '@/stores/app-store'
 import { daysUntilWorkout } from '@/lib/progress-engine'
@@ -312,7 +312,7 @@ export default function SessionSummary() {
   useEffect(() => {
     if (!showLoginPrompt || loginPromptTrackedRef.current) return
     loginPromptTrackedRef.current = true
-    track('login_cloud_prompt_shown')
+    track(AnalyticsEvents.loginCloudPromptShown)
   }, [showLoginPrompt])
 
   if (loading) {
@@ -598,7 +598,7 @@ export default function SessionSummary() {
           actionLabel={pl.standaloneLoginCoachCta}
           onAction={() => {
             dismissLoginPrompt()
-            track('login_cloud_prompt_clicked')
+            track(AnalyticsEvents.loginCloudPromptClicked)
             navigate('/setup/login', {
               state: { returnTo: `/workout/${program}/summary?session=${sessionId}` },
             })

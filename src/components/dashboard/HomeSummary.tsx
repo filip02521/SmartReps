@@ -96,9 +96,9 @@ export function HomeActivitySection({
             hint: pl.homeReps14dHint,
           },
           {
-            value: summary.streakWeeks,
-            label: pl.homeStreakWeeksLabel,
-            hint: pl.homeStreakWeeksHint,
+            value: summary.sessions14d > 0 ? Math.round(summary.reps14d / summary.sessions14d) : pl.noValue,
+            label: pl.homeAvgPerSession,
+            hint: pl.homeAvgPerSessionHint,
           },
         ]}
         goal={{

@@ -90,7 +90,8 @@ export function BuiltinWorkoutPreviewSheet({
 function groupLabel(group: ExerciseGroup): string {
   if (group.kind === 'superset') return pl.customWorkoutGroupSuperset
   if (group.kind === 'circuit') return pl.customWorkoutGroupCircuit
-  return pl.customWorkoutGroupAmrap
+  if (group.kind === 'amrap') return pl.customWorkoutGroupAmrap
+  return pl.dropsetLabel
 }
 
 function exerciseSetChips(

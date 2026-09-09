@@ -239,6 +239,15 @@ export function getNextWorkoutPosition(
       return nextCircuitPosition(day, group, exerciseIndex, setIndex)
     case 'amrap':
       return nextAmrapPosition(day, group, exerciseIndex, setIndex, amrapEndAt)
+    case 'dropset': {
+      // Drop set: linear progression through sets, no rest between sets
+      const step = nextLinearPosition(day, exerciseIndex, setIndex)
+      // Override rest to 0 when staying on the same exercise (between drop sets)
+      if (step.next && step.next.exerciseIndex === exerciseIndex) {
+        return { ...step, restSec: 0 }
+      }
+      return step
+    }
     default:
       return nextLinearPosition(day, exerciseIndex, setIndex)
   }

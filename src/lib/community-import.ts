@@ -8,6 +8,7 @@ import {
 import { enqueueSync } from '@/lib/sync'
 import { generateId } from '@/lib/utils'
 import { recordCommunityImport } from '@/lib/community-api'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 
 export async function importCommunityPublication(
   snapshotRaw: unknown,
@@ -69,6 +70,7 @@ export async function importCommunityPublication(
     counted = res.counted
   } catch (err) {
     console.warn('[community] record_import failed', err)
+    track(AnalyticsEvents.communityImportError, { step: 'record_import' })
   }
 
   try {
@@ -76,6 +78,7 @@ export async function importCommunityPublication(
     await runAuthenticatedSync({ showSuccessToast: false, showFailureToast: false })
   } catch (err) {
     console.warn('[community] sync after import failed', err)
+    track(AnalyticsEvents.communityImportError, { step: 'sync_after_import' })
   }
 
   return { plan, importCount, counted }

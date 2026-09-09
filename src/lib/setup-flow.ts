@@ -2,7 +2,7 @@ import type { NavigateFunction } from 'react-router-dom'
 import { useAppStore } from '@/stores/app-store'
 import { getProgramProgress } from '@/lib/program-service'
 import { abandonAllInProgress } from '@/lib/session-service'
-import { track } from '@/lib/analytics'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 import type { Program } from '@/data/plans/types'
 
 export function isProgram(value: string | undefined | null): value is Program {
@@ -90,7 +90,7 @@ export async function beginProgramSetup(
 ): Promise<void> {
   await abandonAllInProgress(program)
   if (opts?.retest) {
-    track('retest_start', { program })
+    track(AnalyticsEvents.retestStart, { program })
   }
   const q = opts?.retest ? '?retest=1' : ''
   navigate(`/setup/test/${program}${q}`, { replace: opts?.replace ?? true })
@@ -107,6 +107,6 @@ export async function beginLevelChange(
 ): Promise<void> {
   await abandonAllInProgress(program)
   useAppStore.getState().clearPendingTest()
-  track('level_change', { program })
+  track(AnalyticsEvents.levelChange, { program })
   navigate(`/setup/cycle/${program}?change=1`, { replace: opts?.replace ?? true })
 }

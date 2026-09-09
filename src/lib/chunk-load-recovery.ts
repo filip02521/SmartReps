@@ -1,3 +1,5 @@
+import { track, AnalyticsEvents } from '@/lib/analytics'
+
 const RELOAD_GUARD_KEY = 'sr-chunk-reload-count'
 const RELOAD_GUARD_TS_KEY = 'sr-chunk-reload-ts'
 const MAX_RELOADS = 3
@@ -86,12 +88,18 @@ export function setupChunkLoadRecovery(): void {
     if (!isChunkLoadError(event.reason)) return
     // preventDefault BEFORE reload so the rejection doesn't surface as an error
     event.preventDefault()
-    tryReload()
+    track(AnalyticsEvents.chunkLoadError, {
+      source: 'unhandledrejection',
+      reloaded: tryReload(),
+    })
   })
 
   window.addEventListener('error', (event) => {
     if (!isChunkLoadError(event.error ?? event.message)) return
-    tryReload()
+    track(AnalyticsEvents.chunkLoadError, {
+      source: 'error',
+      reloaded: tryReload(),
+    })
   })
 }
 
@@ -106,10 +114,20 @@ export function lazyWithChunkRecovery<T extends { default: unknown }>(
     } catch (err) {
       const count = getReloadCount()
       if (isChunkLoadError(err) && count < MAX_RELOADS) {
+        track(AnalyticsEvents.chunkLoadError, {
+          source: 'lazy',
+          reloadCount: count,
+        })
         incrementReloadCount()
         window.location.reload()
         // Return a never-resolving promise — reload will replace the page
         return new Promise<T>(() => {})
+      }
+      if (isChunkLoadError(err)) {
+        track(AnalyticsEvents.chunkLoadError, {
+          source: 'lazy_exhausted',
+          reloadCount: count,
+        })
       }
       throw err
     }

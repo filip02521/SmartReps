@@ -188,6 +188,7 @@ export function ImportBackupSheet({
       <input
         ref={inputRef}
         type="file"
+        aria-label={pl.importBackupFileAria}
         accept={pickMode === 'csv' ? '.csv,text/csv' : '.json,application/json'}
         className="sr-only"
         onChange={(e) => {

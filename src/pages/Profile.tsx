@@ -29,7 +29,7 @@ import {
   unsubscribeWebPush,
   updatePushReminderHour,
 } from '@/lib/web-push'
-import { track } from '@/lib/analytics'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 import { applyThemeColor } from '@/lib/theme-color'
 import { clearAllLocalData } from '@/lib/local-data'
 import { exportSessionsCsv, exportCustomSessionsCsv, downloadCsv, mergeSessionCsvExports } from '@/lib/export'
@@ -415,12 +415,12 @@ export default function ProfilePage() {
               }
               cancelReminder()
               setSettings({ pushNotifications: true, workoutReminders: false })
-              track('reminder_toggle', { mode: 'push', on: true })
+              track(AnalyticsEvents.reminderToggle, { mode: 'push', on: true })
               showToast(pl.toastPushEnabled, 'success')
             } else {
               await unsubscribeWebPush()
               setSettings({ pushNotifications: false })
-              track('reminder_toggle', { mode: 'push', on: false })
+              track(AnalyticsEvents.reminderToggle, { mode: 'push', on: false })
             }
           })()
         }}
@@ -435,7 +435,7 @@ export default function ProfilePage() {
               cancelReminder()
             }
             setSettings({ workoutReminders: on && Notification.permission === 'granted' })
-            track('reminder_toggle', { mode: 'in_app', on })
+            track(AnalyticsEvents.reminderToggle, { mode: 'in_app', on })
           })()
         }}
         onReminderHourChange={(hour) => {

@@ -449,6 +449,7 @@ export default function PlansPage() {
             <input
               ref={importInputRef}
               type="file"
+              aria-label={pl.planImportJson}
               accept="application/json,.json"
               className="sr-only"
               onChange={(e) => {

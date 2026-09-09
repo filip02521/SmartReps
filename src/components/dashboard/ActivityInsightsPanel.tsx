@@ -107,10 +107,6 @@ export function ActivityInsightsPanel({
 }) {
   const headline = repsHeadline(insights)
   const trend = resolveTrend(insights)
-  const recordNote =
-    insights.bestStreakWeeks > insights.streakWeeks && insights.bestStreakWeeks > 0
-      ? pl.homeBestStreakRecord(insights.bestStreakWeeks)
-      : null
   const earlierLine =
     insights.repsPrev14d > 0
       ? pl.homeActivityRepsEarlier(insights.repsPrev14d)
@@ -118,7 +114,7 @@ export function ActivityInsightsPanel({
         ? pl.homeActivitySessionsEarlier(insights.sessionsPrev14d)
         : null
 
-  if (!headline && !recordNote && !customLastWorkout) return null
+  if (!headline && !customLastWorkout) return null
 
   const chrome = trendAccent(trend)
 
@@ -148,9 +144,6 @@ export function ActivityInsightsPanel({
             <p className="sr-text-caption tabular-nums text-[var(--sr-text-muted)]">
               {earlierLine}
             </p>
-          )}
-          {recordNote && (
-            <p className="sr-text-caption text-[var(--sr-text-muted)]">{recordNote}</p>
           )}
           {customLastWorkout && (
             <p className="flex items-center gap-1 sr-text-caption text-[var(--sr-text-muted)]">
@@ -196,8 +189,14 @@ export function ActivityInsightsPanel({
             </div>
           </div>
         )}
-        {recordNote && (
-          <p className="mt-1.5 sr-text-caption text-[var(--sr-text-muted)]">{recordNote}</p>
+        {customLastWorkout && (
+          <p className="mt-2 flex items-center gap-1 sr-text-caption text-[var(--sr-text-muted)]">
+            <Dumbbell size={14} aria-hidden />
+            {pl.customLastWorkoutInsight(
+              customLastWorkout.planName,
+              customLastWorkout.whenLabel,
+            )}
+          </p>
         )}
       </div>
     </div>

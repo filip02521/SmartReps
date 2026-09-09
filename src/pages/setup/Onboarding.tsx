@@ -14,7 +14,7 @@ import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { runAuthenticatedSync, setAuthFromOnboarding, consumeAuthReturnTo } from '@/lib/auth-sync'
 import { resolvePostAuthNavigation } from '@/lib/post-auth-navigation'
-import { track } from '@/lib/analytics'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 import type { Program } from '@/data/plans/types'
 import { cn } from '@/lib/utils'
 
@@ -30,6 +30,7 @@ export default function Onboarding() {
   const [activeSlide, setActiveSlide] = useState(0)
   const [hasSwiped, setHasSwiped] = useState(false)
   const carouselRef = useRef<HTMLDivElement>(null)
+  const onboardingStartedTracked = useRef(false)
   useSeo({ title: pl.seoOnboardingTitle, description: pl.seoOnboardingDescription, path: '/setup/onboarding' })
   const [programs, setPrograms] = useState<Program[]>(['pushups'])
   const setSettings = useAppStore((s) => s.setSettings)
@@ -82,6 +83,12 @@ export default function Onboarding() {
   useEffect(() => {
     if (!hydrated || !isSupabaseConfigured || onboardingComplete) return
 
+    // Track onboarding started — fires once per onboarding flow
+    if (!onboardingStartedTracked.current) {
+      onboardingStartedTracked.current = true
+      track(AnalyticsEvents.onboardingStarted)
+    }
+
     let cancelled = false
     void (async () => {
       try {
@@ -110,21 +117,33 @@ export default function Onboarding() {
   }, [wantStrong, stepId])
 
   const toggleProgram = (p: Program) => {
-    setPrograms((prev) =>
-      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p],
-    )
+    setPrograms((prev) => {
+      const next = prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
+      track(AnalyticsEvents.programSelected, {
+        program: p,
+        action: prev.includes(p) ? 'deselected' : 'selected',
+        totalSelected: next.length,
+      })
+      return next
+    })
   }
 
   const goNext = () => {
     const i = steps.indexOf(stepId)
     const next = steps[i + 1]
-    if (next) setStepId(next)
+    if (next) {
+      track(AnalyticsEvents.onboardingStep, { from: stepId, to: next })
+      setStepId(next)
+    }
   }
 
   const goBack = () => {
     const i = steps.indexOf(stepId)
     const prev = steps[i - 1]
-    if (prev) setStepId(prev)
+    if (prev) {
+      track(AnalyticsEvents.onboardingStep, { from: stepId, to: prev })
+      setStepId(prev)
+    }
   }
 
   const finish = () => {
@@ -135,10 +154,11 @@ export default function Onboarding() {
       : []
     setSettings({ onboardingComplete: true, enabledPrograms: selected })
     setSetupQueue([])
-    track('onboarding_complete', {
+    track(AnalyticsEvents.onboardingComplete, {
       strong: wantStrong,
       custom: wantCustom,
       programCount: selected.length,
+      programs: selected.join(','),
     })
     void resolvePostAuthNavigation(navigate, consumeAuthReturnTo())
   }

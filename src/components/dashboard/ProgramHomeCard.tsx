@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MoreVertical, Play } from 'lucide-react'
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
@@ -31,8 +30,11 @@ import { useAppStore } from '@/stores/app-store'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { AccessibleChart } from '@/components/ui/AccessibleChart'
-import { PROGRESS_CHART_TOOLTIP_STYLE } from '@/components/progress/chart-style'
 import type { ProgramCardModel, TipSuppression } from '@/lib/home-summary'
+
+const MaxPerDayChart = lazy(() =>
+  import('./MaxPerDayChart').then((m) => ({ default: m.MaxPerDayChart })),
+)
 
 function toneToBadge(
   tone: ReturnType<typeof getStatusTone>,
@@ -839,28 +841,9 @@ export function ProgramHomeCard({
                   ]}
                   className="h-36 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
                 >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={maxPerDay}>
-                      <XAxis
-                        dataKey="day"
-                        tickFormatter={(d) => pl.chartDayShort(Number(d))}
-                        tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
-                        stroke="var(--sr-border-subtle)"
-                      />
-                      <YAxis
-                        tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
-                        stroke="var(--sr-border-subtle)"
-                        width={28}
-                      />
-                      <Tooltip
-                        contentStyle={PROGRESS_CHART_TOOLTIP_STYLE}
-                        formatter={(value) => [value ?? 0, pl.repsUnit]}
-                        labelFormatter={(label) => String(label)}
-                        cursor={{ fill: 'var(--sr-brand-primary-muted)' }}
-                      />
-                      <Bar dataKey="maxActual" fill="var(--sr-brand-primary)" radius={4} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <Suspense fallback={null}>
+                    <MaxPerDayChart data={maxPerDay} />
+                  </Suspense>
                 </AccessibleChart>
               </div>
             )}

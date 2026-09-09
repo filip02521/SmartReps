@@ -27,6 +27,7 @@ import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { db, type LocalAiInsight, type LocalWorkoutSession } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 import { generateWeeklyReport } from '@/lib/ai/proactive-coach'
 import {
   checkRateLimit,
@@ -369,9 +370,15 @@ export default function Dashboard() {
   const handleQuickCta = useCallback((cta: QuickCta) => {
     switch (cta.kind) {
       case 'workout':
+        if (!hasCompletedFirstWorkout) {
+          track(AnalyticsEvents.firstWorkoutStarted, { program: cta.program, type: 'builtin' })
+        }
         navigate(`/workout/${cta.program}`)
         break
       case 'workout-force':
+        if (!hasCompletedFirstWorkout) {
+          track(AnalyticsEvents.firstWorkoutStarted, { program: cta.program, type: 'builtin' })
+        }
         navigate(`/workout/${cta.program}?force=1`)
         break
       case 'setup':
@@ -381,7 +388,7 @@ export default function Dashboard() {
         scrollToProgram(cta.program)
         break
     }
-  }, [navigate])
+  }, [navigate, hasCompletedFirstWorkout])
 
   if (!hydrated) {
     return (

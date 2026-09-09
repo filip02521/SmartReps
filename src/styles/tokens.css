@@ -82,8 +82,20 @@
   --sr-border-strong: #d4d4d8;
   --sr-text-primary: #09090b;
   --sr-text-secondary: #52525b;
-  --sr-text-muted: #71717a;
+  --sr-text-muted: #6b6b73;
   --sr-text-inverse: #fafafa;
+  /* Darker brand/success for WCAG AA contrast on light backgrounds.
+     Muted backgrounds use matching RGB with low opacity so colored text
+     on the tint still meets 4.5:1. */
+  --sr-brand-primary: #4f46e5;
+  --sr-brand-primary-hover: #4338ca;
+  --sr-brand-primary-muted: rgba(79, 70, 229, 0.12);
+  --sr-brand-secondary: #0e7490;
+  --sr-brand-secondary-muted: rgba(14, 116, 144, 0.05);
+  --sr-success: #047857;
+  --sr-success-muted: rgba(4, 120, 87, 0.07);
+  --sr-info: #1d4ed8;
+  --sr-info-muted: rgba(29, 78, 216, 0.08);
 }
 
 @media (prefers-color-scheme: light) {
@@ -96,8 +108,17 @@
     --sr-border-strong: #d4d4d8;
     --sr-text-primary: #09090b;
     --sr-text-secondary: #52525b;
-    --sr-text-muted: #71717a;
+    --sr-text-muted: #6b6b73;
     --sr-text-inverse: #fafafa;
+    --sr-brand-primary: #4f46e5;
+    --sr-brand-primary-hover: #4338ca;
+    --sr-brand-primary-muted: rgba(79, 70, 229, 0.12);
+    --sr-brand-secondary: #0e7490;
+    --sr-brand-secondary-muted: rgba(14, 116, 144, 0.05);
+    --sr-success: #047857;
+    --sr-success-muted: rgba(4, 120, 87, 0.07);
+    --sr-info: #1d4ed8;
+    --sr-info-muted: rgba(29, 78, 216, 0.08);
   }
 }
 

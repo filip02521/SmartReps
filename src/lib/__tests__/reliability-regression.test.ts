@@ -90,6 +90,9 @@ const mockDb = vi.hoisted(() => ({
   syncQueue: {
     orderBy: vi.fn(() => ({ toArray: vi.fn().mockResolvedValue([]) })),
     toArray: vi.fn().mockResolvedValue([]),
+    add: vi.fn().mockResolvedValue(undefined),
+    update: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
   },
   bodyWeight: {
     toArray: vi.fn().mockResolvedValue([]),
@@ -384,6 +387,281 @@ describe('Phase 3: PWA lifecycle', () => {
       expect(isChunkLoadError(new TypeError('random TypeError'))).toBe(false)
       expect(isChunkLoadError(null)).toBe(false)
       expect(isChunkLoadError(undefined)).toBe(false)
+    })
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 4: Sync observability
+// ═══════════════════════════════════════════════════════════════════
+
+// Mock analytics to track calls
+const trackSyncErrorMock = vi.hoisted(() => vi.fn())
+const trackSyncResultMock = vi.hoisted(() => vi.fn())
+const trackSyncSectionMock = vi.hoisted(() => vi.fn())
+const trackMock = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/analytics', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/analytics')>()
+  return {
+    ...actual,
+    trackSyncError: (...args: unknown[]) => trackSyncErrorMock(...args),
+    trackSyncResult: (...args: unknown[]) => trackSyncResultMock(...args),
+    trackSyncSection: (...args: unknown[]) => trackSyncSectionMock(...args),
+    track: (...args: unknown[]) => trackMock(...args),
+  }
+})
+
+describe('Phase 4: Sync observability', () => {
+  beforeEach(() => {
+    trackSyncErrorMock.mockClear()
+    trackSyncResultMock.mockClear()
+    trackSyncSectionMock.mockClear()
+    trackMock.mockClear()
+  })
+
+  describe('F4.1: trackSyncError called on pull failures', () => {
+    it('calls trackSyncError when session tombstone pull fails', async () => {
+      const { syncWithRemote } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'session_tombstones') {
+          return makeQueryBuilder(table, { selectError: { message: 'network error' } })
+        }
+        return makeQueryBuilder(table)
+      })
+      await syncWithRemote()
+      // Should have called trackSyncError with the section name
+      expect(trackSyncErrorMock).toHaveBeenCalledWith(
+        'pull_session_tombstones',
+        expect.anything(),
+      )
+    })
+
+    it('calls trackSyncError when body weight pull fails', async () => {
+      const { pullRemoteData } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'body_weight_entries') {
+          return makeQueryBuilder(table, { selectError: { message: 'network error' } })
+        }
+        return makeQueryBuilder(table)
+      })
+      await pullRemoteData()
+      expect(trackSyncErrorMock).toHaveBeenCalledWith(
+        'pull_body_weight',
+        expect.anything(),
+      )
+    })
+
+    it('calls trackSyncError when AI insights pull fails', async () => {
+      const { pullRemoteData } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'ai_insights') {
+          return makeQueryBuilder(table, { selectError: { message: 'network error' } })
+        }
+        return makeQueryBuilder(table)
+      })
+      await pullRemoteData()
+      expect(trackSyncErrorMock).toHaveBeenCalledWith(
+        'pull_ai_insights',
+        expect.anything(),
+      )
+    })
+  })
+
+  describe('F4.2: trackSyncResult called on syncWithRemote completion', () => {
+    it('calls trackSyncResult with ok=true on successful sync', async () => {
+      const { syncWithRemote } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => makeQueryBuilder(table))
+      await syncWithRemote()
+      expect(trackSyncResultMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ok: true,
+          errors: 0,
+        }),
+      )
+    })
+
+    it('calls trackSyncResult with ok=false and reason on tombstone failure', async () => {
+      const { syncWithRemote } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'session_tombstones') {
+          return makeQueryBuilder(table, { selectError: { message: 'network error' } })
+        }
+        return makeQueryBuilder(table)
+      })
+      await syncWithRemote()
+      expect(trackSyncResultMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ok: false,
+          reason: 'tombstone_pull_failed',
+        }),
+      )
+    })
+
+    it('calls trackSyncResult with tombstoneErrors count', async () => {
+      const { syncWithRemote } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'body_weight_tombstones') {
+          return makeQueryBuilder(table, { selectError: { message: 'network error' } })
+        }
+        return makeQueryBuilder(table)
+      })
+      await syncWithRemote()
+      expect(trackSyncResultMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tombstoneErrors: expect.any(Number),
+        }),
+      )
+    })
+  })
+
+  describe('F4.2b: trackSyncSection brackets syncWithRemote', () => {
+    it('calls trackSyncSection with start and complete on successful sync', async () => {
+      const { syncWithRemote } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => makeQueryBuilder(table))
+      await syncWithRemote()
+      expect(trackSyncSectionMock).toHaveBeenCalledWith('syncWithRemote', 'start')
+      expect(trackSyncSectionMock).toHaveBeenCalledWith(
+        'syncWithRemote',
+        'complete',
+        expect.objectContaining({ ok: true }),
+      )
+    })
+
+    it('calls trackSyncSection with complete on tombstone failure', async () => {
+      const { syncWithRemote } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'session_tombstones') {
+          return makeQueryBuilder(table, { selectError: { message: 'network error' } })
+        }
+        return makeQueryBuilder(table)
+      })
+      await syncWithRemote()
+      expect(trackSyncSectionMock).toHaveBeenCalledWith('syncWithRemote', 'start')
+      expect(trackSyncSectionMock).toHaveBeenCalledWith(
+        'syncWithRemote',
+        'complete',
+        expect.objectContaining({ ok: false, reason: 'tombstone_pull_failed' }),
+      )
+    })
+  })
+
+  describe('F4.3: trackSyncError called on push failures', () => {
+    it('calls trackSyncError when session push fails', async () => {
+      const { syncAllLocalData } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'workout_sessions') {
+          return makeQueryBuilder(table, { upsertError: { message: 'rls denied' } })
+        }
+        return makeQueryBuilder(table)
+      })
+      // Add a completed session to push
+      mockDb.workoutSessions.toArray.mockResolvedValue([
+        { id: 's1', program: 'pushups', status: 'completed', updatedAt: '2026-01-01' },
+      ])
+      mockDb.sessionTombstones.toArray.mockResolvedValue([])
+      await syncAllLocalData()
+      expect(trackSyncErrorMock).toHaveBeenCalledWith(
+        'push_session_row',
+        expect.anything(),
+      )
+    })
+
+    it('calls trackSyncError when body weight push fails', async () => {
+      const { syncAllLocalData } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'body_weight_entries') {
+          return makeQueryBuilder(table, { upsertError: { message: 'rls denied' } })
+        }
+        return makeQueryBuilder(table)
+      })
+      mockDb.bodyWeight.toArray.mockResolvedValue([
+        { id: 'bw1', weightKg: 80, measuredAt: '2026-01-01' },
+      ])
+      await syncAllLocalData()
+      expect(trackSyncErrorMock).toHaveBeenCalledWith(
+        'push_body_weight_row',
+        expect.anything(),
+      )
+    })
+  })
+
+  describe('F4.4: trackSyncError is safe by design', () => {
+    it('trackSyncError mock is called (real safety tested by source inspection)', async () => {
+      // The real trackSyncError has a try-catch wrapper (see analytics.ts).
+      // Here we just verify the mock is wired correctly.
+      const { syncWithRemote } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'ai_insights') {
+          return makeQueryBuilder(table, { selectError: { message: 'network error' } })
+        }
+        return makeQueryBuilder(table)
+      })
+      await syncWithRemote()
+      expect(trackSyncErrorMock).toHaveBeenCalled()
+    })
+  })
+
+  describe('F4.5: trackSyncError called on remaining sync failures', () => {
+    it('calls trackSyncError when max tests pull fails', async () => {
+      const { pullRemoteData } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'max_tests') {
+          return makeQueryBuilder(table, { selectError: { message: 'network error' } })
+        }
+        return makeQueryBuilder(table)
+      })
+      await pullRemoteData()
+      expect(trackSyncErrorMock).toHaveBeenCalledWith(
+        'pull_max_tests',
+        expect.anything(),
+      )
+    })
+
+    it('calls trackSyncError when progress push fails', async () => {
+      const { syncAllLocalData } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'program_progress') {
+          return makeQueryBuilder(table, { upsertError: { message: 'rls denied' } })
+        }
+        return makeQueryBuilder(table)
+      })
+      mockDb.programProgress.toArray.mockResolvedValue([
+        { id: 1, program: 'pushups', cycleId: 'c1', currentDay: 1, status: 'active', cycleAttempt: 1, updatedAt: '2026-01-01' },
+      ])
+      await syncAllLocalData()
+      expect(trackSyncErrorMock).toHaveBeenCalledWith(
+        expect.stringContaining('push_progress'),
+        expect.anything(),
+      )
+    })
+
+    it('calls trackSyncError when active workout push fails', async () => {
+      const { syncAllLocalData } = await import('@/lib/sync')
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'active_workout_state') {
+          return makeQueryBuilder(table, { upsertError: { message: 'rls denied' } })
+        }
+        return makeQueryBuilder(table)
+      })
+      mockDb.activeWorkout.toArray.mockResolvedValue([
+        { program: 'pushups', sessionId: 's1', currentExerciseIndex: 0, currentSetIndex: 0, exerciseLogs: [], setResults: [], restTimerJson: null, amrapEndAt: null, amrapGroupId: null, displayStartedAt: null, updatedAt: '2026-01-01' },
+      ])
+      await syncAllLocalData()
+      expect(trackSyncErrorMock).toHaveBeenCalledWith(
+        expect.stringContaining('push_active_workout'),
+        expect.anything(),
+      )
+    })
+
+    it('calls trackSyncError on enqueueSync DB failure', async () => {
+      const { enqueueSync } = await import('@/lib/sync')
+      mockDb.syncQueue.add.mockRejectedValueOnce(new Error('DB closed'))
+      await enqueueSync('test_table', 'insert', { foo: 'bar' })
+      expect(trackSyncErrorMock).toHaveBeenCalledWith(
+        'enqueue_sync',
+        expect.anything(),
+      )
     })
   })
 })

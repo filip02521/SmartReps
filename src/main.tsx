@@ -11,7 +11,7 @@ import { ErrorBoundary } from '@/components/ux/ErrorBoundary'
 import { SplashScreen, hideSplash } from '@/components/brand/SplashScreen'
 import { scheduleDailyReminder } from '@/lib/notifications'
 import { applyThemeColor } from '@/lib/theme-color'
-import { initErrorReporting } from '@/lib/analytics'
+import { initErrorReporting, initWebVitals } from '@/lib/analytics'
 import { PwaUpdatePrompt } from '@/components/ux/PwaUpdatePrompt'
 import { setupChunkLoadRecovery } from '@/lib/chunk-load-recovery'
 import '@fontsource/plus-jakarta-sans/400.css'
@@ -20,6 +20,7 @@ import '@fontsource/plus-jakarta-sans/600.css'
 import '@fontsource/plus-jakarta-sans/700.css'
 
 initErrorReporting()
+initWebVitals()
 setupChunkLoadRecovery()
 setupOnlineSync()
 

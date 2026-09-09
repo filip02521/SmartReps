@@ -16,7 +16,7 @@ import { resolveDisplayRarity } from '@/lib/achievements/catalog'
 import { markUnlockSeen } from '@/lib/achievements/store'
 import { playTrophyFeedback, initAchievementAudio } from '@/lib/achievements/feedback'
 import { trophyTierFor, trophyShapeFor } from '@/lib/achievements/trophy-tier'
-import { track } from '@/lib/analytics'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 import { pl } from '@/i18n/pl'
 
 export function AchievementUnlockSheet({
@@ -33,7 +33,7 @@ export function AchievementUnlockSheet({
 
   useEffect(() => {
     if (!achievementId || !def) return
-    track('achievement_unlock', { id: achievementId, rarity: def.rarity, tier: unlock?.tierLevel })
+    track(AnalyticsEvents.achievementUnlock, { id: achievementId, rarity: def.rarity, tier: unlock?.tierLevel })
     // Use shared trophy tier resolver — ensures consistency with AchievementTile
     const trophyTier = trophyTierFor(def, true, unlock?.tierLevel)
     if (trophyTier) {

@@ -74,6 +74,64 @@ export function ProfileAbout({ className }: { className?: string }) {
         </div>
       </div>
 
+      {/* Licenses — exercise media attribution */}
+      <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-4 py-3">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
+          {pl.profileAboutLicenses}
+        </p>
+        <div className="flex flex-col gap-2 text-xs leading-relaxed text-[var(--sr-text-secondary)]">
+          <p>
+            {pl.licenseExerciseVideos}{' '}
+            <a
+              href="https://github.com/harshvishu/free-exercise-db-with-videos"
+              className="text-[var(--sr-brand-primary)] underline-offset-4 hover:underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              free-exercise-db-with-videos
+            </a>{' '}
+            {pl.licenseMit}{' '}
+            <a
+              href="https://opensource.org/licenses/MIT"
+              className="text-[var(--sr-brand-primary)] underline-offset-4 hover:underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              MIT
+            </a>{' '}
+            © 2026 Arham Wani
+          </p>
+          <p>
+            {pl.licenseIllustrations}{' '}
+            <a
+              href="https://github.com/bryllim/workout-guide"
+              className="text-[var(--sr-brand-primary)] underline-offset-4 hover:underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              @bryllim/workout-guide
+            </a>{' '}
+            {pl.licenseAnd}{' '}
+            <a
+              href="https://github.com/RepDB/exercise-dataset"
+              className="text-[var(--sr-brand-primary)] underline-offset-4 hover:underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              RepDB
+            </a>{' '}
+            <a
+              href="https://creativecommons.org/licenses/by-sa/4.0/"
+              className="text-[var(--sr-brand-primary)] underline-offset-4 hover:underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              CC BY-SA 4.0
+            </a>
+          </p>
+        </div>
+      </div>
+
       {/* Health disclaimer — notice card style */}
       <div className="flex items-start gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/30 bg-[var(--sr-warning-muted)]/40 p-3">
         <HeartPulse size={18} className="mt-0.5 shrink-0 text-[var(--sr-warning)]" aria-hidden />

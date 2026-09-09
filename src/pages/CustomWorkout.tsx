@@ -148,6 +148,9 @@ export default function CustomWorkoutPage() {
   const [actualReps, setActualReps] = useState(0)
   const [actualSec, setActualSec] = useState(0)
   const [weightKg, setWeightKg] = useState<number | ''>('')
+  const [rpeRirValue, setRpeRirValue] = useState<number | null>(null)
+  const [rpeRirMode, setRpeRirMode] = useState<'rpe' | 'rir'>('rpe')
+  const [setNote, setSetNote] = useState<string | undefined>(undefined)
   const [timerRunning, setTimerRunning] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
@@ -676,6 +679,9 @@ export default function CustomWorkoutPage() {
     // Clear previous-result state to avoid stale data from prior exercise
     setPreviousResult(undefined)
     setPreviousResults(new Map())
+    // Reset RPE/RIR and set note for the new set
+    setRpeRirValue(null)
+    setSetNote(undefined)
     if (exDef.primaryMetric === 'duration_sec' && prescription.durationSec) {
       setActualSec(metricTargetDisplayValue(prescription.durationSec))
     } else if (prescription.reps) {
@@ -1093,6 +1099,12 @@ export default function CustomWorkoutPage() {
       actual,
       passed,
       prescription,
+      ...(rpeRirValue != null
+        ? rpeRirMode === 'rpe'
+          ? { rpe: rpeRirValue }
+          : { rir: rpeRirValue }
+        : {}),
+      ...(setNote ? { note: setNote } : {}),
     }
 
     try {
@@ -1132,6 +1144,12 @@ export default function CustomWorkoutPage() {
       actual,
       passed: false,
       prescription,
+      ...(rpeRirValue != null
+        ? rpeRirMode === 'rpe'
+          ? { rpe: rpeRirValue }
+          : { rir: rpeRirValue }
+        : {}),
+      ...(setNote ? { note: setNote } : {}),
     }
   }
 
@@ -1259,6 +1277,17 @@ export default function CustomWorkoutPage() {
         setActualReps(removed.actual.reps ?? 0)
         if (removed.actual.weightKg != null) setWeightKg(removed.actual.weightKg)
       }
+      // Restore RPE/RIR and note from the undone set
+      if (removed.rpe != null) {
+        setRpeRirValue(removed.rpe)
+        setRpeRirMode('rpe')
+      } else if (removed.rir != null) {
+        setRpeRirValue(removed.rir)
+        setRpeRirMode('rir')
+      } else {
+        setRpeRirValue(null)
+      }
+      setSetNote(removed.note)
       logged = useCustomWorkoutStore.getState().exerciseLogs[exerciseIndex]?.sets.length ?? 0
     }
 
@@ -1449,6 +1478,17 @@ export default function CustomWorkoutPage() {
       setActualReps(removed.actual.reps ?? 0)
       if (removed.actual.weightKg != null) setWeightKg(removed.actual.weightKg)
     }
+    // Restore RPE/RIR and note from the undone set
+    if (removed.rpe != null) {
+      setRpeRirValue(removed.rpe)
+      setRpeRirMode('rpe')
+    } else if (removed.rir != null) {
+      setRpeRirValue(removed.rir)
+      setRpeRirMode('rir')
+    } else {
+      setRpeRirValue(null)
+    }
+    setSetNote(removed.note)
     void persistState()
   }
 
@@ -1742,6 +1782,17 @@ export default function CustomWorkoutPage() {
         canEditPreviousSet={canEditPreviousSet}
         weightUnit={weightUnit}
         durationUnit={exDef.durationDisplayUnit ?? 'min'}
+        rpeRirValue={rpeRirValue}
+        rpeRirMode={rpeRirMode}
+        setNote={setNote}
+        onRpeRirChange={setRpeRirValue}
+        onRpeRirModeChange={setRpeRirMode}
+        onSetNoteChange={setSetNote}
+        onAddWarmupSet={(set) => {
+          // Pre-fill the counter with warm-up values — user taps Done to log
+          setActualReps(set.reps)
+          setWeightKg(set.weightKg)
+        }}
         onBack={() => {
           if (!sessionHasProgress) {
             discardEphemeralSession()

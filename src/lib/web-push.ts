@@ -1,5 +1,5 @@
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
-import { track } from '@/lib/analytics'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -26,17 +26,17 @@ export function getVapidPublicKey(): string | null {
 
 export async function subscribeWebPush(reminderHour: number): Promise<boolean> {
   if (!isWebPushSupported()) {
-    track('push_subscribe_fail', { reason: 'unsupported' })
+    track(AnalyticsEvents.pushSubscribeFail, { reason: 'unsupported' })
     return false
   }
   const vapid = getVapidPublicKey()
   if (!vapid) {
     console.warn('[push] VITE_VAPID_PUBLIC_KEY missing')
-    track('push_subscribe_fail', { reason: 'no_vapid' })
+    track(AnalyticsEvents.pushSubscribeFail, { reason: 'no_vapid' })
     return false
   }
   if (!isSupabaseConfigured) {
-    track('push_subscribe_fail', { reason: 'no_supabase' })
+    track(AnalyticsEvents.pushSubscribeFail, { reason: 'no_supabase' })
     return false
   }
 
@@ -45,7 +45,7 @@ export async function subscribeWebPush(reminderHour: number): Promise<boolean> {
   const { data: userData } = await supabase.auth.getUser()
   const userId = userData.user?.id
   if (!userId) {
-    track('push_subscribe_fail', { reason: 'no_user' })
+    track(AnalyticsEvents.pushSubscribeFail, { reason: 'no_user' })
     return false
   }
 
@@ -54,7 +54,7 @@ export async function subscribeWebPush(reminderHour: number): Promise<boolean> {
       ? 'granted'
       : await Notification.requestPermission()
   if (permission !== 'granted') {
-    track('push_subscribe_fail', { reason: 'permission_denied' })
+    track(AnalyticsEvents.pushSubscribeFail, { reason: 'permission_denied' })
     return false
   }
 
@@ -70,7 +70,7 @@ export async function subscribeWebPush(reminderHour: number): Promise<boolean> {
 
     const json = subscription.toJSON()
     if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-      track('push_subscribe_fail', { reason: 'bad_keys' })
+      track(AnalyticsEvents.pushSubscribeFail, { reason: 'bad_keys' })
       return false
     }
 
@@ -94,14 +94,14 @@ export async function subscribeWebPush(reminderHour: number): Promise<boolean> {
     )
     if (error) {
       console.warn('[push] upsert failed', error)
-      track('push_subscribe_fail', { reason: 'upsert' })
+      track(AnalyticsEvents.pushSubscribeFail, { reason: 'upsert' })
       return false
     }
-    track('push_subscribe_ok')
+    track(AnalyticsEvents.pushSubscribeOk)
     return true
   } catch (err) {
     console.warn('[push] subscribe failed', err)
-    track('push_subscribe_fail', { reason: 'exception' })
+    track(AnalyticsEvents.pushSubscribeFail, { reason: 'exception' })
     return false
   }
 }
@@ -119,6 +119,7 @@ export async function unsubscribeWebPush(): Promise<void> {
     }
   } catch (err) {
     console.warn('[push] unsubscribe failed', err)
+    track(AnalyticsEvents.pushUnsubscribeFail, { reason: 'exception' })
   }
 }
 
@@ -143,5 +144,6 @@ export async function updatePushReminderHour(reminderHour: number): Promise<void
       .eq('endpoint', subscription.endpoint)
   } catch (err) {
     console.warn('[push] reminder hour update failed', err)
+    track(AnalyticsEvents.pushReminderUpdateFail, { reason: 'reminder_hour_update' })
   }
 }

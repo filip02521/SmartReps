@@ -110,6 +110,7 @@ export default function ProgressPage() {
   const [customSessionChart, setCustomSessionChart] = useState<CustomSessionChartPoint[]>([])
   const [customOverviewStats, setCustomOverviewStats] = useState<CustomOverviewStats | null>(null)
   const [customWeeklyVolumeChart, setCustomWeeklyVolumeChart] = useState<CustomWeeklyVolumePoint[]>([])
+  const [exerciseMap, setExerciseMap] = useState<Map<string, { name: string }>>(new Map())
 
   // Achievements
   const [achievementUnlocks, setAchievementUnlocks] = useState<LocalAchievementUnlock[]>([])
@@ -176,6 +177,14 @@ export default function ProgressPage() {
           nameMap[p.id] = p.name
         }
         setCustomPlanNames(nameMap)
+
+        // Exercise map for 1RM estimation
+        const allExercises = await db.exercises.toArray()
+        const exMap = new Map<string, { name: string }>()
+        for (const ex of allExercises) {
+          if (!ex.archived) exMap.set(ex.id, { name: ex.name })
+        }
+        setExerciseMap(exMap)
 
         // Achievements
         let impact = emptyImpact()
@@ -340,6 +349,8 @@ export default function ProgressPage() {
             customWeeklyVolumeChart={customWeeklyVolumeChart}
             onOpenExercise={(id) => void openExerciseDetail(id)}
             navigate={navigate}
+            exerciseMap={exerciseMap}
+            weightUnit={settings.weightUnit}
           />
           {/* AI Coach teaser — discoverability for analysis feature */}
           {hasAnyData && (

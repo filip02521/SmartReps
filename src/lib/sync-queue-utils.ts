@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { trackSyncError } from '@/lib/analytics'
 
 type SyncAction = 'insert' | 'update' | 'delete'
 
@@ -12,7 +13,7 @@ export async function hasPendingSyncQueue(
   try {
     items = await db.syncQueue.toArray()
   } catch (err) {
-    console.warn('[sync-queue] hasPendingSyncQueue — DB error', err instanceof Error ? err.name : typeof err)
+    trackSyncError('sync_queue_db_error', err)
     return false
   }
   for (const item of items) {

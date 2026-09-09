@@ -5,6 +5,7 @@ import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPa
 import { ActivityCalendar } from '@/components/progress/ActivityCalendar'
 import { MuscleBalanceHeatmap } from '@/components/progress/MuscleBalanceHeatmap'
 import { UnifiedRecordsSection } from '@/components/progress/UnifiedRecordsSection'
+import { Estimated1rmSection } from '@/components/progress/Estimated1rmSection'
 import { AccessibleChart } from '@/components/ui/AccessibleChart'
 import { LogoMark } from '@/components/brand/Logo'
 import { EmptyState } from '@/components/ux/Feedback'
@@ -196,24 +197,13 @@ function ProgramSection({
         </div>
       )}
 
-      {/* Statystyki objętości per program */}
+      {/* Statystyki objętości per program — metryki unikatowe, nie dublują MetricStrip */}
       {volumeStats && (volumeStats.volume14d > 0 || stats.passedSessionCount > 0) && (
         <div className="mt-4 grid grid-cols-2 gap-2">
           <NestedStat
             size="md"
-            overline={pl.progressVolume14d}
-            value={volumeStats.volume14d}
-            hint={
-              volumeStats.volumeChangePct != null
-                ? volumeStats.volumeChangePct > 0
-                  ? pl.progressVolumeTrendUp(volumeStats.volumeChangePct)
-                  : volumeStats.volumeChangePct < 0
-                    ? pl.progressVolumeTrendDown(Math.abs(volumeStats.volumeChangePct))
-                    : pl.progressVolumeTrendFlat
-                : volumeStats.volumePrev14d === 0
-                  ? pl.progressVolumePrev14d + ': 0'
-                  : undefined
-            }
+            overline={pl.progressTotalRepsAllTime}
+            value={stats.totalRepsAllTime}
           />
           <NestedStat
             size="md"
@@ -227,8 +217,17 @@ function ProgramSection({
           />
           <NestedStat
             size="md"
-            overline={pl.progressSessions30d}
-            value={volumeStats.sessionsLast30d}
+            overline={pl.progressVolumeTrend14d}
+            value={
+              volumeStats.volumeChangePct != null
+                ? volumeStats.volumeChangePct > 0
+                  ? `+${volumeStats.volumeChangePct}%`
+                  : volumeStats.volumeChangePct < 0
+                    ? `−${Math.abs(volumeStats.volumeChangePct)}%`
+                    : '0%'
+                : pl.noValue
+            }
+            hint={pl.progressVolume14d + ': ' + volumeStats.volume14d}
           />
         </div>
       )}
@@ -344,6 +343,8 @@ export function OverviewPanel({
   customWeeklyVolumeChart,
   onOpenExercise,
   navigate,
+  exerciseMap,
+  weightUnit = 'kg',
 }: {
   programDataMap: Map<Program, ProgramData>
   enabledPrograms: Program[]
@@ -358,6 +359,8 @@ export function OverviewPanel({
   customWeeklyVolumeChart: CustomWeeklyVolumePoint[]
   onOpenExercise: (exerciseId: string) => void
   navigate: NavigateFunction
+  exerciseMap?: Map<string, { name: string }>
+  weightUnit?: 'kg' | 'lb'
 }) {
   const [scope, setScope] = useState<Scope>('activity')
 
@@ -619,6 +622,17 @@ export function OverviewPanel({
               first={!showCustomSection && !showEmptyState && allSessions.length === 0}
               icon={Trophy}
             />
+          )}
+
+          {/* Szacowany 1RM — na podstawie serii z ciężarem */}
+          {allSessions.length > 0 && (
+            <ProgressSection icon={Dumbbell} title={pl.est1rmTitle} hint={pl.est1rmHint}>
+              <Estimated1rmSection
+                sessions={allSessions}
+                exerciseMap={exerciseMap ?? new Map()}
+                weightUnit={weightUnit}
+              />
+            </ProgressSection>
           )}
         </>
       )}

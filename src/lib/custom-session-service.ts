@@ -12,7 +12,7 @@ import {
 import { getNextWorkoutDate } from '@/lib/progress-engine'
 import { enqueueSync, enqueueActiveCustomWorkoutSync } from '@/lib/sync'
 import { generateId } from '@/lib/utils'
-import { track } from '@/lib/analytics'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 import { useAppStore } from '@/stores/app-store'
 
 /** Prevent double finalize / double progression for the same session. */
@@ -322,9 +322,9 @@ export async function finalizeCustomDay(params: {
   const store = useAppStore.getState()
   if (!store.hasCompletedFirstWorkout) {
     store.setHasCompletedFirstWorkout(true)
-    track('first_workout_done')
+    track(AnalyticsEvents.firstWorkoutDone)
   }
-  track('day_completed')
+  track(AnalyticsEvents.dayCompleted)
   void schedulePostWorkoutSync()
 
   // Community: first train on imported plan
@@ -339,14 +339,15 @@ export async function finalizeCustomDay(params: {
         const { recordCommunityTrained } = await import('@/lib/achievements/community-impact')
         const res = await recordCommunityTrained(plan.communityPublicationId)
         if (res.counted) {
-          track('community_trained', { counted: true })
+          track(AnalyticsEvents.communityTrained, { counted: true })
           const importMs = new Date(plan.createdAt).getTime()
           if (Number.isFinite(importMs) && Date.now() - importMs <= 48 * 60 * 60 * 1000) {
-            track('community_import_trained_48h')
+            track(AnalyticsEvents.communityImportTrained48h)
           }
         }
       } catch (err) {
         console.warn('[community] record_trained failed', err)
+        track(AnalyticsEvents.communityImportError, { step: 'record_trained' })
       }
     }
   }

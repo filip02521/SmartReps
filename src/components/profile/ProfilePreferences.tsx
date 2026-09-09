@@ -208,6 +208,7 @@ export function RemindersSection({
             <InfoHint text={pl.reminderHourHint} className="ml-1.5" />
           </p>
           <select
+            aria-label={pl.reminderHourLabel}
             className="mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-3 text-base text-[var(--sr-text-primary)]"
             value={reminderHour}
             onChange={(e) => onReminderHourChange(Number(e.target.value))}

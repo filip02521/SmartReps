@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { trackSyncError } from '@/lib/analytics'
 import { ACHIEVEMENT_CATALOG, isAchievementMet } from './catalog'
 import type { AchievementId, LocalAchievementUnlock } from './types'
 import { getAllUnlocks, mergeRemoteUnlocks, setSuppressedAchievements, clearSuppressedAchievements, getSuppressedAchievements } from './store'
@@ -45,7 +46,7 @@ export async function pushAchievementsToCloud(rows: LocalAchievementUnlock[]): P
   const { error } = await supabase.from('user_achievements').upsert(payload, {
     onConflict: 'user_id,achievement_id',
   })
-  if (error) console.warn('[achievements] push failed', error.message)
+  if (error) trackSyncError('achievements_push', error)
 }
 
 /** Delete revoked achievements from cloud — used for rolling-window achievements
@@ -61,7 +62,7 @@ export async function deleteAchievementsFromCloud(ids: AchievementId[]): Promise
     .delete()
     .eq('user_id', userData.user!.id)
     .in('achievement_id', ids)
-  if (error) console.warn('[achievements] delete failed', error.message)
+  if (error) trackSyncError('achievements_delete', error)
 }
 
 export async function pullAchievementsFromCloud(): Promise<void> {

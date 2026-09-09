@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite'
+/// <reference types="vitest" />
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -110,6 +111,25 @@ export default defineConfig({
             return 'lucide'
           }
         },
+      },
+    },
+  },
+  test: {
+    coverage: {
+      provider: 'v8',
+      include: [
+        'src/lib/sync.ts',
+        'src/lib/custom-sync.ts',
+        'src/lib/auth-sync.ts',
+        'src/lib/achievements/**/*.ts',
+      ],
+      thresholds: {
+        // Current baseline — prevents regressions without blocking CI.
+        // Raise as tests improve.
+        statements: 25,
+        branches: 20,
+        functions: 20,
+        lines: 25,
       },
     },
   },

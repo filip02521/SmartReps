@@ -9,7 +9,7 @@ import {
   markProgramActiveIfReady,
   saveActiveWorkout,
 } from '@/lib/program-service'
-import { track } from '@/lib/analytics'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 import { useAppStore } from '@/stores/app-store'
 
 function requireBuiltinProgram(program: Program | 'custom'): Program {
@@ -39,7 +39,7 @@ function markFirstWorkoutAndTrack(passed: boolean, sessionId: string) {
   const store = useAppStore.getState()
   if (passed && !store.hasCompletedFirstWorkout) {
     store.setHasCompletedFirstWorkout(true)
-    track('first_workout_done')
+    track(AnalyticsEvents.firstWorkoutDone)
   }
   // Idempotent across retries / early-return finalize paths
   const trackKey = `sr-tracked-day:${sessionId}`
@@ -370,7 +370,7 @@ export async function deleteWorkoutSession(sessionId: string): Promise<void> {
     const { clearActiveCustomWorkout } = await import('@/lib/custom-session-service')
     await clearActiveCustomWorkout(session.customPlanId)
   }
-  track('session_deleted', { program: session.program })
+  track(AnalyticsEvents.sessionDeleted, { program: session.program })
   // 4. Re-evaluate achievements — session counts/streaks may have changed
   const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
   scheduleAchievementCheck()

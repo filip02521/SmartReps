@@ -13,6 +13,51 @@ export const AnalyticsEvents = {
   shareCard: 'share_card',
   pwaUpdateReload: 'pwa_update_reload',
   clientError: 'client_error',
+  syncFailed: 'sync_failed',
+  syncOk: 'sync_ok',
+  syncSectionError: 'sync_section_error',
+  syncSection: 'sync_section',
+  syncResult: 'sync_result',
+  onboardingStarted: 'onboarding_started',
+  onboardingStep: 'onboarding_step',
+  onboardingComplete: 'onboarding_complete',
+  programSelected: 'program_selected',
+  firstWorkoutStarted: 'first_workout_started',
+  firstWorkoutDone: 'first_workout_done',
+  chunkLoadError: 'chunk_load_error',
+  webVitals: 'web_vitals',
+  // Workout / session lifecycle
+  dayCompleted: 'day_completed',
+  sessionDeleted: 'session_deleted',
+  retestStart: 'retest_start',
+  levelChange: 'level_change',
+  achievementUnlock: 'achievement_unlock',
+  // Auth / account
+  otpVerifyOk: 'otp_verify_ok',
+  otpVerifyFail: 'otp_verify_fail',
+  accountSwitchPromptShown: 'account_switch_prompt_shown',
+  accountSwitchCleared: 'account_switch_cleared',
+  accountSwitchCancelled: 'account_switch_cancelled',
+  accountSwitchWrongAccount: 'account_switch_wrong_account',
+  loginCloudPromptShown: 'login_cloud_prompt_shown',
+  loginCloudPromptClicked: 'login_cloud_prompt_clicked',
+  // Push notifications
+  pushSubscribeOk: 'push_subscribe_ok',
+  pushSubscribeFail: 'push_subscribe_fail',
+  pushUnsubscribeFail: 'push_unsubscribe_fail',
+  pushReminderUpdateFail: 'push_reminder_update_fail',
+  reminderToggle: 'reminder_toggle',
+  // Community
+  communityTrained: 'community_trained',
+  communityImportTrained48h: 'community_import_trained_48h',
+  communityImportError: 'community_import_error',
+  communityUnpublishError: 'community_unpublish_error',
+  // Custom plans
+  customPlanUpdatedFromSession: 'custom_plan_updated_from_session',
+  customPlanUpdateDiscarded: 'custom_plan_update_discarded',
+  // PWA install
+  standaloneTrue: 'standalone_true',
+  a2hsPrompt: 'a2hs_prompt',
 } as const
 
 export type AnalyticsEventName =
@@ -115,4 +160,104 @@ export function trackPwaUpdateReload(): void {
 
 export function trackSyncPath(message: string, data?: Record<string, unknown>): void {
   addSyncBreadcrumb(message, data)
+}
+
+/**
+ * Track the beginning/completion of a sync section (e.g. pull sessions,
+ * push body-weight). Useful for timing analysis and detecting which
+ * sections are slow or never complete.
+ * Never throws — analytics failure must not break sync.
+ */
+export function trackSyncSection(section: string, status: 'start' | 'complete', meta?: Record<string, unknown>): void {
+  try {
+    addSyncBreadcrumb(`section:${section}:${status}`, meta)
+    track(AnalyticsEvents.syncSection, {
+      section,
+      status,
+      ...meta,
+    })
+  } catch {
+    // never break sync for analytics
+  }
+}
+
+/**
+ * Track a sync section error (e.g. pull sessions failed, push body-weight failed).
+ * Sends a breadcrumb to Sentry + a product analytics event so sync failures
+ * are visible in dashboards without reading console.warn in DevTools.
+ * Never throws — analytics failure must not break sync.
+ */
+export function trackSyncError(section: string, error: unknown): void {
+  try {
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn(`[sync] ${section} failed`, error)
+    addSyncBreadcrumb(`error: ${section}`, { message: message.slice(0, 200) })
+    track(AnalyticsEvents.syncSectionError, {
+      section,
+      message: message.slice(0, 120),
+    })
+    if (sentryReady) {
+      Sentry.captureException(error, { extra: { syncSection: section } })
+    }
+  } catch {
+    // never break sync for analytics
+  }
+}
+
+/**
+ * Track the final result of a syncWithRemote cycle — ok/fail, error count,
+ * tombstone errors, and failure reason. This is the Trust metric from
+ * docs/product.md: "niski odsetek sync_failed / OTP fail w PWA standalone".
+ * Never throws — analytics failure must not break sync.
+ */
+export function trackSyncResult(result: {
+  ok: boolean
+  errors: number
+  tombstoneErrors?: number
+  reason?: string
+}): void {
+  try {
+    addSyncBreadcrumb('sync_result', result)
+    track(AnalyticsEvents.syncResult, {
+      ok: result.ok,
+      errors: result.errors,
+      tombstoneErrors: result.tombstoneErrors ?? 0,
+      reason: result.reason ?? null,
+    })
+    if (!result.ok && sentryReady) {
+      Sentry.addBreadcrumb({
+        category: 'sync',
+        message: 'sync_failed',
+        level: 'error',
+        data: result,
+      })
+    }
+  } catch {
+    // never break sync for analytics
+  }
+}
+
+/**
+ * Initialize Web Vitals measurement. Reports CLS, LCP, INP, FCP, TTFB
+ * as analytics events so performance regressions are visible in dashboards.
+ * Call once at app startup.
+ */
+export async function initWebVitals(): Promise<void> {
+  try {
+    const { onCLS, onLCP, onFCP, onTTFB, onINP } = await import('web-vitals')
+    const report = (metric: { name: string; value: number; rating: string }) => {
+      track(AnalyticsEvents.webVitals, {
+        metric: metric.name,
+        value: Math.round(metric.value * 100) / 100,
+        rating: metric.rating,
+      })
+    }
+    onCLS(report)
+    onLCP(report)
+    onFCP(report)
+    onTTFB(report)
+    onINP(report)
+  } catch {
+    // web-vitals is optional — never break app startup
+  }
 }

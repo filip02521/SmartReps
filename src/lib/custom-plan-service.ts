@@ -16,6 +16,7 @@ import {
 } from '@/lib/exercise-model'
 import { generateId } from '@/lib/utils'
 import { enqueueSync, enqueueActiveCustomWorkoutSync } from '@/lib/sync'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 import { useAppStore } from '@/stores/app-store'
 import { pruneEnabledCustomPlanIds } from '@/lib/enabled-custom-plans'
 import { applyProgressionToPlan, shouldApplyDeload } from '@/lib/custom-progression'
@@ -39,18 +40,25 @@ const STARTER_LABELS: Record<ExerciseStarterKey, string> = {
   dumbbellFlyes: pl.exerciseStarterDumbbellFlyes,
   dips: pl.exerciseStarterDips,
   pushupWide: pl.exerciseStarterPushupWide,
+  declineBenchPress: pl.exerciseStarterDeclineBenchPress,
+  pecDeck: pl.exerciseStarterPecDeck,
   // Plecy
   barbellRow: pl.exerciseStarterBarbellRow,
   latPulldown: pl.exerciseStarterLatPulldown,
   deadlift: pl.exerciseStarterDeadlift,
   seatedRow: pl.exerciseStarterSeatedRow,
   facePulls: pl.exerciseStarterFacePulls,
+  dumbbellRow: pl.exerciseStarterDumbbellRow,
+  tbarRow: pl.exerciseStarterTbarRow,
+  straightArmPulldown: pl.exerciseStarterStraightArmPulldown,
+  shrug: pl.exerciseStarterShrug,
   // Barki
   overheadPress: pl.exerciseStarterOverheadPress,
   lateralRaise: pl.exerciseStarterLateralRaise,
   frontRaise: pl.exerciseStarterFrontRaise,
   rearDeltFlyes: pl.exerciseStarterRearDeltFlyes,
   arnoldPress: pl.exerciseStarterArnoldPress,
+  uprightRow: pl.exerciseStarterUprightRow,
   // Ramiona
   barbellCurl: pl.exerciseStarterBarbellCurl,
   dumbbellCurl: pl.exerciseStarterDumbbellCurl,
@@ -58,6 +66,10 @@ const STARTER_LABELS: Record<ExerciseStarterKey, string> = {
   tricepPushdown: pl.exerciseStarterTricepPushdown,
   skullCrusher: pl.exerciseStarterSkullCrusher,
   closeGripBench: pl.exerciseStarterCloseGripBench,
+  concentrationCurl: pl.exerciseStarterConcentrationCurl,
+  preacherCurl: pl.exerciseStarterPreacherCurl,
+  overheadTricepExtension: pl.exerciseStarterOverheadTricepExtension,
+  tricepKickback: pl.exerciseStarterTricepKickback,
   // Nogi
   legPress: pl.exerciseStarterLegPress,
   lunges: pl.exerciseStarterLunges,
@@ -67,12 +79,16 @@ const STARTER_LABELS: Record<ExerciseStarterKey, string> = {
   calfRaise: pl.exerciseStarterCalfRaise,
   gobletSquat: pl.exerciseStarterGobletSquat,
   hipThrust: pl.exerciseStarterHipThrust,
+  frontSquat: pl.exerciseStarterFrontSquat,
+  stepUp: pl.exerciseStarterStepUp,
   // Core
   crunches: pl.exerciseStarterCrunches,
   hangingLegRaise: pl.exerciseStarterHangingLegRaise,
   russianTwist: pl.exerciseStarterRussianTwist,
   mountainClimbers: pl.exerciseStarterMountainClimbers,
   deadBug: pl.exerciseStarterDeadBug,
+  reverseCrunch: pl.exerciseStarterReverseCrunch,
+  lyingLegRaise: pl.exerciseStarterLyingLegRaise,
   // Całe ciało
   burpees: pl.exerciseStarterBurpees,
   kettlebellSwing: pl.exerciseStarterKettlebellSwing,
@@ -437,6 +453,7 @@ export async function deleteCustomPlan(planId: string): Promise<void> {
     }
   } catch (err) {
     console.warn('[community] unpublish on plan delete failed', err)
+    track(AnalyticsEvents.communityUnpublishError)
   }
 
   // Re-evaluate achievements — customPlansCount and workshop_custom may have changed

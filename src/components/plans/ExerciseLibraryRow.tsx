@@ -1,8 +1,9 @@
-import { ChevronRight, Pencil } from 'lucide-react'
+import { ChevronRight, Pencil, Play } from 'lucide-react'
 import { ExerciseSparkline } from '@/components/plans/ExerciseSparkline'
 import { ExerciseStatsIconButton } from '@/components/plans/ExerciseDetailSheet'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
 import type { ExerciseListSummary } from '@/lib/custom-exercise-stats'
+import { getDemoAnimationKey } from '@/lib/exercise-demo'
 import { pl } from '@/i18n/pl'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { cn } from '@/lib/utils'
@@ -39,6 +40,8 @@ export function ExerciseLibraryRow({
 }) {
   const hasHistory = (summary?.sessionCount ?? 0) > 0
   const dotClass = trendDot(summary?.trend ?? null)
+  const demoKey = getDemoAnimationKey(exercise)
+  const hasDemo = demoKey !== null
 
   const subtitle = hasHistory
     ? pl.exerciseListRowMeta(summary!.sessionCount, summary!.prLabel ?? '—')
@@ -67,6 +70,15 @@ export function ExerciseLibraryRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p className="truncate font-medium text-[var(--sr-text-primary)]">{exercise.name}</p>
+            {hasDemo && (
+              <span
+                className="flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--sr-brand-primary-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--sr-brand-primary)]"
+                title={pl.exerciseHasDemo}
+              >
+                <Play size={9} aria-hidden />
+                {pl.exerciseDemoBadge}
+              </span>
+            )}
             {dotClass && (
               <span
                 className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dotClass)}

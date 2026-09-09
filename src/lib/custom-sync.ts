@@ -19,6 +19,7 @@ import {
   hasPendingCustomProgressUpsert,
 } from '@/lib/sync-queue-utils'
 import { supabase } from '@/lib/supabase/client'
+import { trackSyncError } from '@/lib/analytics'
 
 function remoteCustomSessionHasProgress(logs: ExerciseLog[]): boolean {
   return logs.some((l) => l.sets.length > 0)
@@ -377,7 +378,7 @@ export async function pushCustomEntities(userId: string): Promise<number> {
       await upsertUserExercise(userId, ex)
     } catch (err) {
       errors++
-      console.warn('[sync] user_exercise failed', ex.id, err)
+      trackSyncError('push_user_exercise', err)
     }
   }
   for (const plan of await db.customPlans.toArray()) {
@@ -388,7 +389,7 @@ export async function pushCustomEntities(userId: string): Promise<number> {
       await upsertCustomPlan(userId, plan)
     } catch (err) {
       errors++
-      console.warn('[sync] custom_plan failed', plan.id, err)
+      trackSyncError('push_custom_plan', err)
     }
   }
 
@@ -409,7 +410,7 @@ export async function pushCustomEntities(userId: string): Promise<number> {
       await upsertCustomProgress(userId, prog)
     } catch (err) {
       errors++
-      console.warn('[sync] custom_progress failed', prog.customPlanId, err)
+      trackSyncError('push_custom_progress', err)
     }
   }
 
@@ -419,7 +420,7 @@ export async function pushCustomEntities(userId: string): Promise<number> {
       await upsertActiveCustomWorkout(userId, active)
     } catch (err) {
       errors++
-      console.warn('[sync] active_custom_workout failed', active.customPlanId, err)
+      trackSyncError('push_active_custom_workout', err)
     }
   }
 
@@ -585,7 +586,7 @@ export async function pullCustomEntities(userId: string): Promise<number> {
     await mergeDuplicateExercises()
     await ensureDefaultExercises()
   } catch (err) {
-    console.warn('[sync] pullCustomEntities failed', err)
+    trackSyncError('pull_custom_entities', err)
     errors++
   }
   return errors

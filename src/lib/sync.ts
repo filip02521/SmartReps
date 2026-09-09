@@ -27,6 +27,7 @@ import {
   hasPendingSessionDelete,
 } from '@/lib/sync-queue-utils'
 import { useAppStore } from '@/stores/app-store'
+import { trackSyncError, trackSyncResult, trackSyncSection, track, AnalyticsEvents } from '@/lib/analytics'
 
 type SyncAction = 'insert' | 'update' | 'delete'
 
@@ -88,12 +89,7 @@ export async function enqueueSync(table: string, action: SyncAction, payload: un
       }
     }
   } catch (err) {
-    console.warn('[sync] enqueueSync failed — DB may be blocked or closed', {
-      table,
-      action,
-      error: err instanceof Error ? err.name : typeof err,
-      message: err instanceof Error ? err.message : String(err),
-    })
+    trackSyncError('enqueue_sync', err)
   }
 }
 
@@ -265,7 +261,7 @@ export async function pushProfileSettingsOnly(): Promise<SyncResult> {
     await upsertProfileEnabledPrograms(userId)
     return { ok: true, errors: 0 }
   } catch (err) {
-    console.warn('[sync] pushProfileSettingsOnly failed', err)
+    trackSyncError('push_profile_settings_only', err)
     return { ok: false, errors: 1 }
   }
 }
@@ -294,7 +290,7 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
     }
     return { ok: true, errors: 0 }
   } catch (err) {
-    console.warn('[sync] pullProfileEnabledPrograms failed', err)
+    trackSyncError('pull_profile_enabled_programs', err)
     return { ok: false, errors: 1 }
   }
 }
@@ -396,7 +392,7 @@ async function upsertSession(userId: string, row: LocalWorkoutSession) {
         duration_sec: s.actual.durationSec ?? null,
         weight_kg: s.actual.weightKg ?? null,
         passed: s.passed,
-        metrics_json: s.actual,
+        metrics_json: { ...s.actual, rpe: s.rpe ?? null, rir: s.rir ?? null, note: s.note ?? null },
       })),
     )
     if (payload.length > 0) {
@@ -657,11 +653,15 @@ export async function flushSyncQueue(): Promise<number> {
     } catch (err) {
       errors++
       const attempts = (item.attempts ?? 0) + 1
-      console.warn('[sync] queue item failed', item.table, err)
+      trackSyncError('queue_item', err)
       if (item.id !== undefined) {
         await db.syncQueue.update(item.id, { attempts })
         if (attempts >= MAX_ATTEMPTS) {
-          console.warn('[sync] queue item dead-lettered after', attempts, 'attempts', item.table)
+          track(AnalyticsEvents.syncSectionError, {
+            section: 'queue_item_dead_lettered',
+            table: item.table,
+            attempts,
+          })
         }
       }
     }
@@ -698,7 +698,7 @@ export async function syncAllLocalData(): Promise<SyncResult> {
     await upsertProfileEnabledPrograms(userId)
   } catch (err) {
     errors++
-    console.warn('[sync] profile upsert failed', err)
+    trackSyncError('push_profile_enabled_programs', err)
   }
 
   // Progress
@@ -710,12 +710,12 @@ export async function syncAllLocalData(): Promise<SyncResult> {
         await upsertProgressIfNewer(userId, row, remoteProgress)
       } catch (err) {
         errors++
-        console.warn('[sync] progress failed', row.program, err)
+        trackSyncError('push_progress_row', err)
       }
     }
   } catch (err) {
     errors++
-    console.warn('[sync] progress section failed', err)
+    trackSyncError('push_progress_section', err)
   }
 
   // Custom plans/exercises before sessions — workout_sessions.custom_plan_id FK.
@@ -724,7 +724,7 @@ export async function syncAllLocalData(): Promise<SyncResult> {
     errors += await pushCustomEntities(userId)
   } catch (err) {
     errors++
-    console.warn('[sync] custom entities push failed', err)
+    trackSyncError('push_custom_entities', err)
   }
 
   // Sessions
@@ -740,12 +740,12 @@ export async function syncAllLocalData(): Promise<SyncResult> {
         await upsertSession(userId, session)
       } catch (err) {
         errors++
-        console.warn('[sync] session failed', session.id, err)
+        trackSyncError('push_session_row', err)
       }
     }
   } catch (err) {
     errors++
-    console.warn('[sync] sessions section failed', err)
+    trackSyncError('push_sessions_section', err)
   }
 
   // Max tests
@@ -756,12 +756,12 @@ export async function syncAllLocalData(): Promise<SyncResult> {
         await upsertMaxTest(userId, test)
       } catch (err) {
         errors++
-        console.warn('[sync] max_test failed', test.program, err)
+        trackSyncError('push_max_test_row', err)
       }
     }
   } catch (err) {
     errors++
-    console.warn('[sync] max_tests section failed', err)
+    trackSyncError('push_max_tests_section', err)
   }
 
   // Body weight
@@ -772,12 +772,12 @@ export async function syncAllLocalData(): Promise<SyncResult> {
         await upsertBodyWeight(userId, bw)
       } catch (err) {
         errors++
-        console.warn('[sync] body_weight failed', bw.id, err)
+        trackSyncError('push_body_weight_row', err)
       }
     }
   } catch (err) {
     errors++
-    console.warn('[sync] body_weight section failed', err)
+    trackSyncError('push_body_weight_section', err)
   }
 
   // Active workouts
@@ -789,12 +789,12 @@ export async function syncAllLocalData(): Promise<SyncResult> {
         await upsertActiveWorkout(userId, row)
       } catch (err) {
         errors++
-        console.warn('[sync] active_workout failed', row.program, err)
+        trackSyncError('push_active_workout_row', err)
       }
     }
   } catch (err) {
     errors++
-    console.warn('[sync] active_workout section failed', err)
+    trackSyncError('push_active_workout_section', err)
   }
 
   // Flush queue — must always run even if earlier sections failed
@@ -802,7 +802,7 @@ export async function syncAllLocalData(): Promise<SyncResult> {
     errors += await flushSyncQueue()
   } catch (err) {
     errors++
-    console.warn('[sync] flushSyncQueue failed', err)
+    trackSyncError('flush_sync_queue', err)
   }
 
   return { ok: errors === 0, errors }
@@ -1126,7 +1126,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
     errors += profilePull.errors
   } catch (err) {
     errors++
-    console.warn('[sync] pull profile failed', err)
+    trackSyncError('pull_profile', err)
   }
 
   // Progress
@@ -1148,7 +1148,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
     }
   } catch (err) {
     errors++
-    console.warn('[sync] pull progress failed', err)
+    trackSyncError('pull_progress', err)
   }
 
   // Session tombstones — must be pulled BEFORE workout_sessions to prevent
@@ -1184,7 +1184,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
   } catch (err) {
     tombstoneErrors++
     errors++
-    console.warn('[sync] pull session tombstones failed', err)
+    trackSyncError('pull_session_tombstones', err)
   }
 
   // Sessions
@@ -1202,7 +1202,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
     }
   } catch (err) {
     errors++
-    console.warn('[sync] pull sessions failed', err)
+    trackSyncError('pull_sessions', err)
   }
 
   // Active workouts
@@ -1221,7 +1221,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
     )
   } catch (err) {
     errors++
-    console.warn('[sync] pull active workouts failed', err)
+    trackSyncError('pull_active_workouts', err)
   }
 
   // Max tests
@@ -1238,7 +1238,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
     }
   } catch (err) {
     errors++
-    console.warn('[sync] pull max tests failed', err)
+    trackSyncError('pull_max_tests', err)
   }
 
   // Body-weight tombstones — must be pushed AND pulled BEFORE body_weight_entries
@@ -1262,7 +1262,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
   } catch (err) {
     tombstoneErrors++
     errors++
-    console.warn('[sync] push body-weight tombstones failed', err)
+    trackSyncError('push_body_weight_tombstones', err)
   }
 
   // Pull body-weight tombstones from cloud — delete local entries deleted on another device
@@ -1288,10 +1288,10 @@ export async function pullRemoteData(): Promise<SyncResult> {
         }
       }
     }
-  } catch {
-    // Tombstone table may not exist yet — best-effort
+  } catch (err) {
     tombstoneErrors++
     errors++
+    trackSyncError('pull_body_weight_tombstones', err)
   }
 
   // Body weight entries
@@ -1308,7 +1308,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
     }
   } catch (err) {
     errors++
-    console.warn('[sync] pull body weight failed', err)
+    trackSyncError('pull_body_weight', err)
   }
 
   // AI insights
@@ -1331,7 +1331,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
     }
   } catch (err) {
     errors++
-    console.warn('[sync] pull ai insights failed', err)
+    trackSyncError('pull_ai_insights', err)
   }
 
   // Push local tombstones to cloud (that haven't been pushed yet)
@@ -1353,7 +1353,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
   } catch (err) {
     tombstoneErrors++
     errors++
-    console.warn('[sync] push session tombstones failed', err)
+    trackSyncError('push_session_tombstones', err)
   }
 
   // Custom entities (plans, exercises, progress, active custom workouts)
@@ -1367,7 +1367,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
   } catch (err) {
     errors++
     tombstoneErrors++
-    console.warn('[sync] pull custom entities failed', err)
+    trackSyncError('pull_custom_entities_wrapper', err)
   }
 
   return { ok: errors === 0, errors, tombstoneErrors }
@@ -1376,6 +1376,8 @@ export async function pullRemoteData(): Promise<SyncResult> {
 export async function syncWithRemote(): Promise<SyncResult> {
   const userId = await getUserId()
   if (!userId) return { ok: true, errors: 0 }
+
+  trackSyncSection('syncWithRemote', 'start')
 
   // Pull profile clocks first when local LWW stamps are missing (upgrade / new device),
   // so we don't overwrite remote theme/timer prefs with fresh defaults.
@@ -1391,11 +1393,26 @@ export async function syncWithRemote(): Promise<SyncResult> {
   // rows deleted on another device whose tombstone pull failed. Non-tombstone
   // errors (e.g. AI insights) are safe to push past. Retry the whole sync next time.
   if ((pull.tombstoneErrors ?? 0) > 0) {
+    trackSyncSection('syncWithRemote', 'complete', { ok: false, reason: 'tombstone_pull_failed' })
+    trackSyncResult({
+      ok: false,
+      errors: pull.errors,
+      tombstoneErrors: pull.tombstoneErrors ?? 0,
+      reason: 'tombstone_pull_failed',
+    })
     return { ok: false, errors: pull.errors }
   }
   const push = await syncAllLocalData()
   const errors = pull.errors + push.errors
-  return { ok: errors === 0, errors }
+  const result = { ok: errors === 0, errors }
+  trackSyncSection('syncWithRemote', 'complete', { ok: result.ok, errors })
+  trackSyncResult({
+    ok: result.ok,
+    errors: result.errors,
+    tombstoneErrors: pull.tombstoneErrors ?? 0,
+    reason: result.ok ? undefined : 'pull_or_push_errors',
+  })
+  return result
 }
 
 export async function enqueueActiveWorkoutSync(program: string, state: ActiveWorkoutState | null) {
@@ -1425,7 +1442,7 @@ async function dropPendingActiveCustomWorkoutUpdates(customPlanId: string) {
   try {
     items = await db.syncQueue.toArray()
   } catch (err) {
-    console.warn('[sync] dropPendingActiveCustomWorkoutUpdates — DB error', err instanceof Error ? err.name : typeof err)
+    trackSyncError('drop_pending_active_custom_workout_updates', err)
     return
   }
   for (const item of items) {
@@ -1448,7 +1465,7 @@ async function dropPendingActiveWorkoutUpdates(program: string) {
   try {
     items = await db.syncQueue.toArray()
   } catch (err) {
-    console.warn('[sync] dropPendingActiveWorkoutUpdates — DB error', err instanceof Error ? err.name : typeof err)
+    trackSyncError('drop_pending_active_workout_updates', err)
     return
   }
   for (const item of items) {

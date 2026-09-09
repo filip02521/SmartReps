@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/Button'
 import { BrandLoader } from '@/components/ui/BrandLoader'
 import { OverlayPortal } from '@/components/ui/OverlayPortal'
 import { Sheet } from '@/components/ui/Sheet'
+import { ExerciseDemo } from '@/components/exercise-demos/ExerciseDemo'
 import { getSetLabel, getTargetReps, formatSetTarget } from '@/lib/progress-engine'
 import type { SetTarget } from '@/data/plans/types'
 import type { Program } from '@/data/plans/types'
+import type { ExerciseDefinition } from '@/lib/exercise-model'
 import { type ReactNode } from 'react'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { ProgressRing } from '@/components/ui/ProgressRing'
@@ -432,6 +434,7 @@ export function RestTimerExpanded({
   onCollapse,
   onSetRest,
   setLabel,
+  nextExercise,
 }: {
   remainingSec: number
   totalSec: number
@@ -444,6 +447,8 @@ export function RestTimerExpanded({
   onSetRest?: (sec: number) => void
   /** Context label like "Seria 2 z 5" — shown above the timer. */
   setLabel?: string
+  /** Exercise definition for demo animation during rest. */
+  nextExercise?: ExerciseDefinition | null
 }) {
   const trapRef = useFocusTrap(true)
   const safeTotal = totalSec > 0 ? totalSec : 1
@@ -501,6 +506,11 @@ export function RestTimerExpanded({
       </ProgressRing>
       {nextLabel ? (
         <p className="mt-6 px-4 text-center text-sm text-[var(--sr-text-secondary)]">{nextLabel}</p>
+      ) : null}
+      {nextExercise ? (
+        <div className="mt-3 w-48">
+          <ExerciseDemo exercise={nextExercise} compact showControls={false} />
+        </div>
       ) : null}
       {coachSuggestion ? (
         <div

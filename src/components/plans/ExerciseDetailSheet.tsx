@@ -30,6 +30,8 @@ import {
 } from '@/lib/custom-exercise-stats'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
+import { ExerciseDemo } from '@/components/exercise-demos/ExerciseDemo'
+import { getDemoAnimationKey } from '@/lib/exercise-demo'
 
 function metricBadgeLabel(metric: PrimaryMetric): string {
   if (metric === 'reps') return pl.exerciseMetricReps
@@ -139,8 +141,16 @@ export function ExerciseDetailSheet({
         <ExerciseDetailSkeleton />
       ) : !stats ? null : (
         <div className="flex flex-col gap-5">
+          {/* Exercise demonstration animation */}
+          <ExerciseDemo exercise={exercise} />
+
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="default">{metricBadgeLabel(exercise.primaryMetric)}</Badge>
+            {getDemoAnimationKey(exercise) ? (
+              <Badge variant="success">{pl.exerciseDemoBadge}</Badge>
+            ) : (
+              <Badge variant="default">{pl.exerciseNoDemo}</Badge>
+            )}
             {exercise.restDefaultSec > 0 && (
               <span className="text-sm text-[var(--sr-text-muted)]">
                 {pl.exerciseDetailRestDefault(exercise.restDefaultSec)}

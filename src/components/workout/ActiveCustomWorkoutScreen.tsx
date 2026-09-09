@@ -11,9 +11,12 @@ import {
   WorkoutFailRetryRow,
 } from '@/components/workout/WorkoutComponents'
 import { CustomPreviousResultHint } from '@/components/workout/CustomPreviousResultHint'
+import { RpeRirPicker } from '@/components/workout/RpeRirPicker'
+import { SetNoteInput } from '@/components/workout/SetNoteInput'
 import { WarmupPanel } from '@/components/workout/WarmupPanel'
 import { RestSecChips } from '@/components/plans/RestSecChips'
 import { SessionElapsedLabel } from '@/components/workout/SessionElapsedLabel'
+import { ExerciseDemo } from '@/components/exercise-demos/ExerciseDemo'
 import { pl } from '@/i18n/pl'
 import type {
   ExerciseDefinition,
@@ -984,6 +987,14 @@ export type ActiveCustomWorkoutScreenProps = {
   timerRunning: boolean
   canEditPreviousSet?: boolean
   weightUnit: 'kg' | 'lb'
+  rpeRirValue?: number | null
+  rpeRirMode?: 'rpe' | 'rir'
+  setNote?: string | undefined
+  onRpeRirChange?: (v: number | null) => void
+  onRpeRirModeChange?: (m: 'rpe' | 'rir') => void
+  onSetNoteChange?: (v: string | undefined) => void
+  /** Called when user adds a warm-up set from the generator. */
+  onAddWarmupSet?: (set: { reps: number; weightKg: number }) => void
   onBack: () => void
   onToggleMenu: () => void
   onShowPlan: () => void
@@ -1111,6 +1122,13 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     canSwapExercise = false,
     onSwapExercise,
     onAddExercise,
+    rpeRirValue = null,
+    rpeRirMode = 'rpe',
+    setNote,
+    onRpeRirChange,
+    onRpeRirModeChange,
+    onSetNoteChange,
+    onAddWarmupSet,
   } = props
 
   const prescription = planned.sets[setIndex]
@@ -1149,7 +1167,9 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
         ? pl.customWorkoutGroupCircuit
         : groupKind === 'amrap'
           ? pl.customWorkoutGroupAmrap
-          : null
+          : groupKind === 'dropset'
+            ? pl.dropsetLabel
+            : null
 
   const jumpAmrapGroupId =
     groupKind === 'amrap' && amrapEndAt
@@ -1234,6 +1254,11 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           />
         </div>
       </header>
+
+      {/* Collapsible exercise demo — thumbnail by default, expand on tap */}
+      <div className="px-4 pt-2">
+        <ExerciseDemo exercise={exerciseDef} collapsible showControls={false} />
+      </div>
 
       {saveError && onDismissSaveError && (
         <div className="mx-4 mt-3 mb-1">
@@ -1369,6 +1394,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             targetReps={prescription.reps ? metricTargetDisplayValue(prescription.reps) : 0}
             targetWeight={prescription.weightKg?.kind === 'fixed' ? prescription.weightKg.value : undefined}
             weightUnit={weightUnit}
+            onAddWarmupSet={onAddWarmupSet}
           />
         )}
         {prescription && (
@@ -1393,6 +1419,17 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             weightUnit={weightUnit}
             durationUnit={durationUnit ?? exerciseDef.durationDisplayUnit ?? 'min'}
           />
+        )}
+        {onRpeRirChange && !counterLocked && (
+          <RpeRirPicker
+            value={rpeRirValue}
+            mode={rpeRirMode}
+            onChange={onRpeRirChange}
+            onModeChange={onRpeRirModeChange ?? (() => {})}
+          />
+        )}
+        {onSetNoteChange && !counterLocked && (
+          <SetNoteInput value={setNote} onChange={onSetNoteChange} />
         )}
         {canEditPreviousSet && onEditPreviousSet && (
           <Button variant="ghost" className="mt-2" fullWidth onClick={onEditPreviousSet}>
@@ -1515,6 +1552,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           remainingSec={restTimer.remainingSec}
           totalSec={restTimer.totalSec}
           nextLabel={nextLabel}
+          nextExercise={exerciseDef}
           coachSuggestion={coachSuggestion}
           onAdd15={onAddRest15}
           onAdd30={onAddRest30}

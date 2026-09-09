@@ -2,7 +2,7 @@
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
 import { clientsClaim } from 'workbox-core'
 import { registerRoute } from 'workbox-routing'
-import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies'
+import { NetworkFirst, StaleWhileRevalidate, CacheFirst } from 'workbox-strategies'
 import { CacheableResponsePlugin } from 'workbox-cacheable-response'
 import { ExpirationPlugin } from 'workbox-expiration'
 
@@ -48,6 +48,21 @@ registerRoute(
     plugins: [
       new CacheableResponsePlugin({ statuses: [200] }),
       new ExpirationPlugin({ maxEntries: 60, maxAgeSeconds: 30 * 24 * 3600 }),
+    ],
+  }),
+)
+
+// Runtime cache for exercise demo videos (MP4).
+// Videos are static assets (~300KB-8MB each) — CacheFirst is ideal:
+// fetch from cache instantly, only hit network on first load.
+// 41 videos × ~700KB avg ≈ 28MB total, capped at 60 entries.
+registerRoute(
+  ({ request }) => request.destination === 'video',
+  new CacheFirst({
+    cacheName: 'sr-exercise-videos',
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [200] }),
+      new ExpirationPlugin({ maxEntries: 60, maxAgeSeconds: 90 * 24 * 3600 }),
     ],
   }),
 )

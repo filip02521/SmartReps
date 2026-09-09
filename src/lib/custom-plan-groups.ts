@@ -17,6 +17,10 @@ export function createExerciseGroup(kind: ExerciseGroupKind): ExerciseGroup {
   if (kind === 'amrap') {
     return { ...base, amrapDurationSec: DEFAULT_AMRAP_SEC }
   }
+  if (kind === 'dropset') {
+    // Drop set: no rest between sets — reduce weight continuously
+    return { ...base, restAfterRoundSec: 0 }
+  }
   return base
 }
 

@@ -1,5 +1,6 @@
 import { runAchievementEvaluation } from './run'
 import { useAchievementUiStore } from '@/stores/achievement-ui-store'
+import { trackSyncError } from '@/lib/analytics'
 import type { EvaluateResult } from './types'
 
 /** Evaluate + enqueue unlock UI. Prefer await when gallery/state must reflect result. */
@@ -11,7 +12,7 @@ export async function runAchievementCheck(): Promise<EvaluateResult | null> {
     }
     return result
   } catch (err) {
-    console.warn('[achievements] evaluate failed', err)
+    trackSyncError('achievements_evaluate', err)
     return null
   }
 }

@@ -16,7 +16,7 @@ import { hasIncompleteSetup } from '@/lib/setup-flow'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
 import { completeOnboardingIfSynced } from '@/lib/onboarding-from-sync'
-import { track } from '@/lib/analytics'
+import { track, trackSyncError, AnalyticsEvents } from '@/lib/analytics'
 import { clearSignedOutPreference } from '@/lib/auth-lifecycle'
 
 const AUTH_RETURN_KEY = 'auth-return-to'
@@ -109,7 +109,7 @@ export async function ensureAccountForSession(userId: string): Promise<AccountEn
     if (await hasLocalTrainingData()) {
       const { setAccountSwitchPending } = await import('@/lib/account-switch-gate')
       setAccountSwitchPending({ userId })
-      track('account_switch_prompt_shown')
+      track(AnalyticsEvents.accountSwitchPromptShown)
       return 'needs_confirm'
     }
     // Clear suppressed achievements — different account
@@ -348,10 +348,10 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
       useAppStore.getState().setLastSyncedAt(new Date().toISOString())
       useAppStore.getState().setLastSyncFailureReason(null)
       await completeOnboardingIfSynced()
-      track('sync_ok')
+      track(AnalyticsEvents.syncOk)
     } else {
       if (reason) useAppStore.getState().setLastSyncFailureReason(reason)
-      track('sync_failed', { errors: finalResult.errors, reason: reason ?? 'unknown' })
+      track(AnalyticsEvents.syncFailed, { errors: finalResult.errors, reason: reason ?? 'unknown' })
     }
 
     // Achievement reconciliation runs independently of data sync result.
@@ -454,7 +454,7 @@ export async function completeSignInFlow(
       try {
         await resolvePostAuthNavigation(navigate, opts?.returnTo ?? consumeAuthReturnTo())
       } catch (err) {
-        console.warn('[auth] post-sign-in navigation failed', err)
+        trackSyncError('post_sign_in_navigation', err)
       }
     }
   })().finally(() => {

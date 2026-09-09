@@ -1139,8 +1139,14 @@ export function CustomPlanEditor({
                             { value: 'superset', label: pl.groupSuperset },
                             { value: 'circuit', label: pl.groupCircuit },
                             { value: 'amrap', label: pl.groupAmrap },
+                            { value: 'dropset', label: pl.dropsetLabel },
                           ]}
                         />
+                        {group.kind === 'dropset' && (
+                          <p className="sr-text-caption text-[var(--sr-text-muted)]">
+                            {pl.dropsetHint}
+                          </p>
+                        )}
                         {group.kind === 'circuit' && (
                           <TextField
                             id={`group-rounds-${group.id}`}

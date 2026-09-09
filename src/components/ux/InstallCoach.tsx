@@ -5,7 +5,7 @@ import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { isStandalonePwa } from '@/lib/pwa-detect'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
-import { track } from '@/lib/analytics'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
@@ -75,10 +75,10 @@ export function InstallCoach({
       try {
         if (!sessionStorage.getItem(key)) {
           sessionStorage.setItem(key, '1')
-          track('standalone_true')
+          track(AnalyticsEvents.standaloneTrue)
         }
       } catch {
-        track('standalone_true')
+        track(AnalyticsEvents.standaloneTrue)
       }
       if (isSupabaseConfigured && loggedIn === false && !hasSeenStandaloneLoginCoach) {
         setShowLoginCoach(true)
@@ -170,7 +170,7 @@ export function InstallCoach({
                 await deferredInstall.prompt()
                 setHasDismissedInstallPrompt(true)
                 setShowInstall(false)
-                track('a2hs_prompt')
+                track(AnalyticsEvents.a2hsPrompt)
               })()
             }
           : undefined

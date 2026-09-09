@@ -45,8 +45,7 @@ import { shouldShowLoginCloudPrompt } from '@/lib/summary-actions'
 import { shareCustomSessionCard } from '@/lib/share-card'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { enqueueSync } from '@/lib/sync'
-import { track } from '@/lib/analytics'
-import { trackShareCard } from '@/lib/analytics'
+import { track, trackShareCard, AnalyticsEvents } from '@/lib/analytics'
 import { useAppStore } from '@/stores/app-store'
 import { showToast } from '@/stores/toast-store'
 import { releaseBodyScrollLock } from '@/hooks/useFocusTrap'
@@ -352,7 +351,7 @@ export default function CustomSessionSummary() {
   useEffect(() => {
     if (!showLoginPrompt || loginPromptTrackedRef.current) return
     loginPromptTrackedRef.current = true
-    track('login_cloud_prompt_shown')
+    track(AnalyticsEvents.loginCloudPromptShown)
   }, [showLoginPrompt])
 
   async function handleSavePlanFromSession(opts?: { values?: boolean; exercises?: boolean }) {
@@ -383,7 +382,7 @@ export default function CustomSessionSummary() {
       setOfferPlanUpdate(false)
       setPlanUpdateDone(true)
       showToast(pl.customSummaryUpdatePlanDone, 'success')
-      track('custom_plan_updated_from_session')
+      track(AnalyticsEvents.customPlanUpdatedFromSession)
     } catch {
       showToast(pl.customSummaryUpdatePlanFailed, 'error')
     } finally {
@@ -409,7 +408,7 @@ export default function CustomSessionSummary() {
       /* local only — decline flag still hides the card */
     }
     setOfferPlanUpdate(false)
-    track('custom_plan_update_discarded')
+    track(AnalyticsEvents.customPlanUpdateDiscarded)
   }
 
   if (loading) {
@@ -855,7 +854,7 @@ export default function CustomSessionSummary() {
           actionLabel={pl.standaloneLoginCoachCta}
           onAction={() => {
             dismissLoginPrompt()
-            track('login_cloud_prompt_clicked')
+            track(AnalyticsEvents.loginCloudPromptClicked)
             if (resolvedPlanId && planName) {
               useAppStore.getState().setPendingCustomStart({
                 customPlanId: resolvedPlanId,

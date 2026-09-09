@@ -189,6 +189,9 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
                   <th className="pb-2 font-semibold">{pl.targetColumn}</th>
                   <th className="pb-2 font-semibold">{pl.youColumn}</th>
                   <th className="hidden pb-2 font-semibold sm:table-cell">{pl.prevColumn}</th>
+                  <th className="hidden pb-2 font-semibold sm:table-cell">{pl.prevColumn}</th>
+                  <th className="hidden pb-2 font-semibold text-center sm:table-cell">{pl.rpeLabel}</th>
+                  <th className="hidden pb-2 font-semibold text-right sm:table-cell">{pl.volumePerSet}</th>
                 </tr>
               </thead>
               <tbody>
@@ -253,11 +256,39 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
                           '—'
                         )}
                       </td>
+                      <td className="hidden py-2 text-center tabular-nums sm:table-cell">
+                        {set.rpe != null
+                          ? `${pl.rpeLabel} ${set.rpe}`
+                          : set.rir != null
+                            ? `${pl.rirLabel} ${set.rir}`
+                            : '—'}
+                      </td>
+                      <td className="hidden py-2 text-right tabular-nums text-[var(--sr-text-muted)] sm:table-cell">
+                        {(() => {
+                          const reps = set.actual.reps ?? 0
+                          const kg = set.actual.weightKg ?? 0
+                          return kg > 0 ? kgToDisplay(reps * kg, weightUnit) : '—'
+                        })()}
+                      </td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
+            {log.sets.some((s) => s.note) && (
+              <div className="mt-2 space-y-1 border-t border-[var(--sr-border-subtle)] pt-2">
+                {log.sets
+                  .filter((s) => s.note)
+                  .map((s) => (
+                    <p key={s.setNumber} className="sr-text-body-sm text-[var(--sr-text-muted)]">
+                      <span className="font-medium text-[var(--sr-text-secondary)]">
+                        {pl.setColumn} {s.setNumber}:
+                      </span>{' '}
+                      {s.note}
+                    </p>
+                  ))}
+              </div>
+            )}
           </Card>
         )
       })}

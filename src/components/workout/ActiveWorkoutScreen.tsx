@@ -1,9 +1,11 @@
 import { ArrowLeft, MoreVertical } from 'lucide-react'
-import type { RefObject } from 'react'
+import { useMemo, type RefObject } from 'react'
 import type { Program } from '@/data/plans/types'
 import type { SetTarget } from '@/data/plans/types'
 import type { SetResultDraft } from '@/lib/progress-engine'
 import type { RestTimerState } from '@/lib/rest-timer'
+import type { ExerciseDefinition } from '@/lib/exercise-model'
+import { ExerciseDemo } from '@/components/exercise-demos/ExerciseDemo'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
@@ -146,6 +148,20 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         ? pl.pushups
         : pl.pullups
   const programLabel = program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+  const builtinExercise = useMemo<ExerciseDefinition>(
+    () => ({
+      id: program,
+      name: program === 'pushups' ? pl.exerciseStarterPushups : pl.exerciseStarterPullups,
+      primaryMetric: 'reps',
+      restDefaultSec: day.restBetweenSetsSec,
+      muscleGroup: program === 'pushups' ? 'chest' : 'back',
+      source: 'starter',
+      archived: false,
+      createdAt: '',
+      updatedAt: '',
+    }),
+    [program, day.restBetweenSetsSec],
+  )
   const isResting = restTimer !== null && restTimer.mode !== 'idle'
   const preparingNegative = negativeCountdown !== null && negativeCountdown > 0
   const counterLocked = isResting || preparingNegative
@@ -246,6 +262,11 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         </div>
       )}
 
+      {/* Collapsible exercise demo — thumbnail by default, expand on tap */}
+      <div className="px-4 pt-2">
+        <ExerciseDemo exercise={builtinExercise} collapsible showControls={false} />
+      </div>
+
       {cycleVariant === 'negative' && <NegativeBanner />}
       {preparingNegative && (
         <NegativeCountdown seconds={negativeCountdown!} />
@@ -338,6 +359,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           remainingSec={restTimer.remainingSec}
           totalSec={restTimer.totalSec}
           nextLabel={nextLabel}
+          nextExercise={builtinExercise}
           coachSuggestion={coachSuggestion}
           onAdd15={onAddRest15}
           onAdd30={onAddRest30}

@@ -32,6 +32,7 @@ export function hideSplash() {
   if (el) {
     el.style.opacity = '0'
     el.style.transition = 'opacity 0.35s ease'
+    el.setAttribute('aria-hidden', 'true')
     window.setTimeout(() => el.remove(), 350)
   }
   void import('@/lib/theme-color').then((m) => m.hideBootSplash())

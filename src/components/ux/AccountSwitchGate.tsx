@@ -18,7 +18,7 @@ import {
 } from '@/lib/account-switch-gate'
 import { useAppStore } from '@/stores/app-store'
 import { pl } from '@/i18n/pl'
-import { track } from '@/lib/analytics'
+import { track, AnalyticsEvents } from '@/lib/analytics'
 import { showToast } from '@/stores/toast-store'
 
 export function AccountSwitchGate() {
@@ -47,7 +47,7 @@ export function AccountSwitchGate() {
     if (busy) return
     setBusy(true)
     try {
-      track('account_switch_cleared')
+      track(AnalyticsEvents.accountSwitchCleared)
       // Clear suppressed achievements — switching to a different account
       const { clearSuppressedAchievements } = await import('@/lib/achievements/store')
       clearSuppressedAchievements()
@@ -65,7 +65,7 @@ export function AccountSwitchGate() {
     if (busy) return
     setBusy(true)
     try {
-      track('account_switch_cancelled')
+      track(AnalyticsEvents.accountSwitchCancelled)
       clearAccountSwitchPending()
       await signOutUser()
       goToLogin()
@@ -78,7 +78,7 @@ export function AccountSwitchGate() {
     if (busy) return
     setBusy(true)
     try {
-      track('account_switch_wrong_account')
+      track(AnalyticsEvents.accountSwitchWrongAccount)
       clearAccountSwitchPending()
       await signOutUser()
       showToast(pl.accountSwitchWrongAccountToast, 'info')

@@ -28,6 +28,12 @@ export type SetLog = {
   actual: SetActual
   passed: boolean
   prescription: SetPrescription
+  /** Rate of Perceived Exertion (1-10). Optional, user-entered after a set. */
+  rpe?: number
+  /** Reps In Reserve (0-10). Optional, alternative to RPE. */
+  rir?: number
+  /** Per-set note (form cues, how it felt). Optional. */
+  note?: string
 }
 
 export type ExerciseLog = {
@@ -36,7 +42,7 @@ export type ExerciseLog = {
   sets: SetLog[]
 }
 
-export type ExerciseGroupKind = 'superset' | 'circuit' | 'amrap'
+export type ExerciseGroupKind = 'superset' | 'circuit' | 'amrap' | 'dropset'
 
 export type ExerciseGroup = {
   id: string
@@ -368,6 +374,54 @@ export function setTargetToMetricTarget(target: SetTarget): MetricTarget {
   }
 }
 
+/** RPE helpers — Rate of Perceived Exertion (1-10 scale). */
+export const RPE_MIN = 1
+export const RPE_MAX = 10
+export const RPE_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
+
+/** RIR helpers — Reps In Reserve (0-10). */
+export const RIR_MIN = 0
+export const RIR_MAX = 10
+export const RIR_VALUES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
+
+/** Convert RPE to RIR (RPE 10 = 0 RIR, RPE 9 = 1 RIR, etc.). */
+export function rpeToRir(rpe: number): number {
+  return Math.max(0, 10 - rpe)
+}
+
+/** Convert RIR to RPE. */
+export function rirToRpe(rir: number): number {
+  return Math.min(10, Math.max(1, 10 - rir))
+}
+
+/** Estimated 1RM using Epley formula: weight * (1 + reps/30). */
+export function estimate1rmEpley(weightKg: number, reps: number): number {
+  if (weightKg <= 0 || reps <= 0) return 0
+  return Math.round(weightKg * (1 + reps / 30))
+}
+
+/** Estimated 1RM using Brzycki formula: weight * 36 / (37 - reps). */
+export function estimate1rmBrzycki(weightKg: number, reps: number): number {
+  if (weightKg <= 0 || reps <= 0 || reps >= 37) return 0
+  return Math.round((weightKg * 36) / (37 - reps))
+}
+
+/** Best 1RM estimate — uses Epley for reps <= 10, Brzycki for 11-36, Epley fallback for >36. */
+export function estimate1rm(weightKg: number, reps: number): number {
+  if (weightKg <= 0 || reps <= 0) return 0
+  if (reps <= 10) return estimate1rmEpley(weightKg, reps)
+  const brzycki = estimate1rmBrzycki(weightKg, reps)
+  // Brzycki returns 0 for reps >= 37 (division by zero) — fall back to Epley
+  return brzycki > 0 ? brzycki : estimate1rmEpley(weightKg, reps)
+}
+
+/** Volume for a single set: reps * weightKg (0 if no weight). */
+export function setVolume(set: SetLog): number {
+  const reps = set.actual.reps ?? 0
+  const kg = set.actual.weightKg ?? 0
+  return kg > 0 ? reps * kg : 0
+}
+
 /** Starter pack keys — labels live in pl.ts (`exerciseStarter*`). */
 export type ExerciseStarterKey =
   | 'pushups'
@@ -382,18 +436,25 @@ export type ExerciseStarterKey =
   | 'dumbbellFlyes'
   | 'dips'
   | 'pushupWide'
+  | 'declineBenchPress'
+  | 'pecDeck'
   // Plecy
   | 'barbellRow'
   | 'latPulldown'
   | 'deadlift'
   | 'seatedRow'
   | 'facePulls'
+  | 'dumbbellRow'
+  | 'tbarRow'
+  | 'straightArmPulldown'
+  | 'shrug'
   // Barki
   | 'overheadPress'
   | 'lateralRaise'
   | 'frontRaise'
   | 'rearDeltFlyes'
   | 'arnoldPress'
+  | 'uprightRow'
   // Ramiona
   | 'barbellCurl'
   | 'dumbbellCurl'
@@ -401,6 +462,10 @@ export type ExerciseStarterKey =
   | 'tricepPushdown'
   | 'skullCrusher'
   | 'closeGripBench'
+  | 'concentrationCurl'
+  | 'preacherCurl'
+  | 'overheadTricepExtension'
+  | 'tricepKickback'
   // Nogi
   | 'legPress'
   | 'lunges'
@@ -410,12 +475,16 @@ export type ExerciseStarterKey =
   | 'calfRaise'
   | 'gobletSquat'
   | 'hipThrust'
+  | 'frontSquat'
+  | 'stepUp'
   // Core
   | 'crunches'
   | 'hangingLegRaise'
   | 'russianTwist'
   | 'mountainClimbers'
   | 'deadBug'
+  | 'reverseCrunch'
+  | 'lyingLegRaise'
   // Całe ciało
   | 'burpees'
   | 'kettlebellSwing'
@@ -450,18 +519,25 @@ export const EXERCISE_STARTERS: Array<{
   { key: 'dumbbellFlyes', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'chest' },
   { key: 'dips', primaryMetric: 'reps', restDefaultSec: 90, muscleGroup: 'chest' },
   { key: 'pushupWide', primaryMetric: 'reps', restDefaultSec: 90, muscleGroup: 'chest' },
+  { key: 'declineBenchPress', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'chest' },
+  { key: 'pecDeck', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'chest' },
   // Plecy
   { key: 'barbellRow', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'back' },
   { key: 'latPulldown', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'back' },
   { key: 'deadlift', primaryMetric: 'reps_weight', restDefaultSec: 180, muscleGroup: 'back' },
   { key: 'seatedRow', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'back' },
   { key: 'facePulls', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'back' },
+  { key: 'dumbbellRow', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'back' },
+  { key: 'tbarRow', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'back' },
+  { key: 'straightArmPulldown', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'back' },
+  { key: 'shrug', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'back' },
   // Barki
   { key: 'overheadPress', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'shoulders' },
   { key: 'lateralRaise', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'shoulders' },
   { key: 'frontRaise', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'shoulders' },
   { key: 'rearDeltFlyes', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'shoulders' },
   { key: 'arnoldPress', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'shoulders' },
+  { key: 'uprightRow', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'shoulders' },
   // Ramiona
   { key: 'barbellCurl', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'arms' },
   { key: 'dumbbellCurl', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'arms' },
@@ -469,6 +545,10 @@ export const EXERCISE_STARTERS: Array<{
   { key: 'tricepPushdown', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'arms' },
   { key: 'skullCrusher', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'arms' },
   { key: 'closeGripBench', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'arms' },
+  { key: 'concentrationCurl', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'arms' },
+  { key: 'preacherCurl', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'arms' },
+  { key: 'overheadTricepExtension', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'arms' },
+  { key: 'tricepKickback', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'arms' },
   // Nogi
   { key: 'legPress', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'legs' },
   { key: 'lunges', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'legs' },
@@ -478,12 +558,16 @@ export const EXERCISE_STARTERS: Array<{
   { key: 'calfRaise', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'legs' },
   { key: 'gobletSquat', primaryMetric: 'reps_weight', restDefaultSec: 90, muscleGroup: 'legs' },
   { key: 'hipThrust', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'legs' },
+  { key: 'frontSquat', primaryMetric: 'reps_weight', restDefaultSec: 120, muscleGroup: 'legs' },
+  { key: 'stepUp', primaryMetric: 'reps', restDefaultSec: 60, muscleGroup: 'legs' },
   // Core
   { key: 'crunches', primaryMetric: 'reps', restDefaultSec: 60, muscleGroup: 'core' },
   { key: 'hangingLegRaise', primaryMetric: 'reps', restDefaultSec: 60, muscleGroup: 'core' },
   { key: 'russianTwist', primaryMetric: 'reps', restDefaultSec: 60, muscleGroup: 'core' },
   { key: 'mountainClimbers', primaryMetric: 'duration_sec', restDefaultSec: 45, muscleGroup: 'core' },
   { key: 'deadBug', primaryMetric: 'reps', restDefaultSec: 45, muscleGroup: 'core' },
+  { key: 'reverseCrunch', primaryMetric: 'reps', restDefaultSec: 60, muscleGroup: 'core' },
+  { key: 'lyingLegRaise', primaryMetric: 'reps', restDefaultSec: 60, muscleGroup: 'core' },
   // Całe ciało
   { key: 'burpees', primaryMetric: 'reps', restDefaultSec: 60, muscleGroup: 'full_body' },
   { key: 'kettlebellSwing', primaryMetric: 'reps_weight', restDefaultSec: 60, muscleGroup: 'full_body' },
