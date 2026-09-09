@@ -11,6 +11,10 @@ type AchievementUiState = {
   summaryMode: boolean
   enqueueUnlocks: (rows: LocalAchievementUnlock[], backfill: boolean) => void
   shiftQueue: () => LocalAchievementUnlock | null
+  /** Remove a specific achievement from the queue by id. Used by AchievementHost
+   *  onDone so the correct sheet is removed even if the queue changed between
+   *  peek and close (e.g. another tab enqueued new unlocks). */
+  removeFromQueue: (id: string) => void
   clearQueue: () => void
   clearBackfill: () => void
   setCelebrationBlocked: (v: boolean) => void
@@ -39,6 +43,9 @@ export const useAchievementUiStore = create<AchievementUiState>((set, get) => ({
     const [head, ...rest] = get().queue
     set({ queue: rest })
     return head ?? null
+  },
+  removeFromQueue(id) {
+    set((s) => ({ queue: s.queue.filter((r) => r.id !== id) }))
   },
   clearQueue() {
     set({ queue: [] })

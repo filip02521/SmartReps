@@ -1,5 +1,9 @@
 const RELOAD_GUARD_KEY = 'sr-chunk-reload-count'
+const RELOAD_GUARD_TS_KEY = 'sr-chunk-reload-ts'
 const MAX_RELOADS = 3
+// Guard expires after 10 minutes — a stale SW that hasn't updated by then is
+// a different problem (no update available), so reset and let the user retry.
+const GUARD_TTL_MS = 10 * 60 * 1000
 
 /** Detect Vite / dynamic import failures after a new deployment.
  *  Matches specific error types and message patterns — avoids generic
@@ -30,32 +34,50 @@ export function isChunkLoadError(err: unknown): boolean {
   return false
 }
 
+/** Get the current reload count, expiring the guard if it's older than the TTL.
+ *  Shared by setupChunkLoadRecovery and lazyWithChunkRecovery so both paths
+ *  enforce the same lifetime cap. */
+function getReloadCount(): number {
+  const ts = sessionStorage.getItem(RELOAD_GUARD_TS_KEY)
+  if (ts && Date.now() - parseInt(ts, 10) > GUARD_TTL_MS) {
+    sessionStorage.removeItem(RELOAD_GUARD_KEY)
+    sessionStorage.removeItem(RELOAD_GUARD_TS_KEY)
+    return 0
+  }
+  const raw = sessionStorage.getItem(RELOAD_GUARD_KEY)
+  return raw ? parseInt(raw, 10) : 0
+}
+
+/** Increment the reload counter, stamping the episode start on the first reload. */
+function incrementReloadCount(): void {
+  const count = getReloadCount()
+  if (count === 0) {
+    sessionStorage.setItem(RELOAD_GUARD_TS_KEY, String(Date.now()))
+  }
+  sessionStorage.setItem(RELOAD_GUARD_KEY, String(count + 1))
+}
+
 /**
  * After deploy, an old service worker may serve stale index.html that references
  * removed JS chunks. A few guarded reloads give the new SW time to activate.
  *
  * Anti-loop design:
  *  - Uses a reload COUNTER (not boolean) — allows up to MAX_RELOADS attempts.
- *  - The guard is NOT cleared on `load` — that was the old bug: `load` fired
- *    before chunk errors, clearing the guard and causing an infinite loop
- *    because the old SW was still serving stale HTML.
- *  - The guard is cleared after a grace period (5s) of error-free execution,
- *    so a genuinely fresh session starts with a clean slate.
+ *  - The guard has a TTL (10 min) instead of a 5s grace period. The old 5s grace
+ *    reset the counter too early: a slow device or a chunk error on a later
+ *    navigation (not the initial load) would re-enter the reload cycle. With a
+ *    TTL, the counter persists for the lifetime of a stale-SW episode and only
+ *    resets once the SW has genuinely updated (or 10 min pass).
  *  - After MAX_RELOADS, errors propagate to RouteErrorBoundary instead of
  *    reloading again.
  */
 export function setupChunkLoadRecovery(): void {
   if (typeof window === 'undefined') return
 
-  const getReloadCount = () => {
-    const raw = sessionStorage.getItem(RELOAD_GUARD_KEY)
-    return raw ? parseInt(raw, 10) : 0
-  }
-
   const tryReload = () => {
     const count = getReloadCount()
     if (count >= MAX_RELOADS) return false
-    sessionStorage.setItem(RELOAD_GUARD_KEY, String(count + 1))
+    incrementReloadCount()
     window.location.reload()
     return true
   }
@@ -71,16 +93,6 @@ export function setupChunkLoadRecovery(): void {
     if (!isChunkLoadError(event.error ?? event.message)) return
     tryReload()
   })
-
-  // Clear the guard after 5 seconds of error-free execution.
-  // This means: if the page loaded successfully and no chunk errors occurred
-  // within 5s, the new SW is active and chunks are fresh — reset the counter
-  // so a future deploy's first reload is allowed.
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      sessionStorage.removeItem(RELOAD_GUARD_KEY)
-    }, 5000)
-  })
 }
 
 /** Lazy import wrapper — reload on chunk 404 (up to MAX_RELOADS), then surface
@@ -92,10 +104,9 @@ export function lazyWithChunkRecovery<T extends { default: unknown }>(
     try {
       return await factory()
     } catch (err) {
-      const count = sessionStorage.getItem(RELOAD_GUARD_KEY)
-      const countNum = count ? parseInt(count, 10) : 0
-      if (isChunkLoadError(err) && countNum < MAX_RELOADS) {
-        sessionStorage.setItem(RELOAD_GUARD_KEY, String(countNum + 1))
+      const count = getReloadCount()
+      if (isChunkLoadError(err) && count < MAX_RELOADS) {
+        incrementReloadCount()
         window.location.reload()
         // Return a never-resolving promise — reload will replace the page
         return new Promise<T>(() => {})

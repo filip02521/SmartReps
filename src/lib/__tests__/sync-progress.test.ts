@@ -42,6 +42,10 @@ vi.mock('@/lib/enabled-programs-sync', () => ({
   mergeUiSettingsFromProfile: vi.fn(),
 }))
 
+vi.mock('@/lib/custom-sync', () => ({
+  pullCustomEntities: vi.fn().mockResolvedValue(0),
+}))
+
 vi.mock('@/lib/db', () => ({
   db: {
     programProgress: {
@@ -69,6 +73,22 @@ vi.mock('@/lib/db', () => ({
       orderBy: vi.fn(() => ({ toArray: vi.fn().mockResolvedValue([]) })),
       toArray: vi.fn().mockResolvedValue([]),
     },
+    bodyWeight: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    bodyWeightTombstones: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), put: vi.fn() },
+    sessionTombstones: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), put: vi.fn() },
+    aiInsights: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), put: vi.fn() },
+    customPlans: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), delete: vi.fn() },
+    exercises: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), delete: vi.fn() },
+    customProgramProgress: {
+      toArray: vi.fn().mockResolvedValue([]),
+      where: vi.fn(() => ({
+        equals: vi.fn(() => ({ first: vi.fn().mockResolvedValue(undefined) })),
+      })),
+      delete: vi.fn(),
+    },
+    activeCustomWorkout: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), delete: vi.fn() },
+    exerciseTombstones: { get: vi.fn(), put: vi.fn() },
+    customPlanTombstones: { get: vi.fn(), put: vi.fn() },
   },
 }))
 

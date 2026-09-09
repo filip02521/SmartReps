@@ -9,6 +9,7 @@ type Props = {
 type State = {
   hasError: boolean
   wasChunkError: boolean
+  isOffline: boolean
 }
 
 /** Catches runtime errors from lazy-loaded routes and shows a retry UI
@@ -16,12 +17,18 @@ type State = {
  *  route (e.g. undefined import, bad data) crashes the whole app.
  *
  *  For chunk-load errors (stale SW after deploy), the retry button does a
- *  hard reload to force the new service worker to serve fresh chunks. */
+ *  hard reload to force the new service worker to serve fresh chunks.
+ *  If the device is offline, shows an offline message instead of looping
+ *  reloads that can't succeed without network. */
 export class RouteErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, wasChunkError: false }
+  state: State = { hasError: false, wasChunkError: false, isOffline: false }
 
   static getDerivedStateFromError(error: unknown): State {
-    return { hasError: true, wasChunkError: isChunkLoadError(error) }
+    return {
+      hasError: true,
+      wasChunkError: isChunkLoadError(error),
+      isOffline: typeof navigator !== 'undefined' && !navigator.onLine,
+    }
   }
 
   componentDidCatch(error: unknown) {
@@ -33,17 +40,23 @@ export class RouteErrorBoundary extends Component<Props, State> {
       // Chunk errors need a hard reload — the stale SW must be bypassed.
       // Clear the reload guard so the new page can retry if needed.
       sessionStorage.removeItem('sr-chunk-reload-count')
+      sessionStorage.removeItem('sr-chunk-reload-ts')
       window.location.reload()
       return
     }
-    this.setState({ hasError: false, wasChunkError: false })
+    this.setState({ hasError: false, wasChunkError: false, isOffline: false })
   }
 
   render() {
     if (this.state.hasError) {
+      // If offline with a chunk error, reloading can't help — the chunk
+      // can't be fetched without network. Show an offline message instead.
+      const message = this.state.wasChunkError && this.state.isOffline
+        ? pl.offline
+        : pl.errorLoadPage
       return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
-          <p className="sr-text-body text-[var(--sr-text)]">{pl.errorLoadPage}</p>
+          <p className="sr-text-body text-[var(--sr-text)]">{message}</p>
           <button
             type="button"
             onClick={this.handleRetry}

@@ -215,6 +215,11 @@ export async function deleteActiveCustomWorkoutRemote(userId: string, customPlan
 async function mergeActiveCustomRemote(userId: string, remote: RemoteActiveCustomWorkout) {
   const customPlanId = remote.custom_plan_id
   if (await hasPendingActiveCustomDelete(customPlanId)) return
+  // Don't resurrect active workout for a plan that was deleted on this device.
+  if (await db.customPlanTombstones.get(customPlanId)) {
+    await deleteActiveCustomWorkoutRemote(userId, customPlanId)
+    return
+  }
 
   const session = await db.workoutSessions.get(remote.session_id)
   if (session && session.status !== 'in_progress') {
@@ -256,6 +261,12 @@ async function mergeActiveCustomRemote(userId: string, remote: RemoteActiveCusto
 
 async function reconcileActiveCustomAfterPull(remotePlanIds: Set<string>): Promise<void> {
   for (const local of await db.activeCustomWorkout.toArray()) {
+    // If the plan was tombstoned (deleted on this or another device), drop the
+    // active workout — don't let it linger or be pushed back to the cloud.
+    if (await db.customPlanTombstones.get(local.customPlanId)) {
+      await db.activeCustomWorkout.delete(local.customPlanId)
+      continue
+    }
     if (remotePlanIds.has(local.customPlanId)) continue
     if (await hasPendingActiveCustomUpdate(local.customPlanId)) continue
     if (await hasPendingActiveCustomDelete(local.customPlanId)) {
@@ -463,10 +474,20 @@ export async function pullCustomEntities(userId: string): Promise<number> {
           const localProg = await db.customProgramProgress.where('customPlanId').equals(row.plan_id).first()
           if (localProg?.id != null) await db.customProgramProgress.delete(localProg.id)
           await db.activeCustomWorkout.delete(row.plan_id)
-          // Also delete the remote plan if it still exists — the tombstone means
-          // it was deleted on some device, but the cloud delete may have failed.
+          // Also delete remote rows that may still exist — the tombstone means
+          // the plan was deleted on some device, but cloud deletes may have failed.
           try {
             await supabase.from('custom_plans').delete().eq('user_id', userId).eq('id', row.plan_id)
+            await supabase
+              .from('custom_program_progress')
+              .delete()
+              .eq('user_id', userId)
+              .eq('custom_plan_id', row.plan_id)
+            await supabase
+              .from('active_custom_workout_state')
+              .delete()
+              .eq('user_id', userId)
+              .eq('custom_plan_id', row.plan_id)
           } catch {
             // Non-fatal — will retry on next sync
           }

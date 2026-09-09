@@ -360,13 +360,39 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
     try {
       const { pullAchievementsFromCloud } = await import('@/lib/achievements/sync')
       const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
-      await pullAchievementsFromCloud()
-      // Queue unseen remote unlocks (earned on another device, not yet shown here)
-      const { listUnseenUnlocks } = await import('@/lib/achievements/store')
+      const { listUnseenUnlocks, markUnlockSeen, hasBackfillFlag, setBackfillFlag } =
+        await import('@/lib/achievements/store')
       const { useAchievementUiStore } = await import('@/stores/achievement-ui-store')
+
+      // Capture local unseen BEFORE pull — these are genuinely new unlocks
+      // earned on THIS device (offline) that deserve a celebration sheet.
+      const localUnseenBefore = await listUnseenUnlocks()
+      const localUnseenIds = new Set(localUnseenBefore.map((u) => u.id))
+
+      await pullAchievementsFromCloud()
+
+      // After pull, unseen may include: (a) local-earned (still unseen, deserve
+      // celebration) and (b) remote-pulled with seen_at=null (historical unlocks
+      // from other devices that were never dismissed — would flood the user).
       const unseen = await listUnseenUnlocks()
       if (unseen.length > 0) {
-        useAchievementUiStore.getState().enqueueUnlocks(unseen, false)
+        const remoteUnseen = unseen.filter((u) => !localUnseenIds.has(u.id))
+        const localEarned = unseen.filter((u) => localUnseenIds.has(u.id))
+
+        // On a fresh device, remote unseen are historical — backfill (mark seen)
+        // instead of showing N individual celebration sheets.
+        if (!hasBackfillFlag() && remoteUnseen.length > 0) {
+          await Promise.all(remoteUnseen.map((u) => markUnlockSeen(u.id)))
+          setBackfillFlag()
+        } else if (hasBackfillFlag()) {
+          // Not a fresh device — remote unseen are genuinely new from other devices.
+          useAchievementUiStore.getState().enqueueUnlocks(remoteUnseen, false)
+        }
+
+        // Always celebrate locally-earned unlocks (these are THIS device's wins).
+        if (localEarned.length > 0) {
+          useAchievementUiStore.getState().enqueueUnlocks(localEarned, false)
+        }
       }
       scheduleAchievementCheck()
     } catch {

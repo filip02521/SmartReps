@@ -2,7 +2,7 @@
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
 import { clientsClaim } from 'workbox-core'
 import { registerRoute } from 'workbox-routing'
-import { NetworkFirst } from 'workbox-strategies'
+import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies'
 import { CacheableResponsePlugin } from 'workbox-cacheable-response'
 import { ExpirationPlugin } from 'workbox-expiration'
 
@@ -28,6 +28,26 @@ registerRoute(
     plugins: [
       new CacheableResponsePlugin({ statuses: [200] }),
       new ExpirationPlugin({ maxEntries: 8, maxAgeSeconds: 7 * 24 * 3600 }),
+    ],
+  }),
+)
+
+// Runtime cache for hashed JS/CSS chunks (lazy routes, vendor splits).
+// Vite emits content-hashed filenames (e.g. Progress-a1b2c3.js). When a deploy
+// ships new chunks, the OLD active SW's precache only has the OLD hashes. Without
+// a runtime cache, going offline after a deploy breaks lazy routes — the new
+// chunk isn't in any cache. StaleWhileRevalidate caches chunks as they're fetched
+// online so they survive offline, and serves stale instantly while updating in
+// the background. This eliminates the version-skew window between index.html
+// (NetworkFirst) and JS chunks (precache-only).
+registerRoute(
+  ({ request }) =>
+    request.destination === 'script' || request.destination === 'style',
+  new StaleWhileRevalidate({
+    cacheName: 'sr-chunks',
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [200] }),
+      new ExpirationPlugin({ maxEntries: 60, maxAgeSeconds: 30 * 24 * 3600 }),
     ],
   }),
 )

@@ -14,6 +14,9 @@ const mockDb = vi.hoisted(() => ({
     toArray: vi.fn(),
     delete: vi.fn(),
   },
+  customPlanTombstones: {
+    get: vi.fn().mockResolvedValue(undefined),
+  },
   syncQueue: {
     toArray: vi.fn().mockResolvedValue([]),
   },

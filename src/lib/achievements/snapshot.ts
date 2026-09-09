@@ -239,6 +239,8 @@ export async function buildAchievementSnapshot(opts?: {
 
   let workshopCustom = false
   for (const plan of customPlans) {
+    // Only user-created plans count — not imported from community/backup.
+    if (plan.source !== 'user') continue
     const multi = plan.days.some((d) => d.exercises.length >= 2)
     if (!multi) continue
     const n = customCompleted.filter((s) => s.customPlanId === plan.id).length
@@ -269,8 +271,8 @@ export async function buildAchievementSnapshot(opts?: {
     weekendSessionCount: completed.filter(isWeekendSession).length,
     pushupsSessions,
     pullupsSessions,
-    // Only count user-created plans (not imported from community/backup)
-    customPlansCount: customPlans.filter((p) => p.source === 'user' || p.source === 'duplicate').length,
+    // Only count user-created plans (not imported/duplicated from community/backup)
+    customPlansCount: customPlans.filter((p) => p.source === 'user').length,
     streakWeeks: computeStreakWeeks(completed, now),
     bestStreakWeeks: computeBestStreakWeeks(completed),
     maxPushups,

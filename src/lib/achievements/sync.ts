@@ -3,6 +3,7 @@ import { ACHIEVEMENT_CATALOG, isAchievementMet } from './catalog'
 import type { AchievementId, LocalAchievementUnlock } from './types'
 import { getAllUnlocks, mergeRemoteUnlocks, setSuppressedAchievements, clearSuppressedAchievements, getSuppressedAchievements } from './store'
 import { buildAchievementSnapshot } from './snapshot'
+import { withAchievementLock } from './run'
 import { db } from '@/lib/db'
 
 /** Set of valid achievement IDs — used to validate before pushing to cloud. */
@@ -78,34 +79,36 @@ export async function pullAchievementsFromCloud(): Promise<void> {
   // Cloud is source of truth — delete local achievements NOT in remote
   // (after merge) that are not currently met by snapshot.
   // This is the only way to remove erroneously-unlocked achievements.
-  await mergeRemoteUnlocks(data)
+  await withAchievementLock(async () => {
+    await mergeRemoteUnlocks(data)
 
-  const local = await getAllUnlocks()
-  const remoteIds = new Set(data.map((r) => r.achievement_id))
-  const missing = local.filter((l) => !remoteIds.has(l.id))
+    const local = await getAllUnlocks()
+    const remoteIds = new Set(data.map((r) => r.achievement_id))
+    const missing = local.filter((l) => !remoteIds.has(l.id))
 
-  const toDelete: AchievementId[] = []
-  if (missing.length) {
-    const snap = await buildAchievementSnapshot({ force: true }).catch(() => null)
-    for (const unlock of missing) {
-      // Delete if not in remote AND not currently met by snapshot
-      if (snap && !isAchievementMet(unlock.id, snap)) {
-        toDelete.push(unlock.id)
+    const toDelete: AchievementId[] = []
+    if (missing.length) {
+      const snap = await buildAchievementSnapshot({ force: true }).catch(() => null)
+      for (const unlock of missing) {
+        // Delete if not in remote AND not currently met by snapshot
+        if (snap && !isAchievementMet(unlock.id, snap)) {
+          toDelete.push(unlock.id)
+        }
+      }
+      if (toDelete.length) {
+        await db.achievementUnlocks.bulkDelete(toDelete)
+        // Add to suppressed list so evaluateAchievements won't re-create them
+        const existing = getSuppressedAchievements()
+        const merged = new Set([...existing, ...toDelete])
+        setSuppressedAchievements([...merged])
       }
     }
-    if (toDelete.length) {
-      await db.achievementUnlocks.bulkDelete(toDelete)
-      // Add to suppressed list so evaluateAchievements won't re-create them
-      const existing = getSuppressedAchievements()
-      const merged = new Set([...existing, ...toDelete])
-      setSuppressedAchievements([...merged])
-    }
-  }
 
-  // Push remaining local-only unlocks (legitimate offline unlocks) to cloud
-  const deletedSet = new Set(toDelete)
-  const remaining = missing.filter((l) => !deletedSet.has(l.id))
-  if (remaining.length) await pushAchievementsToCloud(remaining)
+    // Push remaining local-only unlocks (legitimate offline unlocks) to cloud
+    const deletedSet = new Set(toDelete)
+    const remaining = missing.filter((l) => !deletedSet.has(l.id))
+    if (remaining.length) await pushAchievementsToCloud(remaining)
+  })
 }
 
 /**
@@ -126,18 +129,20 @@ export async function forceReconcileFromCloud(): Promise<void> {
 
   if (error || !data) return
 
-  // Record which local achievements are being removed (not in remote)
-  // so evaluateAchievements won't re-create them
-  const local = await getAllUnlocks()
-  const remoteIds = new Set(data.map((r) => r.achievement_id))
-  const removed = local.filter((l) => !remoteIds.has(l.id)).map((l) => l.id)
-  if (removed.length > 0) {
-    setSuppressedAchievements(removed)
-  } else {
-    clearSuppressedAchievements()
-  }
+  await withAchievementLock(async () => {
+    // Record which local achievements are being removed (not in remote)
+    // so evaluateAchievements won't re-create them
+    const local = await getAllUnlocks()
+    const remoteIds = new Set(data.map((r) => r.achievement_id))
+    const removed = local.filter((l) => !remoteIds.has(l.id)).map((l) => l.id)
+    if (removed.length > 0) {
+      setSuppressedAchievements(removed)
+    } else {
+      clearSuppressedAchievements()
+    }
 
-  // Replace local entirely with remote
-  await db.achievementUnlocks.clear()
-  await mergeRemoteUnlocks(data)
+    // Replace local entirely with remote
+    await db.achievementUnlocks.clear()
+    await mergeRemoteUnlocks(data)
+  })
 }

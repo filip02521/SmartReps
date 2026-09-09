@@ -60,6 +60,10 @@ export function PwaUpdatePrompt() {
 
     const updateSW = registerSW({
       onNeedRefresh() {
+        // Don't downgrade from 'applying' — if the user already tapped Update,
+        // a re-emitted onNeedRefresh (from visibilitychange/online/interval)
+        // would reset the UI and allow a second applyUpdate call.
+        if (stateRef.current === 'applying') return
         setState('available')
         updateFnRef.current = updateSW
         // Notify other tabs so they can show the prompt too.
@@ -88,6 +92,9 @@ export function PwaUpdatePrompt() {
     // Re-check when tab becomes visible (user returns to the app)
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
+        // Don't re-check while an update is applying — avoids re-emitting
+        // onNeedRefresh and resetting the 'applying' state.
+        if (stateRef.current === 'applying') return
         retryDelay = 1000
         void registration?.update().catch(() => {})
       }
@@ -96,6 +103,7 @@ export function PwaUpdatePrompt() {
 
     // Re-check when network comes back online
     const onOnline = () => {
+      if (stateRef.current === 'applying') return
       retryDelay = 1000
       void registration?.update().catch(() => {})
     }
@@ -103,6 +111,7 @@ export function PwaUpdatePrompt() {
 
     // Periodic fallback — covers iOS Safari PWA where visibilitychange is unreliable
     const interval = window.setInterval(() => {
+      if (stateRef.current === 'applying') return
       void registration?.update().catch(() => {})
     }, UPDATE_CHECK_INTERVAL_MS)
 
@@ -123,6 +132,7 @@ export function PwaUpdatePrompt() {
       channel = new BroadcastChannel(UPDATE_CHANNEL)
       channel.onmessage = (ev) => {
         if (ev.data === 'available') {
+          if (stateRef.current === 'applying') return
           setState('available')
           // Also trigger a local update check so we have the updateFn
           void registration?.update().catch(() => {})

@@ -38,7 +38,14 @@ export type SyncFailureReason =
   | 'dead_letter'
   | 'unknown'
 
-export type SyncResult = { ok: boolean; errors: number; reason?: SyncFailureReason }
+export type SyncResult = {
+  ok: boolean
+  errors: number
+  reason?: SyncFailureReason
+  /** Errors from tombstone pull/push sections — these are the resurrection
+   *  vectors. If > 0, push must be skipped to avoid re-creating deleted rows. */
+  tombstoneErrors?: number
+}
 
 const SYNC_QUEUE_CAP = 500
 
@@ -244,11 +251,17 @@ async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
   if (error) throw error
 }
 
-/** Push only profile settings (e.g. after toggling enabled programs while online). */
+/** Push only profile settings (e.g. after toggling enabled programs while online).
+ *  Pulls remote profile first so LWW timestamps are current — without this, a
+ *  stale local timestamp (or null on upgrade) would clobber newer remote settings. */
 export async function pushProfileSettingsOnly(): Promise<SyncResult> {
   const userId = await getUserId()
   if (!userId) return { ok: true, errors: 0 }
   try {
+    // Pull first to sync local LWW clocks with remote. If pull fails, abort
+    // the push — pushing with stale/null timestamps would clobber remote.
+    const pull = await pullProfileEnabledPrograms(userId)
+    if (!pull.ok) return { ok: false, errors: 1 }
     await upsertProfileEnabledPrograms(userId)
     return { ok: true, errors: 0 }
   } catch (err) {
@@ -447,6 +460,7 @@ async function upsertMaxTest(userId: string, row: LocalMaxTest) {
 
 function mapBodyWeightRow(userId: string, row: BodyWeightEntry) {
   return {
+    id: row.id,
     user_id: userId,
     weight_kg: row.weightKg,
     measured_at: row.measuredAt,
@@ -455,8 +469,11 @@ function mapBodyWeightRow(userId: string, row: BodyWeightEntry) {
 }
 
 async function upsertBodyWeight(userId: string, row: BodyWeightEntry) {
+  // Upsert by (user_id, id) — the client supplies a stable uuid that matches
+  // the tombstone key. Upserting by measured_at would let Postgres generate a
+  // new id on re-insert, breaking the tombstone match → resurrection.
   const { error } = await supabase.from('body_weight_entries').upsert(mapBodyWeightRow(userId, row), {
-    onConflict: 'user_id,measured_at',
+    onConflict: 'user_id,id',
   })
   if (error) throw error
 }
@@ -510,11 +527,12 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
       break
     case 'body_weight_entries':
       if (action === 'delete') {
+        const { id } = payload as BodyWeightEntry
         const { error } = await supabase
           .from('body_weight_entries')
           .delete()
           .eq('user_id', userId)
-          .eq('measured_at', (payload as BodyWeightEntry).measuredAt)
+          .eq('id', id)
         if (error) throw error
       } else {
         const queued = payload as BodyWeightEntry
@@ -873,7 +891,7 @@ async function mergeSessionRemote(userId: string, remote: RemoteSessionRow) {
       remote.progression_diff_json !== undefined
         ? (jsonbToLocalString(remote.progression_diff_json) ?? undefined)
         : local?.progressionDiffJson,
-    note: remote.notes !== undefined ? (remote.notes ?? undefined) : local?.note,
+    note: remote.notes === null ? local?.note : (remote.notes ?? local?.note),
   }
 
   await db.workoutSessions.put(mapped)
@@ -899,9 +917,15 @@ async function mergeActiveRemote(userId: string, remote: RemoteActiveRow) {
   const program = remote.program as Program
   if (await hasPendingActiveWorkoutDelete(program)) return
 
-  // Do not resurrect active for a session that is already finished/cancelled locally.
+  // Do not resurrect active for a session that is already finished/cancelled
+  // locally, OR that no longer exists (deleted via tombstone, or abandoned —
+  // abandoned sessions are not pulled so session will be null). A missing
+  // session means it's not in progress on this device.
   const session = await db.workoutSessions.get(remote.session_id)
-  if (session && session.status !== 'in_progress') {
+  if (!session || session.status !== 'in_progress') {
+    // But don't delete a local active workout that was just created here and
+    // not yet pushed — check for a pending update first.
+    if (await hasPendingActiveWorkoutUpdate(program)) return
     await deleteActiveWorkoutRemote(userId, program)
     return
   }
@@ -1094,6 +1118,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
   if (!userId) return { ok: true, errors: 0 }
 
   let errors = 0
+  let tombstoneErrors = 0
 
   // Profile — failure here must NOT abort the rest of the pull.
   try {
@@ -1157,6 +1182,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
       }
     }
   } catch (err) {
+    tombstoneErrors++
     errors++
     console.warn('[sync] pull session tombstones failed', err)
   }
@@ -1215,7 +1241,60 @@ export async function pullRemoteData(): Promise<SyncResult> {
     console.warn('[sync] pull max tests failed', err)
   }
 
-  // Body weight
+  // Body-weight tombstones — must be pushed AND pulled BEFORE body_weight_entries
+  // to prevent temporarily resurrecting a deleted entry that another device removed.
+  // Push local tombstones to cloud first.
+  try {
+    const localBwTombstones = await db.bodyWeightTombstones.toArray()
+    for (const tombstone of localBwTombstones) {
+      try {
+        await supabase
+          .from('body_weight_tombstones')
+          .upsert({
+            user_id: userId,
+            entry_id: tombstone.entryId,
+            deleted_at: tombstone.deletedAt,
+          }, { onConflict: 'user_id,entry_id' })
+      } catch {
+        // Non-fatal — will retry on next sync
+      }
+    }
+  } catch (err) {
+    tombstoneErrors++
+    errors++
+    console.warn('[sync] push body-weight tombstones failed', err)
+  }
+
+  // Pull body-weight tombstones from cloud — delete local entries deleted on another device
+  try {
+    const { data: remoteBwTombstones, error: rbtErr } = await supabase
+      .from('body_weight_tombstones')
+      .select('entry_id, deleted_at')
+      .eq('user_id', userId)
+    if (!rbtErr && remoteBwTombstones) {
+      for (const row of remoteBwTombstones as { entry_id: string; deleted_at: string }[]) {
+        await db.bodyWeightTombstones.put({ entryId: row.entry_id, deletedAt: row.deleted_at })
+        const localEntry = await db.bodyWeight.get(row.entry_id)
+        if (localEntry) await db.bodyWeight.delete(row.entry_id)
+        // Also delete the remote entry if it still exists — same reason as session tombstones.
+        try {
+          await supabase
+            .from('body_weight_entries')
+            .delete()
+            .eq('user_id', userId)
+            .eq('id', row.entry_id)
+        } catch {
+          // Non-fatal — will retry on next sync
+        }
+      }
+    }
+  } catch {
+    // Tombstone table may not exist yet — best-effort
+    tombstoneErrors++
+    errors++
+  }
+
+  // Body weight entries
   try {
     const { data: remoteBodyWeight, error: bodyWeightError } = await supabase
       .from('body_weight_entries')
@@ -1272,68 +1351,26 @@ export async function pullRemoteData(): Promise<SyncResult> {
       }
     }
   } catch (err) {
+    tombstoneErrors++
     errors++
     console.warn('[sync] push session tombstones failed', err)
   }
 
-  // Push local body-weight tombstones to cloud
-  try {
-    const localBwTombstones = await db.bodyWeightTombstones.toArray()
-    for (const tombstone of localBwTombstones) {
-      try {
-        await supabase
-          .from('body_weight_tombstones')
-          .upsert({
-            user_id: userId,
-            entry_id: tombstone.entryId,
-            deleted_at: tombstone.deletedAt,
-          }, { onConflict: 'user_id,entry_id' })
-      } catch {
-        // Non-fatal — will retry on next sync
-      }
-    }
-  } catch (err) {
-    errors++
-    console.warn('[sync] push body-weight tombstones failed', err)
-  }
-
-  // Pull body-weight tombstones from cloud — delete local entries deleted on another device
-  try {
-    const { data: remoteBwTombstones, error: rbtErr } = await supabase
-      .from('body_weight_tombstones')
-      .select('entry_id, deleted_at')
-      .eq('user_id', userId)
-    if (!rbtErr && remoteBwTombstones) {
-      for (const row of remoteBwTombstones as { entry_id: string; deleted_at: string }[]) {
-        await db.bodyWeightTombstones.put({ entryId: row.entry_id, deletedAt: row.deleted_at })
-        const localEntry = await db.bodyWeight.get(row.entry_id)
-        if (localEntry) await db.bodyWeight.delete(row.entry_id)
-        // Also delete the remote entry if it still exists — same reason as session tombstones.
-        try {
-          await supabase
-            .from('body_weight_entries')
-            .delete()
-            .eq('user_id', userId)
-            .eq('id', row.entry_id)
-        } catch {
-          // Non-fatal — will retry on next sync
-        }
-      }
-    }
-  } catch {
-    // Tombstone table may not exist yet — best-effort
-  }
-
   // Custom entities (plans, exercises, progress, active custom workouts)
+  // Tombstones are pulled first inside pullCustomEntities — if this fails, custom
+  // plan resurrection is possible, so treat its errors as tombstone errors.
   try {
     const { pullCustomEntities } = await import('@/lib/custom-sync')
-    errors += await pullCustomEntities(userId)
+    const customErrors = await pullCustomEntities(userId)
+    errors += customErrors
+    tombstoneErrors += customErrors
   } catch (err) {
     errors++
+    tombstoneErrors++
     console.warn('[sync] pull custom entities failed', err)
   }
 
-  return { ok: errors === 0, errors }
+  return { ok: errors === 0, errors, tombstoneErrors }
 }
 
 export async function syncWithRemote(): Promise<SyncResult> {
@@ -1350,6 +1387,12 @@ export async function syncWithRemote(): Promise<SyncResult> {
 
   // Pull before push — stale local Dexie must not clobber newer remote progress.
   const pull = await pullRemoteData()
+  // If tombstone pulls failed, do NOT push — stale local data could resurrect
+  // rows deleted on another device whose tombstone pull failed. Non-tombstone
+  // errors (e.g. AI insights) are safe to push past. Retry the whole sync next time.
+  if ((pull.tombstoneErrors ?? 0) > 0) {
+    return { ok: false, errors: pull.errors }
+  }
   const push = await syncAllLocalData()
   const errors = pull.errors + push.errors
   return { ok: errors === 0, errors }
