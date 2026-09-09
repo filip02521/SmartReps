@@ -310,27 +310,27 @@ describe('Phase 2: Achievement determinism', () => {
       useAchievementUiStore.getState().clearQueue()
       useAchievementUiStore.getState().enqueueUnlocks(
         [
-          { id: 'a1', unlockedAt: '2026-01-01', seenAt: null, tierLevel: null },
-          { id: 'a2', unlockedAt: '2026-01-01', seenAt: null, tierLevel: null },
+          { id: 'first_session', unlockedAt: '2026-01-01', seenAt: null, tierLevel: null },
+          { id: 'habit_3_in_14', unlockedAt: '2026-01-01', seenAt: null, tierLevel: null },
         ],
         false,
       )
       expect(useAchievementUiStore.getState().queue.length).toBe(2)
-      useAchievementUiStore.getState().removeFromQueue('a1')
+      useAchievementUiStore.getState().removeFromQueue('first_session')
       const queue = useAchievementUiStore.getState().queue
       expect(queue.length).toBe(1)
-      expect(queue[0].id).toBe('a2')
+      expect(queue[0].id).toBe('habit_3_in_14')
     })
 
     it('enqueueUnlocks deduplicates by id', async () => {
       const { useAchievementUiStore } = await import('@/stores/achievement-ui-store')
       useAchievementUiStore.getState().clearQueue()
       useAchievementUiStore.getState().enqueueUnlocks(
-        [{ id: 'dup', unlockedAt: '2026-01-01', seenAt: null, tierLevel: null }],
+        [{ id: 'first_session', unlockedAt: '2026-01-01', seenAt: null, tierLevel: null }],
         false,
       )
       useAchievementUiStore.getState().enqueueUnlocks(
-        [{ id: 'dup', unlockedAt: '2026-01-01', seenAt: null, tierLevel: null }],
+        [{ id: 'first_session', unlockedAt: '2026-01-01', seenAt: null, tierLevel: null }],
         false,
       )
       expect(useAchievementUiStore.getState().queue.length).toBe(1)
@@ -340,7 +340,7 @@ describe('Phase 2: Achievement determinism', () => {
       const { useAchievementUiStore } = await import('@/stores/achievement-ui-store')
       useAchievementUiStore.getState().clearQueue()
       useAchievementUiStore.getState().enqueueUnlocks(
-        [{ id: 'seen', unlockedAt: '2026-01-01', seenAt: '2026-01-02', tierLevel: null }],
+        [{ id: 'first_session', unlockedAt: '2026-01-01', seenAt: '2026-01-02', tierLevel: null }],
         false,
       )
       expect(useAchievementUiStore.getState().queue.length).toBe(0)
@@ -351,8 +351,8 @@ describe('Phase 2: Achievement determinism', () => {
       useAchievementUiStore.getState().clearQueue()
       useAchievementUiStore.getState().enqueueUnlocks(
         [
-          { id: 'b1', unlockedAt: '2026-01-01', seenAt: null, tierLevel: null },
-          { id: 'b2', unlockedAt: '2026-01-01', seenAt: null, tierLevel: null },
+          { id: 'first_session', unlockedAt: '2026-01-01', seenAt: null, tierLevel: null },
+          { id: 'habit_3_in_14', unlockedAt: '2026-01-01', seenAt: null, tierLevel: null },
         ],
         true,
       )
