@@ -39,7 +39,12 @@ const resumeStale: ResumeInfo = { ...resumeFresh, stale: true }
 
 function card(partial: Partial<ProgramCardModel> & Pick<ProgramCardModel, 'program' | 'bucket'>): ProgramCardModel {
   return {
-    label: partial.program === 'pullups' ? pl.pullupsProgram : pl.pushupsProgram,
+    label:
+      partial.program === 'pullups'
+        ? pl.pullupsProgram
+        : partial.program === 'squats'
+          ? pl.squatsProgram
+          : pl.pushupsProgram,
     accent: 'x',
     progress: null,
     stats: null,

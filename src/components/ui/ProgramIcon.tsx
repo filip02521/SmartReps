@@ -4,11 +4,13 @@ import { useId } from 'react'
 const accentVar: Record<Program, string> = {
   pushups: 'var(--sr-pushups-accent)',
   pullups: 'var(--sr-pullups-accent)',
+  squats: 'var(--sr-squats-accent)',
 }
 
 const accentLight: Record<Program, string> = {
   pushups: 'var(--sr-pushups-accent-muted)',
   pullups: 'var(--sr-pullups-accent-muted)',
+  squats: 'var(--sr-squats-accent-muted)',
 }
 
 /** Compact inline SVG icon for pushup / pullup programs. */
@@ -55,6 +57,42 @@ export function ProgramIcon({
         <path d="M6.5 11.5 L5.5 18" stroke={`url(#${gradId})`} strokeWidth="2" strokeLinecap="round" />
         {/* Legs — angled to ground */}
         <path d="M18 12 L19 18" stroke={`url(#${gradId})`} strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (program === 'squats') {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        className={className}
+        aria-hidden
+      >
+        <defs>
+          <linearGradient id={gradId} x1="4" y1="2" x2="20" y2="22" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor={accent} stopOpacity="1" />
+            <stop offset="100%" stopColor={accent} stopOpacity="0.7" />
+          </linearGradient>
+        </defs>
+        {/* Ground line — subtle */}
+        <line x1="2" y1="20" x2="22" y2="20" stroke={accent} strokeWidth="1.5" strokeLinecap="round" opacity="0.35" />
+        {/* Head — circle with highlight */}
+        <circle cx="12" cy="5" r="2.2" fill={`url(#${gradId})`} />
+        <circle cx="11.3" cy="4.5" r="0.7" fill="#ffffff" opacity="0.3" />
+        {/* Torso — compact squat position */}
+        <path
+          d="M10.5 7 L10.5 11 C10.5 12 11 12.5 12 12.5 C13 12.5 13.5 12 13.5 11 L13.5 7 Z"
+          fill={`url(#${gradId})`}
+        />
+        {/* Arms — extended forward for balance */}
+        <path d="M10.5 9 L6 9.5 M13.5 9 L18 9.5" stroke={`url(#${gradId})`} strokeWidth="2" strokeLinecap="round" />
+        {/* Legs — bent in squat, wide stance */}
+        <path d="M11 12.5 L7 17 M13 12.5 L17 17" stroke={`url(#${gradId})`} strokeWidth="2.2" strokeLinecap="round" />
+        {/* Feet */}
+        <path d="M5.5 17.5 L8.5 18.5 M15.5 18.5 L18.5 17.5" stroke={`url(#${gradId})`} strokeWidth="2" strokeLinecap="round" />
       </svg>
     )
   }

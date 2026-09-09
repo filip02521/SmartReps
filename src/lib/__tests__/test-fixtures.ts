@@ -17,7 +17,7 @@ export function builtinSession(
   startedAt: string,
   totalReps: number,
   setActuals: number[],
-  program: 'pushups' | 'pullups' = 'pushups',
+  program: 'pushups' | 'pullups' | 'squats' = 'pushups',
 ): LocalWorkoutSession {
   return {
     id,

@@ -77,7 +77,7 @@ export type PlanDay = {
 
 export type CustomPlanStatus = 'draft' | 'active'
 
-export type CustomPlanSource = 'user' | 'duplicate' | 'import' | 'community'
+export type CustomPlanSource = 'user' | 'duplicate' | 'import' | 'community' | 'starter'
 
 export type CustomPlan = {
   id: string

@@ -88,7 +88,14 @@ export function UnifiedRecordsSection({
         {/* Programy wbudowane — po jednej sekcji per program */}
         {validProgramEntries.map((entry) => {
           const { program, records, stats } = entry
-          const label = program === 'pushups' ? pl.pushupsProgram : program === 'pullups' ? pl.pullupsProgram : program
+          const label =
+            program === 'pushups'
+              ? pl.pushupsProgram
+              : program === 'pullups'
+                ? pl.pullupsProgram
+                : program === 'squats'
+                  ? pl.squatsProgram
+                  : program
           return (
             <div key={program} className="mb-4">
               <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">

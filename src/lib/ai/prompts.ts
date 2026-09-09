@@ -332,8 +332,9 @@ export function buildWeeklyReportPrompt(
         muscleGroupSets.set(mg, (muscleGroupSets.get(mg) ?? 0) + log.sets.length)
       }
     } else {
-      // Builtin programs: pushups = chest/triceps, pullups = back/biceps
-      const mg = s.program === 'pushups' ? 'chest' : s.program === 'pullups' ? 'back' : 'other'
+      // Builtin programs: pushups = chest/triceps, pullups = back/biceps, squats = legs
+      const mg =
+        s.program === 'pushups' ? 'chest' : s.program === 'pullups' ? 'back' : s.program === 'squats' ? 'legs' : 'other'
       const sets = s.setResults?.length ?? 0
       muscleGroupSets.set(mg, (muscleGroupSets.get(mg) ?? 0) + sets)
     }

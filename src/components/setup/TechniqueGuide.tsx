@@ -51,6 +51,17 @@ function contentForProgram(program: Program): TechniqueContent {
       ],
     }
   }
+  if (program === 'squats') {
+    return {
+      title: pl.techniqueSquatsTitle,
+      steps: [pl.techniqueSquatsStep1, pl.techniqueSquatsStep2, pl.techniqueSquatsStep3],
+      poseLabels: [
+        pl.techniqueSquatsPoseStart,
+        pl.techniqueSquatsPoseBottom,
+        pl.techniqueSquatsPoseTop,
+      ],
+    }
+  }
   return {
     title: pl.techniqueTitle,
     steps: [pl.techniqueStep1, pl.techniqueStep2, pl.techniqueStep3],
@@ -65,7 +76,11 @@ export function TechniqueGuide({ program }: { program: Program }) {
   const content = contentForProgram(program)
 
   const defaultBack =
-    program === 'pullups' ? '/setup/test/pullups' : '/setup/test/pushups'
+    program === 'pullups'
+      ? '/setup/test/pullups'
+      : program === 'squats'
+        ? '/setup/test/squats'
+        : '/setup/test/pushups'
 
   const goBack = () => {
     if (window.history.length > 1) navigate(-1)
@@ -95,14 +110,23 @@ export default function TechniqueGuidePage(props: { program: Program }) {
 }
 
 export function techniqueLinkForProgram(program: Program, from: 'test' | 'workout'): string {
-  const base = program === 'pullups' ? '/setup/technique-pullups' : '/setup/technique'
+  const base =
+    program === 'pullups'
+      ? '/setup/technique-pullups'
+      : program === 'squats'
+        ? '/setup/technique-squats'
+        : '/setup/technique'
   return `${base}?from=${from}`
 }
 
 export function techniqueLinkLabel(program: Program): string {
-  return program === 'pullups' ? pl.howToPullup : pl.howToPushup
+  if (program === 'pullups') return pl.howToPullup
+  if (program === 'squats') return pl.howToSquat
+  return pl.howToPushup
 }
 
 export function techniqueMenuLabel(program: Program): ReactNode {
-  return program === 'pullups' ? pl.helpTechniquePullups : pl.helpTechniquePushups
+  if (program === 'pullups') return pl.helpTechniquePullups
+  if (program === 'squats') return pl.helpTechniqueSquats
+  return pl.helpTechniquePushups
 }

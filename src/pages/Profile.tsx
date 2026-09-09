@@ -223,7 +223,7 @@ export default function ProfilePage() {
   const exportCsvBackup = async () => {
     try {
       const chunks: string[] = []
-      for (const program of ['pushups', 'pullups'] as const) {
+      for (const program of ['pushups', 'pullups', 'squats'] as const) {
         chunks.push(await exportSessionsCsv(program))
       }
       chunks.push(await exportCustomSessionsCsv())

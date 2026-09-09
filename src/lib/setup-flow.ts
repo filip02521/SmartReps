@@ -6,7 +6,7 @@ import { track, AnalyticsEvents } from '@/lib/analytics'
 import type { Program } from '@/data/plans/types'
 
 export function isProgram(value: string | undefined | null): value is Program {
-  return value === 'pushups' || value === 'pullups'
+  return value === 'pushups' || value === 'pullups' || value === 'squats'
 }
 
 let setupDrainLock: Promise<boolean> | null = null

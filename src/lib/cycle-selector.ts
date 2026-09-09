@@ -1,5 +1,22 @@
 import { allCycles } from '@/data/plans'
 import type { Cycle, Program } from '@/data/plans/types'
+import { db } from '@/lib/db'
+
+export type CycleTier = 'beginner' | 'intermediate' | 'advanced'
+
+/** Mapuje poziom cyklu (1-N) na tier doświadczenia. */
+export function getCycleTier(cycle: Cycle): CycleTier {
+  if (cycle.level <= 4) return 'beginner'
+  if (cycle.level <= 8) return 'intermediate'
+  return 'advanced'
+}
+
+/** Zwraca reps z ostatniego testu maksymalnego dla programu (null gdy brak). */
+export async function getLastTestReps(program: Program): Promise<number | null> {
+  const tests = await db.maxTests.where('program').equals(program).toArray()
+  const last = tests.slice().sort((a, b) => b.testedAt.localeCompare(a.testedAt))[0]
+  return last?.reps ?? null
+}
 
 export function selectCycleByTest(program: Program, reps: number): Cycle {
   const cycles = allCycles

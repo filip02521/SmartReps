@@ -15,6 +15,7 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { runAuthenticatedSync, setAuthFromOnboarding, consumeAuthReturnTo } from '@/lib/auth-sync'
 import { resolvePostAuthNavigation } from '@/lib/post-auth-navigation'
 import { track, AnalyticsEvents } from '@/lib/analytics'
+import { showToast } from '@/stores/toast-store'
 import type { Program } from '@/data/plans/types'
 import { cn } from '@/lib/utils'
 
@@ -80,6 +81,10 @@ export default function Onboarding() {
 
   // Restore session in the background — never block the wizard on getSession/sync
   // (Strict Mode cancel + hung auth left users on PageLoader forever).
+  // Surface restore failures with a non-blocking toast + retry action so the
+  // user knows cloud data wasn't pulled and can try again.
+  const [restoreFailed, setRestoreFailed] = useState(false)
+  const [restoreAttempt, setRestoreAttempt] = useState(0)
   useEffect(() => {
     if (!hydrated || !isSupabaseConfigured || onboardingComplete) return
 
@@ -100,14 +105,28 @@ export default function Onboarding() {
           navigate('/', { replace: true })
         }
       } catch {
-        // Soft onboarding continues without cloud restore.
+        if (!cancelled) setRestoreFailed(true)
       }
     })()
 
     return () => {
       cancelled = true
     }
-  }, [hydrated, onboardingComplete, navigate])
+  }, [hydrated, onboardingComplete, navigate, restoreAttempt])
+
+  // Show a non-blocking toast when restore fails — user can retry or ignore.
+  useEffect(() => {
+    if (!restoreFailed) return
+    showToast(pl.onboardingCloudRestoreFailed, 'error', {
+      action: {
+        label: pl.onboardingCloudRestoreRetry,
+        onClick: () => {
+          setRestoreFailed(false)
+          setRestoreAttempt((n) => n + 1)
+        },
+      },
+    })
+  }, [restoreFailed])
 
   // If user turns off Strong while on programs step, jump to next.
   useEffect(() => {
@@ -356,20 +375,42 @@ export default function Onboarding() {
             {pl.onboardingProgramsHint}
           </p>
           <div className="mt-6 flex flex-col gap-3 sr-onboard-step sr-onboard-stagger-2">
-            {(['pushups', 'pullups'] as Program[]).map((p) => {
+            {(['pushups', 'pullups', 'squats'] as Program[]).map((p) => {
               const selected = programs.includes(p)
-              const isPushups = p === 'pushups'
-              const accent = isPushups ? 'var(--sr-pushups-accent)' : 'var(--sr-pullups-accent)'
-              const accentMuted = isPushups ? 'var(--sr-pushups-accent-muted)' : 'var(--sr-pullups-accent-muted)'
+              const accent =
+                p === 'pushups'
+                  ? 'var(--sr-pushups-accent)'
+                  : p === 'pullups'
+                    ? 'var(--sr-pullups-accent)'
+                    : 'var(--sr-squats-accent)'
+              const accentMuted =
+                p === 'pushups'
+                  ? 'var(--sr-pushups-accent-muted)'
+                  : p === 'pullups'
+                    ? 'var(--sr-pullups-accent-muted)'
+                    : 'var(--sr-squats-accent-muted)'
+              const Icon = p === 'pushups' ? PushupIcon : p === 'pullups' ? PullupIcon : SquatIcon
+              const title =
+                p === 'pushups'
+                  ? pl.pushupsProgram
+                  : p === 'pullups'
+                    ? pl.pullupsProgram
+                    : pl.squatsProgram
+              const desc =
+                p === 'pushups'
+                  ? pl.onboardingPushupsDesc
+                  : p === 'pullups'
+                    ? pl.onboardingPullupsDesc
+                    : pl.onboardingSquatsDesc
               return (
                 <ProgramCard
                   key={p}
                   selected={selected}
-                  icon={isPushups ? PushupIcon : PullupIcon}
+                  icon={Icon}
                   accent={accent}
                   accentMuted={accentMuted}
-                  title={isPushups ? pl.pushupsProgram : pl.pullupsProgram}
-                  desc={isPushups ? pl.onboardingPushupsDesc : pl.onboardingPullupsDesc}
+                  title={title}
+                  desc={desc}
                   onToggle={() => toggleProgram(p)}
                 />
               )
@@ -577,6 +618,18 @@ function PullupIcon({ className }: { className?: string }) {
       <rect x="2" y="3" width="20" height="2.5" rx="1.25" />
       <circle cx="12" cy="10" r="2.5" />
       <rect x="10.5" y="12.5" width="3" height="7" rx="1.5" />
+    </svg>
+  )
+}
+
+function SquatIcon({ className }: { className?: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <circle cx="12" cy="5" r="2.5" />
+      <rect x="10.5" y="7.5" width="3" height="5" rx="1.5" />
+      <rect x="6" y="9" width="12" height="1.5" rx="0.75" />
+      <rect x="9.5" y="12.5" width="2" height="6" rx="1" />
+      <rect x="12.5" y="12.5" width="2" height="6" rx="1" />
     </svg>
   )
 }

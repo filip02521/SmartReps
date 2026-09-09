@@ -84,22 +84,18 @@ Bez auto Max Test; drugi program nie w setupQueue.
 ## Wireframe — Postępy
 
 ```
-[PageHeader: kontekst sekcji — sesje programu / własne / X z Y odznak]
-[Primary stretch: Programy | Własne? | Odznaki]   ← max 3, równa szerokość
-  Programy → [program compact jeśli 2+] + [Przegląd · Historia · Cykl]
-  Własne → [Przegląd · Historia]
-    Przegląd: MetricStrip + aktywny plan (mapa dni, następny trening, Trenuj) + rekordy
-    Historia: karty sesji + filtry
-  Odznaki → galeria (bez przełącznika programu)
-URL: ?tab=overview|history|cycle|custom|achievements ; ?view=… ; ?program= tylko przy Programach
-?tab=records → overview + #progress-records (replace)
+[ProgressChromeNav: Przegląd | Historia | Odznaki]   ← 3 taby, równa szerokość
+URL: ?tab=overview|history|achievements
+  legacy ?tab=cycle|custom → redirect to overview
+  ?tab=records → overview + #progress-records (replace)
 [ProgressSection — flow, bez cieni Card]
   Przegląd: MetricStrip (treningi 14d · streak · powt. 14d) + trend „wcześniej”
     + NestedStat (test max · dzień X/Y · sesje) + last-set trend
-    + LineChart + heatmap 12 tyg. (Pn–Nd, bez drugiej mapy) + Rekordy
-  Historia: filtry + lista + Sheet → „Pełne podsumowanie”
-  Cykl: CycleDayPicker + BarChart max-set + CTA highlight plan
-  Własne: Przegląd | Historia; sekcja tylko przy planach/sesjach custom (mapa planu w Przeglądzie)
+    + LineChart + heatmap 12 tyg. (Pn–Nd) + Rekordy
+    + body-weight tracking (wpisy + wykres + korelacja)
+    + AI analysis teaser (gdy dane)
+  Historia: filtry (source / result / date) + lista + Sheet → „Pełne podsumowanie”
+    + AI workout analysis (cache 24h) + eksport CSV (builtin + custom, merge)
   Odznaki: galeria (filtry track + Zdobyte|Wszystkie) + „W toku” max 2 z paskiem postępu;
   detail Sheet (track = kropka-overline, nie kolor ramki); unlock Sheet @ Z_SHEET
   (po CycleCelebration; nie na /workout/* ani /summary); rarity ring przez gradient border (nie border-image)
@@ -109,28 +105,29 @@ URL: ?tab=overview|history|cycle|custom|achievements ; ?view=… ; ?program= tyl
 
 ```
 [PageHeader — hint zależny od segmentu]
-[Segmented: Moje (default) | Programy | Biblioteka]
+[Segmented: Moje (default) | Programy | Biblioteka | Społeczność]
 Moje: Nowy plan → Import → lista planów
-Programy: PageSection pompki / podciąganie / guma
+Programy: PageSection pompki / podciąganie + sekcja tips "gumy oporowe" (informacyjna, nie cykl)
 Biblioteka: ExerciseLibraryPanel inline (sheet tylko w edytorze)
-Query: ?tab=mine|programs|library ; legacy ?library=1 → library
+Społeczność: katalog planów (sortowanie, filtry tagów, karty z ratingiem) + własne publikacje
+Query: ?tab=mine|programs|library|community ; legacy ?library=1 → library
 ?highlight= → segment Programy
 ```
 
 ## Wireframe — Profil
 
 ```
-[PageHeader: Profil]
-[Konto — AccountHero: badge · sync · 1 CTA · FAQ · Wyloguj ghost]
-[Odznaki — gablotka 3 sloty (auto najmocniejsze / ręczne) · Wybierz · Wszystkie → Postępy]
-[Programy — karty programów kompakt + ⋮ · dodaj dashed · własne wiersze]
-[Wygląd]
-[Ustawienia treningu]
-[Przypomnienia — push: godzina lokalna w dniu dostępnego treningu]
-[Dane — import/eksport · Niebezpieczne]
-[O aplikacji]
+[ProfileHero — display name · email · bio · public/private toggle · sync status · follow counts · edit]
+[ProfileStats — sesje · powtórzenia · streak · best streak]
+[AiCoachCard — status connected/offline → otwiera SettingsSheet]
+[AiCoachHistory — insights (post-workout, weekly report, plateau warning) · filtry · dismiss — gdy AI connected]
+[ProfileAchievementsSection — gablotka 3 sloty (auto najmocniejsze / ręczne) · Wybierz · Wszystkie → Postępy]
+[ProfileAbout — app identity · wersja · privacy/terms · źródła · health disclaimer]
+[SettingsSheet (na żądanie) — sekcje:
+  Konto i synchronizacja · Wygląd i język · Trening · Przypomnienia · Trener AI · Dane i backup]
 ```
-Kolejność: konto → programy → ustawienia → dane. Soft enable bez auto-testu; unconfigured → Trening `/?program=`.
+Kolejność: hero → stats → AI coach → osiągnięcia → about. Settings w sheecie (nie inline).
+Programy zarządzane w Plans (`/plans?tab=programs`), nie na Profilu.
 
 ## Wireframe — Trening (`ActiveWorkoutScreen`)
 
@@ -151,13 +148,12 @@ Kolejność: konto → programy → ustawienia → dane. Soft enable bez auto-te
 [+15s] [+30s] [Pomiń]
 ```
 
-## Wireframe — Plany (Moje)
+## Wireframe — Plany (Moje — szczegół karty)
 
 ```
-[PageHeader Plany]
-[Wbudowane | Moje]
-[Nowy plan] [Biblioteka ćwiczeń]
-[karta: nazwa + Badge + N dni · X ćw. + nazwy dnia 1]
+[Segmented: Moje | Programy | Biblioteka | Społeczność]
+Moje: [Nowy plan] [Import] → lista planów
+[karta: nazwa + Badge (active/paused/draft) + N dni · X ćw. + nazwy dnia 1]
 [Trenuj] [Edytuj] [Więcej → Duplikuj / Eksport / Usuń+confirm]
 ```
 

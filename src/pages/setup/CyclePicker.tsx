@@ -292,7 +292,7 @@ export default function CyclePicker() {
         title={isRetest ? pl.retestTitle : pl.pickLevel}
         subtitle={pl.testResultSubtitle(
           pendingTest.reps,
-          program === 'pushups' ? pl.pushups : pl.pullups,
+          program === 'pushups' ? pl.pushups : program === 'pullups' ? pl.pullups : pl.squats,
         )}
       />
 
@@ -447,7 +447,7 @@ function LevelChangePicker({
         <p className="mt-2 text-xs text-[var(--sr-text-muted)]">
           {pl.levelChangeLastTest(
             lastTestReps,
-            program === 'pushups' ? pl.pushups : pl.pullups,
+            program === 'pushups' ? pl.pushups : program === 'pullups' ? pl.pullups : pl.squats,
             warningBaseline.nameShort,
           )}
         </p>

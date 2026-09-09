@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase/client'
 export type WeeklyChallenge = {
   id: string
   week_key: string
-  program: 'pushups' | 'pullups'
+  program: 'pushups' | 'pullups' | 'squats'
   target_reps: number
   title: string
   description: string

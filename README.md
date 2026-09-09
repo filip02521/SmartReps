@@ -4,13 +4,19 @@ Offline-first PWA do treningu **pompek** i **podciągania**. **23 cykle łączni
 
 ## Funkcje
 
-- **Strong-style workout** — checklista serii, licznik powtórzeń, timer przerwy z auto-startem
-- **23 cykle treningowe** (pompki + podciąganie) z walidacją planów
+- **Strong-style workout** — checklista serii, licznik powtórzeń, timer przerwy z auto-startem, smart rest suggestions
+- **23 cykle treningowe** (12 pompki + 11 podciąganie) z walidacją planów
+- **Własne plany multi-exercise** — biblioteka ćwiczeń, kreator planów, cykl życia (draft/active/paused/completed), import/eksport JSON
+- **Społeczność** — katalog planów (publikacja, import, opinie, tagi, sortowanie), follow, publiczne profile
+- **Osiągnięcia** — 55 trofeów w 4 trackach (training/habit/catalog/legend) + osiągnięcia sekretne, showcase na profilu
+- **Tygodniowe wyzwania** — aktywne wyzwanie (pompki/podciąganie) z leaderboardem
+- **AI coach (opcjonalny)** — generator planów, analiza treningu, proactive coach (weekly report, plateau detector, post-workout insights); klucz lokalny, OpenAI-compatible
+- **Postępy** — heatmapa aktywności, statystyki, historia sesji z filtrami, body-weight tracking, rekordy, AI analysis
 - **Offline-first** — Dexie (IndexedDB), pełna funkcjonalność bez internetu
-- **PWA** — instalacja na telefonie, service worker, auto-update
-- **Postępy** — heatmapa aktywności, statystyki, historia sesji z filtrami
+- **PWA** — instalacja na telefonie, service worker, auto-update, Web Push (VAPID)
 - **Retest / zmiana poziomu** — test max albo wybór przedziału bez ponownego testu
-- **Opcjonalny cloud sync** — Supabase Auth (e-mail OTP) + sync sesji i postępu
+- **Opcjonalny cloud sync** — Supabase Auth (e-mail OTP) + sync sesji, planów, ustawień, osiągnięć; tombstony dla deletions
+- **i18n** — PL-first + EN, zero hardcoded stringów, parzystość kluczy wymuszana testem
 
 ## Stack
 
@@ -51,22 +57,28 @@ Bez `.env` ekran logowania ma opcję pominięcia — trening działa w pełni lo
 | `npm run dev` | Serwer deweloperski |
 | `npm run build` | Build produkcyjny → `dist/` |
 | `npm run preview` | Podgląd buildu |
-| `npm test` | Testy (Vitest) |
-| `npm run validate-plans` | Walidacja 23 cykli treningowych |
+| `npm test` | Testy jednostkowe (Vitest) |
+| `npm run validate-plans` | Walidacja 23 cykli treningowych (pompki + podciąganie) |
+| `npm run validate-custom-plans` | Walidacja planów custom (schema, dni, serie) |
 | `npm run generate-icons` | Generowanie ikon PWA / apple-touch PNG |
-| `npm run test:e2e` | Playwright — ścieżki routingowe |
+| `npm run test:e2e` | Playwright — critical paths, smoke-iphone, community, achievements, custom-plan, login, profile, accessibility |
 
 ## Supabase (opcjonalnie)
 
 1. Utwórz projekt na [supabase.com](https://supabase.com)
-2. W SQL Editor uruchom migracje w kolejności:
-   - `supabase/migrations/001_initial_schema.sql`
-   - `supabase/migrations/002_sync_and_constraints.sql`
-   - `supabase/migrations/003_harden_handle_new_user.sql`
-   - `supabase/migrations/004_set_results_upsert.sql`
-   - `supabase/migrations/005_profiles_enabled_programs.sql`
-   - `supabase/migrations/006_push_and_ui_settings.sql`
-   - `supabase/migrations/007_push_timezone.sql`
+2. W SQL Editor uruchom migracje z `supabase/migrations/` w kolejności numerycznej (`001_*.sql` → `059_*.sql`). Główne grupy:
+   - `001`–`007` — schema, sync, constraints, profiles, push, UI settings
+   - `008`–`010` — push config (private/public, dedup)
+   - `011`–`015` — custom exercises, session fixes, active workout, sync clocks
+   - `016`–`019` — community, custom plan sync, achievements, tier levels
+   - `020`–`028` — session notes, body-weight, AI insights, reasoning effort
+   - `029`–`035` — community impact, reviews, weekly challenge, follow, public profiles
+   - `036`–`050` — RPC bug fixes, RLS, grants, advisor warnings
+   - `051`–`056` — achievement showcase, duration display, body-weight cascade, rating summary
+   - `057` — subscriptions (Stripe webhook event log)
+   - `058` — starter template source (`source: 'starter'` on custom plans)
+   - `059` — body-weight entries FK cascade (RODO/GDPR safety)
+   - `060` — squats program CHECK constraints (program_progress, workout_sessions, weekly_challenges, profiles.enabled_programs)
 3. Wklej URL i anon key do `.env` / Vercel env (**Config**, nie Secret)
 4. (Opcjonalnie Web Push) ustaw `VITE_VAPID_PUBLIC_KEY` (Vercel Config + `.env`).
    Sekrety Edge (`VAPID_*`, `CRON_SECRET`) — Dashboard Secrets **albo** wiersze w
@@ -88,7 +100,7 @@ Bez `.env` ekran logowania ma opcję pominięcia — trening działa w pełni lo
 Live: **https://smart-reps.vercel.app**  
 Repo: https://github.com/filip02521/SmartReps
 
-Push na `main` automatycznie deployuje na Vercel. CI: `validate-plans` → `lint` → `test` → `build` → `test:e2e`.
+Push na `main` automatycznie deployuje na Vercel. CI: `validate-plans` → `lint` → `test` → `build` → `test:e2e`. CodeQL scan cotygodniowo (niedziela).
 
 ## Instalacja PWA
 

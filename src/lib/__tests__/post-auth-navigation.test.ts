@@ -20,6 +20,30 @@ vi.mock('@/lib/program-service', () => ({
   clearActiveWorkout: vi.fn(),
 }))
 
+vi.mock('@/lib/analytics', () => ({
+  track: vi.fn(),
+  trackSyncError: vi.fn(),
+  AnalyticsEvents: {},
+}))
+
+vi.mock('@/lib/sync', () => ({
+  syncWithRemote: vi.fn().mockResolvedValue({ ok: true, errors: 0, tombstoneErrors: 0 }),
+  pullRemoteData: vi.fn().mockResolvedValue(0),
+}))
+
+vi.mock('@/lib/custom-sync', () => ({
+  pullCustomEntities: vi.fn().mockResolvedValue(0),
+  pushCustomEntities: vi.fn().mockResolvedValue(0),
+}))
+
+vi.mock('@/lib/enabled-programs-sync', () => ({
+  mergeEnabledProgramsFromProfile: vi.fn(),
+  mergeEnabledCustomWorkoutsFromProfile: vi.fn(),
+  mergeEnabledProgramsFromProgress: vi.fn(),
+  mergeUiSettingsFromProfile: vi.fn(),
+  mergeSubscriptionFromProfile: vi.fn(),
+}))
+
 import { useAppStore } from '@/stores/app-store'
 import { getProgramProgress } from '@/lib/program-service'
 import { navigateAfterAuth, resolvePostAuthNavigation, isSafeReturnPath } from '@/lib/post-auth-navigation'

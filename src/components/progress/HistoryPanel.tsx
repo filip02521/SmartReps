@@ -65,6 +65,7 @@ function sessionSourceLabel(s: LocalWorkoutSession, customPlanNames: Record<stri
   }
   if (s.program === 'pushups') return pl.pushupsProgram
   if (s.program === 'pullups') return pl.pullupsProgram
+  if (s.program === 'squats') return pl.squatsProgram
   return pl.progressSourceAll
 }
 
@@ -203,7 +204,7 @@ export function HistoryPanel({
               variant="secondary"
               onClick={async () => {
                 const chunks: string[] = []
-                for (const prog of ['pushups', 'pullups'] as const) {
+                for (const prog of ['pushups', 'pullups', 'squats'] as const) {
                   chunks.push(await exportSessionsCsv(prog))
                 }
                 chunks.push(await exportCustomSessionsCsv())

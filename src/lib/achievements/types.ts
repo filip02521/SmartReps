@@ -9,6 +9,7 @@ export type AchievementId =
   | 'goal_pushups_100'
   | 'goal_pullups_50'
   | 'goal_pullups_30'
+  | 'goal_squats_300'
   | 'workshop_custom'
   | 'pr_repeat_3'
   | 'sessions_100'
@@ -148,12 +149,15 @@ export type AchievementSnapshot = {
   pushupsSessions: number
   /** Completed builtin pullups sessions (passed). */
   pullupsSessions: number
+  /** Completed builtin squats sessions (passed). */
+  squatsSessions: number
   /** Number of custom plans created (any status). */
   customPlansCount: number
   streakWeeks: number
   bestStreakWeeks: number
   maxPushups: number
   maxPullups: number
+  maxSquats: number
   hasCycleClosedStrong: boolean
   cyclesClosedCount: number
   workshopCustom: boolean

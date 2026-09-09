@@ -9,6 +9,7 @@ mkdirSync(brand, { recursive: true })
 
 const markSvg = readFileSync(join(brand, 'app-icon-mark.svg'))
 const fullSvg = readFileSync(join(brand, 'app-icon.svg'))
+const faviconSvg = readFileSync(join(brand, 'favicon.svg'))
 
 /** Matches PWA manifest background_color */
 const APP_BG = { r: 9, g: 9, b: 11, alpha: 1 }
@@ -31,6 +32,11 @@ async function fromFullSvg(size, name) {
   console.log(`Generated ${name}`)
 }
 
+async function fromFaviconSvg(size, name) {
+  await sharp(faviconSvg).resize(size, size).png().toFile(join(brand, name))
+  console.log(`Generated ${name}`)
+}
+
 async function fromMark(size, name, markScale) {
   const pipeline = await compositeMark(size, markScale)
   await pipeline.png().toFile(join(brand, name))
@@ -44,10 +50,12 @@ await fromMark(192, 'icon-192.png', 0.58)
 // Maskable — mark ~50% fits Android/iOS safe zone (central 80%)
 await fromMark(512, 'icon-512-maskable.png', 0.5)
 
-// Apple touch + favicons — full SVG with rounded rect at larger sizes
+// Apple touch — full SVG with rounded rect (dark tile + gradient bars)
 await fromFullSvg(180, 'apple-touch-icon.png')
-await fromFullSvg(48, 'favicon-48.png')
-await fromFullSvg(32, 'favicon-32.png')
+
+// Favicons — match favicon.svg (gradient tile + white bars) for browser tabs
+await fromFaviconSvg(48, 'favicon-48.png')
+await fromFaviconSvg(32, 'favicon-32.png')
 
 // Web Push badge — simplified mark on dark (monochrome-ish for small badge)
 await fromMark(192, 'notification-icon.png', 0.62)

@@ -33,6 +33,11 @@ describe('parseEnabledPrograms', () => {
     expect(parseEnabledPrograms([])).toEqual(['pushups'])
     expect(parseEnabledPrograms(null)).toEqual(['pushups'])
   })
+
+  it('accepts squats as a valid program', () => {
+    expect(parseEnabledPrograms(['squats'])).toEqual(['squats'])
+    expect(parseEnabledPrograms(['pushups', 'squats', 'invalid'])).toEqual(['pushups', 'squats'])
+  })
 })
 
 describe('mergeEnabledCustomWorkoutsFromProfile', () => {

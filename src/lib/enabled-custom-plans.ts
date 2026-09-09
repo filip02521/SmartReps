@@ -12,31 +12,23 @@ export function isCustomPlanEnabledInProfile(
   return settings.enabledCustomPlanIds.includes(planId)
 }
 
-/** Plans shown on dashboard home section. */
+/** Plans shown on dashboard home section.
+ *  Dashboard always shows all active plans (capped at HOME_CUSTOM_LIMIT),
+ *  regardless of the "show/hide from training" toggle in Plans — that toggle
+ *  only affects the Plans page list, not the home dashboard. */
 export function resolveHomeCustomPlans(
   allActive: CustomPlan[],
-  settings: Pick<UserSettings, 'enabledCustomPlanIds' | 'customPlansFilterExplicit'>,
+  _settings: Pick<UserSettings, 'enabledCustomPlanIds' | 'customPlansFilterExplicit'>,
 ): CustomPlan[] {
-  if (!settings.customPlansFilterExplicit) {
-    return allActive.slice(0, HOME_CUSTOM_LIMIT)
-  }
-  if (settings.enabledCustomPlanIds.length === 0) return []
-  return allActive
-    .filter((p) => settings.enabledCustomPlanIds.includes(p.id))
-    .slice(0, HOME_CUSTOM_LIMIT)
+  return allActive.slice(0, HOME_CUSTOM_LIMIT)
 }
 
 /** Active plans eligible for home but not shown in the section (max 3 cards). */
 export function countHiddenHomeCustomPlans(
   allActive: CustomPlan[],
-  settings: Pick<UserSettings, 'enabledCustomPlanIds' | 'customPlansFilterExplicit'>,
+  _settings: Pick<UserSettings, 'enabledCustomPlanIds' | 'customPlansFilterExplicit'>,
 ): number {
-  const shown = resolveHomeCustomPlans(allActive, settings)
-  if (!settings.customPlansFilterExplicit) {
-    return Math.max(0, allActive.length - shown.length)
-  }
-  const eligible = allActive.filter((p) => settings.enabledCustomPlanIds.includes(p.id))
-  return Math.max(0, eligible.length - shown.length)
+  return Math.max(0, allActive.length - HOME_CUSTOM_LIMIT)
 }
 
 export function pruneEnabledCustomPlanIds(

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { pl } from '@/i18n/pl'
 
 const SITE_NAME = 'SmartReps'
-const DEFAULT_DESCRIPTION = pl.seoDefaultDescription
+const SITE_URL = import.meta.env.VITE_SITE_URL ?? 'https://smart-reps.vercel.app'
 
 /**
  * Sets document.title and meta[name=description] per route.
@@ -29,7 +29,7 @@ export function useSeo({
     const fullTitle = title ? `${title} | ${SITE_NAME}` : SITE_NAME
     document.title = fullTitle
 
-    const desc = description ?? DEFAULT_DESCRIPTION
+    const desc = description ?? pl.seoDefaultDescription
     setMetaTag('name', 'description', desc)
     setMetaTag('property', 'og:title', fullTitle)
     setMetaTag('property', 'og:description', desc)
@@ -37,7 +37,7 @@ export function useSeo({
     setMetaTag('name', 'twitter:description', desc)
 
     if (path) {
-      const url = `https://smart-reps.vercel.app${path}`
+      const url = `${SITE_URL}${path}`
       setMetaTag('property', 'og:url', url)
       setCanonical(url)
     }

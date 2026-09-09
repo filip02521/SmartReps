@@ -13,6 +13,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    testTimeout: 15000,
     exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
   },
 })

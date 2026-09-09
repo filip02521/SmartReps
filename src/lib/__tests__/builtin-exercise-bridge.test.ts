@@ -50,7 +50,7 @@ function builtinSession(partial: Partial<LocalWorkoutSession> = {}): LocalWorkou
 }
 
 describe('builtin-exercise-bridge', () => {
-  it('maps starter Pompki/Podciąganie to programs', () => {
+  it('maps starter Pompki/Podciąganie/Przysiady to programs', () => {
     expect(resolveBuiltinProgramForExercise(pompki)).toBe('pushups')
     expect(
       resolveBuiltinProgramForExercise({
@@ -58,7 +58,7 @@ describe('builtin-exercise-bridge', () => {
         primaryMetric: 'reps',
       }),
     ).toBe('pullups')
-    expect(resolveBuiltinProgramForExercise(squats)).toBeNull()
+    expect(resolveBuiltinProgramForExercise(squats)).toBe('squats')
     expect(
       resolveBuiltinProgramForExercise({
         name: pl.exerciseStarterPushups,

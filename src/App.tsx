@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { lazyWithChunkRecovery } from '@/lib/chunk-load-recovery'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -19,6 +19,7 @@ import ProgramStart from '@/pages/setup/ProgramStart'
 import Login from '@/pages/setup/Login'
 import TechniquePushups from '@/pages/setup/TechniquePushups'
 import TechniquePullups from '@/pages/setup/TechniquePullups'
+import TechniqueSquats from '@/pages/setup/TechniqueSquats'
 import NotFound from '@/pages/NotFound'
 import { DemoPreview } from '@/pages/DemoPreview'
 import PrivacyPage from '@/pages/legal/Privacy'
@@ -52,10 +53,23 @@ function LazyPage({ children }: { children: React.ReactNode }) {
   )
 }
 
+/** Eager (non-lazy) routes also need an error boundary — a runtime error
+ *  in Workout, Onboarding, Login, etc. should show a retry UI, not crash
+ *  the whole app. */
+function EagerPage({ children }: { children: React.ReactNode }) {
+  return <RouteErrorBoundary>{children}</RouteErrorBoundary>
+}
+
 export default function App() {
   // Re-render entire tree when language changes — proxy-based i18n needs this
   // to refresh all `pl.foo` references in 123+ files without refactoring them.
   const language = useAppStore((s) => s.settings.language ?? 'pl')
+
+  // Keep <html lang> in sync with active language for accessibility + SEO.
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
+
   return (
     <BrowserRouter key={language}>
       <ToastHost />
@@ -65,8 +79,8 @@ export default function App() {
       <ResumeWorkoutPrompt />
       <GlobalOfflineBar />
       <Routes>
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<EagerPage><PrivacyPage /></EagerPage>} />
+        <Route path="/terms" element={<EagerPage><TermsPage /></EagerPage>} />
         <Route
           path="/community/:slug"
           element={
@@ -75,20 +89,21 @@ export default function App() {
             </LazyPage>
           }
         />
-        <Route path="/setup/onboarding" element={<Onboarding />} />
-        <Route path="/setup/login" element={<Login />} />
-        <Route path="/setup/technique" element={<TechniquePushups />} />
-        <Route path="/setup/technique-pullups" element={<TechniquePullups />} />
+        <Route path="/setup/onboarding" element={<EagerPage><Onboarding /></EagerPage>} />
+        <Route path="/setup/login" element={<EagerPage><Login /></EagerPage>} />
+        <Route path="/setup/technique" element={<EagerPage><TechniquePushups /></EagerPage>} />
+        <Route path="/setup/technique-pullups" element={<EagerPage><TechniquePullups /></EagerPage>} />
+        <Route path="/setup/technique-squats" element={<EagerPage><TechniqueSquats /></EagerPage>} />
 
         <Route element={<RequireOnboarding />}>
           <Route element={<RequireProgram />}>
-            <Route path="/setup/test/:program" element={<MaxTest />} />
-            <Route path="/setup/cycle/:program" element={<CyclePicker />} />
-            <Route path="/setup/start/:program" element={<ProgramStart />} />
+            <Route path="/setup/test/:program" element={<EagerPage><MaxTest /></EagerPage>} />
+            <Route path="/setup/cycle/:program" element={<EagerPage><CyclePicker /></EagerPage>} />
+            <Route path="/setup/start/:program" element={<EagerPage><ProgramStart /></EagerPage>} />
           </Route>
 
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<EagerPage><Dashboard /></EagerPage>} />
             <Route
               path="/progress"
               element={
@@ -116,15 +131,15 @@ export default function App() {
           </Route>
 
           <Route element={<RequireProgram />}>
-            <Route path="/workout/:program" element={<WorkoutPage />} />
-            <Route path="/workout/:program/summary" element={<SessionSummary />} />
+            <Route path="/workout/:program" element={<EagerPage><WorkoutPage /></EagerPage>} />
+            <Route path="/workout/:program/summary" element={<EagerPage><SessionSummary /></EagerPage>} />
           </Route>
-          <Route path="/workout/custom/:planId" element={<CustomWorkoutPage />} />
-          <Route path="/workout/custom/:planId/summary" element={<CustomSessionSummary />} />
+          <Route path="/workout/custom/:planId" element={<EagerPage><CustomWorkoutPage /></EagerPage>} />
+          <Route path="/workout/custom/:planId/summary" element={<EagerPage><CustomSessionSummary /></EagerPage>} />
         </Route>
-        <Route path="/not-found" element={<NotFound />} />
-        <Route path="/demo-preview" element={<DemoPreview />} />
-        <Route path="*" element={<NotFound />} />
+        <Route path="/not-found" element={<EagerPage><NotFound /></EagerPage>} />
+        <Route path="/demo-preview" element={<EagerPage><DemoPreview /></EagerPage>} />
+        <Route path="*" element={<EagerPage><NotFound /></EagerPage>} />
       </Routes>
     </BrowserRouter>
   )

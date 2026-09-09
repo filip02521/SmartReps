@@ -13,9 +13,9 @@ const SIZE_MAP: Record<Size, { box: number }> = {
 /**
  * SmartReps AI Coach mark — the brand's AI persona indicator.
  *
- * Visual language:
+ * Visual language (consistent with LogoMark "The Ascend"):
  *  - Filled gradient disc (indigo → cyan) = SmartReps brand
- *  - White geometric "R" (filled) = SmartReps identity, crisp at all sizes
+ *  - White ascending bars = SmartReps identity, same symbol as the logo
  *  - 4-point sparkle on the rim = AI intelligence layer
  *  - Multi-layer depth: outer glow + highlight + inner ring + bottom shadow
  *  - Optional sparkle shimmer when the coach is "thinking"
@@ -78,19 +78,13 @@ export function AiCoachMark({
         {/* Crisp inner ring — edge definition against varied backgrounds */}
         <circle cx="32" cy="32" r="25.5" fill="none" stroke="white" strokeWidth="0.5" opacity="0.18" />
 
-        {/* "R" glyph — filled, geometrically precise, crisp at all sizes.
-            4 subpaths with fillRule="evenodd":
-              1. Stem (full-height vertical bar)
-              2. Bowl (rounded upper loop)
-              3. Counter (bowl interior hole — evenodd cuts this)
-              4. Leg (diagonal parallelogram, separate from bowl)
-            The V-notch between bowl bottom (28,33) and leg top-left (32,33)
-            is the characteristic R cut — open negative space, not a stroke. */}
-        <path
-          d="M22 18 L28 18 L28 46 L22 46 Z M28 18 Q42 18 42 26 Q42 33 28 33 Z M28 23 Q37 23 37 26 Q37 30 28 30 Z M32 33 L38 33 L42 46 L36 46 Z"
-          fill="white"
-          fillRule="evenodd"
-        />
+        {/* Ascending bars — same symbol as LogoMark, scaled to fit the disc.
+            Three white rounded rectangles, bottom-aligned, increasing height.
+            Height ratio 1:2:3.2 matches LogoMark. Vertically centered at disc center.
+            Represents progress + reps = the SmartReps identity. */}
+        <rect x="21" y="35" width="6" height="5" rx="2" fill="white" />
+        <rect x="29" y="30" width="6" height="10" rx="2" fill="white" />
+        <rect x="37" y="24" width="6" height="16" rx="2" fill="white" />
 
         {/* Sparkle halo — soft glow behind the star */}
         <circle

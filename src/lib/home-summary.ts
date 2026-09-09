@@ -9,6 +9,7 @@ import {
 import { getProgramStats, type ProgramStats } from '@/lib/stats-engine'
 import { isStaleActiveWorkout, enqueueSync } from '@/lib/sync'
 import { reconcileActiveWorkout } from '@/lib/program-service'
+import { getProgramLabel } from '@/lib/plan-resolver'
 import { pl } from '@/i18n/pl'
 import { currentLang } from '@/i18n'
 import { buildActivityInsights, daysSinceLastPassedSession, type ActivityInsights } from '@/lib/weekly-recap'
@@ -141,14 +142,28 @@ const BUCKET_ORDER: ProgramBucket[] = [
   'unconfigured',
 ]
 
-const PROGRAM_ORDER: Program[] = ['pushups', 'pullups']
+const PROGRAM_ORDER: Program[] = ['pushups', 'pullups', 'squats']
 
 export function programLabel(program: Program): string {
-  return program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+  switch (program) {
+    case 'pushups':
+      return pl.pushupsProgram
+    case 'pullups':
+      return pl.pullupsProgram
+    case 'squats':
+      return pl.squatsProgram
+  }
 }
 
 export function programAccent(program: Program): string {
-  return program === 'pushups' ? 'var(--sr-pushups-accent)' : 'var(--sr-pullups-accent)'
+  switch (program) {
+    case 'pushups':
+      return 'var(--sr-pushups-accent)'
+    case 'pullups':
+      return 'var(--sr-pullups-accent)'
+    case 'squats':
+      return 'var(--sr-squats-accent)'
+  }
 }
 
 export function localDayKey(d = new Date()): string {
@@ -552,7 +567,7 @@ export function pickTip(
 
   // Plateau warning — 3 sessions without progress (higher priority than achievements)
   if (opts?.plateauProgram && !dismissed.has(`plateau-${opts.plateauProgram}`)) {
-    const programLabel = opts.plateauProgram === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+    const programLabel = getProgramLabel(opts.plateauProgram)
     return {
       id: `plateau-${opts.plateauProgram}`,
       kind: 'plateau',

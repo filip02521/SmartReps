@@ -9,6 +9,9 @@ const mockState = {
     language: 'en' as const,
     theme: 'dark' as const,
     weightUnit: 'lb' as const,
+    subscriptionStatus: 'pro' as const,
+    subscriptionExpiresAt: '2025-12-31T00:00:00Z',
+    trialStartedAt: null,
   },
 }
 
@@ -112,6 +115,15 @@ describe('clearAllLocalData preserves local-only settings', () => {
     expect(newState.settings.theme).toBe('system')
     // weightUnit was 'lb' but should reset to 'kg'
     expect(newState.settings.weightUnit).toBe('kg')
+  })
+
+  it('preserves subscription status after clear', async () => {
+    await clearAllLocalData()
+
+    const [newState] = mockSetState.mock.calls[0]
+    expect(newState.settings.subscriptionStatus).toBe('pro')
+    expect(newState.settings.subscriptionExpiresAt).toBe('2025-12-31T00:00:00Z')
+    expect(newState.settings.trialStartedAt).toBeNull()
   })
 
   it('AI keys are never included in sync payload', async () => {

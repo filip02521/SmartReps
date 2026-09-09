@@ -2,20 +2,20 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { Activity, BarChart3, List, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { pl } from '@/i18n/pl'
+import { useT } from '@/i18n'
 import { useWorkoutStore } from '@/stores/workout-store'
 import { FOCUS_RING, Z_TAB_BAR } from '@/lib/ui-chrome'
-
-const tabs = [
-  { to: '/', label: pl.navWorkout, icon: Activity },
-  { to: '/progress', label: pl.navProgress, icon: BarChart3 },
-  { to: '/plans', label: pl.navPlans, icon: List },
-  { to: '/profile', label: pl.navProfile, icon: User },
-]
 
 export function AppLayout() {
   const location = useLocation()
   const immersive = useWorkoutStore((s) => s.immersive)
+  const t = useT()
+  const tabs = [
+    { to: '/', label: t.navWorkout, icon: Activity },
+    { to: '/progress', label: t.navProgress, icon: BarChart3 },
+    { to: '/plans', label: t.navPlans, icon: List },
+    { to: '/profile', label: t.navProfile, icon: User },
+  ]
   const hideTabs =
     immersive || location.pathname.startsWith('/workout') || location.pathname.startsWith('/setup')
 
@@ -35,7 +35,7 @@ export function AppLayout() {
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[9999] focus:rounded-[var(--sr-radius-md)] focus:bg-[var(--sr-bg-elevated)] focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-[var(--sr-text-primary)] focus:shadow-[var(--sr-shadow-card)]"
         >
-          {pl.skipToMain}
+          {t.skipToMain}
         </a>
       )}
       <main
@@ -55,7 +55,7 @@ export function AppLayout() {
           hideTabs ? 'pointer-events-none translate-y-full' : 'translate-y-0',
         )}
         style={{ zIndex: Z_TAB_BAR }}
-        aria-label={pl.mainNav}
+        aria-label={t.mainNav}
         aria-hidden={hideTabs}
       >
         <div className="mx-auto flex max-w-lg items-stretch justify-around gap-1 px-2 py-1.5">

@@ -6,6 +6,7 @@ import type { Program } from '@/data/plans/types'
 const accentVar: Record<Program, string> = {
   pushups: 'var(--sr-pushups-accent)',
   pullups: 'var(--sr-pullups-accent)',
+  squats: 'var(--sr-squats-accent)',
 }
 
 export function ProgramAccentCard({

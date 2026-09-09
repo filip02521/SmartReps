@@ -6,6 +6,7 @@ import type { SetResultDraft } from '@/lib/progress-engine'
 import type { RestTimerState } from '@/lib/rest-timer'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
 import { ExerciseDemo } from '@/components/exercise-demos/ExerciseDemo'
+import { techniqueMenuLabel } from '@/components/setup/TechniqueGuide'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
@@ -146,15 +147,27 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
       ? pl.negatives
       : program === 'pushups'
         ? pl.pushups
-        : pl.pullups
-  const programLabel = program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+        : program === 'pullups'
+          ? pl.pullups
+          : pl.squats
+  const programLabel =
+    program === 'pushups'
+      ? pl.pushupsProgram
+      : program === 'pullups'
+        ? pl.pullupsProgram
+        : pl.squatsProgram
   const builtinExercise = useMemo<ExerciseDefinition>(
     () => ({
       id: program,
-      name: program === 'pushups' ? pl.exerciseStarterPushups : pl.exerciseStarterPullups,
+      name:
+        program === 'pushups'
+          ? pl.exerciseStarterPushups
+          : program === 'pullups'
+            ? pl.exerciseStarterPullups
+            : pl.exerciseStarterSquats,
       primaryMetric: 'reps',
       restDefaultSec: day.restBetweenSetsSec,
-      muscleGroup: program === 'pushups' ? 'chest' : 'back',
+      muscleGroup: program === 'pushups' ? 'chest' : program === 'pullups' ? 'back' : 'legs',
       source: 'starter',
       archived: false,
       createdAt: '',
@@ -228,7 +241,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
             </Button>
             {showTechniqueLink && (
               <Button variant="ghost" fullWidth className="justify-start px-3" onClick={onShowTechnique}>
-                {pl.helpTechniquePushups}
+                {techniqueMenuLabel(program)}
               </Button>
             )}
             {sessionHasProgress && (
@@ -264,7 +277,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
 
       {/* Collapsible exercise demo — thumbnail by default, expand on tap */}
       <div className="px-4 pt-2">
-        <ExerciseDemo exercise={builtinExercise} collapsible showControls={false} />
+        <ExerciseDemo exercise={builtinExercise} collapsible hideNameWhenCollapsed showControls={false} />
       </div>
 
       {cycleVariant === 'negative' && <NegativeBanner />}
@@ -325,9 +338,14 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
       </div>
 
       <div ref={checklistRef} className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-28">
-        <p className="mb-3 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-          {pl.workoutSetsSectionTitle} · {setResults.length}/{day.sets.length}
-        </p>
+        <div className="mb-3 flex items-center gap-2">
+          <p className="sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+            {pl.workoutSetsSectionTitle}
+          </p>
+          <span className="inline-flex items-center rounded-full bg-[var(--sr-bg-surface)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-text-muted)]">
+            {setResults.length}/{day.sets.length}
+          </span>
+        </div>
         <SetChecklist
           sets={day.sets}
           currentIndex={currentSetIndex}

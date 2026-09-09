@@ -56,7 +56,7 @@ Mobilna PWA (Vite + React 19 + TS + Tailwind 4 + Zustand + Dexie + Supabase). PL
 ## Stack — czego NIE dodawać bez uzasadnienia
 
 - Brak shadcn/Radix — własny design system w `src/components/ui/` i `src/components/ux/`
-- Plany treningowe: dane w `src/data/plans/`, walidacja `npm run validate-plans`
+- Plany treningowe: dane w `src/data/plans/`, walidacja `npm run validate-plans` + `npm run validate-custom-plans`
 
 ## Struktura kodu
 

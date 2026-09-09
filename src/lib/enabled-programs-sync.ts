@@ -3,7 +3,9 @@ import { useAppStore, type UserSettings } from '@/stores/app-store'
 import { applyThemeColor } from '@/lib/theme-color'
 
 export function parseEnabledPrograms(raw: string[] | null | undefined): Program[] {
-  const valid = (raw ?? []).filter((p): p is Program => p === 'pushups' || p === 'pullups')
+  const valid = (raw ?? []).filter(
+    (p): p is Program => p === 'pushups' || p === 'pullups' || p === 'squats',
+  )
   return valid.length ? valid : ['pushups']
 }
 
@@ -32,6 +34,10 @@ export type RemoteProfileSettings = {
   ai_model?: string | null
   ai_base_url?: string | null
   ui_settings_updated_at?: string | null
+  // Subscription status — pulled from cloud, NOT pushed (cloud → local only)
+  subscription_status?: 'free' | 'trial' | 'pro' | 'lifetime' | 'expired' | null
+  subscription_expires_at?: string | null
+  trial_started_at?: string | null
 }
 
 /**
@@ -212,6 +218,38 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     void import('@/lib/web-push').then((m) => m.updatePushReminderHour(reminderHour))
   }
 
+  return true
+}
+
+/**
+ * Pull subscription status from cloud profile.
+ * Cloud → local only (subscription status is NOT pushed from client).
+ * Stripe webhook (Etap 1) updates profiles; client pulls on sync.
+ */
+export function mergeSubscriptionFromProfile(remote: RemoteProfileSettings | null): boolean {
+  if (!remote) return false
+
+  const validStatuses = ['free', 'trial', 'pro', 'lifetime', 'expired'] as const
+  const remoteStatus =
+    remote.subscription_status && validStatuses.includes(remote.subscription_status as (typeof validStatuses)[number])
+      ? (remote.subscription_status as UserSettings['subscriptionStatus'])
+      : null
+  if (!remoteStatus) return false
+
+  const { settings, setSubscriptionStatus } = useAppStore.getState()
+  if (
+    remoteStatus === settings.subscriptionStatus &&
+    (remote.subscription_expires_at ?? null) === settings.subscriptionExpiresAt &&
+    (remote.trial_started_at ?? null) === settings.trialStartedAt
+  ) {
+    return false
+  }
+
+  setSubscriptionStatus(
+    remoteStatus,
+    remote.subscription_expires_at ?? null,
+    remote.trial_started_at ?? null,
+  )
   return true
 }
 

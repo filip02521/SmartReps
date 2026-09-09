@@ -2,57 +2,33 @@ import { useId } from 'react'
 import { cn } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
 
+/**
+ * SmartReps LogoMark — "The Ascend"
+ *
+ * Three ascending white bars on a gradient tile (indigo → cyan).
+ * Filled shapes (not strokes, not <text>) → crisp at every size, zero blur.
+ *
+ * Meaning:
+ *  - Ascending bars = progress, progressive overload
+ *  - Three bars = reps, sets, repetition
+ *  - Gradient tile = brand consistency with UI (buttons, AiCoach, surfaces)
+ */
 export function LogoMark({ size = 40 }: { size?: number }) {
-  const uid = useId().replace(/:/g, '')
+  const uid = useId().replace(/[:]/g, '')
   const gradId = `sr-logo-grad-${uid}`
-  const glowId = `sr-logo-glow-${uid}`
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" aria-hidden>
       <defs>
-        <linearGradient id={gradId} x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+        <linearGradient id={gradId} x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
           <stop stopColor="var(--sr-brand-primary)" />
-          <stop offset="0.5" stopColor="var(--sr-brand-primary)" />
+          <stop offset="0.55" stopColor="var(--sr-brand-primary)" />
           <stop offset="1" stopColor="var(--sr-brand-secondary)" />
         </linearGradient>
-        <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="1.5" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
       </defs>
-      {/* Outer ring — solid gradient circle */}
-      <circle
-        cx="20"
-        cy="20"
-        r="17"
-        stroke={`url(#${gradId})`}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      {/* Inner accent arc — secondary color, creates depth */}
-      <path
-        d="M 20 5 A 15 15 0 0 1 35 20"
-        stroke="var(--sr-brand-secondary)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        opacity="0.5"
-        fill="none"
-      />
-      {/* Letter R — brand primary with subtle glow */}
-      <text
-        x="20"
-        y="26"
-        textAnchor="middle"
-        fill={`url(#${gradId})`}
-        fontSize="16"
-        fontWeight="800"
-        fontFamily="var(--sr-font)"
-        filter={`url(#${glowId})`}
-      >
-        R
-      </text>
+      <rect width="64" height="64" rx="16" fill={`url(#${gradId})`} />
+      <rect x="13" y="37" width="9" height="8" rx="3" fill="white" />
+      <rect x="27.5" y="29" width="9" height="16" rx="3" fill="white" />
+      <rect x="42" y="19" width="9" height="26" rx="3" fill="white" />
     </svg>
   )
 }

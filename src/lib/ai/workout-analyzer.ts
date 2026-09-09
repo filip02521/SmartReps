@@ -181,7 +181,14 @@ async function gatherWorkoutHistory(
       const builtinSets = session.setResults?.length || 1
       const program = session.program === 'custom' ? 'custom' : session.program
       sessionExercises.push({
-        name: program === 'pushups' ? pl.builtinExercisePushups : program === 'pullups' ? pl.builtinExercisePullups : pl.builtinWorkoutFallback,
+        name:
+          program === 'pushups'
+            ? pl.builtinExercisePushups
+            : program === 'pullups'
+              ? pl.builtinExercisePullups
+              : program === 'squats'
+                ? pl.builtinExerciseSquats
+                : pl.builtinWorkoutFallback,
         sets: builtinSets,
         reps: session.totalReps,
       })
@@ -189,7 +196,16 @@ async function gatherWorkoutHistory(
 
     recentSessions.push({
       date: session.startedAt.split('T')[0]!,
-      planName: session.program === 'custom' ? pl.calendarSessionCustom : session.program === 'pushups' ? pl.builtinExercisePushups : pl.builtinExercisePullups,
+      planName:
+        session.program === 'custom'
+          ? pl.calendarSessionCustom
+          : session.program === 'pushups'
+            ? pl.builtinExercisePushups
+            : session.program === 'pullups'
+              ? pl.builtinExercisePullups
+              : session.program === 'squats'
+                ? pl.builtinExerciseSquats
+                : pl.builtinWorkoutFallback,
       dayNumber: session.dayNumber,
       exercises: sessionExercises,
     })

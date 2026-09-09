@@ -55,6 +55,7 @@ export const ExerciseDemo = memo(function ExerciseDemo({
   compact = false,
   showControls = true,
   collapsible = false,
+  hideNameWhenCollapsed = false,
   className,
 }: {
   exercise: ExerciseDefinition | null | undefined
@@ -65,6 +66,9 @@ export const ExerciseDemo = memo(function ExerciseDemo({
    *  Collapsed: 56px thumbnail + exercise name + chevron (~52px tall).
    *  Expanded: full compact animation (128px) + technique cues. */
   collapsible?: boolean
+  /** When true + collapsible + collapsed, hides the exercise name/muscle group
+   *  row. Useful when the name is already shown in the screen header. */
+  hideNameWhenCollapsed?: boolean
   className?: string
 }) {
   const [paused, setPaused] = useState(false)
@@ -122,17 +126,25 @@ export const ExerciseDemo = memo(function ExerciseDemo({
               <ExerciseFigure demoKey={demoKey} paused={paused} />
             )}
           </div>
-          {/* Exercise name + muscle group */}
-          <div className="min-w-0 flex-1">
-            <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
-              {exerciseName}
-            </p>
-            {muscleGroup && (
-              <p className="sr-text-caption text-[var(--sr-text-muted)]">
-                {muscleGroupLabel(muscleGroup)}
+          {/* Exercise name + muscle group — hidden when collapsed if requested
+              (e.g. workout screens where the header already shows the name).
+              When name is hidden, show a subtle "show animation" hint instead. */}
+          {(!hideNameWhenCollapsed || expanded) ? (
+            <div className="min-w-0 flex-1">
+              <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+                {exerciseName}
               </p>
-            )}
-          </div>
+              {muscleGroup && (
+                <p className="sr-text-caption text-[var(--sr-text-muted)]">
+                  {muscleGroupLabel(muscleGroup)}
+                </p>
+              )}
+            </div>
+          ) : (
+            <span className="min-w-0 flex-1 sr-text-body-sm font-medium text-[var(--sr-text-muted)]">
+              {expanded ? pl.exerciseDemoCollapse : pl.exerciseDemoExpand}
+            </span>
+          )}
           <ChevronDown
             size={18}
             aria-hidden

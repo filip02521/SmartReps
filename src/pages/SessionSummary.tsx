@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Trophy, AlertTriangle, CalendarClock, Flame, Dumbbell, BarChart3, StickyNote, Award } from 'lucide-react'
 import { pl } from '@/i18n/pl'
+import { getProgramLabel } from '@/lib/plan-resolver'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -439,7 +440,7 @@ export default function SessionSummary() {
 
       <PageHeader
         title={failed ? pl.dayFailed : pl.dayComplete(current?.dayNumber ?? 1)}
-        subtitle={`${program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram}${
+        subtitle={`${getProgramLabel(program)}${
           !failed && progress && progress.status !== 'test_pending'
             ? ` · ${pl.nextWorkoutIn(daysLeft)}`
             : ''
@@ -451,7 +452,7 @@ export default function SessionSummary() {
         className="mb-6"
         failed={failed}
         title={failed ? pl.summaryHeroFail : pl.summaryHeroSuccess}
-        subtitle={`${program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram}${cycle ? ` · ${cycle.nameShort}` : ''} · ${pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}`}
+        subtitle={`${getProgramLabel(program)}${cycle ? ` · ${cycle.nameShort}` : ''} · ${pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}`}
         prRecords={prRecords}
         coachInsight={coachInsight}
         onDismissInsight={async () => {

@@ -12,7 +12,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
 
     <!-- Theme + color scheme -->
-    <meta name="theme-color" content="#6366F1" id="sr-theme-color" />
+    <meta name="theme-color" content="#6366F1" id="sr-theme-color" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#FAFAFA" id="sr-theme-color-light" media="(prefers-color-scheme: light)" />
     <meta name="color-scheme" content="dark light" />
 
     <!-- Primary SEO -->
@@ -55,11 +56,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-    <!-- Structured data: WebApplication -->
+    <!-- Structured data: WebApplication + SoftwareApplication -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "WebApplication",
+      "@type": ["WebApplication", "SoftwareApplication"],
       "name": "SmartReps",
       "url": "https://smart-reps.vercel.app/",
       "description": "Planuj i śledź treningi w domu i na siłowni — gotowe programy pompek i podciągania oraz własne plany treningowe. Działa offline.",
@@ -80,14 +81,7 @@
         "Katalog planów społecznościowych",
         "Działa offline",
         "Powiadomienia o treningu"
-      ],
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "5",
-        "ratingCount": "1",
-        "bestRating": "5",
-        "worstRating": "1"
-      }
+      ]
     }
     </script>
 
@@ -116,10 +110,8 @@
           background: #fafafa;
         }
         html:not([data-theme]) #sr-boot-splash { background: #fafafa; }
-        html:not([data-theme]) #sr-boot-splash .mark { border-color: #6366f1; color: #6366f1; }
       }
       html[data-theme='light'] #sr-boot-splash { background: #fafafa; }
-      html[data-theme='light'] #sr-boot-splash .mark { border-color: #6366f1; color: #6366f1; }
       #sr-boot-splash {
         position: fixed; inset: 0; z-index: 9999;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -129,13 +121,7 @@
       }
       #sr-boot-splash[data-hide="1"] { opacity: 0; pointer-events: none; }
       #sr-boot-splash .mark {
-        width: 56px; height: 56px; border-radius: 50%;
-        border: 2.5px solid #6366f1;
-        display: flex; align-items: center; justify-content: center;
-        color: #6366f1;
-        font: 800 22px 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
         animation: sr-boot-breathe 2.4s ease-in-out infinite;
-        box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.3), 0 0 20px rgba(99, 102, 241, 0.15);
       }
       #sr-boot-splash .wordmark {
         font: 700 18px 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
@@ -159,7 +145,19 @@
   </head>
   <body>
     <div id="sr-boot-splash" aria-hidden="true">
-      <div class="mark">R</div>
+      <svg class="mark" width="56" height="56" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="boot-grad" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#6366F1"/>
+            <stop offset="0.55" stop-color="#6366F1"/>
+            <stop offset="1" stop-color="#22D3EE"/>
+          </linearGradient>
+        </defs>
+        <rect width="64" height="64" rx="16" fill="url(#boot-grad)"/>
+        <rect x="13" y="37" width="9" height="8" rx="3" fill="white"/>
+        <rect x="27.5" y="29" width="9" height="16" rx="3" fill="white"/>
+        <rect x="42" y="19" width="9" height="26" rx="3" fill="white"/>
+      </svg>
       <div class="wordmark">Smart<span class="accent">Reps</span></div>
     </div>
     <div id="root"></div>

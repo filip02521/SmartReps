@@ -31,22 +31,22 @@ describe('enabled-custom-plans', () => {
     expect(result.map((p) => p.id)).toEqual(['a', 'b', 'c'])
   })
 
-  it('respects explicit enabled list on home', () => {
+  it('ignores explicit enabled list on home — dashboard always shows all active', () => {
     const all = [plan('a'), plan('b'), plan('c')]
     const result = resolveHomeCustomPlans(all, {
       enabledCustomPlanIds: ['c', 'a'],
       customPlansFilterExplicit: true,
     })
-    expect(result.map((p) => p.id)).toEqual(['a', 'c'])
+    expect(result.map((p) => p.id)).toEqual(['a', 'b', 'c'])
   })
 
-  it('returns empty home list when explicit filter has no ids', () => {
+  it('shows all active on home even when explicit filter has no ids', () => {
     expect(
       resolveHomeCustomPlans([plan('a')], {
         enabledCustomPlanIds: [],
         customPlansFilterExplicit: true,
       }),
-    ).toEqual([])
+    ).toEqual([plan('a')])
   })
 
   it('profile toggle defaults to all active when not explicit', () => {
@@ -62,7 +62,7 @@ describe('enabled-custom-plans', () => {
     expect(pruneEnabledCustomPlanIds(['a', 'b', 'c'], 'b')).toEqual(['a', 'c'])
   })
 
-  it('counts hidden plans with explicit filter', () => {
+  it('counts hidden plans beyond the 3-card limit (ignores explicit filter)', () => {
     const all = [plan('a'), plan('b'), plan('c'), plan('d')]
     expect(
       countHiddenHomeCustomPlans(all, {

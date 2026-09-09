@@ -17,6 +17,7 @@ function sessionLabel(s: LocalWorkoutSession, customPlanNames: Record<string, st
   }
   if (s.program === 'pushups') return pl.pushupsProgram
   if (s.program === 'pullups') return pl.pullupsProgram
+  if (s.program === 'squats') return pl.squatsProgram
   return pl.calendarSessionBuiltin
 }
 

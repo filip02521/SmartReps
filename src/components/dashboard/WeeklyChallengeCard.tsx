@@ -27,8 +27,15 @@ function daysUntil(endDate: string): number {
   return Math.ceil((end - now) / 86400000)
 }
 
-function programLabel(program: 'pushups' | 'pullups'): string {
-  return program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+function programLabel(program: 'pushups' | 'pullups' | 'squats'): string {
+  switch (program) {
+    case 'pushups':
+      return pl.pushupsProgram
+    case 'pullups':
+      return pl.pullupsProgram
+    case 'squats':
+      return pl.squatsProgram
+  }
 }
 
 /* ── Medal colors using CSS custom properties (no hardcoded hex) ── */

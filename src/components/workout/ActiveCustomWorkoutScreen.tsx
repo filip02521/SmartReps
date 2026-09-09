@@ -1,6 +1,6 @@
 import { ArrowLeft, BarChart2, ListOrdered, Minus, MoreVertical, Plus, Repeat } from 'lucide-react'
 import { useEffect, useState, type RefObject, ReactNode } from 'react'
-import { Check, ChevronRight, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { ErrorBanner } from '@/components/ux/Feedback'
@@ -84,6 +84,213 @@ function WorkoutStepperButton({
     >
       {children}
     </button>
+  )
+}
+
+/**
+ * Collapsible "Log details" row that wraps RPE/RIR picker + set note input.
+ * Collapsed: compact summary chips (e.g. "RPE 8 · +notatka") or a label.
+ * Expanded: renders the RpeRirPicker and SetNoteInput as-is.
+ */
+function SetLogDetails({
+  rpeRirValue,
+  rpeRirMode,
+  setNote,
+  onRpeRirChange,
+  onRpeRirModeChange,
+  onSetNoteChange,
+}: {
+  rpeRirValue: number | null
+  rpeRirMode: 'rpe' | 'rir'
+  setNote?: string
+  onRpeRirChange: (v: number | null) => void
+  onRpeRirModeChange: (m: 'rpe' | 'rir') => void
+  onSetNoteChange: (v: string | undefined) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const hasRpeRir = rpeRirValue != null
+  const hasNote = Boolean(setNote?.trim())
+  const hasAny = hasRpeRir || hasNote
+
+  return (
+    <div className="mt-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className={cn(
+          'flex w-full items-center gap-2 px-3 py-2 text-left',
+          FOCUS_RING,
+        )}
+        aria-expanded={expanded}
+        aria-label={pl.setLogDetailsTitle}
+      >
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          {hasAny ? (
+            <>
+              {hasRpeRir && (
+                <span className="inline-flex items-center rounded-full bg-[var(--sr-brand-primary-muted)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]">
+                  {rpeRirMode === 'rpe'
+                    ? pl.setLogDetailsRpeChip(rpeRirValue!)
+                    : pl.setLogDetailsRirChip(rpeRirValue!)}
+                </span>
+              )}
+              {hasNote && (
+                <span className="inline-flex items-center gap-0.5 text-xs font-medium text-[var(--sr-text-muted)]">
+                  <span aria-hidden>+</span>
+                  {pl.setLogDetailsNoteChip}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="flex items-center gap-1.5 sr-text-body-sm font-medium text-[var(--sr-text-secondary)]">
+              <Plus size={13} className="text-[var(--sr-text-muted)]" aria-hidden />
+              {pl.setLogDetailsTitle}
+            </span>
+          )}
+        </span>
+        <ChevronDown
+          size={16}
+          aria-hidden
+          className={cn(
+            'shrink-0 text-[var(--sr-text-muted)] transition-transform',
+            expanded && 'rotate-180',
+          )}
+        />
+      </button>
+      {expanded && (
+        <div className="border-t border-[var(--sr-border-subtle)] px-2.5 py-2">
+          <RpeRirPicker
+            value={rpeRirValue}
+            mode={rpeRirMode}
+            onChange={onRpeRirChange}
+            onModeChange={onRpeRirModeChange}
+            startExpanded
+          />
+          <SetNoteInput value={setNote} onChange={onSetNoteChange} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Collapsible panel for set count + rest adjustment (session-only).
+ * Collapsed: compact summary ("Rest: 90s · 5 serii").
+ * Expanded: rest chips + set count stepper.
+ */
+function SetRestAdjustPanel({
+  isResting,
+  showRestAdjust,
+  showSetAdjust,
+  restBetweenSetsSec,
+  setsCount,
+  canAddSet,
+  canRemoveSet,
+  onAddSet,
+  onRemoveSet,
+  onRestChange,
+}: {
+  isResting: boolean
+  showRestAdjust: boolean
+  showSetAdjust: boolean
+  restBetweenSetsSec: number
+  setsCount: number
+  canAddSet: boolean
+  canRemoveSet: boolean
+  onAddSet?: () => void
+  onRemoveSet?: () => void
+  onRestChange?: (sec: number) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const summary = pl.setRestAdjustSummary(restBetweenSetsSec, setsCount)
+
+  return (
+    <div className="mb-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className={cn(
+          'flex w-full items-center gap-2 px-3 py-2 text-left',
+          FOCUS_RING,
+        )}
+        aria-expanded={expanded}
+        aria-label={summary}
+      >
+        <span className="min-w-0 flex-1 truncate sr-text-body-sm font-medium text-[var(--sr-text-secondary)]">
+          {summary}
+        </span>
+        <ChevronDown
+          size={16}
+          aria-hidden
+          className={cn(
+            'shrink-0 text-[var(--sr-text-muted)] transition-transform',
+            expanded && 'rotate-180',
+          )}
+        />
+      </button>
+      {expanded && (
+        <div className="border-t border-[var(--sr-border-subtle)] px-3 py-2.5">
+          {showRestAdjust && onRestChange ? (
+            <>
+              <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                <p className="min-w-0 text-xs font-medium text-[var(--sr-text-secondary)]">
+                  {pl.customWorkoutRestAdjustLabel}
+                </p>
+                {!isResting && showSetAdjust && (
+                  <p className="shrink-0 text-xs font-medium text-[var(--sr-text-secondary)]">
+                    {pl.customWorkoutSetsSection}
+                  </p>
+                )}
+              </div>
+              <RestSecChips
+                id="workout-rest-between-sets"
+                label={pl.customWorkoutRestAdjustLabel}
+                value={restBetweenSetsSec}
+                onChange={onRestChange}
+                hideLabel
+                size="compact"
+                nowrap
+                trailing={
+                  !isResting && showSetAdjust ? (
+                    <CustomSetCountStepper
+                      count={setsCount}
+                      canAdd={canAddSet}
+                      canRemove={canRemoveSet}
+                      onAdd={onAddSet}
+                      onRemove={onRemoveSet}
+                    />
+                  ) : undefined
+                }
+              />
+            </>
+          ) : (
+            !isResting &&
+            showSetAdjust && (
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-[var(--sr-text-secondary)]">
+                    {pl.customWorkoutSetsSection}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
+                    {pl.customWorkoutRestChip(restBetweenSetsSec)}
+                  </p>
+                </div>
+                <CustomSetCountStepper
+                  count={setsCount}
+                  canAdd={canAddSet}
+                  canRemove={canRemoveSet}
+                  onAdd={onAddSet}
+                  onRemove={onRemoveSet}
+                />
+              </div>
+            )
+          )}
+          <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
+            {pl.customWorkoutSetsAdjustHint}
+          </p>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -243,7 +450,7 @@ function CustomSetRow({
             : undefined
       }
       className={cn(
-        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] border px-4 py-3.5 text-left transition-all active:scale-[0.99]',
+        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] border px-3 py-2.5 text-left transition-all active:scale-[0.99]',
         state === 'active' &&
           'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] ring-2 ring-[var(--sr-brand-primary)]/30',
         state === 'done' && 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
@@ -738,7 +945,6 @@ function CustomMetricCounter({
   const step = isMinUnit ? 60 : 1
   // Display value: convert seconds to minutes for min-based exercises
   const displayActual = isMinUnit ? Math.round(actual / 60) : actual
-  const displayTargetReps = isMinUnit ? Math.round(targetReps / 60) : targetReps
   const displayMaxValue = isMinUnit ? Math.round(maxValue / 60) : maxValue
   const weightValueKg = weightKg === '' ? 0 : Number(weightKg)
   const weightValue = kgToDisplay(weightValueKg, weightUnit)
@@ -749,45 +955,33 @@ function CustomMetricCounter({
   const unitLabel = weightUnitLabel(weightUnit)
 
   return (
-    <div className={cn('flex flex-col items-center gap-3 py-3', disabled && 'opacity-60')}>
-      <div className="flex items-center gap-2">
+    <div className={cn('flex flex-col items-center gap-2.5 py-3', disabled && 'opacity-60')}>
+      {/* Single compact target row: prescription label + optional badges */}
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
         <p className="px-2 text-center sr-text-overline text-[var(--sr-text-muted)]">
           {formatPrescriptionSetLabel(prescription, metric, exerciseName, weightUnit, durationUnit)}
         </p>
-        {/* Target badge — prominent goal indicator */}
-        {targetReps > 0 && !isRepsWeight && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]">
-            {pl.workoutTargetLabel}: {isMinUnit ? displayTargetReps : targetReps}
+        {isExact && (
+          <span className="inline-flex items-center rounded-full border border-[var(--sr-warning)]/40 bg-[var(--sr-warning-muted)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-warning)]">
+            {pl.exactBadge}
           </span>
         )}
-        {/* Target badge for reps_weight — shows reps target */}
-        {isRepsWeight && targetReps > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]">
-            {pl.workoutTargetLabel}: {targetReps}
+        {isMax && (
+          <span className="inline-flex items-center rounded-full border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]">
+            {pl.customMaxBadge}
+          </span>
+        )}
+        {isMin && (
+          <span className="inline-flex items-center rounded-full border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-text-muted)]">
+            {pl.customMinBadge}
+          </span>
+        )}
+        {isRepsWeight && targetWeight != null && (
+          <span className="inline-flex items-center rounded-full border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-text-muted)]">
+            {targetWeight} {unitLabel}
           </span>
         )}
       </div>
-      {isExact && (
-        <p className="text-center text-sm text-[var(--sr-text-secondary)]">
-          {pl.exactLiveHint(isMinUnit ? displayTargetReps : targetReps)}
-        </p>
-      )}
-      {isMax && (
-        <p className="text-center text-sm text-[var(--sr-text-secondary)]">
-          {pl.customMaxLiveHint(isMinUnit ? displayTargetReps : targetReps)}
-        </p>
-      )}
-      {isMin && isDuration && (
-        <p className="text-center text-sm text-[var(--sr-text-secondary)]">
-          {isMinUnit ? pl.customMinDurationHintMin(displayTargetReps) : pl.customMinDurationHint(targetReps)}
-        </p>
-      )}
-      {isMin && !isDuration && (
-        <p className="text-center text-sm text-[var(--sr-text-secondary)]">
-          {pl.customMinRepsHint(targetReps)}
-        </p>
-      )}
-
       {previousResult && (
         <CustomPreviousResultHint
           result={previousResult}
@@ -1216,7 +1410,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             )}
             <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">{setLine}</p>
             {(groupBadge || headerSub || sessionStartedAt) && (
-              <div className="mt-0.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
+              <div className="mt-0.5 flex min-w-0 items-center justify-center gap-x-1.5">
                 {(groupBadge || headerSub) && (
                   <p className="min-w-0 truncate sr-text-caption text-[var(--sr-text-muted)]">
                     {[groupBadge, headerSub].filter(Boolean).join(' · ')}
@@ -1257,7 +1451,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
 
       {/* Collapsible exercise demo — thumbnail by default, expand on tap */}
       <div className="px-4 pt-2">
-        <ExerciseDemo exercise={exerciseDef} collapsible showControls={false} />
+        <ExerciseDemo exercise={exerciseDef} collapsible hideNameWhenCollapsed showControls={false} />
       </div>
 
       {saveError && onDismissSaveError && (
@@ -1420,16 +1614,15 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             durationUnit={durationUnit ?? exerciseDef.durationDisplayUnit ?? 'min'}
           />
         )}
-        {onRpeRirChange && !counterLocked && (
-          <RpeRirPicker
-            value={rpeRirValue}
-            mode={rpeRirMode}
-            onChange={onRpeRirChange}
-            onModeChange={onRpeRirModeChange ?? (() => {})}
+        {onRpeRirChange && onSetNoteChange && !counterLocked && (
+          <SetLogDetails
+            rpeRirValue={rpeRirValue}
+            rpeRirMode={rpeRirMode}
+            setNote={setNote}
+            onRpeRirChange={onRpeRirChange}
+            onRpeRirModeChange={onRpeRirModeChange ?? (() => {})}
+            onSetNoteChange={onSetNoteChange}
           />
-        )}
-        {onSetNoteChange && !counterLocked && (
-          <SetNoteInput value={setNote} onChange={onSetNoteChange} />
         )}
         {canEditPreviousSet && onEditPreviousSet && (
           <Button variant="ghost" className="mt-2" fullWidth onClick={onEditPreviousSet}>
@@ -1448,74 +1641,29 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
 
       <div ref={checklistRef} className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-28">
         {showRestAdjust || showSetAdjust ? (
-          <div className="mb-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]/40 px-3 py-2.5">
-            {showRestAdjust && onRestChange ? (
-              <>
-                <div className="mb-1.5 flex items-baseline justify-between gap-3">
-                  <p className="min-w-0 text-xs font-medium text-[var(--sr-text-secondary)]">
-                    {pl.customWorkoutRestAdjustLabel}
-                  </p>
-                  {!isResting && showSetAdjust && (
-                    <p className="shrink-0 text-xs font-medium text-[var(--sr-text-secondary)]">
-                      {pl.customWorkoutSetsSection}
-                    </p>
-                  )}
-                </div>
-                <RestSecChips
-                  id="workout-rest-between-sets"
-                  label={pl.customWorkoutRestAdjustLabel}
-                  value={planned.restBetweenSetsSec}
-                  onChange={onRestChange}
-                  hideLabel
-                  size="compact"
-                  nowrap
-                  trailing={
-                    !isResting && showSetAdjust ? (
-                      <CustomSetCountStepper
-                        count={(checklistSets ?? planned.sets).length}
-                        canAdd={canAddSet}
-                        canRemove={canRemoveSet}
-                        onAdd={onAddSet}
-                        onRemove={onRemoveSet}
-                      />
-                    ) : undefined
-                  }
-                />
-              </>
-            ) : (
-              !isResting &&
-              showSetAdjust && (
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-[var(--sr-text-secondary)]">
-                      {pl.customWorkoutSetsSection}
-                    </p>
-                    <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
-                      {pl.customWorkoutRestChip(planned.restBetweenSetsSec)}
-                    </p>
-                  </div>
-                  <CustomSetCountStepper
-                    count={(checklistSets ?? planned.sets).length}
-                    canAdd={canAddSet}
-                    canRemove={canRemoveSet}
-                    onAdd={onAddSet}
-                    onRemove={onRemoveSet}
-                  />
-                </div>
-              )
-            )}
-            <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
-              {pl.customWorkoutSetsAdjustHint}
-            </p>
-          </div>
+          <SetRestAdjustPanel
+            isResting={isResting}
+            showRestAdjust={showRestAdjust}
+            showSetAdjust={showSetAdjust}
+            restBetweenSetsSec={planned.restBetweenSetsSec}
+            setsCount={(checklistSets ?? planned.sets).length}
+            canAddSet={canAddSet}
+            canRemoveSet={canRemoveSet}
+            onAddSet={onAddSet}
+            onRemoveSet={onRemoveSet}
+            onRestChange={onRestChange}
+          />
         ) : (
-          <div className="mb-3">
+          <div className="mb-3 flex items-center gap-2">
             <p className="sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-              {pl.customWorkoutSetsSectionCount(setResults.length, planned.sets.length)}
+              {pl.customWorkoutSetsSection}
             </p>
-            <p className="mt-0.5 text-xs text-[var(--sr-text-muted)]">
+            <span className="inline-flex items-center rounded-full bg-[var(--sr-bg-surface)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-text-muted)]">
+              {setResults.length}/{(checklistSets ?? planned.sets).length}
+            </span>
+            <span className="ml-auto text-xs text-[var(--sr-text-muted)]">
               {pl.customWorkoutRestChip(planned.restBetweenSetsSec)}
-            </p>
+            </span>
           </div>
         )}
         <CustomSetChecklist

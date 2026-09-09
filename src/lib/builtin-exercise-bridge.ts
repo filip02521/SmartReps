@@ -5,7 +5,7 @@ import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import { pl } from '@/i18n/pl'
 
 /** Builtin Strong programs that share starter library exercises. */
-export const BUILTIN_LIBRARY_PROGRAMS = ['pushups', 'pullups'] as const
+export const BUILTIN_LIBRARY_PROGRAMS = ['pushups', 'pullups', 'squats'] as const
 export type BuiltinLibraryProgram = (typeof BUILTIN_LIBRARY_PROGRAMS)[number]
 
 function normalizeExerciseName(name: string): string {
@@ -16,6 +16,7 @@ function normalizeExerciseName(name: string): string {
 const PROGRAM_NAME_ALIASES: Record<BuiltinLibraryProgram, string[]> = {
   pushups: [pl.exerciseStarterPushups, pl.pushupsProgram],
   pullups: [pl.exerciseStarterPullups, pl.pullupsProgram],
+  squats: [pl.exerciseStarterSquats, pl.squatsProgram],
 }
 
 const PROGRAM_ALIAS_LOOKUP = new Map<string, BuiltinLibraryProgram>()
@@ -41,7 +42,14 @@ export function resolveBuiltinProgramForExercise(
 }
 
 export function builtinProgramLabel(program: BuiltinLibraryProgram): string {
-  return program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+  switch (program) {
+    case 'pushups':
+      return pl.pushupsProgram
+    case 'pullups':
+      return pl.pullupsProgram
+    case 'squats':
+      return pl.squatsProgram
+  }
 }
 
 export function isCompletedBuiltinProgramSession(

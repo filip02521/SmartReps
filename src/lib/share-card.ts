@@ -135,7 +135,12 @@ export async function renderShareCardPng(input: ShareCardInput): Promise<Blob> {
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('canvas_unavailable')
 
-  const programLabel = input.program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+  const programLabel =
+    input.program === 'pushups'
+      ? pl.pushupsProgram
+      : input.program === 'pullups'
+        ? pl.pullupsProgram
+        : pl.squatsProgram
   const headline = input.passed
     ? pl.dayComplete(input.dayNumber)
     : pl.dayFailed
@@ -183,7 +188,12 @@ export async function renderCustomShareCardPng(input: ShareCardCustomInput): Pro
 export async function shareSessionCard(input: ShareCardInput): Promise<'shared' | 'downloaded'> {
   const blob = await renderShareCardPng(input)
   const file = new File([blob], 'smartreps-session.png', { type: 'image/png' })
-  const programLabel = input.program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+  const programLabel =
+    input.program === 'pushups'
+      ? pl.pushupsProgram
+      : input.program === 'pullups'
+        ? pl.pullupsProgram
+        : pl.squatsProgram
 
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
     await navigator.share({

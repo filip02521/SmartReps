@@ -44,6 +44,12 @@ export type UserSettings = {
   aiReasoningEffort: 'auto' | 'low' | 'medium' | 'high'
   /** UI language. Defaults to 'pl'. Synced to cloud via UI_SYNC_KEYS. */
   language: 'pl' | 'en'
+  /** Subscription status — pulled from profiles on sync, cached locally. NOT in UI_SYNC_KEYS (cloud → local only). */
+  subscriptionStatus: 'free' | 'trial' | 'pro' | 'lifetime' | 'expired'
+  /** ISO timestamp when current subscription/trial expires. null = no expiry (lifetime or free). */
+  subscriptionExpiresAt: string | null
+  /** ISO timestamp when opt-in trial was started. null = trial not started. */
+  trialStartedAt: string | null
 }
 
 export type PendingTest = {
@@ -130,6 +136,8 @@ type AppStore = {
   setDismissedLoginBackupTip: (v: boolean) => void
   setDismissedHabitMetTip: (v: boolean) => void
   setLastSyncFailureReason: (reason: string | null) => void
+  /** Update subscription status from cloud sync or Stripe webhook. NOT user-editable. */
+  setSubscriptionStatus: (status: UserSettings['subscriptionStatus'], expiresAt: string | null, trialStartedAt: string | null) => void
 }
 
 const UI_SYNC_KEYS: (keyof UserSettings)[] = [
@@ -167,6 +175,9 @@ export const defaultSettings: UserSettings = {
   language: 'pl',
   aiProactiveCoach: true,
   aiReasoningEffort: 'auto',
+  subscriptionStatus: 'free',
+  subscriptionExpiresAt: null,
+  trialStartedAt: null,
 }
 
 export const useAppStore = create<AppStore>()(
@@ -237,10 +248,19 @@ export const useAppStore = create<AppStore>()(
       setDismissedLoginBackupTip: (dismissedLoginBackupTip) => set({ dismissedLoginBackupTip }),
       setDismissedHabitMetTip: (dismissedHabitMetTip) => set({ dismissedHabitMetTip }),
       setLastSyncFailureReason: (lastSyncFailureReason) => set({ lastSyncFailureReason }),
+      setSubscriptionStatus: (subscriptionStatus, subscriptionExpiresAt, trialStartedAt) =>
+        set((s) => ({
+          settings: {
+            ...s.settings,
+            subscriptionStatus,
+            subscriptionExpiresAt,
+            trialStartedAt,
+          },
+        })),
     }),
     {
       name: 'smartreps-app',
-      version: 8,
+      version: 9,
       migrate: (persisted, fromVersion) => {
         const p = (persisted ?? {}) as Partial<AppStore> & { settings?: Partial<UserSettings> }
         const baseSettings: UserSettings = {

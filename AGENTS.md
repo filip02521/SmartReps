@@ -116,12 +116,21 @@ Add `npm run test:e2e` for workout, auth, sync, or routing changes.
 | Area | Location |
 |------|----------|
 | Tab pages | `src/pages/Dashboard.tsx`, `Progress.tsx`, `Plans.tsx`, `Profile.tsx` |
-| Workout flow | `Workout.tsx`, `ActiveWorkoutScreen.tsx`, `session-service.ts` |
-| Plans data | `src/data/plans/` + `scripts/validate-plans.ts` |
+| Workout flow (builtin) | `Workout.tsx`, `ActiveWorkoutScreen.tsx`, `session-service.ts` |
+| Workout flow (custom) | `CustomWorkout.tsx`, `ActiveCustomWorkoutScreen.tsx`, `custom-session-service.ts` |
+| Plans data | `src/data/plans/` + `scripts/validate-plans.ts` + `scripts/validate-custom-plans.ts` |
 | Local DB | `src/lib/db.ts` (Dexie) |
-| Cloud sync | `src/lib/sync.ts`, `auth-sync.ts`, `enabled-programs-sync.ts` |
-| i18n | `src/i18n/pl.ts` (PL + proxy), `src/i18n/en.ts` (EN), `src/i18n/index.ts` (runtime) |
+| Cloud sync | `src/lib/sync.ts`, `auth-sync.ts`, `enabled-programs-sync.ts`, `custom-sync.ts` |
+| Community | `src/lib/community-*.ts`, `src/components/community/`, `src/pages/CommunityPublication.tsx` |
+| Follow system | `src/lib/follow-system.ts`, `src/components/follow/FollowManager.tsx` |
+| Achievements | `src/lib/achievements/`, `src/components/achievements/` |
+| Weekly challenge | `src/lib/weekly-challenge.ts`, `src/components/dashboard/WeeklyChallengeCard.tsx` |
+| AI coach | `src/lib/ai/`, `src/components/brand/AiCoach*.tsx`, `src/components/profile/AiCoach*.tsx` |
+| Body-weight tracking | `src/lib/body-weight.ts`, `src/lib/body-weight-correlation.ts`, `src/components/progress/BodyWeightSection.tsx` |
+| i18n | `src/i18n/pl.ts` (PL + proxy), `src/i18n/en.ts` (EN), `src/i18n/index.ts` (store hook), `src/i18n/i18n-runtime.ts` (active dict holder) |
 | Home dashboard | `home-summary.ts`, `components/dashboard/` |
+| UX chrome | `src/lib/ui-chrome.ts` (z-index, focus ring, shell constants) |
+| Design tokens | `src/styles/tokens.css` (kolory, typografia — zero hardcoded hex) |
 
 ## User preferences (from project history)
 

@@ -315,9 +315,12 @@ export function ProgramHomeCard({
               className="h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none"
               style={{
                 width: `${pct}%`,
-                background: program === 'pushups'
-                  ? 'var(--sr-pushups-accent)'
-                  : 'var(--sr-pullups-accent)',
+                background:
+                  program === 'pushups'
+                    ? 'var(--sr-pushups-accent)'
+                    : program === 'pullups'
+                      ? 'var(--sr-pullups-accent)'
+                      : 'var(--sr-squats-accent)',
               }}
             />
           </div>
@@ -870,18 +873,20 @@ export function ProgramHomeCard({
 
 /* ─── Program icon badge — larger, with gradient ring ─── */
 
-function ProgramIconBadge({ program }: { program: 'pushups' | 'pullups' }) {
+function ProgramIconBadge({ program }: { program: 'pushups' | 'pullups' | 'squats' }) {
+  const accentVar =
+    program === 'pushups'
+      ? 'var(--sr-pushups-accent)'
+      : program === 'pullups'
+        ? 'var(--sr-pullups-accent)'
+        : 'var(--sr-squats-accent)'
   return (
     <div
       className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-lg)] ring-1"
       style={{
-        background: program === 'pushups'
-          ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
-          : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
+        background: `color-mix(in srgb, ${accentVar} 15%, transparent)`,
         // @ts-expect-error — CSS custom property
-        '--tw-ring-color': program === 'pushups'
-          ? 'color-mix(in srgb, var(--sr-pushups-accent) 30%, transparent)'
-          : 'color-mix(in srgb, var(--sr-pullups-accent) 30%, transparent)',
+        '--tw-ring-color': `color-mix(in srgb, ${accentVar} 30%, transparent)`,
       }}
       aria-hidden
     >

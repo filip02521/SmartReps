@@ -4,6 +4,7 @@ import {
   getCyclesByProgram,
   pushupCycles,
   pullupCycles,
+  squatCycles,
 } from '../src/data/plans/index'
 import type { Cycle, CycleLayout, Program } from '../src/data/plans/types'
 
@@ -202,6 +203,13 @@ function main(): void {
     })
   }
 
+  if (squatCycles.length !== 15) {
+    errors.push({
+      cycleId: 'squats',
+      message: `expected 15 squat cycles, got ${squatCycles.length}`,
+    })
+  }
+
   const ids = new Set<string>()
   for (const cycle of allCycles) {
     if (ids.has(cycle.id)) {
@@ -240,6 +248,7 @@ function main(): void {
   console.log(`Validated ${allCycles.length} cycles successfully.`)
   console.log(`  Pushups: ${pushupCycles.length}`)
   console.log(`  Pullups: ${pullupCycles.length}`)
+  console.log(`  Squats: ${squatCycles.length}`)
 }
 
 main()

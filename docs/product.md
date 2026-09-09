@@ -83,7 +83,11 @@ Cztery zakładki (bottom nav): **Trening** (`/`), **Postępy** (`/progress`), **
 
 ### Osiągnięcia
 - **Katalog osiągnięć/trofeów** (`src/lib/achievements/`) — tracki: training / habit / catalog / legend; rzadkości: common / rare / legendary; tier'y progresywne (progi, rarity per tier, glyph override); osiągnięcia sekretne (progressive); rolling-window (odwoływane gdy metryka spada)
-- **Osiągnięcia obejmują**: first session, habit 3-in-14, first custom session, cycle closed strong, pushup/pullup goals, workshop custom, PR repeat, sessions 100, streaki (1/4/12/26/52), comeback, volume 10k, cycles 5, custom sessions 25, pr master, habit builder, liked/imported author, community pillar, custom creator, both programs, secret dawn/marathon/night/precision/weekend, AI first insight, AI coach user, exercise creator, weight tracker, weekend warrior, first follower, followed by 25, first follow, first review, reviewer 10, challenge first/winner/5, legend full circle / quiet master / grandmaster / community
+- **Osiągnięcia obejmują** (55 total, pogrupowane wg tracku):
+  - **training** (19): first session, habit 3-in-14, first custom session, cycle closed strong, pushup/pullup goals (100/50/30), workshop custom, PR repeat, sessions 100, volume 10k, cycles 5, custom sessions 25, pr master, custom creator, both programs, AI first insight, AI coach user, exercise creator
+  - **habit** (9): streaki (1/4/12/26/52), comeback, habit builder, weight tracker, weekend warrior
+  - **catalog** (18): first publish, first like, first import, first trained, plan with legs, trainer 25, poly publisher, liked/imported author, community pillar, first follower, followed by 25, first follow, first review, reviewer 10, challenge first/winner/5
+  - **legend** (9): full circle, quiet master, grandmaster, community + sekretne (dawn, marathon, night, precision, weekend)
 - **Unlock flow** — unlock sheet, mark seen, in-progress display, achievement check scheduling; sync do Supabase (z tier level, revoke dla rolling)
 - **Showcase** — sloty na profilu publicznym (auto z rarity/tier, lub manual pick); sync do chmury; widoczne w follow cards
 

@@ -33,6 +33,7 @@ import { trackError } from '@/lib/analytics'
 import { getRestNextSetLabel } from '@/lib/workout-rest-label'
 import { getSmartRestSuggestion } from '@/lib/ai/proactive-coach'
 import { getProgramProgress, reconcileActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
+import { techniqueLinkForProgram } from '@/components/setup/TechniqueGuide'
 import { db } from '@/lib/db'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { generateId } from '@/lib/utils'
@@ -102,7 +103,9 @@ export default function WorkoutPage() {
       ? pl.negatives
       : program === 'pushups'
         ? pl.pushups
-        : pl.pullups
+        : program === 'pullups'
+          ? pl.pullups
+          : pl.squats
 
   const dayCompletePending =
     day != null &&
@@ -757,7 +760,7 @@ export default function WorkoutPage() {
       pulseFlash={pulseFlash}
       nextLabel={nextLabel}
       checklistRef={checklistRef}
-      showTechniqueLink={program === 'pushups'}
+      showTechniqueLink={true}
       sessionHasProgress={hasSessionProgress}
       sessionStartedAt={displayStartedAt}
       onBack={() => {
@@ -772,7 +775,7 @@ export default function WorkoutPage() {
       onShowPlan={() => { setShowPlanSheet(true); setShowMenu(false) }}
       onShowTechnique={() => {
         void persistState().finally(() => {
-          navigate('/setup/technique?from=workout')
+          navigate(techniqueLinkForProgram(program, 'workout'))
           setShowMenu(false)
         })
       }}

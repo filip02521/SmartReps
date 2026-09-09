@@ -43,7 +43,7 @@ export function ResumeWorkoutPrompt() {
       }
 
       // Check builtin programs
-      const programs: Program[] = ['pushups', 'pullups']
+      const programs: Program[] = ['pushups', 'pullups', 'squats']
       for (const program of programs) {
         const active = await reconcileActiveWorkout(program)
         if (!active) continue

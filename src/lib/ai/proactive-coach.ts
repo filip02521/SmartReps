@@ -331,7 +331,14 @@ export async function detectPlateau(
     .first()
   if (existing) return null
 
-  const programLabel = program === 'pushups' ? pl.pushupsProgram : program === 'pullups' ? pl.pullupsProgram : program
+  const programLabel =
+    program === 'pushups'
+      ? pl.pushupsProgram
+      : program === 'pullups'
+        ? pl.pullupsProgram
+        : program === 'squats'
+          ? pl.squatsProgram
+          : program
   const lastMetric = sessionProgressionMetric(plateauSessions[2])
   const bestMetric = Math.max(...plateauSessions.map(sessionProgressionMetric))
   // Use findLastIndex so that if the best metric was achieved multiple times,

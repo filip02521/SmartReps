@@ -33,7 +33,12 @@ export function ProgramSettingsCard({
   onDisable: () => void
 }) {
   const [showMenu, setShowMenu] = useState(false)
-  const label = program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram
+  const label =
+    program === 'pushups'
+      ? pl.pushupsProgram
+      : program === 'pullups'
+        ? pl.pullupsProgram
+        : pl.squatsProgram
   const cycle = progress ? getCycleById(progress.cycleId) : undefined
   const paused = progress?.status === 'paused'
   const configured = !!progress

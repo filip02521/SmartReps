@@ -1,14 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
 import { ChevronRight, Copy, Dumbbell, Download, MoreHorizontal, Pause, Pencil, Play, Plus, Share2, Trash2, Upload } from 'lucide-react'
-import { ProgramIcon } from '@/components/ui/ProgramIcon'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { allCycles } from '@/data/plans'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { PageSection } from '@/components/ui/PageSection'
-import { ProgramAccentCard } from '@/components/ui/ProgramAccentCard'
-import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -18,10 +15,14 @@ import { LogoMark } from '@/components/brand/Logo'
 import { ExerciseLibraryPanel } from '@/components/plans/ExerciseLibraryPanel'
 import { CustomPlanEditor } from '@/components/plans/CustomPlanEditor'
 import { AiPlanGenerator } from '@/components/plans/AiPlanGenerator'
+import { StarterTemplateSheet } from '@/components/plans/StarterTemplateSheet'
+import { StarterTemplateChip, StarterTemplateCard } from '@/components/plans/StarterTemplateCard'
+import { STARTER_TEMPLATES, type StarterTemplate } from '@/data/starter-templates'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { CustomWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
 import { ProgramSettingsCard } from '@/components/profile/ProgramSettingsCard'
-import { getTargetReps } from '@/lib/progress-engine'
+import { ProgramBrowser } from '@/components/plans/ProgramBrowser'
+import { getLastTestReps } from '@/lib/cycle-selector'
 import { db } from '@/lib/db'
 import { pl } from '@/i18n/pl'
 import { TAB_PAGE_SHELL, FOCUS_RING } from '@/lib/ui-chrome'
@@ -96,9 +97,11 @@ export default function PlansPage() {
   const [tab, setTab] = useState<PlansTab>(() =>
     highlightId ? 'programs' : parsePlansTab(tabParam, libraryParam),
   )
-  const [openId, setOpenId] = useState<string | null>(null)
   const [progressByProgram, setProgressByProgram] = useState<
     Partial<Record<Program, LocalProgramProgress>>
+  >({})
+  const [lastTestRepsByProgram, setLastTestRepsByProgram] = useState<
+    Partial<Record<Program, number | null>>
   >({})
   const [customPlans, setCustomPlans] = useState<CustomPlan[]>([])
   const [customLoading, setCustomLoading] = useState(true)
@@ -110,6 +113,8 @@ export default function PlansPage() {
   const [exercises, setExercises] = useState<ExerciseDefinition[]>([])
   const [editorOpen, setEditorOpen] = useState(false)
   const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false)
+  const [starterSheetOpen, setStarterSheetOpen] = useState(false)
+  const [starterInitialPreview, setStarterInitialPreview] = useState<StarterTemplate | null>(null)
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null)
   const [editorInitialDay, setEditorInitialDay] = useState<number | null>(null)
   const [editorActiveDay, setEditorActiveDay] = useState<number | null>(null)
@@ -128,9 +133,9 @@ export default function PlansPage() {
   const online = useOnline()
   const communityMine = searchParams.get('mine') === '1'
   const importInputRef = useRef<HTMLInputElement>(null)
-  const highlightRef = useRef<HTMLDivElement | null>(null)
-  const pushups = allCycles.filter((c) => c.program === 'pushups')
-  const pullups = allCycles.filter((c) => c.program === 'pullups')
+  const pushups = useMemo(() => allCycles.filter((c) => c.program === 'pushups'), [])
+  const pullups = useMemo(() => allCycles.filter((c) => c.program === 'pullups'), [])
+  const squats = useMemo(() => allCycles.filter((c) => c.program === 'squats'), [])
 
   function writeTabParam(next: PlansTab) {
     const params = new URLSearchParams(searchParams)
@@ -226,11 +231,16 @@ export default function PlansPage() {
 
   async function reloadPrograms() {
     const map: Partial<Record<Program, LocalProgramProgress>> = {}
-    for (const p of settings.enabledPrograms) {
+    const testMap: Partial<Record<Program, number | null>> = {}
+    // Ładuj postęp i ostatni test dla wszystkich programów (również niewłączonych),
+    // aby browser mógł pokazać badge „Zalecany" i obsłużyć aktywację.
+    for (const p of ['pushups', 'pullups', 'squats'] as Program[]) {
       const prog = await getProgramProgress(p)
       if (prog) map[p] = prog
+      testMap[p] = await getLastTestReps(p)
     }
     setProgressByProgram(map)
+    setLastTestRepsByProgram(testMap)
     setProgramsReady(true)
   }
 
@@ -271,6 +281,16 @@ export default function PlansPage() {
     setSettings({ enabledPrograms: [...settings.enabledPrograms, program] })
   }
 
+  // Czyści parametr ?highlight=... z URL po otwarciu sheet cyklu (deep-link z Dashboardu)
+  const clearHighlightParam = useCallback(() => {
+    setSearchParams((prev) => {
+      if (!prev.has('highlight')) return prev
+      const next = new URLSearchParams(prev)
+      next.delete('highlight')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
+
   const disableProgram = (program: Program) => {
     const next = settings.enabledPrograms.filter((p) => p !== program)
     setSettings({ enabledPrograms: next })
@@ -284,7 +304,7 @@ export default function PlansPage() {
     await reloadPrograms()
   }
 
-  const missingPrograms = (['pushups', 'pullups'] as Program[]).filter(
+  const missingPrograms = (['pushups', 'pullups', 'squats'] as Program[]).filter(
     (p) => !settings.enabledPrograms.includes(p),
   )
 
@@ -317,6 +337,12 @@ export default function PlansPage() {
         map[row.program] = row
       }
       setProgressByProgram(map)
+      // Załaduj ostatnie testy dla wszystkich programów (browser badge „Zalecany")
+      const testMap: Partial<Record<Program, number | null>> = {}
+      for (const p of ['pushups', 'pullups', 'squats'] as Program[]) {
+        testMap[p] = await getLastTestReps(p)
+      }
+      setLastTestRepsByProgram(testMap)
       setProgramsReady(true)
     })()
     void reloadCustom()
@@ -351,21 +377,6 @@ export default function PlansPage() {
     setSearchParams(next, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open once per edit param
   }, [editParam])
-
-  useEffect(() => {
-    if (!highlightId || tab !== 'programs') return
-    setOpenId(highlightId)
-    const t = window.setTimeout(() => {
-      highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }, 100)
-    return () => window.clearTimeout(t)
-  }, [highlightId, progressByProgram, tab])
-
-  const currentCycleIds = new Set(
-    Object.values(progressByProgram)
-      .map((p) => p?.cycleId)
-      .filter(Boolean) as string[],
-  )
 
   return (
     <div className={TAB_PAGE_SHELL}>
@@ -465,24 +476,67 @@ export default function PlansPage() {
               <SkeletonCard className="min-h-[6.5rem]" />
             </div>
           ) : customPlans.length === 0 ? (
-            <EmptyState
-              icon={<LogoMark size={48} />}
-              title={pl.myPlansEmpty}
-              description={pl.myPlansHint}
-              action={{
-                label: pl.myPlansEmptyCta,
-                onClick: () => void openEditor(null),
-              }}
-              secondaryAction={{
-                label: pl.plansTabLibrary,
-                onClick: () => {
-                  setTab('library')
-                  writeTabParam('library')
-                },
-              }}
-            />
+            <div className="flex flex-col gap-4">
+              <EmptyState
+                icon={<LogoMark size={48} />}
+                title={pl.myPlansEmpty}
+                description={pl.myPlansHint}
+                action={{
+                  label: pl.myPlansEmptyCta,
+                  onClick: () => void openEditor(null),
+                }}
+                secondaryAction={{
+                  label: pl.plansTabLibrary,
+                  onClick: () => {
+                    setTab('library')
+                    writeTabParam('library')
+                  },
+                }}
+              />
+              <div className="flex flex-col gap-3">
+                <div>
+                  <p className="sr-text-h3 text-[var(--sr-text-primary)]">
+                    {pl.starterEmptyHint}
+                  </p>
+                  <p className="mt-0.5 text-sm text-[var(--sr-text-secondary)]">
+                    {pl.starterEmptyHintDesc}
+                  </p>
+                </div>
+                {STARTER_TEMPLATES.slice(0, 3).map((t) => (
+                  <StarterTemplateCard
+                    key={t.id}
+                    template={t}
+                    compact
+                    onPreview={() => {
+                      setStarterInitialPreview(t)
+                      setStarterSheetOpen(true)
+                    }}
+                    onActivate={() => {
+                      setStarterInitialPreview(null)
+                      setStarterSheetOpen(true)
+                    }}
+                  />
+                ))}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="md"
+                  fullWidth
+                  onClick={() => setStarterSheetOpen(true)}
+                >
+                  {pl.starterSeeAll}
+                </Button>
+              </div>
+            </div>
           ) : (
-            <ul className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3">
+              <StarterTemplateChip
+                onClick={() => {
+                  setStarterInitialPreview(null)
+                  setStarterSheetOpen(true)
+                }}
+              />
+              <ul className="flex flex-col gap-3">
               {customPlans.map((plan) => {
                 const names = firstDayNames(plan, exercises)
                 const totalEx = planExerciseCount(plan)
@@ -543,9 +597,14 @@ export default function PlansPage() {
                           ) : null}
                         </div>
                       </div>
-                      <Badge variant={paused ? 'warning' : isActive ? 'success' : 'default'}>
-                        {paused ? pl.planStatusPaused : isActive ? pl.planStatusActive : pl.planStatusDraft}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        {plan.source === 'starter' && (
+                          <Badge variant="default">{pl.starterBadge}</Badge>
+                        )}
+                        <Badge variant={paused ? 'warning' : isActive ? 'success' : 'default'}>
+                          {paused ? pl.planStatusPaused : isActive ? pl.planStatusActive : pl.planStatusDraft}
+                        </Badge>
+                      </div>
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       {canTrain ? (
@@ -615,6 +674,7 @@ export default function PlansPage() {
                 )
               })}
             </ul>
+            </div>
           )}
         </PageSection>
 
@@ -707,7 +767,11 @@ export default function PlansPage() {
                             className="justify-start px-4"
                             onClick={() => addProgram(p)}
                           >
-                            {p === 'pushups' ? pl.addProgramPushups : pl.addProgramPullups}
+                            {p === 'pushups'
+                              ? pl.addProgramPushups
+                              : p === 'pullups'
+                                ? pl.addProgramPullups
+                                : pl.addProgramSquats}
                           </Button>
                         ))}
                       </div>
@@ -717,28 +781,57 @@ export default function PlansPage() {
               )}
             </PageSection>
 
-            <PageSection title={pl.pushupsProgram} hint={pl.plansProgramHint} className="mt-6">
-              <CycleList
-                program="pushups"
-                cycles={pushups}
-                openId={openId}
-                setOpenId={setOpenId}
-                highlightId={highlightId}
-                highlightRef={highlightRef}
-                currentCycleIds={currentCycleIds}
-              />
-            </PageSection>
-
-            <PageSection title={pl.pullupsProgram} hint={pl.plansProgramHint} className="mt-6">
-              <CycleList
-                program="pullups"
-                cycles={pullups}
-                openId={openId}
-                setOpenId={setOpenId}
-                highlightId={highlightId}
-                highlightRef={highlightRef}
-                currentCycleIds={currentCycleIds}
-              />
+            <PageSection title={pl.programBrowseTitle} hint={pl.programBrowseHint} className="mt-6">
+              <div className="flex flex-col gap-6">
+                <ProgramBrowser
+                  program="pushups"
+                  cycles={pushups}
+                  programEnabled={settings.enabledPrograms.includes('pushups')}
+                  hasProgress={!!progressByProgram.pushups}
+                  currentCycleId={progressByProgram.pushups?.cycleId ?? null}
+                  currentStatus={progressByProgram.pushups?.status}
+                  lastTestReps={lastTestRepsByProgram.pushups ?? null}
+                  highlightCycleId={
+                    highlightId && pushups.some((c) => c.id === highlightId)
+                      ? highlightId
+                      : null
+                  }
+                  onHighlightConsumed={clearHighlightParam}
+                  onEnableProgram={addProgram}
+                />
+                <ProgramBrowser
+                  program="pullups"
+                  cycles={pullups}
+                  programEnabled={settings.enabledPrograms.includes('pullups')}
+                  hasProgress={!!progressByProgram.pullups}
+                  currentCycleId={progressByProgram.pullups?.cycleId ?? null}
+                  currentStatus={progressByProgram.pullups?.status}
+                  lastTestReps={lastTestRepsByProgram.pullups ?? null}
+                  highlightCycleId={
+                    highlightId && pullups.some((c) => c.id === highlightId)
+                      ? highlightId
+                      : null
+                  }
+                  onHighlightConsumed={clearHighlightParam}
+                  onEnableProgram={addProgram}
+                />
+                <ProgramBrowser
+                  program="squats"
+                  cycles={squats}
+                  programEnabled={settings.enabledPrograms.includes('squats')}
+                  hasProgress={!!progressByProgram.squats}
+                  currentCycleId={progressByProgram.squats?.cycleId ?? null}
+                  currentStatus={progressByProgram.squats?.status}
+                  lastTestReps={lastTestRepsByProgram.squats ?? null}
+                  highlightCycleId={
+                    highlightId && squats.some((c) => c.id === highlightId)
+                      ? highlightId
+                      : null
+                  }
+                  onHighlightConsumed={clearHighlightParam}
+                  onEnableProgram={addProgram}
+                />
+              </div>
             </PageSection>
 
             <PageSection title={pl.resistanceBandsTitle} hint={pl.resistanceBandsIntro} className="mt-6">
@@ -772,6 +865,16 @@ export default function PlansPage() {
         open={aiGeneratorOpen}
         onClose={() => setAiGeneratorOpen(false)}
         onGenerated={() => void reloadCustom()}
+      />
+
+      <StarterTemplateSheet
+        open={starterSheetOpen}
+        onClose={() => {
+          setStarterSheetOpen(false)
+          setStarterInitialPreview(null)
+        }}
+        onActivated={() => void reloadCustom()}
+        initialPreview={starterInitialPreview}
       />
 
       {morePlan && (
@@ -955,140 +1058,3 @@ export default function PlansPage() {
   )
 }
 
-function CycleList({
-  program,
-  cycles,
-  openId,
-  setOpenId,
-  highlightId,
-  highlightRef,
-  currentCycleIds,
-}: {
-  program: Program
-  cycles: typeof allCycles
-  openId: string | null
-  setOpenId: (id: string | null) => void
-  highlightId: string | null
-  highlightRef: React.RefObject<HTMLDivElement | null>
-  currentCycleIds: Set<string>
-}) {
-  const navigate = useNavigate()
-  return (
-    <div className="flex flex-col gap-3">
-      {cycles.map((cycle) => {
-        const open = openId === cycle.id
-        const panelId = `cycle-panel-${cycle.id}`
-        const isCurrent = currentCycleIds.has(cycle.id)
-        const isHighlighted = highlightId === cycle.id
-        const peakDay = cycle.days.reduce(
-          (best, day) => {
-            const total = day.sets.reduce((s, t) => s + getTargetReps(t), 0)
-            return total > best.total ? { total, day } : best
-          },
-          { total: 0, day: cycle.days[0] },
-        )
-
-        return (
-          <div key={cycle.id} ref={isHighlighted ? highlightRef : undefined}>
-            <ProgramAccentCard
-              program={program}
-              className={cn(
-                'p-4 transition-colors hover:border-[var(--sr-border-strong)]',
-                isHighlighted && 'ring-2 ring-[var(--sr-brand-primary)]',
-              )}
-            >
-              <button
-                type="button"
-                className={cn(
-                  'flex min-h-12 w-full items-center justify-between gap-3 text-left transition-colors',
-                  FOCUS_RING,
-                )}
-                aria-expanded={open}
-                aria-controls={panelId}
-                onClick={() => setOpenId(open ? null : cycle.id)}
-              >
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] ring-1"
-                    style={{
-                      background: program === 'pushups'
-                        ? 'color-mix(in srgb, var(--sr-pushups-accent) 15%, transparent)'
-                        : 'color-mix(in srgb, var(--sr-pullups-accent) 15%, transparent)',
-                      // @ts-expect-error — CSS custom property
-                      '--tw-ring-color': program === 'pushups'
-                        ? 'color-mix(in srgb, var(--sr-pushups-accent) 30%, transparent)'
-                        : 'color-mix(in srgb, var(--sr-pullups-accent) 30%, transparent)',
-                    }}
-                    aria-hidden
-                  >
-                    <ProgramIcon program={program} size={22} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="block sr-text-h3 text-[var(--sr-text-primary)]">
-                        {cycle.nameShort}
-                      </span>
-                      {isCurrent && <Badge variant="success">{pl.plansYourCycle}</Badge>}
-                    </span>
-                    <span className="mt-0.5 block sr-text-body-sm text-[var(--sr-text-secondary)]">
-                      {pl.plansDayCount(cycle.days.length)}
-                      {peakDay.total > 0 && (
-                        <>
-                          {' · '}
-                          {pl.plansPeakDay(peakDay.day.dayNumber, peakDay.total)}
-                        </>
-                      )}
-                    </span>
-                  </span>
-                </span>
-                <span
-                  className={cn(
-                    'shrink-0 text-[var(--sr-text-muted)] transition-transform duration-200',
-                    open && 'rotate-90',
-                  )}
-                >
-                  <ChevronRight size={20} />
-                </span>
-              </button>
-              {open && (
-                <div
-                  id={panelId}
-                  className="mt-4 space-y-4 border-t border-[var(--sr-border-subtle)] pt-4"
-                >
-                  {cycle.days.map((day) => {
-                    const dayTotal = day.sets.reduce((s, t) => s + getTargetReps(t), 0)
-                    return (
-                      <div key={day.dayNumber}>
-                        <div className="mb-2 flex items-baseline justify-between gap-2">
-                          <p className="font-semibold text-[var(--sr-text-primary)]">
-                            {pl.dayLabel(day.dayNumber)}
-                          </p>
-                          <p className="sr-text-body-sm tabular-nums text-[var(--sr-text-secondary)]">
-                            {pl.plansDayReps(day.sets.length, dayTotal)}
-                          </p>
-                        </div>
-                        <SetTargetsRow sets={day.sets} size="md" />
-                        <p className="mt-2 sr-text-body-sm text-[var(--sr-text-muted)]">
-                          {pl.restBetweenSets(day.restBetweenSetsSec)}
-                        </p>
-                      </div>
-                    )
-                  })}
-                  {!isCurrent && (
-                    <Button
-                      variant="primary"
-                      className="mt-2 w-full"
-                      onClick={() => navigate(`/setup/cycle/${program}?cycle=${cycle.id}`)}
-                    >
-                      {pl.pickLevelCta}
-                    </Button>
-                  )}
-                </div>
-              )}
-            </ProgramAccentCard>
-          </div>
-        )
-      })}
-    </div>
-  )
-}

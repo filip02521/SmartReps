@@ -93,6 +93,8 @@ export const GLYPHS: Record<string, LucideIcon> = {
   trophy: Trophy,
   umbrella: Umbrella,
   globe: Globe,
+  squat: Footprints,
+  'squat-gold': Footprints,
 }
 
 type VisualStyle = {

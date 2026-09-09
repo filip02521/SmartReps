@@ -180,9 +180,11 @@ export async function buildAchievementSnapshot(opts?: {
 
   let maxPushups = 0
   let maxPullups = 0
+  let maxSquats = 0
   for (const t of maxTests) {
     if (t.program === 'pushups') maxPushups = Math.max(maxPushups, t.reps)
     if (t.program === 'pullups') maxPullups = Math.max(maxPullups, t.reps)
+    if (t.program === 'squats') maxSquats = Math.max(maxSquats, t.reps)
   }
 
   const hasCycleClosedStrong =
@@ -213,6 +215,7 @@ export async function buildAchievementSnapshot(opts?: {
   // Per-program builtin session counts (passed only)
   let pushupsSessions = 0
   let pullupsSessions = 0
+  let squatsSessions = 0
   for (const s of completed) {
     if (isCustomWorkoutSession(s)) {
       // Custom sessions: sum exerciseLogs sets.
@@ -234,6 +237,7 @@ export async function buildAchievementSnapshot(opts?: {
       totalRepsAllTime += s.totalReps ?? 0
       if (s.program === 'pushups') pushupsSessions++
       if (s.program === 'pullups') pullupsSessions++
+      if (s.program === 'squats') squatsSessions++
     }
   }
 
@@ -271,12 +275,14 @@ export async function buildAchievementSnapshot(opts?: {
     weekendSessionCount: completed.filter(isWeekendSession).length,
     pushupsSessions,
     pullupsSessions,
+    squatsSessions,
     // Only count user-created plans (not imported/duplicated from community/backup)
     customPlansCount: customPlans.filter((p) => p.source === 'user').length,
     streakWeeks: computeStreakWeeks(completed, now),
     bestStreakWeeks: computeBestStreakWeeks(completed),
     maxPushups,
     maxPullups,
+    maxSquats,
     hasCycleClosedStrong,
     cyclesClosedCount,
     workshopCustom,

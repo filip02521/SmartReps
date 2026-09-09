@@ -24,6 +24,7 @@ jobs:
 
       - run: npm ci
       - run: npm run validate-plans
+      - run: npm run validate-custom-plans
       - run: npm run lint
       - run: npm test
       - run: npm run build

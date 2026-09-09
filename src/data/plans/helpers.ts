@@ -99,6 +99,18 @@ export function standard6DayPullup(days: MaxDay[]): TrainingDay[] {
   )
 }
 
+/** Squat cycles: 6 days, 60s rest between all series. */
+export function standard6DaySquat(days: MaxDay[]): TrainingDay[] {
+  return days.map((d, i) =>
+    buildDay(i + 1, {
+      restBetweenSetsSec: 60,
+      reps: d.reps,
+      restAfterDay: STANDARD_6_REST_AFTER[i],
+      lastSet: { kind: 'max', minReps: d.maxMin },
+    }),
+  )
+}
+
 export function extended9DayPullup(days: MaxDay[]): TrainingDay[] {
   return days.map((d, i) =>
     buildDay(i + 1, {

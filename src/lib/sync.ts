@@ -15,6 +15,7 @@ import {
   mergeEnabledProgramsFromProgress,
   mergeEnabledCustomWorkoutsFromProfile,
   mergeUiSettingsFromProfile,
+  mergeSubscriptionFromProfile,
 } from '@/lib/enabled-programs-sync'
 import {
   mapRemoteProgressToLocal,
@@ -271,7 +272,7 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, weight_unit, high_contrast, language, ai_proactive_coach, ai_reasoning_effort, ai_model, ai_base_url, ui_settings_updated_at',
+        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, weight_unit, high_contrast, language, ai_proactive_coach, ai_reasoning_effort, ai_model, ai_base_url, ui_settings_updated_at, subscription_status, subscription_expires_at, trial_started_at',
       )
       .eq('id', userId)
       .maybeSingle()
@@ -279,6 +280,7 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
     mergeEnabledProgramsFromProfile(data)
     mergeEnabledCustomWorkoutsFromProfile(data)
     mergeUiSettingsFromProfile(data)
+    mergeSubscriptionFromProfile(data)
     if (data && typeof data.display_name === 'string') {
       const name = data.display_name.trim()
       const { settings } = useAppStore.getState()
@@ -1109,7 +1111,7 @@ export async function mergeAiInsightRemote(remote: RemoteAiInsightRow) {
 async function mergeEnabledProgramsLegacyFallback(remoteProgress: RemoteProgressRow[]) {
   const programs = remoteProgress
     .map((row) => row.program as Program)
-    .filter((p): p is Program => p === 'pushups' || p === 'pullups')
+    .filter((p): p is Program => p === 'pushups' || p === 'pullups' || p === 'squats')
   if (programs.length) mergeEnabledProgramsFromProgress(programs)
 }
 

@@ -40,10 +40,20 @@ vi.mock('@/lib/enabled-programs-sync', () => ({
   mergeEnabledCustomWorkoutsFromProfile: vi.fn(),
   mergeEnabledProgramsFromProgress: vi.fn(),
   mergeUiSettingsFromProfile: vi.fn(),
+  mergeSubscriptionFromProfile: vi.fn(),
 }))
 
 vi.mock('@/lib/custom-sync', () => ({
   pullCustomEntities: vi.fn().mockResolvedValue(0),
+  pushCustomEntities: vi.fn().mockResolvedValue(0),
+}))
+
+vi.mock('@/lib/analytics', () => ({
+  trackSyncError: vi.fn(),
+  trackSyncResult: vi.fn(),
+  trackSyncSection: vi.fn(),
+  track: vi.fn(),
+  AnalyticsEvents: {},
 }))
 
 vi.mock('@/lib/db', () => ({

@@ -888,6 +888,9 @@ export default function CustomWorkoutPage() {
     )
     const beforeComplete = useCustomWorkoutStore.getState()
     store.completeSet(livePlanned.exerciseId, livePlanned.order, result, nav.next ?? undefined)
+    // Release the finishing guard as soon as the set is accepted and pointers
+    // have advanced — the async persistence below must not block the next set.
+    finishingRef.current = false
 
     if (nav.restSec > 0) {
       store.setRestTimer(createRestTimer(nav.restSec, 'expanded'))
@@ -954,6 +957,8 @@ export default function CustomWorkoutPage() {
           latest = useCustomWorkoutStore.getState()
         }
       } else if (nav.dayComplete || !nav.next) {
+        // Re-acquire guard during async day finalization to prevent double-clicks
+        finishingRef.current = true
         try {
           await persistCustomActive(sessionRef.current, {
             currentExerciseIndex: latest.currentExerciseIndex,
@@ -996,6 +1001,8 @@ export default function CustomWorkoutPage() {
         amrapEndAt: latest.amrapEndAt,
       })
       if (!incomplete) {
+        // Re-acquire guard during async day finalization to prevent double-clicks
+        finishingRef.current = true
         try {
           await persistCustomActive(sessionRef.current, {
             currentExerciseIndex: latest.currentExerciseIndex,

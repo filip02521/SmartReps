@@ -45,7 +45,14 @@ type ProgramData = {
 }
 
 function programLabel(prog: Program): string {
-  return prog === 'pushups' ? pl.pushupsProgram : prog === 'pullups' ? pl.pullupsProgram : prog
+  switch (prog) {
+    case 'pushups':
+      return pl.pushupsProgram
+    case 'pullups':
+      return pl.pullupsProgram
+    case 'squats':
+      return pl.squatsProgram
+  }
 }
 
 /** Sekcja podsumowania + wykres postępu dla jednego programu (pompki lub podciąganie). */
@@ -327,7 +334,7 @@ function ProgramSection({
   )
 }
 
-type Scope = 'activity' | 'pushups' | 'pullups'
+type Scope = 'activity' | 'pushups' | 'pullups' | 'squats'
 
 export function OverviewPanel({
   programDataMap,
@@ -369,6 +376,7 @@ export function OverviewPanel({
     const opts: { value: Scope; label: string }[] = [{ value: 'activity', label: pl.progressScopeActivity }]
     if (programDataMap.has('pushups')) opts.push({ value: 'pushups', label: pl.progressScopePushups })
     if (programDataMap.has('pullups')) opts.push({ value: 'pullups', label: pl.progressScopePullups })
+    if (programDataMap.has('squats')) opts.push({ value: 'squats', label: pl.progressScopeSquats })
     return opts
   }, [programDataMap])
 
@@ -407,13 +415,16 @@ export function OverviewPanel({
   const hasActivityData = customSessionsAll.length > 0 || builtinSessions.length > 0
 
   // ===== Zakładki PROGRAMÓW (pompki/podciąganie) =====
-  const programData = scope === 'pushups' || scope === 'pullups' ? programDataMap.get(scope) : undefined
+  const programData =
+    scope === 'pushups' || scope === 'pullups' || scope === 'squats'
+      ? programDataMap.get(scope)
+      : undefined
   const hasProgramData = programData != null && programData.stats != null
 
   // Empty state — gdy wybrany scope nie ma żadnych danych
   const showEmptyState =
     (scope === 'activity' && !hasActivityData && !showCustomSection) ||
-    ((scope === 'pushups' || scope === 'pullups') && !hasProgramData)
+    ((scope === 'pushups' || scope === 'pullups' || scope === 'squats') && !hasProgramData)
 
   // Renderuj sekcję custom (używana w zakładce Aktywność)
   const customSection = showCustomSection && customOverviewStats ? (
@@ -685,8 +696,32 @@ export function OverviewPanel({
         </>
       )}
 
+      {/* ===== ZAKŁADKA: PRZYSIADY ===== */}
+      {scope === 'squats' && programData && hasProgramData && (
+        <>
+          <ProgramSection
+            data={programData}
+            allSessions={scopedSessions}
+            first
+          />
+          {/* Rekordy — tylko przysiady */}
+          {programData.recordsWithDates && (
+            <UnifiedRecordsSection
+              programRecordsList={[{
+                program: 'squats',
+                records: programData.recordsWithDates,
+                stats: programData.stats!,
+              }]}
+              customPrs={[]}
+              onOpenExercise={onOpenExercise}
+              icon={Trophy}
+            />
+          )}
+        </>
+      )}
+
       {/* Empty state dla programów bez danych */}
-      {showEmptyState && (scope === 'pushups' || scope === 'pullups') && (
+      {showEmptyState && (scope === 'pushups' || scope === 'pullups' || scope === 'squats') && (
         <ProgressSection first icon={BarChart3} title={pl.progressEmptyTitle}>
           <EmptyState
             icon={<LogoMark size={48} />}

@@ -40,6 +40,17 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
     ],
   },
   {
+    id: 'goal_squats_300',
+    track: 'training',
+    rarity: 'legendary',
+    glyph: 'squat',
+    tiers: [
+      { threshold: 300, rarity: 'rare' },
+      { threshold: 400, rarity: 'legendary' },
+      { threshold: 500, rarity: 'legendary', glyph: 'squat-gold' },
+    ],
+  },
+  {
     id: 'sessions_100',
     track: 'training',
     rarity: 'legendary',
@@ -416,6 +427,8 @@ function achievementMetricValue(id: AchievementId, snap: AchievementSnapshot): n
     case 'goal_pullups_50':
     case 'goal_pullups_30':
       return snap.maxPullups
+    case 'goal_squats_300':
+      return snap.maxSquats
     case 'workshop_custom':
       return snap.workshopCustom ? 1 : 0
     case 'pr_repeat_3':

@@ -24,6 +24,29 @@ export function getVapidPublicKey(): string | null {
   return key?.trim() ? key.trim() : null
 }
 
+/**
+ * Zapisuje VAPID public key w Cache API, aby service worker mógł go odczytać
+ * w `pushsubscriptionchange` (SW nie ma dostępu do import.meta.env).
+ * Cache API persists across SW restarts i jest dostępne w kontekście SW.
+ */
+const VAPID_CACHE_NAME = 'sr-vapid'
+const VAPID_CACHE_URL = '/__vapid_public_key__'
+
+async function cacheVapidPublicKey(vapid: string): Promise<void> {
+  try {
+    const cache = await caches.open(VAPID_CACHE_NAME)
+    await cache.put(
+      new Request(VAPID_CACHE_URL),
+      new Response(vapid, {
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+    )
+  } catch {
+    // Cache API niedostępne — SW nie będzie mógł re-subskrybować,
+    // ale główna subskrypcja nadal działa.
+  }
+}
+
 export async function subscribeWebPush(reminderHour: number): Promise<boolean> {
   if (!isWebPushSupported()) {
     track(AnalyticsEvents.pushSubscribeFail, { reason: 'unsupported' })
@@ -85,6 +108,7 @@ export async function subscribeWebPush(reminderHour: number): Promise<boolean> {
         endpoint: json.endpoint,
         p256dh: json.keys.p256dh,
         auth: json.keys.auth,
+        keys: json.keys,
         user_agent: navigator.userAgent.slice(0, 240),
         reminder_hour: reminderHour,
         timezone,
@@ -98,6 +122,7 @@ export async function subscribeWebPush(reminderHour: number): Promise<boolean> {
       return false
     }
     track(AnalyticsEvents.pushSubscribeOk)
+    await cacheVapidPublicKey(vapid)
     return true
   } catch (err) {
     console.warn('[push] subscribe failed', err)

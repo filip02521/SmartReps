@@ -163,6 +163,32 @@ self.addEventListener('notificationclick', (event) => {
 
 // Handle push subscription rotation — browser may change the endpoint.
 // Re-subscribe and upsert the new endpoint to Supabase.
+// SW nie ma dostępu do import.meta.env — czytamy VAPID public key z Cache API,
+// gdzie klient zapisuje go po udanej subskrypcji (cacheVapidPublicKey w web-push.ts).
+const VAPID_CACHE_NAME = 'sr-vapid'
+const VAPID_CACHE_URL = '/__vapid_public_key__'
+
+async function readVapidPublicKeyFromCache(): Promise<string | null> {
+  try {
+    const cache = await caches.open(VAPID_CACHE_NAME)
+    const response = await cache.match(new Request(VAPID_CACHE_URL))
+    if (!response || !response.ok) return null
+    const text = await response.text()
+    return text.trim() || null
+  } catch {
+    return null
+  }
+}
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = atob(base64)
+  const output = new Uint8Array(raw.length)
+  for (let i = 0; i < raw.length; i += 1) output[i] = raw.charCodeAt(i)
+  return output
+}
+
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(
     (async () => {
@@ -171,11 +197,18 @@ self.addEventListener('pushsubscriptionchange', (event) => {
       if (oldSubscription) {
         await oldSubscription.unsubscribe()
       }
-      // Re-subscribe — the app will upsert the new subscription on next sync
-      // via the web-push module. We just ensure a new subscription exists.
+      // Re-subscribe — wymaga VAPID applicationServerKey.
+      // Czytamy z Cache API (klient zapisuje po subskrypcji).
+      const vapid = await readVapidPublicKeyFromCache()
+      if (!vapid) {
+        // Brak VAPID key w cache — nie możemy re-subskrybować.
+        // Klient zapisze key przy najbliższej subskrypcji.
+        return
+      }
       try {
         const newSubscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapid) as BufferSource,
         })
         // Notify all clients that the subscription changed so they can upsert
         const clients = await self.clients.matchAll({ includeUncontrolled: true })

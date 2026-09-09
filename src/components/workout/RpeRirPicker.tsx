@@ -11,13 +11,16 @@ export function RpeRirPicker({
   mode,
   onChange,
   onModeChange,
+  startExpanded = false,
 }: {
   value: number | null
   mode: Mode
   onChange: (v: number | null) => void
   onModeChange: (m: Mode) => void
+  /** When true, starts expanded (used when embedded in another collapsible). */
+  startExpanded?: boolean
 }) {
-  const [expanded, setExpanded] = useState(value !== null)
+  const [expanded, setExpanded] = useState(value !== null || startExpanded)
 
   // Auto-expand when value is restored externally (e.g., undo) — null → non-null transition
   useEffect(() => {

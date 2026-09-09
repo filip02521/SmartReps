@@ -96,7 +96,12 @@ export default function MaxTest() {
   const submitLock = useRef(false)
   const hydratedDraftRef = useRef(false)
 
-  const warmupItems = program === 'pullups' ? pl.warmupItemsPullups : pl.warmupItemsPushups
+  const warmupItems =
+    program === 'pullups'
+      ? pl.warmupItemsPullups
+      : program === 'squats'
+        ? pl.warmupItemsSquats
+        : pl.warmupItemsPushups
 
   useEffect(() => {
     if (!hydrated || hydratedDraftRef.current) return
@@ -164,10 +169,18 @@ export default function MaxTest() {
   }
 
   const title = isRetest
-    ? pl.retestAfterCycle(program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram)
+    ? pl.retestAfterCycle(
+        program === 'pushups'
+          ? pl.pushupsProgram
+          : program === 'pullups'
+            ? pl.pullupsProgram
+            : pl.squatsProgram,
+      )
     : program === 'pushups'
       ? pl.testPushups
-      : pl.testPullups
+      : program === 'pullups'
+        ? pl.testPullups
+        : pl.testSquats
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
@@ -221,7 +234,7 @@ export default function MaxTest() {
       <div className="mt-8 flex flex-col items-center">
         <p className="sr-text-display tabular-nums">{reps}</p>
         <p className="text-sm text-[var(--sr-text-muted)]">
-          {program === 'pushups' ? pl.pushups : pl.pullups}
+          {program === 'pushups' ? pl.pushups : program === 'pullups' ? pl.pullups : pl.squats}
         </p>
         <div className="mt-4 flex gap-6">
           <button

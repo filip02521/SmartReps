@@ -46,8 +46,9 @@ export function formatSetTargetCompact(target: SetTarget): string {
   }
 }
 
-export function getSetLabel(target: SetTarget, program: 'pushups' | 'pullups'): string {
-  const unit = program === 'pushups' ? pl.pushups : pl.pullups
+export function getSetLabel(target: SetTarget, program: 'pushups' | 'pullups' | 'squats'): string {
+  const unit =
+    program === 'pushups' ? pl.pushups : program === 'pullups' ? pl.pullups : pl.squats
   switch (target.kind) {
     case 'fixed':
       return pl.setLabelFixed(target.reps, unit)
@@ -113,7 +114,7 @@ export function advanceAfterDayPassed(
 }
 
 export function getCelebrationBadge(
-  program: 'pushups' | 'pullups',
+  program: 'pushups' | 'pullups' | 'squats',
   reps: number,
 ): string | null {
   if (program === 'pushups' && reps >= 100) return pl.celebrationPushups100
@@ -121,6 +122,7 @@ export function getCelebrationBadge(
     if (reps >= 50) return pl.celebrationPullupsAmbition
     if (reps >= 30) return pl.celebrationPullupsMain
   }
+  if (program === 'squats' && reps >= 300) return pl.celebrationSquats300
   return null
 }
 

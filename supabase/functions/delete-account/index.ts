@@ -71,6 +71,9 @@ Deno.serve(async (req) => {
   }
 
   const tables = [
+    'body_weight_entries',
+    'subscription_events',
+    'community_reviews',
     'user_achievements',
     'community_reports',
     'community_likes',

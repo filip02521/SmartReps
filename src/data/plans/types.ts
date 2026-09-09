@@ -12,7 +12,7 @@ export type TrainingDay = {
 
 export type CycleLayout = 'standard_6day' | 'compact_3day' | 'extended_9day'
 
-export type Program = 'pushups' | 'pullups'
+export type Program = 'pushups' | 'pullups' | 'squats'
 
 export type Cycle = {
   id: string

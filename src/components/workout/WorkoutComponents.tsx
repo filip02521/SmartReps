@@ -120,21 +120,18 @@ export function RepCounter({
   const maxReps = isExact ? targetReps : 999
 
   return (
-    <div className={cn('flex flex-col items-center gap-3 py-3', disabled && 'opacity-60')}>
-      <div className="flex items-center gap-2">
+    <div className={cn('flex flex-col items-center gap-2.5 py-3', disabled && 'opacity-60')}>
+      {/* Single compact target row: "Zrób 6 pompek" + exact badge if applicable */}
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
         <p className="sr-text-overline text-[var(--sr-text-muted)]">
           {getSetLabel(target, program)}
         </p>
-        {/* Target badge — prominent goal indicator */}
-        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]">
-          {pl.workoutTargetLabel}: {targetReps}
-        </span>
+        {isExact && (
+          <span className="inline-flex items-center rounded-full border border-[var(--sr-warning)]/40 bg-[var(--sr-warning-muted)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-warning)]">
+            {pl.exactBadge}
+          </span>
+        )}
       </div>
-      {isExact && (
-        <p className="text-center text-sm text-[var(--sr-text-secondary)]">
-          {pl.exactLiveHint(targetReps)}
-        </p>
-      )}
       <NumericDraftInput
         ariaLabel={pl.exerciseMetricReps}
         value={actual}
@@ -248,7 +245,7 @@ export function SetRow({
           : undefined
       }
       className={cn(
-        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] border px-4 py-3.5 text-left transition-all active:scale-[0.99]',
+        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] border px-3 py-2.5 text-left transition-all active:scale-[0.99]',
         FOCUS_RING,
         state === 'active' && 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] ring-2 ring-[var(--sr-brand-primary)]/30',
         state === 'done' && 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
@@ -481,11 +478,11 @@ export function RestTimerExpanded({
         {isReady ? pl.restReady : pl.restLabel}
       </p>
       {setLabel && (
-        <p className="mb-3 text-xs font-medium text-[var(--sr-text-muted)]">{setLabel}</p>
+        <p className="mb-2 text-xs font-medium text-[var(--sr-text-muted)]">{setLabel}</p>
       )}
       <ProgressRing
         progress={progress}
-        size={220}
+        size={200}
         reducedMotion={reducedMotion}
         className={isUrgent && !reducedMotion ? 'animate-pulse' : undefined}
         ringColor={isUrgent || isReady ? 'var(--sr-success)' : undefined}
@@ -505,17 +502,17 @@ export function RestTimerExpanded({
         </span>
       </ProgressRing>
       {nextLabel ? (
-        <p className="mt-6 px-4 text-center text-sm text-[var(--sr-text-secondary)]">{nextLabel}</p>
+        <p className="mt-4 px-4 text-center text-sm text-[var(--sr-text-secondary)]">{nextLabel}</p>
       ) : null}
       {nextExercise ? (
-        <div className="mt-3 w-48">
+        <div className="mt-2 w-44">
           <ExerciseDemo exercise={nextExercise} compact showControls={false} />
         </div>
       ) : null}
       {coachSuggestion ? (
         <div
           aria-live="polite"
-          className="mt-4 flex max-w-sm items-start gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_60%,var(--sr-bg-elevated))] p-3"
+          className="mt-3 flex max-w-sm items-start gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_60%,var(--sr-bg-elevated))] p-3"
         >
           <AiCoachMark size="sm" />
           <p className="min-w-0 flex-1 text-sm leading-relaxed text-[var(--sr-text-secondary)]">
@@ -523,27 +520,30 @@ export function RestTimerExpanded({
           </p>
         </div>
       ) : null}
-      <div className="mt-8 flex flex-wrap justify-center gap-3 px-4">
+      <div className="mt-6 flex flex-wrap justify-center gap-3 px-4">
         <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd15}>{pl.add15s}</Button>
         <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd30}>{pl.add30s}</Button>
         <Button variant="ghost" size="sm" className="min-h-11" onClick={onSkip}>{pl.skipRest}</Button>
       </div>
       {onSetRest && (
-        <div className="mt-3 flex flex-wrap justify-center gap-2 px-4">
-          {[30, 60, 90, 120].map((sec) => (
-            <button
-              key={sec}
-              type="button"
-              aria-label={pl.restPresetAria(sec)}
-              className={cn(
-                'flex min-h-11 items-center rounded-full border border-[var(--sr-border-subtle)] px-4 text-xs font-medium text-[var(--sr-text-secondary)] transition-all hover:border-[var(--sr-border-strong)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
-                FOCUS_RING,
-              )}
-              onClick={() => onSetRest(sec)}
-            >
-              {sec}s
-            </button>
-          ))}
+        <div className="mt-4 flex flex-col items-center gap-1.5 px-4">
+          <p className="sr-text-caption text-[var(--sr-text-muted)]">{pl.restSetTime}</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {[30, 60, 90, 120].map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                aria-label={pl.restPresetAria(sec)}
+                className={cn(
+                  'flex min-h-9 items-center rounded-full border border-[var(--sr-border-subtle)] px-3.5 text-xs font-medium tabular-nums text-[var(--sr-text-secondary)] transition-all hover:border-[var(--sr-border-strong)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+                  FOCUS_RING,
+                )}
+                onClick={() => onSetRest(sec)}
+              >
+                {sec}s
+              </button>
+            ))}
+          </div>
         </div>
       )}
       </div>

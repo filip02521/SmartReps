@@ -106,7 +106,11 @@ export default function ProgramStart() {
       <PageHeader
         title={isLevelChange ? pl.levelChangeReady : pl.programReady}
         subtitle={pl.programReadySubtitle(
-          program === 'pushups' ? pl.pushupsProgram : pl.pullupsProgram,
+          program === 'pushups'
+            ? pl.pushupsProgram
+            : program === 'pullups'
+              ? pl.pullupsProgram
+              : pl.squatsProgram,
           pendingStart.cycleName,
         )}
       />

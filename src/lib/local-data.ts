@@ -62,6 +62,8 @@ export async function clearAllLocalData(): Promise<void> {
   }
   // Preserve AI API keys across clear — they're local-only, never synced,
   // and re-entering them after every logout is frustrating.
+  // Also preserve subscription status — it comes from the cloud (Stripe webhook)
+  // and resetting it to 'free' would lock Pro users out until next sync.
   const prevSettings = useAppStore.getState().settings
   useAppStore.setState({
     settings: {
@@ -72,6 +74,9 @@ export async function clearAllLocalData(): Promise<void> {
       aiProactiveCoach: prevSettings.aiProactiveCoach,
       aiReasoningEffort: prevSettings.aiReasoningEffort,
       language: prevSettings.language,
+      subscriptionStatus: prevSettings.subscriptionStatus,
+      subscriptionExpiresAt: prevSettings.subscriptionExpiresAt,
+      trialStartedAt: prevSettings.trialStartedAt,
     },
     pendingTest: null,
     pendingStart: null,

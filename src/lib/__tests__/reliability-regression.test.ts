@@ -47,6 +47,7 @@ vi.mock('@/lib/enabled-programs-sync', () => ({
   mergeEnabledCustomWorkoutsFromProfile: vi.fn(),
   mergeEnabledProgramsFromProgress: vi.fn(),
   mergeUiSettingsFromProfile: vi.fn(),
+  mergeSubscriptionFromProfile: vi.fn(),
 }))
 
 vi.mock('@/lib/custom-sync', () => ({
@@ -401,16 +402,13 @@ const trackSyncResultMock = vi.hoisted(() => vi.fn())
 const trackSyncSectionMock = vi.hoisted(() => vi.fn())
 const trackMock = vi.hoisted(() => vi.fn())
 
-vi.mock('@/lib/analytics', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/analytics')>()
-  return {
-    ...actual,
-    trackSyncError: (...args: unknown[]) => trackSyncErrorMock(...args),
-    trackSyncResult: (...args: unknown[]) => trackSyncResultMock(...args),
-    trackSyncSection: (...args: unknown[]) => trackSyncSectionMock(...args),
-    track: (...args: unknown[]) => trackMock(...args),
-  }
-})
+vi.mock('@/lib/analytics', () => ({
+  trackSyncError: (...args: unknown[]) => trackSyncErrorMock(...args),
+  trackSyncResult: (...args: unknown[]) => trackSyncResultMock(...args),
+  trackSyncSection: (...args: unknown[]) => trackSyncSectionMock(...args),
+  track: (...args: unknown[]) => trackMock(...args),
+  AnalyticsEvents: {},
+}))
 
 describe('Phase 4: Sync observability', () => {
   beforeEach(() => {

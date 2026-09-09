@@ -14,6 +14,7 @@ import { setTargetToMetricTarget } from '@/lib/exercise-model'
 export const BUILTIN_EXERCISE_IDS: Record<Program, string> = {
   pushups: 'builtin:pushups',
   pullups: 'builtin:pullups',
+  squats: 'builtin:squats',
 }
 
 export type BuiltinPlanContext = {
@@ -78,12 +79,72 @@ export function getBuiltinExerciseDefinition(program: Program): ExerciseDefiniti
   const now = new Date(0).toISOString()
   return {
     id: BUILTIN_EXERCISE_IDS[program],
-    name: program === 'pushups' ? pl.builtinExercisePushups : pl.builtinExercisePullups,
+    name: getProgramLabel(program),
     primaryMetric: 'reps',
     restDefaultSec: 90,
     archived: false,
     createdAt: now,
     updatedAt: now,
+  }
+}
+
+/** Localized program display name (Pompki / Podciąganie / Przysiady). */
+export function getProgramLabel(program: Program): string {
+  switch (program) {
+    case 'pushups':
+      return pl.pushupsProgram
+    case 'pullups':
+      return pl.pullupsProgram
+    case 'squats':
+      return pl.squatsProgram
+  }
+}
+
+/** Localized program goal label (Droga do 100 pompek / ...). */
+export function getProgramGoalLabel(program: Program): string {
+  switch (program) {
+    case 'pushups':
+      return pl.programGoalPushups
+    case 'pullups':
+      return pl.programGoalPullups
+    case 'squats':
+      return pl.programGoalSquats
+  }
+}
+
+/** Muscle group associated with a builtin program. */
+export function getProgramMuscleGroup(program: Program): string {
+  switch (program) {
+    case 'pushups':
+      return 'chest'
+    case 'pullups':
+      return 'back'
+    case 'squats':
+      return 'legs'
+  }
+}
+
+/** Localized unit label for rep counts (pompek / podciągnięć / przysiadów). */
+export function getProgramUnit(program: Program): string {
+  switch (program) {
+    case 'pushups':
+      return pl.pushups
+    case 'pullups':
+      return pl.pullups
+    case 'squats':
+      return pl.squats
+  }
+}
+
+/** CSS accent variable for a builtin program. */
+export function getProgramAccentVar(program: Program): string {
+  switch (program) {
+    case 'pushups':
+      return 'var(--sr-pushups-accent)'
+    case 'pullups':
+      return 'var(--sr-pullups-accent)'
+    case 'squats':
+      return 'var(--sr-squats-accent)'
   }
 }
 

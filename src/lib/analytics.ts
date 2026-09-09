@@ -55,6 +55,10 @@ export const AnalyticsEvents = {
   // Custom plans
   customPlanUpdatedFromSession: 'custom_plan_updated_from_session',
   customPlanUpdateDiscarded: 'custom_plan_update_discarded',
+  // Starter templates
+  starterTemplateShown: 'starter_template_shown',
+  starterTemplatePreviewed: 'starter_template_previewed',
+  starterTemplateActivated: 'starter_template_activated',
   // PWA install
   standaloneTrue: 'standalone_true',
   a2hsPrompt: 'a2hs_prompt',
