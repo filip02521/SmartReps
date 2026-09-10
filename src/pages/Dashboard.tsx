@@ -20,8 +20,10 @@ import { WeeklyReportCard } from '@/components/dashboard/WeeklyReportCard'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { pl } from '@/i18n/pl'
 import { showToast } from '@/stores/toast-store'
+import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
-import { Dumbbell } from 'lucide-react'
+import { Dumbbell, ChevronRight } from 'lucide-react'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
@@ -426,11 +428,15 @@ export default function Dashboard() {
         <div className="space-y-6" aria-busy aria-label={pl.loading}>
           {/* Status header skeleton (with quick CTA) */}
           <SkeletonCard className="min-h-[8rem]" />
-          {/* Program cards skeleton */}
+          {/* Training cards skeleton */}
           <SkeletonCard className="min-h-[14rem]" />
           <SkeletonCard className="min-h-[14rem]" />
-          {/* Activity metrics skeleton */}
+          {/* Motivation section skeleton (challenge + streak) */}
           <SkeletonCard className="min-h-[10rem]" />
+          {/* Activity metrics skeleton */}
+          <SkeletonCard className="min-h-[6rem]" />
+          {/* Community skeleton */}
+          <SkeletonCard className="min-h-[8rem]" />
         </div>
       ) : home ? (
         <>
@@ -575,7 +581,10 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => navigate('/profile')}
-                className="flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-4 text-left transition-colors hover:bg-[var(--sr-bg-surface)]"
+                className={cn(
+                  FOCUS_RING,
+                  'flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-4 text-left transition-colors hover:bg-[var(--sr-bg-surface)]',
+                )}
                 aria-label={pl.coachWeeklyReportConnectCtaAria}
               >
                 <div
@@ -592,6 +601,11 @@ export default function Dashboard() {
                     {pl.coachWeeklyReportConnectHint}
                   </p>
                 </div>
+                <ChevronRight
+                  size={18}
+                  aria-hidden
+                  className="shrink-0 text-[var(--sr-text-muted)]"
+                />
               </button>
             )}
           </section>
