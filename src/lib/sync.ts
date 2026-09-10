@@ -249,16 +249,23 @@ async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
 }
 
 /** Push only profile settings (e.g. after toggling enabled programs while online).
- *  Pulls remote profile first so LWW timestamps are current — without this, a
- *  stale local timestamp (or null on upgrade) would clobber newer remote settings. */
+ *  Pulls remote profile first ONLY when local LWW timestamps are missing
+ *  (upgrade / new device). When timestamps are present (e.g. after a setting
+ *  toggle), skip the pull — it could merge remote over our just-changed local
+ *  value and revert the user's toggle. */
 export async function pushProfileSettingsOnly(): Promise<SyncResult> {
   const userId = await getUserId()
   if (!userId) return { ok: true, errors: 0 }
   try {
-    // Pull first to sync local LWW clocks with remote. If pull fails, abort
-    // the push — pushing with stale/null timestamps would clobber remote.
-    const pull = await pullProfileEnabledPrograms(userId)
-    if (!pull.ok) return { ok: false, errors: 1 }
+    // Pull first to sync local LWW clocks with remote — but ONLY when local
+    // timestamps are missing. If they're present, the local change is
+    // authoritative and pulling would risk overwriting it via LWW merge.
+    const { enabledProgramsUpdatedAt, uiSettingsUpdatedAt, enabledCustomWorkoutsUpdatedAt } =
+      useAppStore.getState()
+    if (!enabledProgramsUpdatedAt || !uiSettingsUpdatedAt || !enabledCustomWorkoutsUpdatedAt) {
+      const pull = await pullProfileEnabledPrograms(userId)
+      if (!pull.ok) return { ok: false, errors: 1 }
+    }
     await upsertProfileEnabledPrograms(userId)
     return { ok: true, errors: 0 }
   } catch (err) {
