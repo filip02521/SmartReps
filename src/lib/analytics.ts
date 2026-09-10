@@ -1,4 +1,3 @@
-import { track as vercelTrack } from '@vercel/analytics'
 import * as Sentry from '@sentry/react'
 
 type AnalyticsPayload = Record<string, string | number | boolean | null | undefined>
@@ -98,24 +97,29 @@ function addSyncBreadcrumb(message: string, data?: Record<string, unknown>): voi
   })
 }
 
-/** Product analytics — no PII. Vercel Analytics + optional window.va. */
+/** Product analytics — no PII. Uses window.va if available (Vercel Analytics
+ *  script loaded). The script is only injected when Web Analytics is enabled
+ *  on the Vercel project; otherwise track() is a silent no-op. */
 export function track(event: AnalyticsEventName, payload?: AnalyticsPayload): void {
   try {
     if (import.meta.env.DEV) {
       console.info('[analytics]', event, payload ?? {})
     }
-    const clean: Record<string, string | number | boolean> = {}
-    if (payload) {
-      for (const [k, v] of Object.entries(payload)) {
-        if (v === null || v === undefined) continue
-        clean[k] = v
-      }
-    }
-    vercelTrack(event, Object.keys(clean).length ? clean : undefined)
     const w = window as Window & {
       va?: (event: 'event', data: { name: string; data?: AnalyticsPayload }) => void
     }
-    w.va?.('event', { name: event, data: payload })
+    // Only send if the Vercel Analytics script has loaded window.va.
+    // Without the script, the /_vercel/insights/event endpoint returns 500.
+    if (typeof w.va === 'function') {
+      const clean: Record<string, string | number | boolean> = {}
+      if (payload) {
+        for (const [k, v] of Object.entries(payload)) {
+          if (v === null || v === undefined) continue
+          clean[k] = v
+        }
+      }
+      w.va('event', { name: event, data: Object.keys(clean).length ? clean : undefined })
+    }
   } catch {
     // never break UX for analytics
   }
