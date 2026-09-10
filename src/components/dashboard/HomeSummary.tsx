@@ -3,6 +3,7 @@ import type { HomeLoadResult, QuickCta } from '@/lib/home-summary'
 import { getGreetingKey } from '@/lib/home-summary'
 import { Button } from '@/components/ui/Button'
 import { MetricStrip } from '@/components/ui/MetricStrip'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 
@@ -75,9 +76,7 @@ export function HomeActivitySection({
 }) {
   return (
     <section aria-label={pl.homeActivityTitle}>
-      <p className="mb-2 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-        {pl.homeActivityTitle}
-      </p>
+      <SectionHeader title={pl.homeActivityTitle} />
       <MetricStrip
         metrics={[
           {

@@ -520,9 +520,7 @@ export default function Dashboard() {
 
           {/* 4. Motywacja tygodnia — wyzwanie + streak (skonsolidowane) */}
           <section aria-label={pl.homeMotivationSectionAria} className="mt-6">
-            <p className="mb-2 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-              {pl.homeMotivationTitle}
-            </p>
+            <SectionHeader title={pl.homeMotivationTitle} />
             <WeeklyChallengeCard />
             <StreakChainCard sessions={heatmapSessions} compact />
           </section>
@@ -534,6 +532,7 @@ export default function Dashboard() {
 
           {/* 6. Proactive coach: weekly report card + CTA gdy AI brak */}
           <section aria-label={pl.coachWeeklyReportSectionAria} className="mt-6">
+            <SectionHeader title={pl.coachWeeklyReportTitle} />
             {weeklyReportGenerating && !weeklyReport && (
               <div
                 aria-busy
@@ -543,10 +542,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-3 border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)] p-4">
                   <AiCoachMark size="sm" pulse />
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-bold leading-tight text-[var(--sr-text-primary)]">
-                      {pl.coachWeeklyReportTitle}
-                    </h3>
-                    <p className="mt-0.5 animate-pulse text-xs text-[var(--sr-text-muted)]">
+                    <p className="animate-pulse text-xs text-[var(--sr-text-muted)]">
                       {pl.coachWeeklyReportGenerating}
                     </p>
                   </div>
@@ -579,7 +575,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => navigate('/profile')}
-                className="flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--bg-elevated)] p-4 text-left transition-colors hover:bg-[var(--sr-bg-surface)]"
+                className="flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-4 text-left transition-colors hover:bg-[var(--sr-bg-surface)]"
                 aria-label={pl.coachWeeklyReportConnectCtaAria}
               >
                 <div
@@ -601,9 +597,7 @@ export default function Dashboard() {
           </section>
 
           {/* 7. Community — kompaktowe (1 karta + CTA) */}
-          <div className="mt-6">
-            <CommunityHomeTeaser />
-          </div>
+          <CommunityHomeTeaser />
         </>
       ) : null}
     </div>
