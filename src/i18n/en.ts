@@ -2691,11 +2691,11 @@ export const en: Translation = {
 
   // ── NEW: Weekly challenge ──
   achievement_challenge_first_title: 'Contender',
-  achievement_challenge_first_desc: 'You joined the weekly challenge — competition begins.',
+  achievement_challenge_first_desc: 'You joined 3 weekly challenges — competition gets serious.',
   achievement_challenge_winner_title: 'Challenge champion',
-  achievement_challenge_winner_desc: 'You won the weekly challenge — number one on the board.',
+  achievement_challenge_winner_desc: 'You won 3 weekly challenges — dominance on the board.',
   achievement_challenge_5_title: 'Challenge veteran',
-  achievement_challenge_5_desc: 'More and more challenges — competition is your nature.',
+  achievement_challenge_5_desc: '10, 25, 50 challenges — competition is your nature.',
 
   // ── NEW: Legend — community ──
   achievement_legend_community_title: 'Community voice',

@@ -2722,11 +2722,11 @@ const plDict = {
 
   // ── NEW: Weekly challenge ──
   achievement_challenge_first_title: 'Zawodnik',
-  achievement_challenge_first_desc: 'Wziąłeś udział w wyzwaniu tygodnia — rywalizacja rusza.',
+  achievement_challenge_first_desc: 'Wziąłeś udział w 3 wyzwaniach tygodnia — rywalizacja rusza na poważnie.',
   achievement_challenge_winner_title: 'Mistrz wyzwania',
-  achievement_challenge_winner_desc: 'Wygrałeś wyzwanie tygodnia — numer jeden na liście.',
-  achievement_challenge_5_title: 'Stażysta wyzwania',
-  achievement_challenge_5_desc: 'Coraz więcej wyzwań — rywalizacja to Twoja natura.',
+  achievement_challenge_winner_desc: 'Wygrałeś 3 wyzwania tygodnia — dominacja na liście.',
+  achievement_challenge_5_title: 'Weteran wyzwań',
+  achievement_challenge_5_desc: '10, 25, 50 wyzwań — rywalizacja to Twoja natura.',
 
   // ── NEW: Legend — community ──
   achievement_legend_community_title: 'Głos społeczności',

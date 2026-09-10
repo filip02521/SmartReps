@@ -373,17 +373,22 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
   },
 
   // ══ NEW: Weekly challenge ══
+  // Participate in 3 different weekly challenges — requires sustained
+  // engagement, not just a single auto-submitted entry.
   { id: 'challenge_first', track: 'catalog', rarity: 'rare', glyph: 'swords' },
+  // Win 3 weekly challenges — legendary should require repeated dominance,
+  // not a single win against an empty leaderboard.
   { id: 'challenge_winner', track: 'catalog', rarity: 'legendary', glyph: 'trophy' },
+  // Veteran: 10 / 25 / 50 participations across many weeks of competition.
   {
     id: 'challenge_5',
     track: 'catalog',
     rarity: 'rare',
     glyph: 'swords',
     tiers: [
-      { threshold: 3, rarity: 'common' },
-      { threshold: 5, rarity: 'rare' },
-      { threshold: 10, rarity: 'legendary', glyph: 'swords' },
+      { threshold: 10, rarity: 'common' },
+      { threshold: 25, rarity: 'rare' },
+      { threshold: 50, rarity: 'legendary', glyph: 'swords' },
     ],
   },
 
@@ -572,10 +577,11 @@ function achievementBaseThreshold(id: AchievementId): number {
     case 'first_follower':
     case 'first_follow':
     case 'first_review':
-    case 'challenge_first':
-    case 'challenge_winner':
     case 'legend_community':
       return 1
+    case 'challenge_first':
+    case 'challenge_winner':
+      return 3
     default:
       return Infinity
   }
