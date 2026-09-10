@@ -12,18 +12,10 @@ const accentLight: Record<Program, string> = {
   squats: 'var(--sr-squats-accent-muted)',
 }
 
-const STROKE_PROPS = {
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.75,
-  strokeLinecap: 'round' as const,
-  strokeLinejoin: 'round' as const,
-}
-
 /**
- * Professional line-art icons for pushup / pullup / squat programs.
- * Consistent stroke weight (1.75), rounded caps/joins, no gradients.
- * Uses `currentColor` — set text color via CSS to control accent.
+ * Professional filled-silhouette icons for pushup / pullup / squat programs.
+ * Solid fill via currentColor — parent sets text color to control accent.
+ * Clean geometric shapes with rounded corners, instantly recognizable poses.
  */
 export function ProgramIcon({
   program,
@@ -35,26 +27,26 @@ export function ProgramIcon({
   className?: string
 }) {
   if (program === 'pushups') {
-    // Pushup — plank position, side view: head left, body horizontal, arm + leg to ground
+    // Pushup — side plank view: head left, body horizontal, arm + leg to ground
     return (
       <svg
         width={size}
         height={size}
         viewBox="0 0 24 24"
+        fill="currentColor"
         className={className}
         aria-hidden
-        {...STROKE_PROPS}
       >
         {/* Ground line */}
-        <path d="M3 20.5 L21 20.5" opacity="0.35" strokeWidth="1.5" />
+        <rect x="2" y="19" width="20" height="1.5" rx="0.75" opacity="0.2" />
         {/* Head */}
-        <circle cx="5" cy="11" r="2" />
+        <circle cx="5" cy="10" r="2.3" />
         {/* Torso — horizontal plank */}
-        <path d="M7 11 L18 12" />
-        {/* Arm — from shoulder down to ground */}
-        <path d="M9 11.2 L9 20" />
-        {/* Leg — from hip down to ground */}
-        <path d="M17.5 12 L18 20" />
+        <rect x="6.5" y="9.1" width="11" height="2.8" rx="1.4" />
+        {/* Arm — straight down to ground */}
+        <rect x="7.3" y="10" width="2.2" height="9" rx="1.1" />
+        {/* Leg — angled down to ground (trapezoid) */}
+        <path d="M15.5 10.8 L17.8 10.8 L19.2 19 L16.9 19 Z" />
       </svg>
     )
   }
@@ -66,22 +58,22 @@ export function ProgramIcon({
         width={size}
         height={size}
         viewBox="0 0 24 24"
+        fill="currentColor"
         className={className}
         aria-hidden
-        {...STROKE_PROPS}
       >
         {/* Ground line */}
-        <path d="M3 20.5 L21 20.5" opacity="0.35" strokeWidth="1.5" />
+        <rect x="2" y="19" width="20" height="1.5" rx="0.75" opacity="0.2" />
         {/* Head */}
-        <circle cx="12" cy="5" r="2" />
-        {/* Torso — compact, slightly leaned forward (squat posture) */}
-        <path d="M12 7 L11.5 12" />
+        <circle cx="12" cy="5" r="2.3" />
+        {/* Torso — compact, slightly forward lean */}
+        <path d="M10.7 7.2 L13.3 7.2 L12.8 12 L11.2 12 Z" />
         {/* Arms — extended forward for balance */}
-        <path d="M11.7 9 L7 9.5 M12.3 9 L17 9.5" />
-        {/* Left leg — bent at knee */}
-        <path d="M11.5 12 L8 15 L8 20" />
-        {/* Right leg — bent at knee */}
-        <path d="M12.5 12 L16 15 L16 20" />
+        <rect x="6" y="8.2" width="12" height="1.8" rx="0.9" />
+        {/* Left leg — thigh + shin bent at knee */}
+        <path d="M10.8 11.5 L8 14.5 L7.5 19 L9.5 19 L9.8 15.5 L11.8 13 Z" />
+        {/* Right leg — thigh + shin bent at knee */}
+        <path d="M13.2 11.5 L16 14.5 L16.5 19 L14.5 19 L14.2 15.5 L12.2 13 Z" />
       </svg>
     )
   }
@@ -92,21 +84,24 @@ export function ProgramIcon({
       width={size}
       height={size}
       viewBox="0 0 24 24"
+      fill="currentColor"
       className={className}
       aria-hidden
-      {...STROKE_PROPS}
     >
       {/* Bar — horizontal with supports */}
-      <path d="M3 4 L21 4" strokeWidth="2" />
-      <path d="M3 4 L3 5.5 M21 4 L21 5.5" opacity="0.5" strokeWidth="1.5" />
+      <rect x="2" y="3" width="20" height="2.2" rx="1.1" />
+      <rect x="2.5" y="3" width="1.5" height="3.5" rx="0.75" opacity="0.5" />
+      <rect x="20" y="3" width="1.5" height="3.5" rx="0.75" opacity="0.5" />
       {/* Arms — reaching up to bar */}
-      <path d="M9.5 5.5 L10.5 10 M14.5 5.5 L13.5 10" />
+      <rect x="8.8" y="5" width="2.2" height="5" rx="1.1" />
+      <rect x="13" y="5" width="2.2" height="5" rx="1.1" />
       {/* Head */}
-      <circle cx="12" cy="11.5" r="2" />
+      <circle cx="12" cy="11" r="2.3" />
       {/* Torso — hanging straight down */}
-      <path d="M12 13.5 L12 18" />
-      {/* Legs — slightly bent */}
-      <path d="M12 18 L10.5 21 M12 18 L13.5 21" />
+      <rect x="10.7" y="12.8" width="2.6" height="5.5" rx="1.3" />
+      {/* Legs — slightly apart */}
+      <rect x="9.5" y="18" width="2" height="3.5" rx="1" />
+      <rect x="12.5" y="18" width="2" height="3.5" rx="1" />
     </svg>
   )
 }
