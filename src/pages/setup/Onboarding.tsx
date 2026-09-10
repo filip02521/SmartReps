@@ -6,6 +6,7 @@ import { OnboardingIllustration, SlideCyclesIllustration, SlideAiIllustration, S
 import { Button } from '@/components/ui/Button'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { StepIndicator, PageLoader } from '@/components/ux/Feedback'
+import { ProgramIcon, programAccent } from '@/components/ui/ProgramIcon'
 import { pl } from '@/i18n/pl'
 import type { Lang } from '@/i18n'
 import { useAppStore } from '@/stores/app-store'
@@ -392,19 +393,13 @@ export default function Onboarding() {
           <div className="mt-6 flex flex-col gap-3 sr-onboard-step sr-onboard-stagger-2">
             {(['pushups', 'pullups', 'squats'] as Program[]).map((p) => {
               const selected = programs.includes(p)
-              const accent =
-                p === 'pushups'
-                  ? 'var(--sr-pushups-accent)'
-                  : p === 'pullups'
-                    ? 'var(--sr-pullups-accent)'
-                    : 'var(--sr-squats-accent)'
+              const accent = programAccent(p)
               const accentMuted =
                 p === 'pushups'
                   ? 'var(--sr-pushups-accent-muted)'
                   : p === 'pullups'
                     ? 'var(--sr-pullups-accent-muted)'
                     : 'var(--sr-squats-accent-muted)'
-              const Icon = p === 'pushups' ? PushupIcon : p === 'pullups' ? PullupIcon : SquatIcon
               const title =
                 p === 'pushups'
                   ? pl.pushupsProgram
@@ -421,7 +416,7 @@ export default function Onboarding() {
                 <ProgramCard
                   key={p}
                   selected={selected}
-                  icon={Icon}
+                  program={p}
                   accent={accent}
                   accentMuted={accentMuted}
                   title={title}
@@ -561,7 +556,7 @@ function InterestCard({
 
 function ProgramCard({
   selected,
-  icon: Icon,
+  program,
   accent,
   accentMuted,
   title,
@@ -569,7 +564,7 @@ function ProgramCard({
   onToggle,
 }: {
   selected: boolean
-  icon: (props: { className?: string }) => ReactNode
+  program: Program
   accent: string
   accentMuted: string
   title: string
@@ -590,10 +585,13 @@ function ProgramCard({
       <div className="flex min-w-0 items-center gap-3">
         <span
           className="flex size-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] transition-colors"
-          style={{ background: selected ? accent : 'var(--sr-bg-surface)' }}
+          style={{
+            background: selected ? accent : 'var(--sr-bg-surface)',
+            color: selected ? 'var(--sr-text-inverse)' : accent,
+          }}
           aria-hidden
         >
-          <Icon className={selected ? 'text-[var(--sr-text-inverse)]' : 'text-[var(--sr-text-secondary)]'} />
+          <ProgramIcon program={program} size={24} />
         </span>
         <div className="min-w-0">
           <p className="font-semibold text-[var(--sr-text-primary)]">{title}</p>
@@ -616,38 +614,7 @@ function ProgramCard({
   )
 }
 
-// Program icons — inline SVG silhouettes
-function PushupIcon({ className }: { className?: string }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <circle cx="5" cy="9" r="2.5" />
-      <rect x="7" y="11" width="14" height="2.5" rx="1.25" />
-      <rect x="3" y="13" width="3" height="5" rx="1" />
-    </svg>
-  )
-}
-
-function PullupIcon({ className }: { className?: string }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <rect x="2" y="3" width="20" height="2.5" rx="1.25" />
-      <circle cx="12" cy="10" r="2.5" />
-      <rect x="10.5" y="12.5" width="3" height="7" rx="1.5" />
-    </svg>
-  )
-}
-
-function SquatIcon({ className }: { className?: string }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <circle cx="12" cy="5" r="2.5" />
-      <rect x="10.5" y="7.5" width="3" height="5" rx="1.5" />
-      <rect x="6" y="9" width="12" height="1.5" rx="0.75" />
-      <rect x="9.5" y="12.5" width="2" height="6" rx="1" />
-      <rect x="12.5" y="12.5" width="2" height="6" rx="1" />
-    </svg>
-  )
-}
+// Program icons — use shared ProgramIcon component for consistency
 
 function NextBullet({ icon: Icon, text }: { icon?: LucideIcon; text: string }) {
   return (

@@ -872,9 +872,10 @@ function ProgramIconBadge({ program }: { program: 'pushups' | 'pullups' | 'squat
     <div
       className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-lg)] ring-1"
       style={{
-        background: `color-mix(in srgb, ${accentVar} 15%, transparent)`,
+        background: `color-mix(in srgb, ${accentVar} 12%, transparent)`,
+        color: accentVar,
         // @ts-expect-error — CSS custom property
-        '--tw-ring-color': `color-mix(in srgb, ${accentVar} 30%, transparent)`,
+        '--tw-ring-color': `color-mix(in srgb, ${accentVar} 25%, transparent)`,
       }}
       aria-hidden
     >

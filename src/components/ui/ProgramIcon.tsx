@@ -1,5 +1,4 @@
 import type { Program } from '@/data/plans/types'
-import { useId } from 'react'
 
 const accentVar: Record<Program, string> = {
   pushups: 'var(--sr-pushups-accent)',
@@ -13,7 +12,19 @@ const accentLight: Record<Program, string> = {
   squats: 'var(--sr-squats-accent-muted)',
 }
 
-/** Compact inline SVG icon for pushup / pullup programs. */
+const STROKE_PROPS = {
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.75,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+}
+
+/**
+ * Professional line-art icons for pushup / pullup / squat programs.
+ * Consistent stroke weight (1.75), rounded caps/joins, no gradients.
+ * Uses `currentColor` — set text color via CSS to control accent.
+ */
 export function ProgramIcon({
   program,
   size = 20,
@@ -23,111 +34,79 @@ export function ProgramIcon({
   size?: number
   className?: string
 }) {
-  const accent = accentVar[program]
-  const uid = useId().replace(/[:]/g, '')
-  const gradId = `sr-progicon-${program}-${uid}`
-
   if (program === 'pushups') {
+    // Pushup — plank position, side view: head left, body horizontal, arm + leg to ground
     return (
       <svg
         width={size}
         height={size}
         viewBox="0 0 24 24"
-        fill="none"
         className={className}
         aria-hidden
+        {...STROKE_PROPS}
       >
-        <defs>
-          <linearGradient id={gradId} x1="4" y1="3" x2="20" y2="21" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor={accent} stopOpacity="1" />
-            <stop offset="100%" stopColor={accent} stopOpacity="0.7" />
-          </linearGradient>
-        </defs>
-        {/* Ground line — subtle */}
-        <line x1="2" y1="19" x2="22" y2="19" stroke={accent} strokeWidth="1.5" strokeLinecap="round" opacity="0.35" />
-        {/* Body — horizontal plank with slight curve for dynamic feel */}
-        <path
-          d="M5 13.5 C5 12 6 11.5 7.5 11.5 L16.5 11.5 C18 11.5 19 12 19 13.5 C19 14.5 18 15 16.5 15 L7.5 15 C6 15 5 14.5 5 13.5 Z"
-          fill={`url(#${gradId})`}
-        />
-        {/* Head — circle with subtle highlight */}
-        <circle cx="5.5" cy="10" r="2.2" fill={`url(#${gradId})`} />
-        <circle cx="5" cy="9.5" r="0.7" fill="#ffffff" opacity="0.3" />
-        {/* Arms — angled down to ground */}
-        <path d="M6.5 11.5 L5.5 18" stroke={`url(#${gradId})`} strokeWidth="2" strokeLinecap="round" />
-        {/* Legs — angled to ground */}
-        <path d="M18 12 L19 18" stroke={`url(#${gradId})`} strokeWidth="2" strokeLinecap="round" />
+        {/* Ground line */}
+        <path d="M3 20.5 L21 20.5" opacity="0.35" strokeWidth="1.5" />
+        {/* Head */}
+        <circle cx="5" cy="11" r="2" />
+        {/* Torso — horizontal plank */}
+        <path d="M7 11 L18 12" />
+        {/* Arm — from shoulder down to ground */}
+        <path d="M9 11.2 L9 20" />
+        {/* Leg — from hip down to ground */}
+        <path d="M17.5 12 L18 20" />
       </svg>
     )
   }
 
   if (program === 'squats') {
+    // Squat — front view: head top, torso, arms forward, bent legs
     return (
       <svg
         width={size}
         height={size}
         viewBox="0 0 24 24"
-        fill="none"
         className={className}
         aria-hidden
+        {...STROKE_PROPS}
       >
-        <defs>
-          <linearGradient id={gradId} x1="4" y1="2" x2="20" y2="22" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor={accent} stopOpacity="1" />
-            <stop offset="100%" stopColor={accent} stopOpacity="0.7" />
-          </linearGradient>
-        </defs>
-        {/* Ground line — subtle */}
-        <line x1="2" y1="20" x2="22" y2="20" stroke={accent} strokeWidth="1.5" strokeLinecap="round" opacity="0.35" />
-        {/* Head — circle with highlight */}
-        <circle cx="12" cy="5" r="2.2" fill={`url(#${gradId})`} />
-        <circle cx="11.3" cy="4.5" r="0.7" fill="#ffffff" opacity="0.3" />
-        {/* Torso — compact squat position */}
-        <path
-          d="M10.5 7 L10.5 11 C10.5 12 11 12.5 12 12.5 C13 12.5 13.5 12 13.5 11 L13.5 7 Z"
-          fill={`url(#${gradId})`}
-        />
+        {/* Ground line */}
+        <path d="M3 20.5 L21 20.5" opacity="0.35" strokeWidth="1.5" />
+        {/* Head */}
+        <circle cx="12" cy="5" r="2" />
+        {/* Torso — compact, slightly leaned forward (squat posture) */}
+        <path d="M12 7 L11.5 12" />
         {/* Arms — extended forward for balance */}
-        <path d="M10.5 9 L6 9.5 M13.5 9 L18 9.5" stroke={`url(#${gradId})`} strokeWidth="2" strokeLinecap="round" />
-        {/* Legs — bent in squat, wide stance */}
-        <path d="M11 12.5 L7 17 M13 12.5 L17 17" stroke={`url(#${gradId})`} strokeWidth="2.2" strokeLinecap="round" />
-        {/* Feet */}
-        <path d="M5.5 17.5 L8.5 18.5 M15.5 18.5 L18.5 17.5" stroke={`url(#${gradId})`} strokeWidth="2" strokeLinecap="round" />
+        <path d="M11.7 9 L7 9.5 M12.3 9 L17 9.5" />
+        {/* Left leg — bent at knee */}
+        <path d="M11.5 12 L8 15 L8 20" />
+        {/* Right leg — bent at knee */}
+        <path d="M12.5 12 L16 15 L16 20" />
       </svg>
     )
   }
 
-  // pullups — bar with person hanging, more dynamic
+  // Pullups — bar at top, person hanging: arms up, head, torso, legs
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
       className={className}
       aria-hidden
+      {...STROKE_PROPS}
     >
-      <defs>
-        <linearGradient id={gradId} x1="4" y1="2" x2="20" y2="22" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={accent} stopOpacity="1" />
-          <stop offset="100%" stopColor={accent} stopOpacity="0.7" />
-        </linearGradient>
-      </defs>
       {/* Bar — horizontal with supports */}
-      <rect x="2" y="3.5" width="20" height="2" rx="1" fill={accent} opacity="0.6" />
-      <path d="M2.5 3.5 L2.5 6 M21.5 3.5 L21.5 6" stroke={accent} strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
-      {/* Arms — up to bar, slightly angled for dynamic feel */}
-      <path d="M9 7 L11 11 M15 7 L13 11" stroke={`url(#${gradId})`} strokeWidth="2" strokeLinecap="round" />
-      {/* Head — circle with highlight */}
-      <circle cx="12" cy="10.5" r="2.2" fill={`url(#${gradId})`} />
-      <circle cx="11.3" cy="10" r="0.7" fill="#ffffff" opacity="0.3" />
-      {/* Body — torso hanging down */}
-      <path
-        d="M10.5 12.5 L10.5 17 C10.5 18 11 18.5 12 18.5 C13 18.5 13.5 18 13.5 17 L13.5 12.5 Z"
-        fill={`url(#${gradId})`}
-      />
-      {/* Legs — slightly bent for dynamic pose */}
-      <path d="M11 18.5 L10.5 21 M13 18.5 L13.5 21" stroke={`url(#${gradId})`} strokeWidth="2" strokeLinecap="round" />
+      <path d="M3 4 L21 4" strokeWidth="2" />
+      <path d="M3 4 L3 5.5 M21 4 L21 5.5" opacity="0.5" strokeWidth="1.5" />
+      {/* Arms — reaching up to bar */}
+      <path d="M9.5 5.5 L10.5 10 M14.5 5.5 L13.5 10" />
+      {/* Head */}
+      <circle cx="12" cy="11.5" r="2" />
+      {/* Torso — hanging straight down */}
+      <path d="M12 13.5 L12 18" />
+      {/* Legs — slightly bent */}
+      <path d="M12 18 L10.5 21 M12 18 L13.5 21" />
     </svg>
   )
 }
