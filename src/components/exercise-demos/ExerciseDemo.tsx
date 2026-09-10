@@ -142,7 +142,7 @@ export const ExerciseDemo = memo(function ExerciseDemo({
             </div>
           ) : (
             <span className="min-w-0 flex-1 sr-text-body-sm font-medium text-[var(--sr-text-muted)]">
-              {expanded ? pl.exerciseDemoCollapse : pl.exerciseDemoExpand}
+              {pl.exerciseDemoExpand}
             </span>
           )}
           <ChevronDown
