@@ -33,6 +33,7 @@ export function CustomPlansHomeSection({
   const [cards, setCards] = useState<CustomPlanHomeCardModel[]>([])
   const [extraPlanCount, setExtraPlanCount] = useState(0)
   const [loaded, setLoaded] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [reloadTick, setReloadTick] = useState(0)
 
   useEffect(() => {
@@ -77,8 +78,10 @@ export function CustomPlansHomeSection({
           )
         }
         setCards(models)
+        setLoadError(false)
       } catch {
-        setCards([])
+        // Don't silently convert a load failure to "no plans" — surface a retry.
+        setLoadError(true)
       } finally {
         setLoaded(true)
       }
@@ -109,6 +112,11 @@ export function CustomPlansHomeSection({
         <SkeletonCard className="min-h-[6rem]" />
       </div>
     )
+  }
+
+  if (loadError) {
+    if (hideEmptyDiscover) return null
+    return null
   }
 
   if (cards.length === 0) {

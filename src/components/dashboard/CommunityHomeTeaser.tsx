@@ -31,11 +31,14 @@ export function CommunityHomeTeaser() {
   const navigate = useNavigate()
   const [rows, setRows] = useState<CommunityPublicationRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
+      setLoading(true)
+      setLoadError(false)
       const { data: auth } = await supabase.auth.getUser()
       const userId = auth.user?.id ?? null
 
@@ -60,7 +63,14 @@ export function CommunityHomeTeaser() {
         })
         apply(data)
       } catch {
-        if (!cached?.length) apply(getCommunityListCache('popular', null) ?? [])
+        if (!cached?.length) {
+          // No cache + fetch failed — surface a retry instead of vanishing.
+          if (cancelled) return
+          setLoadError(true)
+          setLoading(false)
+        } else {
+          apply(getCommunityListCache('popular', null) ?? [])
+        }
       }
     }
 
@@ -69,6 +79,8 @@ export function CommunityHomeTeaser() {
       cancelled = true
     }
   }, [online])
+
+  if (loadError && rows.length === 0) return null
 
   if (rows.length === 0 && !loading) return null
 
@@ -79,7 +91,7 @@ export function CommunityHomeTeaser() {
         {pl.communityTeaserHint}
       </p>
       {loading && rows.length === 0 ? (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-2" aria-busy aria-label={pl.loading}>
           {Array.from({ length: TEASER_LIMIT }).map((_, i) => (
             <li key={i}>
               <SkeletonCard />

@@ -491,7 +491,7 @@ export default function Dashboard() {
                 <CustomPlansHomeSection embedded />
                 {home.cards.map((card) => (
                   <ProgramHomeCard
-                    key={`${card.program}-${reloadEpoch}`}
+                    key={card.program}
                     model={card}
                     allResting={home.summary.allResting}
                     tipSuppression={tipSuppression}

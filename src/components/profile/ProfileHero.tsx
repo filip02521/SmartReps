@@ -121,7 +121,7 @@ export function ProfileHero({
           onClick={onOpenSettings}
           className={cn(
             FOCUS_RING,
-            'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+            'flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
           )}
           aria-label={pl.profileHeroSettings}
         >

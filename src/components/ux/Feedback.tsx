@@ -86,6 +86,8 @@ export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: (
         message={message}
         actionLabel={onRetry ? pl.tryAgain : undefined}
         onAction={onRetry}
+        // Retry is the primary action for an error — don't demote to secondary.
+        demotePrimary={false}
       />
     </div>
   )

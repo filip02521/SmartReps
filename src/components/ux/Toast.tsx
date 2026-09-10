@@ -56,7 +56,18 @@ export function ToastHost() {
     immersive || location.pathname.startsWith('/workout') || location.pathname.startsWith('/setup')
   const pillVisible = hideTabs && restMode === 'pill'
 
-  if (toasts.length === 0) return null
+  if (toasts.length === 0) {
+    // Keep the live region in the DOM so screen readers detect the first toast
+    // when it arrives. Empty + aria-busy=false is silent to AT.
+    return (
+      <div
+        className="sr-only"
+        aria-live="polite"
+        aria-atomic="false"
+        aria-busy="false"
+      />
+    )
+  }
 
   return (
     <div
@@ -104,7 +115,7 @@ export function ToastHost() {
                 <button
                   type="button"
                   className={cn(
-                    'mt-2 min-h-11 rounded-[var(--sr-radius-md)] px-3 text-sm font-semibold',
+                    'mt-2 min-h-12 rounded-[var(--sr-radius-md)] px-3 text-sm font-semibold',
                     FOCUS_RING,
                   )}
                   style={{ color: chrome.accent }}
@@ -121,7 +132,7 @@ export function ToastHost() {
             <button
               type="button"
               className={cn(
-                'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)]',
+                'flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)]',
                 FOCUS_RING,
               )}
               aria-label={pl.close}

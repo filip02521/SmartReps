@@ -6,7 +6,7 @@
 #   ./scripts/setup-push-secrets.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PROJECT_REF="${SUPABASE_PROJECT_REF:-pwfymoxjrgnovzcmmfyn}"
+PROJECT_REF="${SUPABASE_PROJECT_REF:-epjtnhsqzgtjhghzqefx}"
 
 : "${VAPID_PUBLIC_KEY:?Set VAPID_PUBLIC_KEY}"
 : "${VAPID_PRIVATE_KEY:?Set VAPID_PRIVATE_KEY}"

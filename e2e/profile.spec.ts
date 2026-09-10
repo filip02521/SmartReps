@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 
-const AUTH_STORAGE_KEY = 'sb-pwfymoxjrgnovzcmmfyn-auth-token'
+const AUTH_STORAGE_KEY = 'sb-epjtnhsqzgtjhghzqefx-auth-token'
 
 async function seedLocalAppState(page: Page, extras: Record<string, unknown> = {}) {
   await page.addInitScript((payload) => {

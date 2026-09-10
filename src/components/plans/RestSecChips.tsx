@@ -46,7 +46,7 @@ export function RestSecChips({
     cn(
       'rounded-[var(--sr-radius-sm)] border font-medium transition-colors active:scale-95',
       FOCUS_RING,
-      compact ? 'min-h-11 shrink-0 px-2.5 text-xs' : 'min-h-11 px-3 text-sm',
+      compact ? 'min-h-12 shrink-0 px-2.5 text-xs' : 'min-h-12 px-3 text-sm',
       active
         ? 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-text-primary)]'
         : 'border-[var(--sr-border-subtle)] text-[var(--sr-text-secondary)] hover:border-[var(--sr-border-strong)] hover:text-[var(--sr-text-primary)]',
@@ -126,7 +126,7 @@ export function SetsCountStepper({
         <Button
           type="button"
           variant="secondary"
-          className="min-h-11 min-w-11"
+          className="min-h-12 min-w-12"
           disabled={value <= min}
           onClick={() => onChange(Math.max(min, value - 1))}
         >
@@ -136,7 +136,7 @@ export function SetsCountStepper({
         <Button
           type="button"
           variant="secondary"
-          className="min-h-11 min-w-11"
+          className="min-h-12 min-w-12"
           disabled={value >= max}
           onClick={() => onChange(Math.min(max, value + 1))}
         >

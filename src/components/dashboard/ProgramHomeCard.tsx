@@ -13,7 +13,7 @@ import { CycleDayPicker } from '@/components/ui/CycleDayPicker'
 import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { BuiltinWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
-import { ErrorBanner, FeedbackBanner } from '@/components/ux/Feedback'
+import { FeedbackBanner } from '@/components/ux/Feedback'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
 import {
@@ -103,19 +103,7 @@ export function ProgramHomeCard({
   }
 
   if (model.loadError) {
-    return (
-      <ProgramAccentCard program={program}>
-        <div className="flex items-center gap-3">
-          <ProgramIconBadge program={program} />
-          <h3 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
-            {model.label}
-          </h3>
-        </div>
-        <div className="mt-3">
-          <ErrorBanner message={model.loadError} onRetry={onReload} />
-        </div>
-      </ProgramAccentCard>
-    )
+    return null
   }
 
   if (bucket === 'unconfigured' || !progress) {
@@ -176,7 +164,7 @@ export function ProgramHomeCard({
             aria-haspopup="dialog"
             aria-expanded={showMenu}
             className={cn(
-              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              'flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
               FOCUS_RING,
             )}
             onClick={() => setShowMenu(true)}

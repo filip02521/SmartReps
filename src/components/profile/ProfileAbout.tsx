@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom'
 import { LogoMark } from '@/components/brand/Logo'
-import { Shield, FileText, ExternalLink, HeartPulse } from 'lucide-react'
+import { Shield, FileText, HeartPulse } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 
 const appVersion = import.meta.env.VITE_APP_VERSION ?? '1.0.0'
 
 /**
- * About section — app identity, legal links, health disclaimer, sources.
+ * About section — app identity, legal links, health disclaimer.
  * Redesigned with visual hierarchy: logo, row-based links, notice card.
  */
 export function ProfileAbout({ className }: { className?: string }) {
@@ -45,33 +45,6 @@ export function ProfileAbout({ className }: { className?: string }) {
           <FileText size={18} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
           <span className="flex-1">{pl.profileAboutTerms}</span>
         </Link>
-      </div>
-
-      {/* Sources */}
-      <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-4 py-3">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
-          {pl.profileAboutSources}
-        </p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-          <a
-            href="https://100pompek.pl"
-            className="inline-flex items-center gap-1 text-[var(--sr-brand-primary)] underline-offset-4 hover:underline"
-            target="_blank"
-            rel="noreferrer"
-          >
-            100pompek.pl
-            <ExternalLink size={12} aria-hidden />
-          </a>
-          <a
-            href="https://podciaganie.pl"
-            className="inline-flex items-center gap-1 text-[var(--sr-brand-primary)] underline-offset-4 hover:underline"
-            target="_blank"
-            rel="noreferrer"
-          >
-            podciaganie.pl
-            <ExternalLink size={12} aria-hidden />
-          </a>
-        </div>
       </div>
 
       {/* Licenses — exercise media attribution */}

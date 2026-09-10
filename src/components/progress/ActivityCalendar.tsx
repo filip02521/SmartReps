@@ -94,7 +94,7 @@ export function ActivityCalendar({
         <Button
           variant="ghost"
           size="sm"
-          className="min-h-11 min-w-11"
+          className="min-h-12 min-w-12"
           aria-label={pl.calendarPrevMonth}
           onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
         >
@@ -113,7 +113,7 @@ export function ActivityCalendar({
         <Button
           variant="ghost"
           size="sm"
-          className="min-h-11 min-w-11"
+          className="min-h-12 min-w-12"
           aria-label={pl.calendarNextMonth}
           onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
         >

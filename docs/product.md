@@ -65,7 +65,7 @@ Cztery zakładki (bottom nav): **Trening** (`/`), **Postępy** (`/progress`), **
 - **Achievements section** — galeria + showcase picker (sloty na profilu, auto lub manual, sync do chmury)
 - **AI coach card** (status connected/offline) → otwiera Settings; **AI coach history** (insights: post-workout, weekly report, plateau warning; filtry; dismiss)
 - **Settings sheet** — sekcje: Konto i synchronizacja (sync now / login / logout), Wygląd i język (theme system/dark/light, high-contrast, language PL/EN), Trening (weight unit kg/lb, timer sound/vibration, keep screen on), Przypomnienia (push, local reminders, reminder hour), Trener AI (provider OpenAI/Gemini/Groq/custom, API key, model, base URL, reasoning effort, proactive coach toggle), Dane i backup (import JSON, export JSON, export CSV, clear local, delete account)
-- **About** — app identity + wersja, privacy/terms links, źródła (100pompek.pl, podciaganie.pl), health disclaimer
+- **About** — app identity + wersja, privacy/terms links, health disclaimer
 
 ### Onboarding (`/setup/onboarding`)
 - Kroki: welcome → interest (Strong programy / własne plany) → programs (pushups/pullups, tylko gdy Strong) → next steps
@@ -115,7 +115,7 @@ Cztery zakładki (bottom nav): **Trening** (`/`), **Postępy** (`/progress`), **
 - **Dostępność** — theme (system/dark/light), high-contrast mode, focus rings, skip-to-main, aria, tabular-nums, motion-reduce
 
 ### Marka
-- PL-first, privacy/terms (treść prawna przez i18n), health disclaimer, źródła (100pompek.pl, podciaganie.pl)
+- PL-first, privacy/terms (treść prawna przez i18n), health disclaimer
 
 ## Poza scope (na razie)
 

@@ -83,7 +83,8 @@ export type ActiveWorkoutScreenProps = {
   onClosePlan: () => void
   onCloseMenu: () => void
   saveError?: string | null
-  onDismissSaveError?: () => void
+  /** Re-attempt the failed set persist (taps "Zrobione" again). */
+  onRetrySave?: () => void
 }
 
 export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
@@ -138,7 +139,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     onClosePlan,
     onCloseMenu,
     saveError,
-    onDismissSaveError,
+    onRetrySave,
   } = props
 
   const currentTarget = day.sets[currentSetIndex]
@@ -189,7 +190,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
             type="button"
             onClick={onBack}
             className={cn(
-              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              'flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
               FOCUS_RING,
             )}
             aria-label={pl.back}
@@ -210,7 +211,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
             aria-expanded={showMenu}
             onClick={onToggleMenu}
             className={cn(
-              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              'flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
               FOCUS_RING,
             )}
           >
@@ -271,7 +272,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
 
       {saveError && (
         <div className="mx-4 mt-3 mb-1">
-          <ErrorBanner message={saveError} onRetry={onDismissSaveError} />
+          <ErrorBanner message={saveError} onRetry={onRetrySave} />
         </div>
       )}
 

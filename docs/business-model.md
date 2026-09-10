@@ -20,7 +20,7 @@ SmartReps to offline-first PWA do treningu pompek i podciągania (23 cykle, PL-f
 - **PL-first** — polski rynek niedostatecznie obsłużony przez globalne aplikacje
 - **Strong-style UX** — immersyjny flow treningu (checklista serii, timer, auto-start przerwy)
 - **Katalog społecznościowy + follow** — warstwa społeczna (plan sharing, reviews, follow)
-- **23 cykle oparte na sprawdzonych programach** (metodologia 100pompek.pl / podciaganie.pl)
+- **38 cykli autorskich** opartych na ogólnodostępnej metodyce treningu kalistenicznego
 - **55 osiągnięć + wyzwania tygodniowe** — grywalizacja napędza zaangażowanie = konwersję
 - **BYOK AI** — zero kosztów AI dla SmartReps (user przynosi własny klucz)
 

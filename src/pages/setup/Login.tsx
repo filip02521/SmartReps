@@ -83,6 +83,8 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [sent, setSent] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [otpError, setOtpError] = useState<string | null>(null)
   useSeo({ title: pl.seoLoginTitle, description: pl.seoLoginDescription, path: '/setup/login' })
   const [loading, setLoading] = useState(false)
   const [resendIn, setResendIn] = useState(0)
@@ -210,9 +212,11 @@ export default function Login() {
     }
     const trimmed = email.trim()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailError(pl.loginInvalidEmail)
       showToast(pl.loginInvalidEmail, 'error')
       return
     }
+    setEmailError(null)
     setLoading(true)
     const { error } = await supabase.auth.signInWithOtp({
       email: trimmed,
@@ -244,15 +248,18 @@ export default function Login() {
     const trimmed = email.trim()
     const code = otpCode.replace(/\D/g, '')
     if (!OTP_PATTERN.test(code)) {
+      setOtpError(pl.loginOtpInvalid)
       showToast(pl.loginOtpInvalid, 'error')
       return
     }
+    setOtpError(null)
     verifyingRef.current = true
     setLoading(true)
     try {
       const { error } = await verifyEmailOtp(trimmed, code)
       if (error) {
         track(AnalyticsEvents.otpVerifyFail)
+        setOtpError(pl.loginOtpInvalid)
         showToast(pl.loginOtpInvalid, 'error')
         return
       }
@@ -344,11 +351,16 @@ export default function Login() {
             <OtpInput
               length={OTP_LENGTH}
               value={otpCode}
-              onChange={(code) => setOtpCode(code)}
+              onChange={(code) => { setOtpCode(code); setOtpError(null) }}
               disabled={loading}
               autoFocus
+              error={!!otpError}
             />
-            <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{pl.loginOtpHint}</p>
+            {otpError ? (
+              <p className="mt-2 text-xs text-[var(--sr-error)]" role="alert">{otpError}</p>
+            ) : (
+              <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{pl.loginOtpHint}</p>
+            )}
           </div>
 
           {/* Verify button with loading spinner */}
@@ -402,7 +414,10 @@ export default function Login() {
             autoComplete="email"
             placeholder={pl.loginEmailPlaceholder}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => { setEmail(e.target.value); setEmailError(null) }}
+            hint={emailError ?? undefined}
+            hintClassName={emailError ? 'text-[var(--sr-error)]' : undefined}
+            inputClassName={emailError ? 'border-[var(--sr-error)] focus:border-[var(--sr-error)]' : undefined}
           />
           <Button className="mt-4" fullWidth disabled={loading || !email.trim()} onClick={() => void sendOtp()}>
             {loading ? (

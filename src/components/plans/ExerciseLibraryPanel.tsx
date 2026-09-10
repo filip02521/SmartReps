@@ -5,7 +5,7 @@ import { TextField } from '@/components/ui/TextField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet } from '@/components/ui/Sheet'
 import { cn } from '@/lib/utils'
-import { EmptyState } from '@/components/ux/Feedback'
+import { EmptyState, SkeletonCard } from '@/components/ux/Feedback'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { ExerciseDetailSheet } from '@/components/plans/ExerciseDetailSheet'
 import { ExerciseLibraryRow } from '@/components/plans/ExerciseLibraryRow'
@@ -53,12 +53,22 @@ export function ExerciseLibraryPanel({
   const [metricFilter, setMetricFilter] = useState<PrimaryMetric | 'all'>('all')
   const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | 'all'>('all')
   const [muscleSheetOpen, setMuscleSheetOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   async function reload() {
-    const list = await listExercises()
-    setExercises(list)
-    setSummaries(await computeExerciseListSummaries(list))
-    onExercisesChange?.(list)
+    setLoading(true)
+    setLoadError(false)
+    try {
+      const list = await listExercises()
+      setExercises(list)
+      setSummaries(await computeExerciseListSummaries(list))
+      onExercisesChange?.(list)
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -180,7 +190,18 @@ export function ExerciseLibraryPanel({
             )}
           </div>
 
-          {exercises.length === 0 ? (
+          {loading ? (
+            <div className="flex flex-col gap-2" aria-busy aria-label={pl.loading}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <SkeletonCard key={i} className="min-h-[4rem]" />
+              ))}
+            </div>
+          ) : loadError ? (
+            <EmptyState
+              title={pl.exerciseLibraryEmpty}
+              description={pl.exerciseLibraryEmptyHint}
+            />
+          ) : exercises.length === 0 ? (
             <EmptyState
               icon={<Dumbbell size={40} strokeWidth={1.5} className="text-[var(--sr-text-muted)]" />}
               title={pl.exerciseLibraryEmpty}
@@ -218,7 +239,7 @@ export function ExerciseLibraryPanel({
                 type="button"
                 onClick={() => setMuscleSheetOpen(true)}
                 className={cn(
-                  'flex min-h-11 w-full items-center justify-between gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-2.5 text-sm text-[var(--sr-text-primary)] transition-colors hover:border-[var(--sr-border-strong)]',
+                  'flex min-h-12 w-full items-center justify-between gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-2.5 text-sm text-[var(--sr-text-primary)] transition-colors hover:border-[var(--sr-border-strong)]',
                   FOCUS_RING,
                 )}
                 aria-label={pl.exerciseMuscleGroup}
@@ -412,7 +433,7 @@ export function ExerciseLibraryPanel({
                 setMuscleSheetOpen(false)
               }}
               className={cn(
-                'flex min-h-11 w-full items-center justify-between rounded-[var(--sr-radius-sm)] px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--sr-bg-elevated)]',
+                'flex min-h-12 w-full items-center justify-between rounded-[var(--sr-radius-sm)] px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--sr-bg-elevated)]',
                 FOCUS_RING,
               )}
             >
@@ -433,7 +454,7 @@ export function ExerciseLibraryPanel({
                   setMuscleSheetOpen(false)
                 }}
                 className={cn(
-                  'flex min-h-11 w-full items-center justify-between rounded-[var(--sr-radius-sm)] px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--sr-bg-elevated)]',
+                  'flex min-h-12 w-full items-center justify-between rounded-[var(--sr-radius-sm)] px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--sr-bg-elevated)]',
                   FOCUS_RING,
                 )}
               >

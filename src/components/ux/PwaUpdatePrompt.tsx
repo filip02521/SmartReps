@@ -237,7 +237,7 @@ export function PwaUpdatePrompt() {
                 type="button"
                 onClick={applyUpdate}
                 className={cn(
-                  'flex min-h-11 items-center gap-1.5 rounded-[var(--sr-radius-md)] px-4',
+                  'flex min-h-12 items-center gap-1.5 rounded-[var(--sr-radius-md)] px-4',
                   'bg-[var(--sr-brand-primary)] text-sm font-semibold text-white',
                   'transition-transform active:scale-95 hover:brightness-110',
                   FOCUS_RING,
@@ -251,7 +251,7 @@ export function PwaUpdatePrompt() {
                 aria-label={pl.pwaUpdateLater}
                 onClick={() => setState('idle')}
                 className={cn(
-                  'flex min-h-11 min-w-11 items-center justify-center',
+                  'flex min-h-12 min-w-12 items-center justify-center',
                   'rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)]',
                   'transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)]',
                   FOCUS_RING,

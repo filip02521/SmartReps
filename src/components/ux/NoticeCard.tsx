@@ -159,7 +159,7 @@ export function NoticeCard({
           type="button"
           aria-label={pl.close}
           className={cn(
-            'absolute right-1.5 top-1.5 flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)]',
+            'absolute right-1.5 top-1.5 flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)]',
             FOCUS_RING,
           )}
           onClick={onDismiss}

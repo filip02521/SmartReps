@@ -61,7 +61,7 @@ function readOtpTemplate(fileName) {
 
 loadEnvFile(path.join(root, '.env.smtp.local'))
 
-const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'pwfymoxjrgnovzcmmfyn'
+const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'epjtnhsqzgtjhghzqefx'
 const token = process.env.SUPABASE_ACCESS_TOKEN
 if (!token) {
   console.error('Missing SUPABASE_ACCESS_TOKEN (Dashboard → Account → Access Tokens)')

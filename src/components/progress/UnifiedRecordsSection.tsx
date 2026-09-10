@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { format } from 'date-fns'
+import { useNavigate } from 'react-router-dom'
 import { dateFnsLocale } from '@/lib/date-locale'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { NestedStat } from '@/components/ui/NestedStat'
@@ -60,6 +61,7 @@ export function UnifiedRecordsSection({
   icon?: LucideIcon
 }) {
   const weightUnit = useAppStore((s) => s.settings.weightUnit)
+  const navigate = useNavigate()
   const validProgramEntries = programRecordsList.filter((e) =>
     hasAnyProgramRecords({
       bestTest: e.stats.maxTestRecord ?? null,
@@ -77,6 +79,8 @@ export function UnifiedRecordsSection({
         <EmptyState
           icon={<LogoMark size={40} />}
           title={pl.progressRecordsEmpty}
+          description={pl.progressRecordsEmptyHint}
+          action={{ label: pl.progressRecordsEmptyCta, onClick: () => navigate('/') }}
         />
       </ProgressSection>
     )

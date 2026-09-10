@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
-import { EmptyState, ErrorBanner, FeedbackBanner, SkeletonCard } from '@/components/ux/Feedback'
+import { EmptyState, FeedbackBanner, SkeletonCard } from '@/components/ux/Feedback'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { CommunityPlanCard } from '@/components/community/CommunityPlanCard'
 import { pl } from '@/i18n/pl'
@@ -80,6 +80,7 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
       }
     } catch {
       if (!cached) setError(pl.communityLoadError)
+      // If we have cached data, keep showing it silently
     } finally {
       setLoading(false)
     }
@@ -170,6 +171,11 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
       <EmptyState title={pl.communityOffline} description={pl.plansCommunityPageHint} />
     )
   }
+  if (error && rows.length === 0) {
+    return (
+      <EmptyState title={pl.communityOffline} description={pl.plansCommunityPageHint} />
+    )
+  }
 
   return (
     <div className="mt-4 space-y-3 pb-2">
@@ -241,7 +247,6 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
         </div>
       )}
 
-      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
       {loading && (
         <div className="flex flex-col gap-3">
           <SkeletonCard className="min-h-[5.5rem]" />

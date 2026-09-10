@@ -381,15 +381,24 @@ export function CustomPlanEditor({
       saveGenRef.current += 1
       await saveCustomPlan(plan, activating ? { activate: true } : undefined)
       setPersisted(true)
-      showToast(activating ? pl.planPublish : pl.planSaveActive, 'success')
-      if (activating && !filterExplicit) {
-        showToast(pl.customHomePinPrompt, 'info', {
-          durationMs: 10000,
+      if (activating) {
+        showToast(pl.planPublish, 'success', {
           action: {
-            label: pl.navProfile,
-            onClick: () => navigate('/profile'),
+            label: pl.planTrain,
+            onClick: () => navigate(`/workout/custom/${plan.id}`),
           },
         })
+        if (!filterExplicit) {
+          showToast(pl.customHomePinPrompt, 'info', {
+            durationMs: 10000,
+            action: {
+              label: pl.navProfile,
+              onClick: () => navigate('/profile'),
+            },
+          })
+        }
+      } else {
+        showToast(pl.planSaveActive, 'success')
       }
       onSaved()
       onClose()
@@ -551,7 +560,7 @@ export function CustomPlanEditor({
                   <div className="flex items-start gap-1">
                     <button
                       type="button"
-                      className={cn('min-h-11 min-w-0 flex-1 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-[0.99]', FOCUS_RING)}
+                      className={cn('min-h-12 min-w-0 flex-1 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-[0.99]', FOCUS_RING)}
                       onClick={() => {
                         if (isDayLocked(d.dayNumber)) {
                           showToast(pl.customEditBlockedActiveDay, 'error')
@@ -582,7 +591,7 @@ export function CustomPlanEditor({
                       type="button"
                       size="sm"
                       variant="ghost"
-                      className="min-h-11 min-w-11 shrink-0"
+                      className="min-h-12 min-w-12 shrink-0"
                       aria-label={pl.planExerciseActions}
                       aria-expanded={expandedDay === i}
                       onClick={() => setExpandedDay(expandedDay === i ? null : i)}
@@ -971,7 +980,7 @@ export function CustomPlanEditor({
                     <div className="flex items-start gap-1">
                       <button
                         type="button"
-                        className={cn('min-h-11 min-w-0 flex-1 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-[0.99]', FOCUS_RING)}
+                        className={cn('min-h-12 min-w-0 flex-1 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-[0.99]', FOCUS_RING)}
                         onClick={() => {
                           if (!guardDayEdit(view.dayIndex)) return
                           setView({
@@ -1007,7 +1016,7 @@ export function CustomPlanEditor({
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="min-h-11 min-w-11 shrink-0"
+                        className="min-h-12 min-w-12 shrink-0"
                         aria-label={pl.planExerciseActions}
                         aria-expanded={expandedExercise === i}
                         disabled={isDayLocked(day.dayNumber)}
@@ -1244,7 +1253,7 @@ export function CustomPlanEditor({
                 setPickSheet({ dayIndex: view.dayIndex })
               }}
               className={cn(
-                'flex min-h-11 w-full items-center justify-center gap-1.5 rounded-[var(--sr-radius-md)] border border-dashed border-[var(--sr-border-subtle)] text-sm font-medium text-[var(--sr-text-secondary)] transition-colors hover:border-[var(--sr-brand-primary)] hover:text-[var(--sr-brand-primary)] active:scale-[0.99]',
+                'flex min-h-12 w-full items-center justify-center gap-1.5 rounded-[var(--sr-radius-md)] border border-dashed border-[var(--sr-border-subtle)] text-sm font-medium text-[var(--sr-text-secondary)] transition-colors hover:border-[var(--sr-brand-primary)] hover:text-[var(--sr-brand-primary)] active:scale-[0.99]',
                 FOCUS_RING,
                 isDayLocked(day.dayNumber) && 'opacity-40 pointer-events-none',
               )}

@@ -143,7 +143,6 @@ export function RepCounter({
         className={cn(
           'w-auto min-w-[4.5rem] max-w-[9rem] border-0 bg-transparent px-1 py-0 text-center sr-text-display leading-none shadow-none',
           pulseFlash && 'animate-pulse-success',
-          isExact && actual !== targetReps && actual > 0 && 'text-[var(--sr-warning)]',
         )}
       />
       {lastActual !== undefined && (
@@ -469,7 +468,7 @@ export function RestTimerExpanded({
       <button
         type="button"
         aria-label={pl.collapseTimer}
-        className="absolute right-4 top-4 flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95"
+        className="absolute right-4 top-4 flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95"
         onClick={onCollapse}
       >
         <ChevronDown size={24} aria-hidden />
@@ -477,6 +476,12 @@ export function RestTimerExpanded({
       <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
         {isReady ? pl.restReady : pl.restLabel}
       </p>
+      {/* Screen-reader announcement when rest ends — polite to avoid interrupting other speech. */}
+      {isReady && nextLabel && (
+        <p className="sr-only" aria-live="polite" aria-atomic="true">
+          {pl.restReady}. {nextLabel}
+        </p>
+      )}
       {setLabel && (
         <p className="mb-2 text-xs font-medium text-[var(--sr-text-muted)]">{setLabel}</p>
       )}
@@ -504,6 +509,11 @@ export function RestTimerExpanded({
       {nextLabel ? (
         <p className="mt-4 px-4 text-center text-sm text-[var(--sr-text-secondary)]">{nextLabel}</p>
       ) : null}
+      {isReady && (
+        <Button size="touch" className="mt-5" onClick={onSkip} aria-label={pl.restStartSet}>
+          {pl.restStartSet}
+        </Button>
+      )}
       {nextExercise ? (
         <div className="mt-2 w-44">
           <ExerciseDemo exercise={nextExercise} compact showControls={false} />
@@ -521,9 +531,9 @@ export function RestTimerExpanded({
         </div>
       ) : null}
       <div className="mt-6 flex flex-wrap justify-center gap-3 px-4">
-        <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd15}>{pl.add15s}</Button>
-        <Button variant="secondary" size="sm" className="min-h-11" onClick={onAdd30}>{pl.add30s}</Button>
-        <Button variant="ghost" size="sm" className="min-h-11" onClick={onSkip}>{pl.skipRest}</Button>
+        <Button variant="secondary" size="sm" className="min-h-12" onClick={onAdd15}>{pl.add15s}</Button>
+        <Button variant="secondary" size="sm" className="min-h-12" onClick={onAdd30}>{pl.add30s}</Button>
+        {!isReady && <Button variant="ghost" size="sm" className="min-h-12" onClick={onSkip}>{pl.skipRest}</Button>}
       </div>
       {onSetRest && (
         <div className="mt-4 flex flex-col items-center gap-1.5 px-4">

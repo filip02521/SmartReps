@@ -142,7 +142,7 @@ export function OtpInput({
           onKeyDown={(e) => handleKeyDown(idx, e)}
           onPaste={(e) => handlePaste(idx, e)}
           onFocus={(e) => e.target.select()}
-          aria-label={pl.loginOtpAriaDigit(idx + 1)}
+          aria-label={pl.loginOtpAriaDigitWithValue(idx + 1, digit.trim())}
           className={cn(
             'h-14 w-full min-w-0 rounded-[var(--sr-radius-md)] border bg-[var(--sr-bg-surface)] text-center text-2xl font-semibold tabular-nums text-[var(--sr-text-primary)] transition-colors',
             error

@@ -67,7 +67,7 @@ export function SwitchRow({
     <label
       htmlFor={id}
       className={cn(
-        'flex min-h-11 cursor-pointer items-center justify-between gap-3 py-1',
+        'flex min-h-12 cursor-pointer items-center justify-between gap-3 py-1',
         disabled && 'cursor-not-allowed opacity-50',
         className,
       )}

@@ -236,7 +236,7 @@ export function WeeklyReportCard({
             showToast(pl.coachPostWorkoutDismissed, 'info')
             onDismissed?.()
           }}
-          className="shrink-0 rounded-[var(--sr-radius-sm)] p-1 text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
+          className="shrink-0 flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
         >
           <X size={16} aria-hidden />
         </button>

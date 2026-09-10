@@ -397,11 +397,23 @@ export default function WorkoutPage() {
       },
       onComplete: () => {
         onRestComplete({ sound: timerSound, vibration: timerVibration })
-        useWorkoutStore.getState().setRestTimer(skipRest())
+        // Show "Gotowe!" state with a "Rozpocznij serię" CTA instead of
+        // instantly collapsing — gives the user a clear next-step prompt.
+        const current = useWorkoutStore.getState().restTimer
+        if (current) {
+          useWorkoutStore.getState().setRestTimer({ ...current, remainingSec: 0 })
+        }
         void persistState().catch((err) => trackError(err, 'workout.restComplete'))
         checklistRef.current
           ?.querySelector('[data-active-set="true"]')
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        // Auto-collapse after 1.5s so the user isn't trapped on the ready screen.
+        window.setTimeout(() => {
+          const still = useWorkoutStore.getState().restTimer
+          if (still && still.remainingSec <= 0 && still.mode !== 'idle') {
+            useWorkoutStore.getState().setRestTimer(skipRest())
+          }
+        }, 1500)
       },
     }, { sound: timerSound, vibration: timerVibration }))
     return () => stopRestTimerWorker()
@@ -571,29 +583,29 @@ export default function WorkoutPage() {
       window.setTimeout(() => setPulseFlash(false), 400)
       const nextSetIndex = workout.currentSetIndex + 1
       const allResults = [...workout.setResults, result]
-      workout.completeSet(result)
       setFailedIndex(undefined)
 
-      const afterSet = useWorkoutStore.getState()
-      let persistOk = true
+      // Persist BEFORE advancing the store. If persist fails, stay on the
+      // current set so the user can retry "Zrobione" without losing the result
+      // or landing on the next set with an un-saved previous one.
       try {
         await ensureWorkoutSessionPersisted(sessionMeta, {
-          currentSetIndex: afterSet.currentSetIndex,
-          setResults: afterSet.setResults,
-          restTimerJson: afterSet.restTimer ? JSON.stringify(afterSet.restTimer) : null,
-          failedRetryUsed: afterSet.failedRetryUsed,
+          currentSetIndex: nextSetIndex,
+          setResults: allResults,
+          restTimerJson: null,
+          failedRetryUsed: workout.failedRetryUsed,
         })
       } catch (err) {
         trackError(err, 'workout.persistSet')
-        persistOk = false
+        setSaveError(pl.errorSaveSet)
+        finishingRef.current = false
+        return
       }
 
+      // Persist succeeded — safe to advance the store.
+      workout.completeSet(result)
+
       if (nextSetIndex >= day.sets.length) {
-        if (!persistOk) {
-          setSaveError(pl.errorSaveSet)
-          finishingRef.current = false
-          return
-        }
         await finalizeSuccessfulDay(sessionMeta, allResults)
         workout.reset()
         navigate(`/workout/${program}/summary?session=${sessionMeta.id}`, { replace: true })
@@ -604,13 +616,11 @@ export default function WorkoutPage() {
       const restSec = day.restBetweenSetsSec > 0 ? day.restBetweenSetsSec : 60
       workout.setRestTimer(createRestTimer(restSec, 'expanded'))
       setActual(getTargetReps(day.sets[nextSetIndex]))
-      if (persistOk) {
-        try {
-          await persistState()
-        } catch (err) {
-          trackError(err, 'workout.persistState')
-          persistOk = false
-        }
+      // Best-effort persist of the rest timer state (non-critical — timer is ephemeral).
+      try {
+        await persistState()
+      } catch (err) {
+        trackError(err, 'workout.persistState')
       }
       await loadPreviousActual(nextSetIndex, progress.cycleAttempt, progress.currentDay)
       // Smart rest suggestion — compare next set target with most recent session actual
@@ -622,7 +632,6 @@ export default function WorkoutPage() {
         ? await hasAnyCompletedSessions(program, sessionMeta?.id)
         : true
       setCoachSuggestion(getSmartRestSuggestion(prevActual, getTargetReps(day.sets[nextSetIndex]), 'reps', hasHistory))
-      if (!persistOk) setSaveError(pl.errorSaveSet)
       finishingRef.current = false
     } catch (err) {
       trackError(err, 'workout.handleDone')
@@ -874,7 +883,7 @@ export default function WorkoutPage() {
       onClosePlan={() => setShowPlanSheet(false)}
       onCloseMenu={() => setShowMenu(false)}
       saveError={saveError}
-      onDismissSaveError={() => setSaveError(null)}
+      onRetrySave={() => void handleDone()}
     />
   )
 }

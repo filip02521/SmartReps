@@ -735,7 +735,7 @@ export default function CustomSessionSummary() {
           {/* Selective update checkboxes */}
           <div className="mt-4 flex flex-col gap-3">
             {hasValueChanges && (
-              <label className="flex min-h-11 cursor-pointer items-start gap-3">
+              <label className="flex min-h-12 cursor-pointer items-start gap-3">
                 <input
                   type="checkbox"
                   checked={applyValues}
@@ -753,7 +753,7 @@ export default function CustomSessionSummary() {
               </label>
             )}
             {hasExerciseChanges && (
-              <label className="flex min-h-11 cursor-pointer items-start gap-3">
+              <label className="flex min-h-12 cursor-pointer items-start gap-3">
                 <input
                   type="checkbox"
                   checked={applyExercises}

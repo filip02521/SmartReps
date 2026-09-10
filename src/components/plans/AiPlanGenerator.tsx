@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
@@ -67,6 +68,7 @@ export function AiPlanGenerator({
   onGenerated: () => void
 }) {
   const { settings } = useAppStore()
+  const navigate = useNavigate()
   const [step, setStep] = useState<Step>('form')
   const [error, setError] = useState('')
   const [result, setResult] = useState<PlanGenerationResult | null>(null)
@@ -234,10 +236,15 @@ export function AiPlanGenerator({
     setImporting(true)
     void (async () => {
       try {
-        await commitGeneratedPlan(result)
+        const savedPlan = await commitGeneratedPlan(result)
         // Clear draft — plan was imported, no longer needed
         void db.aiPlanDrafts.delete(PLAN_DRAFT_ID).catch(() => {})
-        showToast(pl.aiImported, 'success')
+        showToast(pl.aiImported, 'success', {
+          action: {
+            label: pl.planTrain,
+            onClick: () => navigate(`/workout/custom/${savedPlan.id}`),
+          },
+        })
         onGenerated()
         handleClose()
       } catch {

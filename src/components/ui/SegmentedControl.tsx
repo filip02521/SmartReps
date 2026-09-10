@@ -10,7 +10,7 @@ export function SegmentedControl<T extends string>({
   size = 'default',
   /** Equal-width segments — best for 2–3 primary choices on narrow screens. */
   stretch = false,
-  /** Accessible name for the tablist. */
+  /** Accessible name for the radiogroup. */
   'aria-label': ariaLabel,
 }: {
   options: { value: T; label: string }[]
@@ -22,6 +22,9 @@ export function SegmentedControl<T extends string>({
   stretch?: boolean
   'aria-label'?: string
 }) {
+  // Use radiogroup semantics — these are mutually exclusive choices (filters,
+  // language selectors), not tab panels. Avoids implying tablist/tabpanel
+  // relationships that don't exist here.
   return (
     <div
       className={cn(
@@ -30,33 +33,36 @@ export function SegmentedControl<T extends string>({
         disabled && 'pointer-events-none opacity-60',
         className,
       )}
-      role="tablist"
+      role="radiogroup"
       aria-label={ariaLabel}
       aria-disabled={disabled || undefined}
     >
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          role="tab"
-          aria-selected={value === opt.value}
-          disabled={disabled}
-          className={cn(
-            'rounded-[var(--sr-radius-full)] font-medium transition-all duration-150 active:scale-[0.97]',
-            FOCUS_RING,
-            stretch && 'min-w-0 flex-1',
-            size === 'compact'
-              ? 'min-h-11 px-2.5 py-2 text-xs'
-              : 'min-h-11 px-4 py-2.5 text-sm',
-            value === opt.value
-              ? 'bg-[var(--sr-brand-primary-muted)] font-semibold text-[var(--sr-brand-primary)]'
-              : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)] hover:text-[var(--sr-text-secondary)]',
-          )}
-          onClick={() => onChange(opt.value)}
-        >
-          <span className={cn(stretch && 'block truncate')}>{opt.label}</span>
-        </button>
-      ))}
+      {options.map((opt) => {
+        const selected = value === opt.value
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            disabled={disabled}
+            className={cn(
+              'rounded-[var(--sr-radius-full)] font-medium transition-all duration-150 active:scale-[0.97]',
+              FOCUS_RING,
+              stretch && 'min-w-0 flex-1',
+              size === 'compact'
+                ? 'min-h-12 px-2.5 py-2 text-xs'
+                : 'min-h-12 px-4 py-2.5 text-sm',
+              selected
+                ? 'bg-[var(--sr-brand-primary-muted)] font-semibold text-[var(--sr-brand-primary)]'
+                : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)] hover:text-[var(--sr-text-secondary)]',
+            )}
+            onClick={() => onChange(opt.value)}
+          >
+            <span className={cn(stretch && 'block truncate')}>{opt.label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }

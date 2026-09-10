@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { trackError } from '@/lib/analytics'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { PageLoader } from '@/components/ux/Feedback'
@@ -734,12 +735,24 @@ export default function CustomWorkoutPage() {
       },
       onComplete: () => {
         onRestComplete({ sound: timerSound, vibration: timerVibration })
-        useCustomWorkoutStore.getState().setRestTimer(skipRest())
+        // Show "Gotowe!" state with a "Rozpocznij serię" CTA instead of
+        // instantly collapsing — gives the user a clear next-step prompt.
+        const current = useCustomWorkoutStore.getState().restTimer
+        if (current) {
+          useCustomWorkoutStore.getState().setRestTimer({ ...current, remainingSec: 0 })
+        }
         setCoachSuggestion(null)
-        void persistState()
+        void persistState().catch((err) => trackError(err, 'customWorkout.restComplete'))
         checklistRef.current
           ?.querySelector('[data-active-set="true"]')
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        // Auto-collapse after 1.5s so the user isn't trapped on the ready screen.
+        window.setTimeout(() => {
+          const still = useCustomWorkoutStore.getState().restTimer
+          if (still && still.remainingSec <= 0 && still.mode !== 'idle') {
+            useCustomWorkoutStore.getState().setRestTimer(skipRest())
+          }
+        }, 1500)
       },
     }, { sound: timerSound, vibration: timerVibration }))
     return () => stopRestTimerWorker()
@@ -1885,7 +1898,7 @@ export default function CustomWorkoutPage() {
         onSwapExercise={() => setSwapOpen(true)}
         onAddExercise={() => setAddExerciseOpen(true)}
         saveError={saveError}
-        onDismissSaveError={() => setSaveError(null)}
+        onRetrySave={() => void handleDone()}
       />
       <ExerciseDetailSheet
         open={detailExercise != null}

@@ -81,8 +81,16 @@ export function AccountHero({
 
   if (!snapshot) {
     return (
-      <div className="rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3.5">
-        <NestedStat value={pl.loading} />
+      <div
+        className="rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3.5"
+        aria-busy
+        aria-label={pl.loading}
+      >
+        <div className="flex flex-col gap-2">
+          <div className="h-5 w-24 rounded-full sr-skeleton-shimmer" />
+          <div className="h-4 w-40 rounded-full sr-skeleton-shimmer" />
+          <div className="h-4 w-32 rounded-full sr-skeleton-shimmer" />
+        </div>
       </div>
     )
   }

@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes, ReactNode } from 'react'
+import { useId } from 'react'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 
@@ -8,12 +9,19 @@ export function TextField({
   hint,
   className,
   inputClassName,
+  hintClassName,
+  'aria-describedby': ariaDescribedBy,
   ...props
 }: InputHTMLAttributes<HTMLInputElement> & {
   label?: ReactNode
   hint?: ReactNode
   inputClassName?: string
+  hintClassName?: string
 }) {
+  // Stable hint id so the input can be associated with its hint/error text.
+  const autoHintId = useId()
+  const hintId = hint != null ? `${id ?? autoHintId}-hint` : undefined
+  const describedBy = [ariaDescribedBy, hintId].filter(Boolean).join(' ') || undefined
   return (
     <div className={className}>
       {label != null && (
@@ -26,6 +34,7 @@ export function TextField({
       )}
       <input
         id={id}
+        aria-describedby={describedBy}
         className={cn(
           'mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-base text-[var(--sr-text-primary)]',
           FOCUS_RING,
@@ -34,7 +43,7 @@ export function TextField({
         {...props}
       />
       {hint != null && (
-        <p className="mt-2 text-xs text-[var(--sr-text-muted)]">{hint}</p>
+        <p id={hintId} className={cn('mt-2 text-xs text-[var(--sr-text-muted)]', hintClassName)}>{hint}</p>
       )}
     </div>
   )
@@ -61,7 +70,7 @@ export function CheckboxField({
     <label
       htmlFor={id}
       className={cn(
-        'flex min-h-11 cursor-pointer items-start gap-3',
+        'flex min-h-12 cursor-pointer items-start gap-3',
         disabled && 'cursor-not-allowed opacity-50',
         className,
       )}

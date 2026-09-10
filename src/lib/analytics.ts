@@ -62,6 +62,11 @@ export const AnalyticsEvents = {
   // PWA install
   standaloneTrue: 'standalone_true',
   a2hsPrompt: 'a2hs_prompt',
+  // Weekly challenge
+  challengeView: 'challenge_view',
+  challengeSubmit: 'challenge_submit',
+  challengeSubmitError: 'challenge_submit_error',
+  challengeLeaderboardToggle: 'challenge_leaderboard_toggle',
 } as const
 
 export type AnalyticsEventName =

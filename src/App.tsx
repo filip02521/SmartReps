@@ -61,8 +61,10 @@ function EagerPage({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  // Re-render entire tree when language changes — proxy-based i18n needs this
-  // to refresh all `pl.foo` references in 123+ files without refactoring them.
+  // Re-render the route tree when language changes — proxy-based i18n needs
+  // this to refresh all `pl.foo` references. The key is on a wrapper INSIDE
+  // BrowserRouter (not on the Router itself) so global chrome (ToastHost,
+  // AuthBridge, OfflineBar, …) stays mounted and keeps its state.
   const language = useAppStore((s) => s.settings.language ?? 'pl')
 
   // Keep <html lang> in sync with active language for accessibility + SEO.
@@ -71,14 +73,15 @@ export default function App() {
   }, [language])
 
   return (
-    <BrowserRouter key={language}>
+    <BrowserRouter>
       <ToastHost />
       <AuthBridge />
       <AccountSwitchGate />
       <AchievementHost />
       <ResumeWorkoutPrompt />
       <GlobalOfflineBar />
-      <Routes>
+      <div key={language}>
+        <Routes>
         <Route path="/privacy" element={<EagerPage><PrivacyPage /></EagerPage>} />
         <Route path="/terms" element={<EagerPage><TermsPage /></EagerPage>} />
         <Route
@@ -141,6 +144,7 @@ export default function App() {
         <Route path="/demo-preview" element={<EagerPage><DemoPreview /></EagerPage>} />
         <Route path="*" element={<EagerPage><NotFound /></EagerPage>} />
       </Routes>
+      </div>
     </BrowserRouter>
   )
 }

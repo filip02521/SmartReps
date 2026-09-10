@@ -129,7 +129,7 @@ export function BodyWeightSection() {
             <p className="sr-text-body-sm text-[var(--sr-text-muted)]">{pl.bodyWeightEmpty}</p>
           )}
         </div>
-        <Button size="sm" className="min-h-11 shrink-0" onClick={() => setShowAdd(true)}>
+        <Button size="sm" className="min-h-12 shrink-0" onClick={() => setShowAdd(true)}>
           <Plus size={16} aria-hidden />
           {pl.bodyWeightAdd}
         </Button>
@@ -188,7 +188,7 @@ export function BodyWeightSection() {
               )}
               <button
                 type="button"
-                className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-error)] active:scale-95 ${FOCUS_RING}`}
+                className={`flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-error)] active:scale-95 ${FOCUS_RING}`}
                 onClick={() => void handleDelete(e.id)}
                 aria-label={pl.bodyWeightDelete}
               >

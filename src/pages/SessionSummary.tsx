@@ -38,6 +38,7 @@ import { StreakRecapCard } from '@/components/workout/StreakRecapCard'
 import { detectPersonalRecords, type PersonalRecord } from '@/lib/pr-detector'
 import { initCelebrationAudio } from '@/lib/celebration-feedback'
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
+import { ChallengeProgressRecap } from '@/components/workout/ChallengeProgressRecap'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
 import {
@@ -495,6 +496,9 @@ export default function SessionSummary() {
           previousSessions={previousSessionsForStreak}
         />
       )}
+
+      {/* Challenge progress recap — show how this workout contributed */}
+      {!failed && <ChallengeProgressRecap program={program} session={current ?? null} />}
 
       {/* Achievements — celebration moment, keep near result card */}
       {newAchievements.length > 0 && (

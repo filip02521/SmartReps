@@ -299,7 +299,7 @@ export function HistoryPanel({
                     <button
                       type="button"
                       className={cn(
-                        'flex w-full min-h-11 items-center gap-3 py-3 text-left',
+                        'flex w-full min-h-12 items-center gap-3 py-3 text-left',
                         'rounded-[var(--sr-radius-md)] transition-colors active:scale-[0.99]',
                         'hover:bg-[var(--sr-bg-surface)] active:bg-[var(--sr-bg-surface)]',
                         FOCUS_RING,

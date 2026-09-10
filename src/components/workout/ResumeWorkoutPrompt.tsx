@@ -94,7 +94,7 @@ export function ResumeWorkoutPrompt() {
   const body =
     target.kind === 'builtin'
       ? pl.resumePromptBodyBuiltin(target.day, target.set, target.total)
-      : pl.resumePromptBodyCustom(target.planName, target.day)
+      : pl.resumePromptBodyCustom(target.planName, target.day, target.set, target.total)
 
   const onResume = () => {
     if (target.kind === 'builtin') {
@@ -147,7 +147,7 @@ export function ResumeWorkoutPrompt() {
             type="button"
             onClick={onDismiss}
             aria-label={pl.resumePromptSkip}
-            className="shrink-0 rounded-full p-1.5 text-[var(--sr-text-muted)] hover:bg-[var(--sr-bg-surface)]"
+            className="flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full p-1.5 text-[var(--sr-text-muted)] hover:bg-[var(--sr-bg-surface)]"
           >
             <X size={20} />
           </button>
@@ -156,14 +156,14 @@ export function ResumeWorkoutPrompt() {
           <button
             type="button"
             onClick={onResume}
-            className="flex-1 rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)] px-4 py-3 text-center text-sm font-semibold text-white active:scale-[0.99]"
+            className="flex min-h-12 flex-1 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)] px-4 py-3 text-center text-sm font-semibold text-white active:scale-[0.99]"
           >
             {pl.resumePromptResume}
           </button>
           <button
             type="button"
             onClick={onDismiss}
-            className="flex-1 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-center text-sm font-semibold text-[var(--sr-text-secondary)] active:scale-[0.99]"
+            className="flex min-h-12 flex-1 items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-center text-sm font-semibold text-[var(--sr-text-secondary)] active:scale-[0.99]"
           >
             {pl.resumePromptSkip}
           </button>

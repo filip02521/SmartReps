@@ -16,6 +16,9 @@ import { isWorkoutAvailable, daysUntilWorkout } from '@/lib/progress-engine'
 import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import type { Program } from '@/data/plans/types'
 import { useAchievementUiStore } from '@/stores/achievement-ui-store'
+import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
+import { resolvePostAuthNavigation } from '@/lib/post-auth-navigation'
+import { consumeAuthReturnTo } from '@/lib/auth-sync'
 
 export default function ProgramStart() {
   const { program: programParam } = useParams<{ program: Program }>()
@@ -161,7 +164,22 @@ export default function ProgramStart() {
             isRetest,
             isLevelChange,
           })
-          navigate('/setup/login', { replace: true })
+          // Skip login for already-authenticated users — go straight to
+          // post-auth navigation (workout when ready, dashboard otherwise).
+          void (async () => {
+            try {
+              if (isSupabaseConfigured) {
+                const { data } = await supabase.auth.getSession()
+                if (data.session) {
+                  await resolvePostAuthNavigation(navigate, consumeAuthReturnTo())
+                  return
+                }
+              }
+            } catch {
+              // Fall through to login on auth check failure.
+            }
+            navigate('/setup/login', { replace: true })
+          })()
         }}
       >
         {inRest ? pl.continueToLogin : pl.startDay1}

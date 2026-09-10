@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { FeedbackBanner } from '@/components/ux/Feedback'
@@ -48,6 +49,7 @@ const STATUS_LABELS = {
 
 export function AiWorkoutAnalysis() {
   const { settings } = useAppStore()
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<AnalysisResult | null>(null)
@@ -208,9 +210,20 @@ export function AiWorkoutAnalysis() {
 
       {/* Empty state — no workouts to analyze */}
       {!result && !loading && !error && hasSessions === false && (
-        <AiCoachMessage tone="default" className="mt-3">
-          {pl.aiAnalysisEmpty}
-        </AiCoachMessage>
+        <>
+          <AiCoachMessage tone="default" className="mt-3">
+            {pl.aiAnalysisEmpty}
+          </AiCoachMessage>
+          <Button
+            type="button"
+            variant="secondary"
+            fullWidth
+            onClick={() => navigate('/')}
+            className="mt-3"
+          >
+            {pl.aiAnalysisEmptyCta}
+          </Button>
+        </>
       )}
 
       {/* Error */}

@@ -58,7 +58,7 @@ export function ExerciseLibraryRow({
       <button
         type="button"
         className={cn(
-          'flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-[0.99]',
+          'flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-[var(--sr-radius-sm)] text-left transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-[0.99]',
           FOCUS_RING,
         )}
         onClick={() => {

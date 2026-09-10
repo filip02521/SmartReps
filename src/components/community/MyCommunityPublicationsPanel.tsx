@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
-import { EmptyState, ErrorBanner, FeedbackBanner, SkeletonCard } from '@/components/ux/Feedback'
+import { EmptyState, FeedbackBanner, SkeletonCard } from '@/components/ux/Feedback'
 import { CommunityPlanCard } from '@/components/community/CommunityPlanCard'
 import { CommunityImpactStrip } from '@/components/achievements/CommunityImpactStrip'
 import { pl } from '@/i18n/pl'
@@ -90,6 +90,9 @@ export function MyCommunityPublicationsPanel() {
   if (!online && rows.length === 0) {
     return <EmptyState title={pl.communityOffline} />
   }
+  if (error && rows.length === 0) {
+    return <EmptyState title={pl.communityOffline} />
+  }
 
   return (
     <div className="mt-4 space-y-3">
@@ -114,7 +117,6 @@ export function MyCommunityPublicationsPanel() {
         <FeedbackBanner variant="info" message={pl.communityCachedOffline} />
       )}
 
-      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
       {loading && (
         <div className="flex flex-col gap-3">
           <SkeletonCard className="min-h-[5rem]" />

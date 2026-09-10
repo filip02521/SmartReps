@@ -232,7 +232,9 @@ export default function MaxTest() {
       )}
 
       <div className="mt-8 flex flex-col items-center">
-        <p className="sr-text-display tabular-nums">{reps}</p>
+        <p className="sr-text-display tabular-nums" aria-live="polite" aria-atomic="true">
+          {reps}
+        </p>
         <p className="text-sm text-[var(--sr-text-muted)]">
           {program === 'pushups' ? pl.pushups : program === 'pullups' ? pl.pullups : pl.squats}
         </p>

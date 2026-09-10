@@ -9,6 +9,7 @@ import { StepIndicator, PageLoader } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import type { Lang } from '@/i18n'
 import { useAppStore } from '@/stores/app-store'
+import { useOnboardingWizardStore } from '@/stores/onboarding-wizard-store'
 import { useSeo } from '@/hooks/useSeo'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
@@ -25,15 +26,22 @@ const SHELL =
   'mx-auto flex min-h-dvh max-w-lg flex-col px-5 pt-5 pb-7 safe-top safe-bottom'
 
 export default function Onboarding() {
-  const [stepId, setStepId] = useState<WizardStep>('welcome')
-  const [wantStrong, setWantStrong] = useState(true)
-  const [wantCustom, setWantCustom] = useState(false)
-  const [activeSlide, setActiveSlide] = useState(0)
-  const [hasSwiped, setHasSwiped] = useState(false)
+  const stepId = useOnboardingWizardStore((s) => s.stepId)
+  const setStepId = useOnboardingWizardStore((s) => s.setStepId)
+  const wantStrong = useOnboardingWizardStore((s) => s.wantStrong)
+  const setWantStrong = useOnboardingWizardStore((s) => s.setWantStrong)
+  const wantCustom = useOnboardingWizardStore((s) => s.wantCustom)
+  const setWantCustom = useOnboardingWizardStore((s) => s.setWantCustom)
+  const activeSlide = useOnboardingWizardStore((s) => s.activeSlide)
+  const setActiveSlide = useOnboardingWizardStore((s) => s.setActiveSlide)
+  const hasSwiped = useOnboardingWizardStore((s) => s.hasSwiped)
+  const setHasSwiped = useOnboardingWizardStore((s) => s.setHasSwiped)
+  const programs = useOnboardingWizardStore((s) => s.programs)
+  const setPrograms = useOnboardingWizardStore((s) => s.setPrograms)
+  const resetWizard = useOnboardingWizardStore((s) => s.reset)
   const carouselRef = useRef<HTMLDivElement>(null)
   const onboardingStartedTracked = useRef(false)
   useSeo({ title: pl.seoOnboardingTitle, description: pl.seoOnboardingDescription, path: '/setup/onboarding' })
-  const [programs, setPrograms] = useState<Program[]>(['pushups'])
   const setSettings = useAppStore((s) => s.setSettings)
   const setSetupQueue = useAppStore((s) => s.setSetupQueue)
   const onboardingComplete = useAppStore((s) => s.settings.onboardingComplete)
@@ -55,8 +63,9 @@ export default function Onboarding() {
     const slideW = el.clientWidth
     if (slideW === 0) return
     const next = Math.round(el.scrollLeft / slideW)
-    setActiveSlide((prev) => (prev !== next ? next : prev))
+    setActiveSlide(next)
     if (next > 0) setHasSwiped(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Zustand setters are stable
   }, [])
 
   const handleCarouselKey = useCallback((e: ReactKeyboardEvent) => {
@@ -133,18 +142,18 @@ export default function Onboarding() {
     if (!wantStrong && stepId === 'programs') {
       setStepId('next')
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Zustand setter is stable
   }, [wantStrong, stepId])
 
   const toggleProgram = (p: Program) => {
-    setPrograms((prev) => {
-      const next = prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
-      track(AnalyticsEvents.programSelected, {
-        program: p,
-        action: prev.includes(p) ? 'deselected' : 'selected',
-        totalSelected: next.length,
-      })
-      return next
+    const prev = programs
+    const next = prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
+    track(AnalyticsEvents.programSelected, {
+      program: p,
+      action: prev.includes(p) ? 'deselected' : 'selected',
+      totalSelected: next.length,
     })
+    setPrograms(next)
   }
 
   const goNext = () => {
@@ -173,6 +182,7 @@ export default function Onboarding() {
       : []
     setSettings({ onboardingComplete: true, enabledPrograms: selected })
     setSetupQueue([])
+    resetWizard()
     track(AnalyticsEvents.onboardingComplete, {
       strong: wantStrong,
       custom: wantCustom,
@@ -341,7 +351,7 @@ export default function Onboarding() {
               body={pl.onboardingInterestStrongBody}
               accent="var(--sr-brand-primary)"
               accentMuted="var(--sr-brand-primary-muted)"
-              onToggle={() => setWantStrong((v) => !v)}
+              onToggle={() => setWantStrong(!wantStrong)}
             />
             <InterestCard
               selected={wantCustom}
@@ -350,7 +360,7 @@ export default function Onboarding() {
               body={pl.onboardingInterestCustomBody}
               accent="var(--sr-brand-secondary)"
               accentMuted="var(--sr-brand-secondary-muted)"
-              onToggle={() => setWantCustom((v) => !v)}
+              onToggle={() => setWantCustom(!wantCustom)}
             />
           </div>
         </StepLayout>
@@ -374,6 +384,11 @@ export default function Onboarding() {
           <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)] sr-onboard-step sr-onboard-stagger-1">
             {pl.onboardingProgramsHint}
           </p>
+          {!programsOk && (
+            <p className="mt-2 sr-text-body-sm text-[var(--sr-text-muted)] sr-onboard-step sr-onboard-stagger-1">
+              {pl.onboardingPickProgramHint}
+            </p>
+          )}
           <div className="mt-6 flex flex-col gap-3 sr-onboard-step sr-onboard-stagger-2">
             {(['pushups', 'pullups', 'squats'] as Program[]).map((p) => {
               const selected = programs.includes(p)

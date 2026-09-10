@@ -750,7 +750,22 @@ function CustomDayExerciseRail({
                   {name}
                 </span>
                 <span aria-hidden />
-                <p className="truncate text-xs tabular-nums text-[var(--sr-text-muted)]">{setsLabel}</p>
+                <p
+                  className={cn(
+                    'truncate text-xs tabular-nums',
+                    done
+                      ? 'font-semibold text-[var(--sr-success)]'
+                      : active
+                        ? 'font-semibold text-[var(--sr-brand-primary)]'
+                        : 'text-[var(--sr-text-muted)]',
+                  )}
+                >
+                  {done
+                    ? pl.customWorkoutExerciseCompleted
+                    : active
+                      ? pl.customWorkoutExerciseNow
+                      : setsLabel}
+                </p>
               </div>
             </Tag>
           )
@@ -1171,7 +1186,8 @@ export type ActiveCustomWorkoutScreenProps = {
   failedRetryVisible: boolean
   pulseFlash?: boolean
   saveError?: string | null
-  onDismissSaveError?: () => void
+  /** Re-attempt the failed set persist (taps "Zrobione" again). */
+  onRetrySave?: () => void
   nextLabel: string
   checklistRef?: RefObject<HTMLDivElement | null>
   sessionHasProgress?: boolean
@@ -1268,7 +1284,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     failedRetryVisible,
     pulseFlash,
     saveError,
-    onDismissSaveError,
+    onRetrySave,
     nextLabel,
     checklistRef,
     sessionHasProgress = false,
@@ -1383,7 +1399,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             type="button"
             onClick={onBack}
             className={cn(
-              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              'flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
               FOCUS_RING,
             )}
             aria-label={pl.back}
@@ -1395,7 +1411,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
               <button
                 type="button"
                 onClick={onExerciseStats}
-                className="mx-auto flex max-w-full min-h-11 items-center justify-center gap-1.5 rounded-[var(--sr-radius-sm)] px-2 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
+                className="mx-auto flex max-w-full min-h-12 items-center justify-center gap-1.5 rounded-[var(--sr-radius-sm)] px-2 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
                 aria-label={pl.exerciseDetailOpenFor(exerciseDef.name)}
               >
                 <span className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
@@ -1426,7 +1442,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             aria-expanded={showMenu}
             onClick={onToggleMenu}
             className={cn(
-              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              'flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
               FOCUS_RING,
             )}
           >
@@ -1454,9 +1470,9 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
         <ExerciseDemo exercise={exerciseDef} collapsible hideNameWhenCollapsed showControls={false} />
       </div>
 
-      {saveError && onDismissSaveError && (
+      {saveError && onRetrySave && (
         <div className="mx-4 mt-3 mb-1">
-          <ErrorBanner message={saveError} onRetry={onDismissSaveError} />
+          <ErrorBanner message={saveError} onRetry={onRetrySave} />
         </div>
       )}
 
