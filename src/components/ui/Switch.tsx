@@ -24,7 +24,12 @@ export function Switch({
       aria-checked={checked}
       aria-label={ariaLabel}
       disabled={disabled}
-      onClick={() => onChange(!checked)}
+      onClick={(e) => {
+        // Stop propagation so the parent <label> doesn't fire a second
+        // synthetic click on this button — that would double-toggle the switch.
+        e.stopPropagation()
+        onChange(!checked)
+      }}
       className={cn(
         'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors',
         FOCUS_RING,
