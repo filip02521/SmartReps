@@ -383,7 +383,7 @@ export default function PlansPage() {
       <PageHeader title={pl.navPlans} subtitle={plansSubtitle(tab)} />
 
       <SegmentedControl
-        className="mb-6"
+        className="mb-3"
         size="compact"
         stretch
         aria-label={pl.plansTabAriaLabel}
@@ -399,6 +399,14 @@ export default function PlansPage() {
           { value: 'library', label: pl.plansTabLibrary },
         ]}
       />
+
+      {/* Short hint under tabs — changes per active tab */}
+      <p className="mb-4 sr-text-caption text-[var(--sr-text-muted)]">
+        {tab === 'mine' && pl.plansTabMineHint}
+        {tab === 'programs' && pl.plansTabProgramsHint}
+        {tab === 'community' && pl.plansTabCommunityHint}
+        {tab === 'library' && pl.plansTabLibraryHint}
+      </p>
 
       {tab === 'community' && (
         <div>

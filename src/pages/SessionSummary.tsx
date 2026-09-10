@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Trophy, AlertTriangle, CalendarClock, Flame, Dumbbell, BarChart3, StickyNote, Award } from 'lucide-react'
+import { Trophy, AlertTriangle, Flame, Dumbbell, BarChart3, StickyNote, Award } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { getProgramLabel } from '@/lib/plan-resolver'
 import { Button } from '@/components/ui/Button'
@@ -538,16 +538,6 @@ export default function SessionSummary() {
             ))}
           </div>
         </Card>
-      )}
-
-      {/* Rest recommendation — styled info card */}
-      {!failed && progress && progress.status !== 'test_pending' && progress.nextWorkoutAfter && (
-        <div className="mb-6 flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-4">
-          <CalendarClock size={18} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
-          <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-            {pl.nextWorkoutIn(daysLeft)}
-          </p>
-        </div>
       )}
 
       {/* Failed info card with icon */}

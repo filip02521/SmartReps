@@ -400,6 +400,12 @@ export const en: Translation = {
   loginLogoutToSwitch: 'Log out to use a different account',
   loginLogoutToSwitchHint: 'Log out first, then send a code to a different email address.',
   loginLogoutToSwitchDone: 'Logged out. You can now log in with a different account.',
+  loginBenefitsTitle: 'What do you gain by logging in?',
+  loginBenefitSync: 'Sync workouts and plans across devices',
+  loginBenefitBackup: 'Secure cloud backup',
+  loginBenefitCommunity: 'Join challenges and community',
+  loginBenefitAchievements: 'Badges and stats available everywhere',
+  loginBenefitsHint: 'Login is optional — you can skip and train locally.',
   backToOnboarding: 'Back to setup',
   accountSwitchCleared:
     'Logged in with a different account — local data on this device was cleared before syncing.',
@@ -1418,6 +1424,9 @@ export const en: Translation = {
   navProgress: 'Progress',
   navPlans: 'Plans',
   navProfile: 'Profile',
+  navBadgeUnseenAchievements: (n: number) =>
+    n === 1 ? '1 new badge' : `${n} new badges`,
+  navBadgeAria: (n: number) => `${n} new badges to view`,
 
   // Common
   loading: 'Loading\u2026',
@@ -1484,6 +1493,10 @@ export const en: Translation = {
   plansTabPrograms: 'Programs',
   plansTabMine: 'Mine',
   plansTabLibrary: 'Library',
+  plansTabProgramsHint: 'Built-in cycles: push-ups, pull-ups, squats',
+  plansTabMineHint: 'Your custom training plans',
+  plansTabLibraryHint: 'Templates and exercises for building plans',
+  plansTabCommunityHint: 'Plans from other users',
   myPlansTitle: 'My plans',
   myPlansHint: 'Build your own workout with a few exercises.',
   myPlansEmpty: 'You don\u2019t have a custom plan yet.',

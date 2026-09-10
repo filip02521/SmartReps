@@ -4,17 +4,19 @@ import { Activity, BarChart3, List, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT } from '@/i18n'
 import { useWorkoutStore } from '@/stores/workout-store'
+import { useUnseenAchievements } from '@/hooks/useUnseenAchievements'
 import { FOCUS_RING, Z_TAB_BAR } from '@/lib/ui-chrome'
 
 export function AppLayout() {
   const location = useLocation()
   const immersive = useWorkoutStore((s) => s.immersive)
   const t = useT()
+  const unseenAchievements = useUnseenAchievements()
   const tabs = [
-    { to: '/', label: t.navWorkout, icon: Activity },
-    { to: '/progress', label: t.navProgress, icon: BarChart3 },
-    { to: '/plans', label: t.navPlans, icon: List },
-    { to: '/profile', label: t.navProfile, icon: User },
+    { to: '/', label: t.navWorkout, icon: Activity, badge: 0 },
+    { to: '/progress', label: t.navProgress, icon: BarChart3, badge: unseenAchievements },
+    { to: '/plans', label: t.navPlans, icon: List, badge: 0 },
+    { to: '/profile', label: t.navProfile, icon: User, badge: 0 },
   ]
   const hideTabs =
     immersive || location.pathname.startsWith('/workout') || location.pathname.startsWith('/setup')
@@ -59,7 +61,7 @@ export function AppLayout() {
         aria-hidden={hideTabs}
       >
         <div className="mx-auto flex max-w-lg items-stretch justify-around gap-1 px-2 py-1.5">
-          {tabs.map(({ to, label, icon: Icon }) => {
+          {tabs.map(({ to, label, icon: Icon, badge }) => {
             const active = location.pathname === to
             return (
               <Link
@@ -67,6 +69,7 @@ export function AppLayout() {
                 to={to}
                 tabIndex={hideTabs ? -1 : undefined}
                 aria-current={active ? 'page' : undefined}
+                aria-label={badge > 0 && to === '/progress' ? `${label} — ${t.navBadgeAria(badge)}` : undefined}
                 onClick={() => {
                   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
                     navigator.vibrate(8)
@@ -88,12 +91,23 @@ export function AppLayout() {
                   )}
                   aria-hidden
                 />
-                <Icon
-                  size={20}
-                  strokeWidth={active ? 2.5 : 2}
-                  className="relative shrink-0"
-                  aria-hidden
-                />
+                <span className="relative">
+                  <Icon
+                    size={20}
+                    strokeWidth={active ? 2.5 : 2}
+                    className="relative shrink-0"
+                    aria-hidden
+                  />
+                  {/* Badge — unseen achievements count */}
+                  {badge > 0 && (
+                    <span
+                      className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--sr-brand-primary)] px-1 text-[9px] font-bold leading-none text-white shadow-sm"
+                      aria-hidden
+                    >
+                      {badge > 9 ? '9+' : badge}
+                    </span>
+                  )}
+                </span>
                 <span className="relative max-w-full truncate">{label}</span>
               </Link>
             )

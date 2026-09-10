@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { MailCheck, Loader2, Mail } from 'lucide-react'
+import { MailCheck, Loader2, Mail, Cloud, Users, Award, RefreshCw } from 'lucide-react'
 import { LogoFull } from '@/components/brand/Logo'
 import { Button } from '@/components/ui/Button'
 import { SetupStepper } from '@/components/setup/SetupStepper'
@@ -401,8 +401,36 @@ export default function Login() {
         </div>
       ) : (
         <>
+          {/* Benefits section — why log in? */}
+          <div className="mt-4 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-4">
+            <p className="sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
+              {pl.loginBenefitsTitle}
+            </p>
+            <ul className="mt-3 flex flex-col gap-2.5">
+              <li className="flex items-center gap-2.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
+                <RefreshCw size={16} className="shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
+                {pl.loginBenefitSync}
+              </li>
+              <li className="flex items-center gap-2.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
+                <Cloud size={16} className="shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
+                {pl.loginBenefitBackup}
+              </li>
+              <li className="flex items-center gap-2.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
+                <Users size={16} className="shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
+                {pl.loginBenefitCommunity}
+              </li>
+              <li className="flex items-center gap-2.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
+                <Award size={16} className="shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
+                {pl.loginBenefitAchievements}
+              </li>
+            </ul>
+            <p className="mt-3 sr-text-caption text-[var(--sr-text-muted)]">
+              {pl.loginBenefitsHint}
+            </p>
+          </div>
+
           {standalone && (
-            <p className="mt-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] p-3 text-sm text-[var(--sr-text-secondary)]">
+            <p className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] p-3 text-sm text-[var(--sr-text-secondary)]">
               {pl.loginPwaCodeHint}
             </p>
           )}

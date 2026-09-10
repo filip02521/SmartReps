@@ -417,6 +417,12 @@ const plDict = {
   loginLogoutToSwitch: 'Wyloguj, aby użyć innego konta',
   loginLogoutToSwitchHint: 'Najpierw się wyloguj, a potem wyślij kod na inny adres e-mail.',
   loginLogoutToSwitchDone: 'Wylogowano. Możesz zalogować się innym kontem.',
+  loginBenefitsTitle: 'Co zyskujesz logując się?',
+  loginBenefitSync: 'Synchronizacja treningów i planów między urządzeniami',
+  loginBenefitBackup: 'Bezpieczna kopia zapasowa w chmurze',
+  loginBenefitCommunity: 'Udział w wyzwaniach i społeczności',
+  loginBenefitAchievements: 'Odznaki i statystyki dostępne wszędzie',
+  loginBenefitsHint: 'Logowanie jest opcjonalne — możesz pominąć i trenować lokalnie.',
   backToOnboarding: 'Wróć do konfiguracji',
   accountSwitchCleared:
     'Zalogowano innym kontem — dane lokalne na tym urządzeniu zostały wyczyszczone przed synchronizacją.',
@@ -1443,6 +1449,9 @@ const plDict = {
   navProgress: 'Postępy',
   navPlans: 'Plany',
   navProfile: 'Profil',
+  navBadgeUnseenAchievements: (n: number) =>
+    n === 1 ? '1 nowa odznaka' : `${n} nowe odznaki`,
+  navBadgeAria: (n: number) => `${n} nowych odznak do obejrzenia`,
 
   // Common
   loading: 'Ładowanie…',
@@ -1509,6 +1518,10 @@ const plDict = {
   plansTabPrograms: 'Programy',
   plansTabMine: 'Moje',
   plansTabLibrary: 'Biblioteka',
+  plansTabProgramsHint: 'Gotowe cykle: pompki, podciąganie, przysiady',
+  plansTabMineHint: 'Twoje własne plany treningowe',
+  plansTabLibraryHint: 'Szablony i ćwiczenia do budowania planów',
+  plansTabCommunityHint: 'Plany od innych użytkowników',
   myPlansTitle: 'Moje plany',
   myPlansHint: 'Ułóż własny trening z kilkoma ćwiczeniami.',
   myPlansEmpty: 'Nie masz jeszcze własnego planu.',

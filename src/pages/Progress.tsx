@@ -388,14 +388,20 @@ export default function ProgressPage() {
         )}
 
         {tab === 'history' && (
-          <HistoryPanel
-            allSessions={allSessions}
-            customPlanNames={customPlanNames}
-            enabledPrograms={settings.enabledPrograms}
-            currentCycleId={programDataMap.values().next().value?.progress?.cycleId}
-            navigate={navigate}
-            onSessionDeleted={() => setReloadEpoch((n) => n + 1)}
-          />
+          <>
+            {/* AI analysis first — the overview teaser links here */}
+            <div className="mb-4">
+              <AiWorkoutAnalysis />
+            </div>
+            <HistoryPanel
+              allSessions={allSessions}
+              customPlanNames={customPlanNames}
+              enabledPrograms={settings.enabledPrograms}
+              currentCycleId={programDataMap.values().next().value?.progress?.cycleId}
+              navigate={navigate}
+              onSessionDeleted={() => setReloadEpoch((n) => n + 1)}
+            />
+          </>
         )}
 
         {tab === 'achievements' && (
@@ -407,12 +413,6 @@ export default function ProgressPage() {
                 void getAllUnlocks().then(setAchievementUnlocks)
               }}
             />
-          </div>
-        )}
-
-        {tab === 'history' && (
-          <div className="mt-4">
-            <AiWorkoutAnalysis />
           </div>
         )}
       </div>
