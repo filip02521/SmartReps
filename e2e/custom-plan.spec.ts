@@ -52,11 +52,11 @@ test.describe('custom plans smoke', () => {
 
   test('plans mine tab opens library and new plan editor hub', async ({ page }) => {
     await page.goto('/plans?tab=mine')
-    await expect(page.getByRole('tab', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
-    await page.getByRole('tab', { name: 'Biblioteka' }).click()
-    await expect(page.getByRole('tab', { name: 'Biblioteka', selected: true })).toBeVisible()
+    await expect(page.getByRole('radio', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
+    await page.getByRole('radio', { name: 'Biblioteka' }).click()
+    await expect(page.getByRole('radio', { name: 'Biblioteka', checked: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Dodaj ćwiczenie' }).first()).toBeVisible()
-    await page.getByRole('tab', { name: 'Moje' }).click()
+    await page.getByRole('radio', { name: 'Moje' }).click()
     await page.getByRole('button', { name: 'Nowy plan' }).first().click()
     await expect(page.getByLabel('Nazwa planu')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Dodaj dzień' })).toBeVisible()
@@ -65,7 +65,7 @@ test.describe('custom plans smoke', () => {
 
   test('create draft plan with name appears on Moje list', async ({ page }) => {
     await page.goto('/plans?tab=mine')
-    await expect(page.getByRole('tab', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('radio', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: 'Nowy plan' }).first().click()
     const name = `E2E plan ${Date.now()}`
     await page.getByLabel('Nazwa planu').fill(name)
@@ -75,7 +75,7 @@ test.describe('custom plans smoke', () => {
 
   test('closing editor after typing name saves draft to list', async ({ page }) => {
     await page.goto('/plans?tab=mine')
-    await expect(page.getByRole('tab', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('radio', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: 'Nowy plan' }).first().click()
     const name = `E2E close ${Date.now()}`
     await page.getByLabel('Nazwa planu').fill(name)
@@ -85,7 +85,7 @@ test.describe('custom plans smoke', () => {
 
   test('default exercises are present in library on first open', async ({ page }) => {
     await page.goto('/plans?tab=library')
-    await expect(page.getByRole('tab', { name: 'Biblioteka' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('radio', { name: 'Biblioteka' })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByText('Pompki', { exact: true })).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('Przysiady', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Dodaj zestaw startowy' })).toHaveCount(0)
@@ -121,8 +121,8 @@ test.describe('custom plans smoke', () => {
       })
     })
 
-    await page.getByRole('tab', { name: 'Moje' }).click()
-    await page.getByRole('tab', { name: 'Biblioteka' }).click()
+    await page.getByRole('radio', { name: 'Moje' }).click()
+    await page.getByRole('radio', { name: 'Biblioteka' }).click()
     await expect(page.getByText('Pompki', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('Pompki', { exact: true })).toHaveCount(1)
   })
@@ -405,7 +405,7 @@ test.describe('custom plans smoke', () => {
     }
 
     await page.goto('/plans?tab=mine')
-    await expect(page.getByRole('tab', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('radio', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
 
     const input = page.locator('input[type="file"][accept*="json"]')
     await input.setInputFiles({
@@ -530,7 +530,7 @@ test.describe('custom plans smoke', () => {
 
   test('editor shows exercise note field', async ({ page }) => {
     await page.goto('/plans?tab=mine')
-    await expect(page.getByRole('tab', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('radio', { name: 'Moje' })).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: 'Nowy plan' }).first().click()
     await page.getByLabel('Nazwa planu').fill(`E2E note ${Date.now()}`)
     await page.getByRole('button', { name: 'Dodaj dzień' }).click()
@@ -706,7 +706,7 @@ test.describe('custom plans smoke', () => {
     await page.goto('/progress?tab=history')
     await dismissAchievementUi(page)
     // Filter to custom sessions only
-    await page.getByRole('tab', { name: 'Własne' }).click()
+    await page.getByRole('radio', { name: 'Własne' }).click()
     await expect(page.getByText('E2E history plan')).toBeVisible({ timeout: 15_000 })
     await page.getByText('E2E history plan').click()
     // Detail sheet opens — navigate to full summary

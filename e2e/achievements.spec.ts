@@ -120,16 +120,16 @@ test.describe('achievements', () => {
 
     await page.goto('/progress?tab=achievements')
     await expect(page.getByRole('heading', { name: 'Postępy' })).toBeVisible({ timeout: 20_000 })
-    await expect(page.getByRole('tab', { name: 'Odznaki' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Przegląd' })).toBeVisible()
+    await expect(page.getByRole('radio', { name: 'Odznaki' })).toBeVisible()
+    await expect(page.getByRole('radio', { name: 'Przegląd' })).toBeVisible()
     await dismissAchievementUi(page)
 
     await expect(page.getByRole('tabpanel', { name: 'Postępy' })).toBeVisible()
     await expect(page.getByText('Pierwszy dzień').first()).toBeVisible({ timeout: 15_000 })
 
-    await page.getByRole('tab', { name: 'Przegląd' }).click()
-    await expect(page.getByRole('tab', { name: 'Przegląd' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Historia' })).toBeVisible()
+    await page.getByRole('radio', { name: 'Przegląd' }).click()
+    await expect(page.getByRole('radio', { name: 'Przegląd' })).toBeVisible()
+    await expect(page.getByRole('radio', { name: 'Historia' })).toBeVisible()
   })
 
   test('completed session unlocks first_session sheet', async ({ page }) => {

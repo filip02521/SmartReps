@@ -50,7 +50,7 @@ test.describe('community catalog', () => {
     await seedOnboarded(page)
     await page.goto('/plans?tab=community')
     await expect(page.getByRole('heading', { name: 'Plany', exact: true })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Katalog' })).toBeVisible()
+    await expect(page.getByRole('radio', { name: 'Katalog' })).toBeVisible()
   })
 
   test('unknown community slug shows unavailable', async ({ page }) => {
