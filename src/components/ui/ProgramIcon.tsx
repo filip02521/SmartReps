@@ -13,9 +13,10 @@ const accentLight: Record<Program, string> = {
 }
 
 /**
- * Professional program icons — unified silhouettes with overlapping shapes
- * so body parts connect into one cohesive figure. No gaps between head,
- * torso, arms, legs. Uses currentColor for accent control.
+ * Professional program icons — thick-stroked pictograms.
+ * Uses 2.5px stroke with round caps/joins so lines visually merge at joints,
+ * creating connected figures without gaps. Each icon is immediately
+ * recognizable at 18-28px and uses a consistent visual language.
  */
 export function ProgramIcon({
   program,
@@ -26,87 +27,76 @@ export function ProgramIcon({
   size?: number
   className?: string
 }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2.5,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    className,
+    'aria-hidden': true,
+  }
+
   if (program === 'pushups') {
-    // Pushup — side plank view: head left, body horizontal, arm + leg to ground
-    // Head overlaps torso, arm overlaps torso, leg overlaps torso — no gaps
+    // Pushup — side plank view. Head left, body horizontal, arm down, leg angled.
+    // Thick round-capped strokes merge at joints for a connected figure.
     return (
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        className={className}
-        aria-hidden
-      >
-        {/* Ground line */}
-        <rect x="2" y="19" width="20" height="1.5" rx="0.75" opacity="0.2" />
-        {/* Torso — horizontal plank, starts inside head circle */}
-        <rect x="4.5" y="8.5" width="14" height="3.5" rx="1.75" />
-        {/* Head — overlaps left end of torso */}
-        <circle cx="5" cy="10" r="2.8" />
-        {/* Arm — overlaps torso, goes straight down to ground */}
-        <rect x="7" y="9.5" width="2.8" height="10" rx="1.4" />
-        {/* Leg — overlaps right end of torso, angled down (trapezoid) */}
-        <path d="M 15 9.5 L 19 9.5 L 20.5 19 L 17 19 Z" />
+      <svg {...common}>
+        {/* Ground line — subtle */}
+        <path d="M 2 20.5 L 22 20.5" strokeWidth={1.5} opacity={0.2} />
+        {/* Head */}
+        <circle cx="5.5" cy="9.5" r="2.5" />
+        {/* Body — from head to hip */}
+        <path d="M 7.5 10.5 L 16 11.5" />
+        {/* Arm — from shoulder down to ground */}
+        <path d="M 8 11 L 8 20" />
+        {/* Leg — from hip down to ground */}
+        <path d="M 16 11.5 L 19 20" />
       </svg>
     )
   }
 
   if (program === 'squats') {
-    // Squat — front view: head top, compact torso, arms forward, bent legs
-    // Head overlaps torso, arms overlap torso, legs overlap torso — no gaps
+    // Squat — front view. Head top, arms forward, bent legs wide.
     return (
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        className={className}
-        aria-hidden
-      >
-        {/* Ground line */}
-        <rect x="2" y="19" width="20" height="1.5" rx="0.75" opacity="0.2" />
-        {/* Torso — trapezoid (narrow top, wider bottom), overlaps head */}
-        <path d="M 10 6.5 L 14 6.5 L 15 12 L 9 12 Z" />
-        {/* Head — overlaps top of torso */}
-        <circle cx="12" cy="5" r="2.8" />
-        {/* Arms — horizontal bar extending from torso sides */}
-        <rect x="5" y="8" width="14" height="2.2" rx="1.1" />
-        {/* Left leg — bent at knee, overlaps torso bottom */}
-        <path d="M 9 11 L 11.2 11 L 10 15 L 8 19 L 5.5 19 L 7.5 14.5 Z" />
-        {/* Right leg — bent at knee, overlaps torso bottom */}
-        <path d="M 12.8 11 L 15 11 L 16.5 14.5 L 18.5 19 L 16 19 L 14 15 Z" />
+      <svg {...common}>
+        {/* Ground line — subtle */}
+        <path d="M 2 20.5 L 22 20.5" strokeWidth={1.5} opacity={0.2} />
+        {/* Head */}
+        <circle cx="12" cy="5" r="2.5" />
+        {/* Torso — from head to hips */}
+        <path d="M 12 7.5 L 12 12" />
+        {/* Arms — extended forward for balance */}
+        <path d="M 6 10.5 L 18 10.5" />
+        {/* Left leg — bent at knee */}
+        <path d="M 11 12 L 7.5 15 L 7 20" />
+        {/* Right leg — bent at knee */}
+        <path d="M 13 12 L 16.5 15 L 17 20" />
       </svg>
     )
   }
 
-  // Pullups — bar at top, person hanging: arms up to bar, head, torso, legs
-  // Arms overlap bar and head, head overlaps torso, torso overlaps legs — no gaps
+  // Pullups — bar at top, body hanging straight down.
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden
-    >
-      {/* Bar — horizontal with side supports */}
-      <rect x="2" y="3" width="20" height="2.5" rx="1.25" />
-      <rect x="2.5" y="3" width="1.5" height="4" rx="0.75" opacity="0.5" />
-      <rect x="20" y="3" width="1.5" height="4" rx="0.75" opacity="0.5" />
-      {/* Left arm — starts inside bar, goes down, overlaps head */}
-      <rect x="9" y="4.5" width="2.5" height="7" rx="1.25" />
-      {/* Right arm — starts inside bar, goes down, overlaps head */}
-      <rect x="12.5" y="4.5" width="2.5" height="7" rx="1.25" />
-      {/* Head — overlaps arms and torso */}
-      <circle cx="12" cy="11" r="2.8" />
-      {/* Torso — overlaps head, goes down */}
-      <rect x="9.5" y="12" width="5" height="7" rx="2.5" />
-      {/* Left leg — overlaps torso bottom */}
-      <rect x="9" y="18" width="2.2" height="3.5" rx="1.1" />
-      {/* Right leg — overlaps torso bottom */}
-      <rect x="12.8" y="18" width="2.2" height="3.5" rx="1.1" />
+    <svg {...common}>
+      {/* Bar with side supports */}
+      <path d="M 3 4 L 21 4" />
+      <path d="M 4 4 L 4 6.5" strokeWidth={1.5} opacity={0.5} />
+      <path d="M 20 4 L 20 6.5" strokeWidth={1.5} opacity={0.5} />
+      {/* Arms — from bar down to head */}
+      <path d="M 9.5 5 L 9.5 10" />
+      <path d="M 14.5 5 L 14.5 10" />
+      {/* Head */}
+      <circle cx="12" cy="11" r="2.5" />
+      {/* Torso — from head to legs */}
+      <path d="M 12 13.5 L 12 18" />
+      {/* Left leg */}
+      <path d="M 12 18 L 10.5 20.5" />
+      {/* Right leg */}
+      <path d="M 12 18 L 13.5 20.5" />
     </svg>
   )
 }
