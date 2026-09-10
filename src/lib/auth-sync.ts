@@ -273,7 +273,8 @@ function scheduleSyncResultToast(
   reason?: SyncFailureReason,
 ) {
   if (ok && !opts.showSuccessToast) return
-  if (!ok && !opts.showFailureToast) return
+  // auth_expired always shows — user must re-login, suppressing it hides the problem
+  if (!ok && reason !== 'auth_expired' && !opts.showFailureToast) return
   if (!ok && reason === 'offline' && opts.silentOffline) return
   if (!ok && reason === 'no_session') return
 
