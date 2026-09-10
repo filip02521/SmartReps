@@ -69,7 +69,7 @@ export function AppLayout() {
                 to={to}
                 tabIndex={hideTabs ? -1 : undefined}
                 aria-current={active ? 'page' : undefined}
-                aria-label={badge > 0 && to === '/progress' ? `${label} — ${t.navBadgeAria(badge)}` : undefined}
+                aria-label={badge > 0 ? `${label} — ${t.navBadgeAria(badge)}` : undefined}
                 onClick={() => {
                   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
                     navigator.vibrate(8)

@@ -196,11 +196,6 @@ export function CustomPlansHomeSection({
           </Button>
         </div>
       )}
-      {embedded && cards.length === 0 && (
-        <p className="mb-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
-          {pl.homeCustomEmptyDiscoverHint}
-        </p>
-      )}
       <ul className="flex flex-col gap-2.5">
         {cards.map((model) => (
           <li key={model.planId}>
@@ -219,15 +214,18 @@ export function CustomPlansHomeSection({
           {pl.customHomeMorePlans(extraPlanCount)}
         </Button>
       )}
-      <Button
-        type="button"
-        variant="ghost"
-        className="mt-1"
-        fullWidth
-        onClick={() => navigate('/plans?tab=library')}
-      >
-        {pl.homeCustomEmptyLibrary}
-      </Button>
+      {/* Library CTA — only in standalone mode or when no custom plans (discoverability) */}
+      {(!embedded || cards.length === 0) && (
+        <Button
+          type="button"
+          variant="ghost"
+          className="mt-1"
+          fullWidth
+          onClick={() => navigate('/plans?tab=library')}
+        >
+          {pl.homeCustomEmptyLibrary}
+        </Button>
+      )}
     </section>
   )
 }

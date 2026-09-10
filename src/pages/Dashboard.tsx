@@ -435,6 +435,8 @@ export default function Dashboard() {
           <SkeletonCard className="min-h-[10rem]" />
           {/* Activity metrics skeleton */}
           <SkeletonCard className="min-h-[6rem]" />
+          {/* AI report skeleton */}
+          <SkeletonCard className="min-h-[8rem]" />
           {/* Community skeleton */}
           <SkeletonCard className="min-h-[8rem]" />
         </div>

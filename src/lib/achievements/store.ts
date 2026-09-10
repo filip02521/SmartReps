@@ -89,6 +89,10 @@ export async function markUnlockSeen(id: AchievementId, seenAt = new Date().toIS
       ]),
     )
     .catch(() => undefined)
+  // Notify listeners (e.g. nav badge) that unseen count may have changed
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('achievements:seen'))
+  }
 }
 
 export async function markAllUnlocksSeen(ids: AchievementId[], seenAt = new Date().toISOString()): Promise<void> {
