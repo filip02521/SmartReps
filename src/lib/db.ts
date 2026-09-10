@@ -397,6 +397,30 @@ class SmartRepsDB extends Dexie {
       bodyWeightTombstones: 'entryId, deletedAt',
       aiPlanDrafts: 'id, createdAt',
     })
+
+    // v13: Add standalone `status` index to workoutSessions — needed by
+    // scoreChallenges() which queries all completed sessions across programs
+    // (the compound [program+status] index can't be used without a program key).
+    this.version(13).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, status, startedAt, [program+status], customPlanId',
+      activeWorkout: 'program',
+      activeCustomWorkout: 'customPlanId',
+      syncQueue: '++id, createdAt',
+      maxTests: '++id, program, testedAt, &[program+testedAt]',
+      exercises: 'id, updatedAt, archived',
+      customPlans: 'id, status, updatedAt',
+      customProgramProgress: '++id, &customPlanId, updatedAt',
+      achievementUnlocks: 'id, unlockedAt',
+      bodyWeight: 'id, measuredAt',
+      aiInsights: 'id, type, sessionId, weekKey, createdAt',
+      sessionTombstones: 'sessionId, deletedAt',
+      aiAnalysisCache: 'id, createdAt',
+      customPlanTombstones: 'planId, deletedAt',
+      exerciseTombstones: 'exerciseId, deletedAt',
+      bodyWeightTombstones: 'entryId, deletedAt',
+      aiPlanDrafts: 'id, createdAt',
+    })
   }
 }
 
