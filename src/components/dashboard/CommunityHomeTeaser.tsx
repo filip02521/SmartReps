@@ -14,7 +14,7 @@ import {
 import { getCommunityListCache } from '@/lib/community-list-cache'
 import { supabase } from '@/lib/supabase/client'
 
-const TEASER_LIMIT = 3
+const TEASER_LIMIT = 1
 const FETCH_LIMIT = 12
 
 function withoutOwn(

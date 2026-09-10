@@ -17,6 +17,8 @@ export const en: Translation = {
   homeReps14d: 'Reps',
   homeReps14dHint: '14 days',
   homeActivityTitle: 'Your activity',
+  homeMotivationTitle: 'This week\'s motivation',
+  homeMotivationSectionAria: 'This week\'s motivation — challenge and training streak',
   homeAvgPerSession: 'Avg / session',
   homeAvgPerSessionHint: 'reps',
   homeInsightNoActivity: 'No workouts in a month — time to get back on track.',
@@ -1743,6 +1745,9 @@ export const en: Translation = {
   coachWeeklyDetailLabel: 'Week details',
   coachWeeklyReportExpandHint: 'Tap to see the full coach analysis',
   coachWeeklyReportSectionAria: 'Weekly summary from AI coach',
+  coachWeeklyReportConnectTitle: 'AI Coach — weekly reports',
+  coachWeeklyReportConnectHint: 'Connect your AI coach to receive personalized weekly summaries.',
+  coachWeeklyReportConnectCtaAria: 'Connect AI coach to receive weekly reports',
   coachSourceAi: 'AI',
   coachSourceLocal: 'Local',
   // ── Proactive Coach: history (Profile) ──

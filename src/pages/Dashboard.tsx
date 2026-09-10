@@ -14,6 +14,7 @@ import { ProgramHomeCard } from '@/components/dashboard/ProgramHomeCard'
 import { CustomPlansHomeSection } from '@/components/dashboard/CustomPlansHomeSection'
 import { CommunityHomeTeaser } from '@/components/dashboard/CommunityHomeTeaser'
 import { WeeklyChallengeCard } from '@/components/dashboard/WeeklyChallengeCard'
+import { StreakChainCard } from '@/components/dashboard/StreakChainCard'
 import { InstallCoach } from '@/components/ux/InstallCoach'
 import { WeeklyReportCard } from '@/components/dashboard/WeeklyReportCard'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
@@ -517,12 +518,21 @@ export default function Dashboard() {
             <CustomPlansHomeSection hideEmptyDiscover />
           )}
 
-          {/* 4. Activity metrics — retrospective, below training cards */}
+          {/* 4. Motywacja tygodnia — wyzwanie + streak (skonsolidowane) */}
+          <section aria-label={pl.homeMotivationSectionAria} className="mt-6">
+            <p className="mb-2 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
+              {pl.homeMotivationTitle}
+            </p>
+            <WeeklyChallengeCard />
+            <StreakChainCard sessions={heatmapSessions} compact />
+          </section>
+
+          {/* 5. Activity metrics — retrospective, kompaktowe */}
           <div className="mt-6">
-            <HomeActivitySection summary={home.summary} sessions={heatmapSessions} />
+            <HomeActivitySection summary={home.summary} />
           </div>
 
-          {/* 5. Proactive coach: weekly report card */}
+          {/* 6. Proactive coach: weekly report card + CTA gdy AI brak */}
           <section aria-label={pl.coachWeeklyReportSectionAria} className="mt-6">
             {weeklyReportGenerating && !weeklyReport && (
               <div
@@ -565,11 +575,33 @@ export default function Dashboard() {
                 regenerating={weeklyReportGenerating}
               />
             )}
+            {!weeklyReportGenerating && !weeklyReport && (
+              <button
+                type="button"
+                onClick={() => navigate('/profile')}
+                className="flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--bg-elevated)] p-4 text-left transition-colors hover:bg-[var(--sr-bg-surface)]"
+                aria-label={pl.coachWeeklyReportConnectCtaAria}
+              >
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[color-mix(in_srgb,var(--sr-brand-primary)_12%,transparent)] text-[var(--sr-brand-primary)]"
+                  aria-hidden
+                >
+                  <AiCoachMark size="sm" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
+                    {pl.coachWeeklyReportConnectTitle}
+                  </p>
+                  <p className="mt-0.5 sr-text-caption text-[var(--sr-text-muted)]">
+                    {pl.coachWeeklyReportConnectHint}
+                  </p>
+                </div>
+              </button>
+            )}
           </section>
 
-          {/* 6. Community */}
+          {/* 7. Community — kompaktowe (1 karta + CTA) */}
           <div className="mt-6">
-            <WeeklyChallengeCard />
             <CommunityHomeTeaser />
           </div>
         </>

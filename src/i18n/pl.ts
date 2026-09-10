@@ -17,6 +17,8 @@ const plDict = {
   homeReps14d: 'Powtórzenia',
   homeReps14dHint: '14 dni',
   homeActivityTitle: 'Twoja aktywność',
+  homeMotivationTitle: 'Motywacja tygodnia',
+  homeMotivationSectionAria: 'Motywacja tygodnia — wyzwanie i seria treningowa',
   homeAvgPerSession: 'Śr. / sesję',
   homeAvgPerSessionHint: 'powt.',
   homeInsightNoActivity: 'Brak treningów od miesiąca — czas wrócić do planu.',
@@ -1768,6 +1770,9 @@ const plDict = {
   coachWeeklyDetailLabel: 'Szczegóły tygodnia',
   coachWeeklyReportExpandHint: 'Dotknij, aby zobaczyć pełną analizę trenera',
   coachWeeklyReportSectionAria: 'Podsumowanie tygodnia od trenera AI',
+  coachWeeklyReportConnectTitle: 'Trener AI — tygodniowe raporty',
+  coachWeeklyReportConnectHint: 'Połącz trenera AI, aby otrzymywać spersonalizowane podsumowania tygodnia.',
+  coachWeeklyReportConnectCtaAria: 'Połącz trenera AI, aby otrzymywać tygodniowe raporty',
   coachSourceAi: 'AI',
   coachSourceLocal: 'Lokalne',
   // ── Proactive Coach: history (Profile) ──

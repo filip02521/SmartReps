@@ -3,11 +3,8 @@ import type { HomeLoadResult, QuickCta } from '@/lib/home-summary'
 import { getGreetingKey } from '@/lib/home-summary'
 import { Button } from '@/components/ui/Button'
 import { MetricStrip } from '@/components/ui/MetricStrip'
-import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
-import { StreakChainCard } from '@/components/dashboard/StreakChainCard'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
-import type { LocalWorkoutSession } from '@/lib/db'
 
 type Summary = HomeLoadResult['summary']
 
@@ -73,10 +70,8 @@ export function HomeStatusHeader({
 
 export function HomeActivitySection({
   summary,
-  sessions,
 }: {
   summary: Summary
-  sessions: LocalWorkoutSession[]
 }) {
   return (
     <section aria-label={pl.homeActivityTitle}>
@@ -107,13 +102,6 @@ export function HomeActivitySection({
           max: summary.goalTarget,
         }}
       />
-      <ActivityInsightsPanel
-        insights={summary.activity}
-        compact
-        customLastWorkout={summary.customLastWorkout}
-      />
-      {/* Streak chain — visual retention driver, tappable to Progress */}
-      <StreakChainCard sessions={sessions} compact />
     </section>
   )
 }
@@ -121,16 +109,15 @@ export function HomeActivitySection({
 /** @deprecated Prefer HomeStatusHeader + HomeActivitySection */
 export function HomeSummary({
   summary,
-  sessions,
 }: {
   summary: Summary
   onScrollToProgram?: (program: import('@/data/plans/types').Program) => void
-  sessions?: LocalWorkoutSession[]
+  sessions?: import('@/lib/db').LocalWorkoutSession[]
 }) {
   return (
     <section className="mb-5" aria-label={pl.navWorkout}>
       <HomeStatusHeader summary={summary} />
-      <HomeActivitySection summary={summary} sessions={sessions ?? []} />
+      <HomeActivitySection summary={summary} />
     </section>
   )
 }
