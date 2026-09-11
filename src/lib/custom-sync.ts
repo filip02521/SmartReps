@@ -26,6 +26,9 @@ function remoteCustomSessionHasProgress(logs: ExerciseLog[]): boolean {
 }
 
 export async function upsertUserExercise(userId: string, ex: ExerciseDefinition) {
+  // Use onConflict: 'user_id,name' to handle the UNIQUE constraint on (user_id, name).
+  // If a local exercise has a different ID but the same name as a cloud exercise,
+  // the upsert updates the existing cloud row (keeping the local ID as the canonical one).
   const { error } = await supabase.from('user_exercises').upsert({
     id: ex.id,
     user_id: userId,
@@ -38,7 +41,7 @@ export async function upsertUserExercise(userId: string, ex: ExerciseDefinition)
     duration_display_unit: ex.durationDisplayUnit ?? 'min',
     created_at: ex.createdAt,
     updated_at: ex.updatedAt,
-  })
+  }, { onConflict: 'user_id,name' })
   if (error) throw error
 }
 
@@ -530,6 +533,25 @@ export async function pullCustomEntities(userId: string): Promise<number> {
       const mapped = mapExercise(row)
       // Skip if tombstoned (deleted on this or another device)
       if (await db.exerciseTombstones.get(mapped.id)) continue
+      // Dedup by name: if a local exercise has the same name but different ID,
+      // replace it with the remote one (the cloud ID is canonical after sync).
+      const localByName = (await db.exercises.toArray()).find(
+        (e) => !e.archived && e.name.trim().toLowerCase() === mapped.name.trim().toLowerCase(),
+      )
+      if (localByName && localByName.id !== mapped.id) {
+        // Remap references from old local ID to remote ID, then delete local duplicate
+        const { remapExerciseIdInPlans, remapExerciseIdInSessions, remapExerciseIdInActiveWorkouts } =
+          await import('@/lib/custom-exercise-dedup')
+        await remapExerciseIdInPlans(localByName.id, mapped.id)
+        await remapExerciseIdInSessions(localByName.id, mapped.id)
+        await remapExerciseIdInActiveWorkouts(localByName.id, mapped.id)
+        await db.exercises.delete(localByName.id)
+        // Tombstone the old local ID so it doesn't get re-pushed from another device
+        await db.exerciseTombstones.put({
+          exerciseId: localByName.id,
+          deletedAt: new Date().toISOString(),
+        })
+      }
       const local = await db.exercises.get(mapped.id)
       if (!local || new Date(mapped.updatedAt) >= new Date(local.updatedAt)) {
         await db.exercises.put(mapped)

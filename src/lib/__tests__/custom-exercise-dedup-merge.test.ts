@@ -5,7 +5,8 @@ const enqueueSyncMock = vi.fn()
 const enqueueActiveMock = vi.fn()
 
 const mockDb = vi.hoisted(() => ({
-  exercises: { toArray: vi.fn(), put: vi.fn(), get: vi.fn() },
+  exercises: { toArray: vi.fn(), put: vi.fn(), get: vi.fn(), delete: vi.fn() },
+  exerciseTombstones: { put: vi.fn() },
   customPlans: { toArray: vi.fn(), put: vi.fn() },
   workoutSessions: { toArray: vi.fn(), put: vi.fn() },
   activeCustomWorkout: { toArray: vi.fn(), put: vi.fn() },
@@ -36,7 +37,7 @@ describe('mergeDuplicateExercises', () => {
     vi.resetModules()
   })
 
-  it('archives duplicate and remaps plan references to canonical id', async () => {
+  it('deletes duplicate and remaps plan references to canonical id', async () => {
     const canonical = exercise({ id: 'keep', name: 'Pompki', createdAt: '2025-01-01T00:00:00.000Z' })
     const duplicate = exercise({ id: 'drop', name: ' pompki ', createdAt: '2026-01-01T00:00:00.000Z' })
     mockDb.exercises.toArray.mockResolvedValue([canonical, duplicate])
@@ -86,14 +87,15 @@ describe('mergeDuplicateExercises', () => {
         ],
       }),
     )
-    expect(mockDb.exercises.put).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'drop', archived: true }),
+    expect(mockDb.exercises.delete).toHaveBeenCalledWith('drop')
+    expect(mockDb.exerciseTombstones.put).toHaveBeenCalledWith(
+      expect.objectContaining({ exerciseId: 'drop' }),
     )
     expect(enqueueSyncMock).toHaveBeenCalledWith('custom_plans', 'update', expect.any(Object))
     expect(enqueueSyncMock).toHaveBeenCalledWith(
       'user_exercises',
-      'update',
-      expect.objectContaining({ id: 'drop', archived: true }),
+      'delete',
+      expect.objectContaining({ id: 'drop' }),
     )
   })
 })

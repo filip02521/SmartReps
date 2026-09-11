@@ -82,6 +82,16 @@ export function ProgressionSuggestionPanel({
                   {pl.progressionSuggestionAvgRir}: {suggestion.avgRir}
                 </span>
               )}
+              <span className={cn(
+                'inline-flex items-center rounded-full px-2 py-0.5 font-semibold',
+                suggestion.confidence === 'high'
+                  ? 'bg-[var(--sr-success-muted)] text-[var(--sr-success)]'
+                  : suggestion.confidence === 'medium'
+                    ? 'bg-[var(--sr-warning-muted)] text-[var(--sr-warning)]'
+                    : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
+              )}>
+                {pl.progressionSuggestionConfidence(suggestion.confidence)}
+              </span>
             </div>
           )}
           <div className="mt-3 flex gap-2">
@@ -89,7 +99,7 @@ export function ProgressionSuggestionPanel({
               <button
                 type="button"
                 onClick={onApply}
-                className="rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)] px-3 py-1.5 sr-text-body-sm font-semibold text-white transition-colors hover:brightness-110 active:scale-[0.98]"
+                className="min-h-11 rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)] px-4 py-2 sr-text-body-sm font-semibold text-white transition-colors hover:brightness-110 active:scale-[0.98]"
               >
                 {pl.progressionSuggestionApply}
               </button>
@@ -98,7 +108,7 @@ export function ProgressionSuggestionPanel({
               <button
                 type="button"
                 onClick={onDismiss}
-                className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] px-3 py-1.5 sr-text-body-sm font-medium text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)]"
+                className="min-h-11 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] px-4 py-2 sr-text-body-sm font-medium text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)]"
               >
                 {pl.progressionSuggestionDismiss}
               </button>

@@ -27,7 +27,7 @@ export function SetNoteInput({
           setTimeout(() => inputRef.current?.focus(), 50)
         }}
         className={cn(
-          'mt-1.5 flex items-center gap-1.5 sr-text-body-sm text-[var(--sr-text-muted)] transition-colors hover:text-[var(--sr-text-secondary)]',
+          'mt-1.5 flex min-h-9 items-center gap-1.5 sr-text-body-sm text-[var(--sr-text-muted)] transition-colors hover:text-[var(--sr-text-secondary)]',
           FOCUS_RING,
         )}
         aria-label={pl.setNoteHint}
@@ -81,7 +81,7 @@ export function SetNoteInput({
           if (!trimmed) setExpanded(false)
         }}
         className={cn(
-          'shrink-0 rounded-[var(--sr-radius-sm)] bg-[var(--sr-brand-primary)] px-2.5 py-1.5 text-xs font-semibold text-white transition-colors',
+          'min-h-9 shrink-0 rounded-[var(--sr-radius-sm)] bg-[var(--sr-brand-primary)] px-3 py-1.5 text-xs font-semibold text-white transition-colors',
           FOCUS_RING,
         )}
       >

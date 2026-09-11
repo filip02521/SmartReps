@@ -1515,6 +1515,7 @@ export default function CustomWorkoutPage() {
       setRpeRirMode('rir')
     } else {
       setRpeRirValue(null)
+      setRpeRirMode('rir')
     }
     setSetNote(removed.note)
     void persistState()

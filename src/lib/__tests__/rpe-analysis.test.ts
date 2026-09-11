@@ -93,11 +93,12 @@ describe('rpe-analysis — analyzeBuiltinProgression', () => {
     expect(result?.delta?.reps).toBe(1)
   })
 
-  it('suggests increase_reps with medium confidence when only one session', () => {
+  it('suggests maintain when RPE ≤ 6 but only one session (not sustained)', () => {
     const current = [makeBuiltinSet({ rpe: 5 })]
     const result = analyzeBuiltinProgression(current, [])
-    expect(result?.kind).toBe('increase_reps')
+    expect(result?.kind).toBe('maintain')
     expect(result?.confidence).toBe('medium')
+    expect(result?.reasonKey).toBe('progressionMaintainObserve')
   })
 
   it('suggests maintain when RPE 7-8 (sweet spot)', () => {
@@ -116,10 +117,14 @@ describe('rpe-analysis — analyzeBuiltinProgression', () => {
 
   it('suggests reduce_volume when RPE 9 sustained across sessions', () => {
     const current = [makeBuiltinSet({ rpe: 9 })]
-    const recent = [[makeBuiltinSet({ rpe: 9 })]]
+    const recent = [
+      [makeBuiltinSet({ rpe: 9 })],
+      [makeBuiltinSet({ rpe: 9 })],
+    ]
     const result = analyzeBuiltinProgression(current, recent)
     expect(result?.kind).toBe('reduce_volume')
     expect(result?.delta?.volumePct).toBe(20)
+    expect(result?.confidence).toBe('high')
   })
 
   it('suggests maintain when RPE 9 but not sustained', () => {
@@ -131,22 +136,30 @@ describe('rpe-analysis — analyzeBuiltinProgression', () => {
 
   it('suggests deload when RPE 10 sustained across sessions', () => {
     const current = [makeBuiltinSet({ rpe: 10 })]
-    const recent = [[makeBuiltinSet({ rpe: 10 })]]
+    const recent = [
+      [makeBuiltinSet({ rpe: 10 })],
+      [makeBuiltinSet({ rpe: 10 })],
+    ]
     const result = analyzeBuiltinProgression(current, recent)
     expect(result?.kind).toBe('deload')
     expect(result?.delta?.volumePct).toBe(40)
   })
 
-  it('suggests reduce_volume with low confidence when RPE 10 but not sustained', () => {
+  it('suggests maintain when RPE 10 but not sustained (single session)', () => {
     const current = [makeBuiltinSet({ rpe: 10 })]
     const result = analyzeBuiltinProgression(current, [])
-    expect(result?.kind).toBe('reduce_volume')
-    expect(result?.confidence).toBe('low')
+    expect(result?.kind).toBe('maintain')
+    expect(result?.confidence).toBe('medium')
+    expect(result?.reasonKey).toBe('progressionMaintainMaxEffort')
   })
 
   it('uses RIR when RPE is absent', () => {
     const current = [makeBuiltinSet({ rir: 4 })] // RIR 4 = RPE 6
-    const result = analyzeBuiltinProgression(current, [])
+    const recent = [
+      [makeBuiltinSet({ rir: 4 })],
+      [makeBuiltinSet({ rir: 4 })],
+    ]
+    const result = analyzeBuiltinProgression(current, recent)
     expect(result?.kind).toBe('increase_reps')
     expect(result?.avgRir).toBe(4)
   })
@@ -158,22 +171,37 @@ describe('rpe-analysis — analyzeCustomProgression', () => {
     expect(analyzeCustomProgression(logs, [])).toBeNull()
   })
 
-  it('suggests increase_weight for weighted exercises when RPE low', () => {
+  it('suggests maintain when RPE low but only one session (not sustained)', () => {
+    const logs = [makeCustomLog([makeCustomSet({ rpe: 5, actual: { reps: 10, weightKg: 50 } })])]
+    const result = analyzeCustomProgression(logs, [])
+    expect(result?.kind).toBe('maintain')
+    expect(result?.reasonKey).toBe('progressionMaintainObserve')
+  })
+
+  it('suggests increase_weight for weighted exercises when RPE low and sustained', () => {
     const logs = [makeCustomLog([
       makeCustomSet({ rpe: 5, actual: { reps: 10, weightKg: 50 } }),
     ])]
-    const recent = [[makeCustomLog([makeCustomSet({ rpe: 6, actual: { reps: 10, weightKg: 50 } })])]]
+    const recent = [
+      [makeCustomLog([makeCustomSet({ rpe: 6, actual: { reps: 10, weightKg: 50 } })])],
+      [makeCustomLog([makeCustomSet({ rpe: 6, actual: { reps: 10, weightKg: 50 } })])],
+    ]
     const result = analyzeCustomProgression(logs, recent)
     expect(result?.kind).toBe('increase_weight')
     expect(result?.delta?.weightKg).toBe(2.5)
+    expect(result?.confidence).toBe('high')
   })
 
-  it('suggests increase_reps for bodyweight exercises when RPE low', () => {
+  it('suggests increase_reps for bodyweight exercises when RPE low and sustained', () => {
     const logs = [makeCustomLog([makeCustomSet({ rpe: 5, actual: { reps: 10 } })])]
-    const recent = [[makeCustomLog([makeCustomSet({ rpe: 6, actual: { reps: 10 } })])]]
+    const recent = [
+      [makeCustomLog([makeCustomSet({ rpe: 6, actual: { reps: 10 } })])],
+      [makeCustomLog([makeCustomSet({ rpe: 6, actual: { reps: 10 } })])],
+    ]
     const result = analyzeCustomProgression(logs, recent)
     expect(result?.kind).toBe('increase_reps')
     expect(result?.delta?.reps).toBe(1)
+    expect(result?.confidence).toBe('high')
   })
 
   it('suggests maintain when RPE 7-8', () => {
@@ -189,10 +217,20 @@ describe('rpe-analysis — analyzeCustomProgression', () => {
     expect(result?.reasonKey).toBe('progressionMaintainFailedSet')
   })
 
-  it('suggests deload when RPE 10 sustained', () => {
+  it('suggests deload when RPE 10 sustained across sessions', () => {
     const logs = [makeCustomLog([makeCustomSet({ rpe: 10 })])]
-    const recent = [[makeCustomLog([makeCustomSet({ rpe: 10 })])]]
+    const recent = [
+      [makeCustomLog([makeCustomSet({ rpe: 10 })])],
+      [makeCustomLog([makeCustomSet({ rpe: 10 })])],
+    ]
     const result = analyzeCustomProgression(logs, recent)
     expect(result?.kind).toBe('deload')
+  })
+
+  it('suggests maintain when RPE 10 but not sustained (single session)', () => {
+    const logs = [makeCustomLog([makeCustomSet({ rpe: 10 })])]
+    const result = analyzeCustomProgression(logs, [])
+    expect(result?.kind).toBe('maintain')
+    expect(result?.reasonKey).toBe('progressionMaintainMaxEffort')
   })
 })

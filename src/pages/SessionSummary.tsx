@@ -39,6 +39,8 @@ import { detectPersonalRecords, type PersonalRecord } from '@/lib/pr-detector'
 import { initCelebrationAudio } from '@/lib/celebration-feedback'
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
 import { ChallengeProgressRecap } from '@/components/workout/ChallengeProgressRecap'
+import { ProgressionSuggestionPanel } from '@/components/workout/ProgressionSuggestionPanel'
+import { analyzeBuiltinProgression, type ProgressionSuggestion } from '@/lib/rpe-analysis'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
 import {
@@ -93,6 +95,8 @@ export default function SessionSummary() {
   const [showCelebration, setShowCelebration] = useState(false)
   const [allSessionsForStreak, setAllSessionsForStreak] = useState<LocalWorkoutSession[]>([])
   const [previousSessionsForStreak, setPreviousSessionsForStreak] = useState<LocalWorkoutSession[]>([])
+  const [progressionSuggestion, setProgressionSuggestion] = useState<ProgressionSuggestion | null>(null)
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false)
   const achievementQueue = useAchievementUiStore((s) => s.queue)
   const clearQueue = useAchievementUiStore((s) => s.clearQueue)
   const setSummaryMode = useAchievementUiStore((s) => s.setSummaryMode)
@@ -180,6 +184,15 @@ export default function SessionSummary() {
             historicalSessions,
           }),
         )
+        // RPE/RIR progression suggestion (builtin = info-only, cannot modify fixed plans)
+        const recentSetsForTrend = historicalSessions
+          .filter((s) => s.program === program && s.dayNumber === comparison.current?.dayNumber && s.id !== comparison.current.id)
+          .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+          .slice(0, 2)
+          .map((s) => s.setResults)
+        const suggestion = analyzeBuiltinProgression(comparison.current.setResults, recentSetsForTrend)
+        setProgressionSuggestion(suggestion)
+        setSuggestionDismissed(false)
         // Proactive coach: load or generate post-workout insight
         void loadOrGenerateCoachInsight(comparison.current, comparison.previous, historicalSessions)
       } else {
@@ -573,6 +586,15 @@ export default function SessionSummary() {
           completedAt={current?.completedAt}
         />
       </div>
+
+      {/* RPE/RIR progression suggestion (builtin = info-only) */}
+      {progressionSuggestion && !suggestionDismissed && !failed && (
+        <ProgressionSuggestionPanel
+          suggestion={progressionSuggestion}
+          canApply={false}
+          onDismiss={() => setSuggestionDismissed(true)}
+        />
+      )}
 
       {/* Notes section */}
       {current?.id && (

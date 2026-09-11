@@ -26,6 +26,8 @@ import { WarmupPanel } from '@/components/workout/WarmupPanel'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { SessionElapsedLabel } from '@/components/workout/SessionElapsedLabel'
+import { SetLogDetails } from '@/components/workout/SetLogDetails'
+import { RpeEducationHint } from '@/components/workout/RpeEducationHint'
 import { Z_REST_PILL } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
 import { ErrorBanner } from '@/components/ux/Feedback'
@@ -85,6 +87,13 @@ export type ActiveWorkoutScreenProps = {
   saveError?: string | null
   /** Re-attempt the failed set persist (taps "Zrobione" again). */
   onRetrySave?: () => void
+  // RPE/RIR + per-set note (shared with custom workouts via SetLogDetails)
+  rpeRirValue?: number | null
+  rpeRirMode?: 'rpe' | 'rir'
+  setNote?: string
+  onRpeRirChange?: (v: number | null) => void
+  onRpeRirModeChange?: (m: 'rpe' | 'rir') => void
+  onSetNoteChange?: (v: string | undefined) => void
 }
 
 export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
@@ -140,6 +149,12 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     onCloseMenu,
     saveError,
     onRetrySave,
+    rpeRirValue = null,
+    rpeRirMode = 'rpe',
+    setNote,
+    onRpeRirChange,
+    onRpeRirModeChange,
+    onSetNoteChange,
   } = props
 
   const currentTarget = day.sets[currentSetIndex]
@@ -324,6 +339,19 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
           disabledHint={isResting ? pl.restInProgress : preparingNegative ? pl.negativeCountdown(negativeCountdown!) : undefined}
           onDisabledTap={isResting ? onExpandTimer : undefined}
         />
+        {onRpeRirChange && onSetNoteChange && !counterLocked && (
+          <>
+            <RpeEducationHint />
+            <SetLogDetails
+              rpeRirValue={rpeRirValue}
+              rpeRirMode={rpeRirMode}
+              setNote={setNote}
+              onRpeRirChange={onRpeRirChange}
+              onRpeRirModeChange={onRpeRirModeChange ?? (() => {})}
+              onSetNoteChange={onSetNoteChange}
+            />
+          </>
+        )}
         {canEditPreviousSet && onEditPreviousSet && (
           <Button variant="ghost" className="mt-2" fullWidth onClick={onEditPreviousSet}>
             {pl.editPreviousSet}

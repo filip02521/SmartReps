@@ -190,8 +190,7 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
                   <th className="pb-2 font-semibold">{pl.targetColumn}</th>
                   <th className="pb-2 font-semibold">{pl.youColumn}</th>
                   <th className="hidden pb-2 font-semibold sm:table-cell">{pl.prevColumn}</th>
-                  <th className="hidden pb-2 font-semibold sm:table-cell">{pl.prevColumn}</th>
-                  <th className="hidden pb-2 font-semibold text-center sm:table-cell">{pl.rpeLabel}</th>
+                  <th className="hidden pb-2 font-semibold text-center sm:table-cell">{pl.rpeLabel}/{pl.rirLabel}</th>
                   <th className="hidden pb-2 font-semibold text-right sm:table-cell">{pl.volumePerSet}</th>
                 </tr>
               </thead>
@@ -246,6 +245,14 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
                           )}
                           {badge && setInsight?.kind === 'down' && (
                             <SummaryInsightBadge tone="down">{badge}</SummaryInsightBadge>
+                          )}
+                          {/* Mobile-only RPE/RIR badge (compact, inline with actual) */}
+                          {(set.rpe != null || set.rir != null) && (
+                            <span className="sm:hidden inline-flex items-center rounded-full bg-[var(--sr-brand-primary-muted)] px-1.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]">
+                              {set.rpe != null
+                                ? pl.setLogDetailsRpeChip(set.rpe)
+                                : pl.setLogDetailsRirChip(set.rir!)}
+                            </span>
                           )}
                         </span>
                       </td>

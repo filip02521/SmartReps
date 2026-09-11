@@ -241,6 +241,7 @@ async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
       ai_reasoning_effort: settings.aiReasoningEffort ?? 'auto',
       ai_model: settings.aiModel ?? null,
       ai_base_url: settings.aiBaseUrl ?? null,
+      rpe_rir_education_dismissed: settings.rpeRirEducationDismissed ?? false,
       ui_settings_updated_at: uiUpdatedAt,
     },
     { onConflict: 'id' },
@@ -279,7 +280,7 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, weight_unit, high_contrast, language, ai_proactive_coach, ai_reasoning_effort, ai_model, ai_base_url, ui_settings_updated_at, subscription_status, subscription_expires_at, trial_started_at',
+        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, weight_unit, high_contrast, language, ai_proactive_coach, ai_reasoning_effort, ai_model, ai_base_url, rpe_rir_education_dismissed, ui_settings_updated_at, subscription_status, subscription_expires_at, trial_started_at',
       )
       .eq('id', userId)
       .maybeSingle()
@@ -358,6 +359,11 @@ async function upsertSession(userId: string, row: LocalWorkoutSession) {
       min_reps: r.target.kind === 'max' ? r.target.minReps : null,
       actual_reps: r.actual,
       passed: r.passed,
+      // Store RPE/RIR/note in metrics_json (same column custom workouts use).
+      metrics_json:
+        r.rpe != null || r.rir != null || r.note != null
+          ? { rpe: r.rpe ?? null, rir: r.rir ?? null, note: r.note ?? null }
+          : null,
     }))
     // Align with unique (session_id, exercise_order, set_number) from migration 011
     const { error: setsError } = await supabase.from('set_results').upsert(payload, {

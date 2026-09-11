@@ -45,11 +45,11 @@ export function RpeRirPicker({
           type="button"
           onClick={() => setExpanded((v) => !v)}
           className={cn(
-            'flex items-center gap-1.5 sr-text-body-sm font-medium text-[var(--sr-text-secondary)] transition-colors',
+            'flex min-h-9 items-center gap-1.5 sr-text-body-sm font-medium text-[var(--sr-text-secondary)] transition-colors',
             FOCUS_RING,
           )}
           aria-expanded={expanded}
-          aria-label={expanded ? pl.rpeRirToggle : `${label} ${value ?? ''}`.trim()}
+          aria-label={`${label}${value != null ? ` ${value}` : ''}`}
         >
           <span
             className={cn(
@@ -70,7 +70,7 @@ export function RpeRirPicker({
               type="button"
               onClick={() => onModeChange('rpe')}
               className={cn(
-                'rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors',
+                'min-h-9 rounded-full px-3 py-1 text-xs font-semibold transition-colors',
                 mode === 'rpe'
                   ? 'bg-[var(--sr-brand-primary)] text-white'
                   : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
@@ -83,7 +83,7 @@ export function RpeRirPicker({
               type="button"
               onClick={() => onModeChange('rir')}
               className={cn(
-                'rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors',
+                'min-h-9 rounded-full px-3 py-1 text-xs font-semibold transition-colors',
                 mode === 'rir'
                   ? 'bg-[var(--sr-brand-primary)] text-white'
                   : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
@@ -97,7 +97,7 @@ export function RpeRirPicker({
                 type="button"
                 onClick={() => onChange(null)}
                 className={cn(
-                  'rounded-full px-2.5 py-0.5 text-xs font-medium text-[var(--sr-text-muted)] transition-colors hover:text-[var(--sr-text-secondary)]',
+                  'min-h-9 rounded-full px-3 py-1 text-xs font-medium text-[var(--sr-text-muted)] transition-colors hover:text-[var(--sr-text-secondary)]',
                   FOCUS_RING,
                 )}
                 aria-label={pl.rpeRirClear}
@@ -113,14 +113,14 @@ export function RpeRirPicker({
       {expanded && (
         <div className="mt-2">
           <p className="mb-1.5 text-xs text-[var(--sr-text-muted)]">{hint}</p>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {values.map((v) => (
               <button
                 key={v}
                 type="button"
                 onClick={() => onChange(v === value ? null : v)}
                 className={cn(
-                  'h-8 w-8 rounded-full text-xs font-bold transition-all active:scale-90',
+                  'h-10 w-10 rounded-full text-sm font-bold transition-all active:scale-90',
                   value === v
                     ? 'bg-[var(--sr-brand-primary)] text-white ring-2 ring-[var(--sr-brand-primary)]/30'
                     : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-secondary)] hover:bg-[var(--sr-bg-elevated)]',

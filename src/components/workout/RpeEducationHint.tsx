@@ -50,7 +50,7 @@ export function RpeEducationHint() {
               aria-expanded={expanded}
               aria-controls="rpe-education-content"
               className={cn(
-                'rounded-[var(--sr-radius-sm)] px-2 py-1 text-xs font-medium text-[var(--sr-brand-primary)] transition-colors hover:bg-[var(--sr-brand-primary)]/10',
+                'flex min-h-9 items-center rounded-[var(--sr-radius-sm)] px-2 py-1 text-xs font-medium text-[var(--sr-brand-primary)] transition-colors hover:bg-[var(--sr-brand-primary)]/10',
                 FOCUS_RING,
               )}
             >
@@ -60,7 +60,7 @@ export function RpeEducationHint() {
               type="button"
               onClick={() => setSettings({ rpeRirEducationDismissed: true })}
               className={cn(
-                'inline-flex items-center gap-1 rounded-[var(--sr-radius-sm)] px-2 py-1 text-xs font-medium text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)]',
+                'inline-flex min-h-9 items-center gap-1 rounded-[var(--sr-radius-sm)] px-2 py-1 text-xs font-medium text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)]',
                 FOCUS_RING,
               )}
               aria-label={pl.rpeEducationDismiss}

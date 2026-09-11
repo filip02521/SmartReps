@@ -1,6 +1,7 @@
 import type { SetTarget } from '@/data/plans/types'
 import type { SetResultDraft } from '@/lib/progress-engine'
 import type { RestTimerState } from '@/lib/rest-timer'
+import { RPE_MIN, RPE_MAX, RIR_MIN, RIR_MAX } from '@/lib/exercise-model'
 
 type RemoteSetRow = {
   set_number: number
@@ -9,6 +10,16 @@ type RemoteSetRow = {
   min_reps: number | null
   actual_reps: number
   passed: boolean
+  /** JSONB column with extra set metrics: rpe, rir, note, weight_kg, duration_sec, reps.
+   *  Values are typed as unknown because Postgres JSONB can return any JSON type
+   *  (e.g. string instead of number for corrupted/legacy rows). mapRemoteSetRow
+   *  validates types before using them. */
+  metrics_json?: {
+    rpe?: unknown
+    rir?: unknown
+    note?: unknown
+    [k: string]: unknown
+  } | null
 }
 
 export function mapRemoteSetRow(row: RemoteSetRow): SetResultDraft {
@@ -20,11 +31,27 @@ export function mapRemoteSetRow(row: RemoteSetRow): SetResultDraft {
   } else {
     target = { kind: 'fixed', reps: row.target_reps ?? 0 }
   }
+  const metrics = row.metrics_json ?? null
+  const rawRpe = metrics?.rpe
+  const rawRir = metrics?.rir
+  const rawNote = metrics?.note
+  const rpe =
+    typeof rawRpe === 'number' && Number.isFinite(rawRpe) && rawRpe >= RPE_MIN && rawRpe <= RPE_MAX
+      ? rawRpe
+      : undefined
+  const rir =
+    typeof rawRir === 'number' && Number.isFinite(rawRir) && rawRir >= RIR_MIN && rawRir <= RIR_MAX
+      ? rawRir
+      : undefined
+  const note = typeof rawNote === 'string' && rawNote.length > 0 ? rawNote : undefined
   return {
     setNumber: row.set_number,
     target,
     actual: row.actual_reps,
     passed: row.passed,
+    ...(rpe != null ? { rpe } : {}),
+    ...(rir != null ? { rir } : {}),
+    ...(note != null ? { note } : {}),
   }
 }
 

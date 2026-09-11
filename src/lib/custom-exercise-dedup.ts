@@ -69,7 +69,7 @@ export async function findActiveExerciseByDedupKey(
   return all.find((ex) => !ex.archived && exerciseDedupKey(ex.name, ex.primaryMetric) === key)
 }
 
-async function remapExerciseIdInPlans(fromId: string, toId: string): Promise<void> {
+export async function remapExerciseIdInPlans(fromId: string, toId: string): Promise<void> {
   const plans = await db.customPlans.toArray()
   for (const plan of plans) {
     let changed = false
@@ -92,7 +92,7 @@ async function remapExerciseIdInPlans(fromId: string, toId: string): Promise<voi
   }
 }
 
-async function remapExerciseIdInSessions(fromId: string, toId: string): Promise<void> {
+export async function remapExerciseIdInSessions(fromId: string, toId: string): Promise<void> {
   const sessions = await db.workoutSessions.toArray()
   for (const session of sessions) {
     const logs = session.exerciseLogs
@@ -108,7 +108,7 @@ async function remapExerciseIdInSessions(fromId: string, toId: string): Promise<
   }
 }
 
-async function remapExerciseIdInActiveWorkouts(fromId: string, toId: string): Promise<void> {
+export async function remapExerciseIdInActiveWorkouts(fromId: string, toId: string): Promise<void> {
   const activeWorkouts = await db.activeCustomWorkout.toArray()
   for (const active of activeWorkouts) {
     if (!active.exerciseLogs.some((log) => log.exerciseId === fromId)) continue
@@ -124,14 +124,16 @@ async function remapExerciseIdInActiveWorkouts(fromId: string, toId: string): Pr
   }
 }
 
-async function archiveMergedExercise(exercise: ExerciseDefinition): Promise<void> {
-  const archived: ExerciseDefinition = {
-    ...exercise,
-    archived: true,
-    updatedAt: new Date().toISOString(),
-  }
-  await db.exercises.put(archived)
-  await enqueueSync('user_exercises', 'update', archived)
+async function deleteMergedExercise(exercise: ExerciseDefinition): Promise<void> {
+  // Delete locally + create tombstone to prevent resurrection from cloud.
+  // Previously we archived, but with the UNIQUE(user_id, name) DB constraint,
+  // archived duplicates still violate the constraint on push.
+  await db.exercises.delete(exercise.id)
+  await db.exerciseTombstones.put({
+    exerciseId: exercise.id,
+    deletedAt: new Date().toISOString(),
+  })
+  await enqueueSync('user_exercises', 'delete', { id: exercise.id })
 }
 
 /** Idempotent: merges active duplicates by normalized name + metric. */
@@ -154,7 +156,7 @@ export async function mergeDuplicateExercises(): Promise<{ mergedGroups: number 
       await remapExerciseIdInPlans(duplicate.id, canonical.id)
       await remapExerciseIdInSessions(duplicate.id, canonical.id)
       await remapExerciseIdInActiveWorkouts(duplicate.id, canonical.id)
-      await archiveMergedExercise(duplicate)
+      await deleteMergedExercise(duplicate)
     }
   }
 

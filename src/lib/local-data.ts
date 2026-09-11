@@ -74,6 +74,7 @@ export async function clearAllLocalData(): Promise<void> {
       aiProactiveCoach: prevSettings.aiProactiveCoach,
       aiReasoningEffort: prevSettings.aiReasoningEffort,
       language: prevSettings.language,
+      rpeRirEducationDismissed: prevSettings.rpeRirEducationDismissed,
       subscriptionStatus: prevSettings.subscriptionStatus,
       subscriptionExpiresAt: prevSettings.subscriptionExpiresAt,
       trialStartedAt: prevSettings.trialStartedAt,

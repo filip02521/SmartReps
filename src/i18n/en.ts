@@ -190,7 +190,6 @@ export const en: Translation = {
   rpeHint: 'Perceived exertion (1-10)',
   rirLabel: 'RIR',
   rirHint: 'Reps in reserve (0-10)',
-  rpeRirToggle: 'Rating mode',
   rpeRirModeRpe: 'RPE',
   rpeRirModeRir: 'RIR',
   rpeRirClear: 'Clear',
@@ -213,6 +212,48 @@ export const en: Translation = {
   setNotePlaceholder: 'How did it feel? Form cues...',
   setNoteSave: 'Save',
   setNoteHint: 'Quick note per set',
+  // RPE/RIR progression suggestions
+  progressionSuggestionTitle: 'Suggestion for next workout',
+  progressionSuggestionAvgRpe: 'Avg RPE',
+  progressionSuggestionAvgRir: 'Avg RIR',
+  progressionSuggestionApply: 'Apply',
+  progressionSuggestionDismiss: 'Dismiss',
+  progressionSuggestionInfoOnly: 'Info',
+  progressionSuggestionConfidence: (level: 'high' | 'medium' | 'low'): string =>
+    level === 'high' ? 'High confidence' : level === 'medium' ? 'Medium confidence' : 'Low confidence',
+  progressionIncreaseReps: (rpe: number) => `Avg RPE ${rpe} — very easy. Try +1 rep per set.`,
+  progressionIncreaseWeight: (rpe: number) => `Avg RPE ${rpe} — very easy. Increase weight by 2.5 kg.`,
+  progressionMaintainSweetSpot: (rpe: number) => `Avg RPE ${rpe} — optimal intensity. Keep current load.`,
+  progressionMaintainHard: (rpe: number) => `Avg RPE ${rpe} — hard but OK. Maintain, but watch fatigue.`,
+  progressionMaintainFailedSet: 'At least one set failed — keep current load.',
+  progressionMaintainObserve: (rpe: number) => `Avg RPE ${rpe} — easy, but not enough data to increase. Hold and observe upcoming sessions.`,
+  progressionMaintainMaxEffort: (rpe: number) => `Avg RPE ${rpe} — training to failure. Hold the load and watch — if it repeats, consider a deload.`,
+  progressionReduceVolume: (rpe: number) => `Avg RPE ${rpe} — very hard for several sessions. Reduce volume by 20%.`,
+  progressionDeload: (rpe: number) => `Avg RPE ${rpe} — max effort for several sessions. Time for a deload (−40% volume).`,
+  // RPE/RIR trend panel
+  rpeTrendTitle: 'RPE/RIR Trends',
+  rpeTrendSubtitle: 'How intensity changes over time',
+  rpeTrendSelectExercise: 'Select exercise',
+  rpeTrendNoData: 'No RPE/RIR data',
+  rpeTrendNoDataHint: 'Start logging RPE/RIR during workouts to see intensity trends.',
+  rpeTrendNoDataForExercise: 'No RPE/RIR data for this exercise',
+  rpeTrendChartAria: (count: number) => `RPE trend chart: ${count} points`,
+  rpeTrendDateColumn: 'Date',
+  rpeTrendRpeColumn: 'RPE',
+  rpeTrendRirColumn: 'RIR',
+  rpeTrendSetsColumn: 'Sets',
+  rpeTrendAllExercises: 'All exercises',
+  rpeTrendBuiltinPrograms: 'Built-in programs',
+  rpeTrendCustomPlans: 'Custom plans',
+  // RPE/RIR education hint
+  rpeEducationTitle: 'RPE and RIR — how to log intensity',
+  rpeEducationSummary: 'Optional — add RPE or RIR to sets to track intensity.',
+  rpeEducationRpeDesc: 'RPE (Rate of Perceived Exertion) 1–10: how hard the set was. 7 = could do 3 more, 10 = max.',
+  rpeEducationRirDesc: 'RIR (Reps In Reserve) 0–10: how many reps you had left. 0 = max, 3 = easy.',
+  rpeEducationRelationship: 'Tip: RPE 7 ≈ RIR 3, RPE 8 ≈ RIR 2, RPE 9 ≈ RIR 1.',
+  rpeEducationLearnMore: 'More',
+  rpeEducationHide: 'Less',
+  rpeEducationDismiss: 'Got it',
   // Drop sets
   dropsetLabel: 'Drop set',
   dropsetHint: 'Reduce weight without rest',
@@ -3063,6 +3104,7 @@ Return JSON in this format (this is an example, replace values):
     activePlan: string,
     volumeTable: string,
     recentTable: string,
+    effortSummary: string,
   ) => `Analyze the user's workout history and provide specific suggestions.
 
 DATA:
@@ -3076,6 +3118,9 @@ ${activePlan}
 VOLUME PER MUSCLE GROUP (sets/week):
 ${volumeTable}
 
+INTENSITY (RPE/RIR):
+${effortSummary}
+
 RECENT SESSIONS:
 ${recentTable}
 
@@ -3084,7 +3129,8 @@ Analysis rules:
 2. Check if training frequency is optimal.
 3. Identify muscle groups with insufficient or excessive volume.
 4. Check if progression is appropriate.
-5. Give 3-5 specific, practical suggestions (in English).
+5. Consider intensity (RPE/RIR) — whether the user is training too hard or too light.
+6. Give 3-5 specific, practical suggestions (in English).
 
 Return JSON in this format (this is an example, replace values):
 {
@@ -3119,6 +3165,15 @@ ALLOWED muscleGroup values: "chest", "back", "shoulders", "arms", "legs", "core"
   aiPromptDateRangeNone: 'no data',
   aiPromptNoActivePlan: '',
   aiPromptLanguageHint: 'English',
+  aiPromptEffortSummary: (avgRpe: number, avgRir: number, trend: string) =>
+    `Avg RPE: ${avgRpe}, Avg RIR: ${avgRir}, Trend: ${trend}`,
+  aiPromptEffortNoData: 'No RPE/RIR data — user does not log intensity.',
+  aiPromptEffortTrend: {
+    increasing: 'increasing (intensity rising)',
+    stable: 'stable',
+    decreasing: 'decreasing (intensity dropping)',
+    unknown: 'insufficient data',
+  } as Record<'increasing' | 'stable' | 'decreasing' | 'unknown', string>,
 
   // ── AI post-workout prompt building blocks ──
   aiPromptPostWorkoutDaySummary: (day: number, totalReps: number, logs: string) =>

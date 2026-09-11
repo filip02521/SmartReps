@@ -71,6 +71,12 @@ export type SetResultDraft = {
   target: SetTarget
   actual: number
   passed: boolean
+  /** Rate of Perceived Exertion (1-10). Optional. Synced via metrics_json. */
+  rpe?: number
+  /** Reps In Reserve (0-10). Optional, alternative to RPE. Synced via metrics_json. */
+  rir?: number
+  /** Per-set note (form cues, how it felt). Optional. Synced via metrics_json. */
+  note?: string
 }
 
 export function allSetsPassed(results: SetResultDraft[]): boolean {

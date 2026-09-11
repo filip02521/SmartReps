@@ -10,8 +10,9 @@
  * - Conservative: never suggest aggressive jumps based on a single light session
  * - RPE-aware: use average RPE across all sets, not just the last set
  * - Failed-set-aware: if any set failed, never suggest increasing load
- * - Trend-aware: require 2+ consecutive sessions of low RPE before suggesting increase
- * - Safe: deload suggestion when RPE 9-10 sustained across multiple sessions
+ * - Trend-aware: require 2+ consecutive previous sessions of low/high RPE before suggesting change
+ * - Safe: deload suggestion when RPE 10 sustained across 3+ total sessions (2+ previous)
+ * - No single-session suggestions: without sustained trend, always maintain and observe
  */
 
 import type { SetResultDraft } from '@/lib/progress-engine'
@@ -133,7 +134,7 @@ export function analyzeBuiltinProgression(
   const rpe = avgRpe ?? (avgRir != null ? rirToRpe(avgRir) : null)
   if (rpe === null) return null
 
-  // RPE ≤ 6 (RIR ≥ 4): very easy → suggest increase
+  // RPE ≤ 6 (RIR ≥ 4): very easy → suggest increase only if sustained
   if (rpe <= 6) {
     if (sustainedLowRpe) {
       return {
@@ -147,11 +148,11 @@ export function analyzeBuiltinProgression(
         confidence: 'high',
       }
     }
+    // Not enough data — never increase based on a single session
     return {
-      kind: 'increase_reps',
-      reasonKey: 'progressionIncreaseRepsSingle',
+      kind: 'maintain',
+      reasonKey: 'progressionMaintainObserve',
       reasonParams: [rpe],
-      delta: { reps: 1 },
       avgRpe,
       avgRir,
       setsWithEffort,
@@ -174,9 +175,9 @@ export function analyzeBuiltinProgression(
 
   // RPE 9 (RIR 1): hard but OK → maintain, watch for deload
   if (rpe === 9) {
-    // Check if RPE 9 sustained across 2+ sessions
+    // Check if RPE 9 sustained across 2+ previous sessions
     const sustainedHighRpe =
-      recentAvgRpes.length >= 1 && recentAvgRpes.every((r) => r >= 9)
+      recentAvgRpes.length >= 2 && recentAvgRpes.every((r) => r >= 9)
     if (sustainedHighRpe) {
       return {
         kind: 'reduce_volume',
@@ -186,7 +187,7 @@ export function analyzeBuiltinProgression(
         avgRpe,
         avgRir,
         setsWithEffort,
-        confidence: 'medium',
+        confidence: 'high',
       }
     }
     return {
@@ -200,9 +201,9 @@ export function analyzeBuiltinProgression(
     }
   }
 
-  // RPE 10 (RIR 0): max effort → deload if sustained
+  // RPE 10 (RIR 0): max effort → deload only if sustained across 2+ sessions
   const sustainedMaxRpe =
-    recentAvgRpes.length >= 1 && recentAvgRpes.every((r) => r >= 10)
+    recentAvgRpes.length >= 2 && recentAvgRpes.every((r) => r >= 10)
   if (sustainedMaxRpe) {
     return {
       kind: 'deload',
@@ -216,15 +217,15 @@ export function analyzeBuiltinProgression(
     }
   }
 
+  // RPE 10 but not sustained — maintain and observe, don't reduce based on 1 session
   return {
-    kind: 'reduce_volume',
-    reasonKey: 'progressionReduceVolumeSingle',
+    kind: 'maintain',
+    reasonKey: 'progressionMaintainMaxEffort',
     reasonParams: [rpe],
-    delta: { volumePct: 15 },
     avgRpe,
     avgRir,
     setsWithEffort,
-    confidence: 'low',
+    confidence: 'medium',
   }
 }
 
@@ -283,27 +284,39 @@ export function analyzeCustomProgression(
   const sustainedLowRpe = recentAvgRpes.length >= 2 && recentAvgRpes.every((r) => r <= 7)
 
   if (avgRpe <= 6) {
-    if (hasWeightedExercise) {
+    if (sustainedLowRpe) {
+      if (hasWeightedExercise) {
+        return {
+          kind: 'increase_weight',
+          reasonKey: 'progressionIncreaseWeight',
+          reasonParams: [avgRpe],
+          delta: { weightKg: 2.5 },
+          avgRpe,
+          avgRir,
+          setsWithEffort: rpes.length,
+          confidence: 'high',
+        }
+      }
       return {
-        kind: 'increase_weight',
-        reasonKey: sustainedLowRpe ? 'progressionIncreaseWeight' : 'progressionIncreaseWeightSingle',
+        kind: 'increase_reps',
+        reasonKey: 'progressionIncreaseReps',
         reasonParams: [avgRpe],
-        delta: { weightKg: 2.5 },
+        delta: { reps: 1 },
         avgRpe,
         avgRir,
         setsWithEffort: rpes.length,
-        confidence: sustainedLowRpe ? 'high' : 'medium',
+        confidence: 'high',
       }
     }
+    // Not enough data — never increase based on a single session
     return {
-      kind: 'increase_reps',
-      reasonKey: sustainedLowRpe ? 'progressionIncreaseReps' : 'progressionIncreaseRepsSingle',
+      kind: 'maintain',
+      reasonKey: 'progressionMaintainObserve',
       reasonParams: [avgRpe],
-      delta: { reps: 1 },
       avgRpe,
       avgRir,
       setsWithEffort: rpes.length,
-      confidence: sustainedLowRpe ? 'high' : 'medium',
+      confidence: 'medium',
     }
   }
 
@@ -320,7 +333,7 @@ export function analyzeCustomProgression(
   }
 
   if (avgRpe === 9) {
-    const sustainedHighRpe = recentAvgRpes.length >= 1 && recentAvgRpes.every((r) => r >= 9)
+    const sustainedHighRpe = recentAvgRpes.length >= 2 && recentAvgRpes.every((r) => r >= 9)
     if (sustainedHighRpe) {
       return {
         kind: 'reduce_volume',
@@ -330,7 +343,7 @@ export function analyzeCustomProgression(
         avgRpe,
         avgRir,
         setsWithEffort: rpes.length,
-        confidence: 'medium',
+        confidence: 'high',
       }
     }
     return {
@@ -345,7 +358,7 @@ export function analyzeCustomProgression(
   }
 
   // RPE 10
-  const sustainedMaxRpe = recentAvgRpes.length >= 1 && recentAvgRpes.every((r) => r >= 10)
+  const sustainedMaxRpe = recentAvgRpes.length >= 2 && recentAvgRpes.every((r) => r >= 10)
   if (sustainedMaxRpe) {
     return {
       kind: 'deload',
@@ -359,14 +372,14 @@ export function analyzeCustomProgression(
     }
   }
 
+  // RPE 10 but not sustained — maintain and observe
   return {
-    kind: 'reduce_volume',
-    reasonKey: 'progressionReduceVolumeSingle',
+    kind: 'maintain',
+    reasonKey: 'progressionMaintainMaxEffort',
     reasonParams: [avgRpe],
-    delta: { volumePct: 15 },
     avgRpe,
     avgRir,
     setsWithEffort: rpes.length,
-    confidence: 'low',
+    confidence: 'medium',
   }
 }

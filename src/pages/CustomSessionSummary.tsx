@@ -56,6 +56,8 @@ import { StreakRecapCard } from '@/components/workout/StreakRecapCard'
 import { detectPersonalRecords, type PersonalRecord } from '@/lib/pr-detector'
 import { initCelebrationAudio } from '@/lib/celebration-feedback'
 import { SessionNoteCard } from '@/components/workout/SessionNoteCard'
+import { ProgressionSuggestionPanel } from '@/components/workout/ProgressionSuggestionPanel'
+import { analyzeCustomProgression, type ProgressionSuggestion } from '@/lib/rpe-analysis'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
 import {
@@ -112,6 +114,8 @@ export default function CustomSessionSummary() {
   const [showCelebration, setShowCelebration] = useState(false)
   const [allSessionsForStreak, setAllSessionsForStreak] = useState<LocalWorkoutSession[]>([])
   const [previousSessionsForStreak, setPreviousSessionsForStreak] = useState<LocalWorkoutSession[]>([])
+  const [progressionSuggestion, setProgressionSuggestion] = useState<ProgressionSuggestion | null>(null)
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false)
   const achievementQueue = useAchievementUiStore((s) => s.queue)
   const clearQueue = useAchievementUiStore((s) => s.clearQueue)
   const setSummaryMode = useAchievementUiStore((s) => s.setSummaryMode)
@@ -233,6 +237,15 @@ export default function CustomSessionSummary() {
               historicalSessions,
             }),
           )
+          // RPE/RIR progression suggestion (custom = can apply weight/reps changes)
+          const recentLogsForTrend = historicalSessions
+            .filter((row) => row.customPlanId === resolvedPlanId && row.dayNumber === s.dayNumber && row.id !== s.id)
+            .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+            .slice(0, 2)
+            .map((row) => row.exerciseLogs ?? [])
+          const customSuggestion = analyzeCustomProgression(s.exerciseLogs ?? [], recentLogsForTrend)
+          setProgressionSuggestion(customSuggestion)
+          setSuggestionDismissed(false)
           // Detect personal records for celebration banner
           try {
             const records = await detectPersonalRecords(s)
@@ -836,6 +849,15 @@ export default function CustomSessionSummary() {
           weightUnit={weightUnit}
         />
       </div>
+
+      {/* RPE/RIR progression suggestion (custom = info-only, manual adjustment) */}
+      {progressionSuggestion && !suggestionDismissed && (
+        <ProgressionSuggestionPanel
+          suggestion={progressionSuggestion}
+          canApply={false}
+          onDismiss={() => setSuggestionDismissed(true)}
+        />
+      )}
 
       {session?.id && (
         <div className="mt-6">

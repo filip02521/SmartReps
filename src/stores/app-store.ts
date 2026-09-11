@@ -50,6 +50,8 @@ export type UserSettings = {
   subscriptionExpiresAt: string | null
   /** ISO timestamp when opt-in trial was started. null = trial not started. */
   trialStartedAt: string | null
+  /** When true, user has dismissed the RPE/RIR education hint and won't see it again. Synced to cloud. */
+  rpeRirEducationDismissed: boolean
 }
 
 export type PendingTest = {
@@ -153,6 +155,7 @@ const UI_SYNC_KEYS: (keyof UserSettings)[] = [
   'aiReasoningEffort',
   'aiModel',
   'aiBaseUrl',
+  'rpeRirEducationDismissed',
 ]
 
 export const defaultSettings: UserSettings = {
@@ -178,6 +181,7 @@ export const defaultSettings: UserSettings = {
   subscriptionStatus: 'free',
   subscriptionExpiresAt: null,
   trialStartedAt: null,
+  rpeRirEducationDismissed: false,
 }
 
 export const useAppStore = create<AppStore>()(

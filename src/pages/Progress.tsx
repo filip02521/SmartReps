@@ -5,6 +5,7 @@ import { OverviewPanel } from '@/components/progress/OverviewPanel'
 import { HistoryPanel } from '@/components/progress/HistoryPanel'
 import { AiWorkoutAnalysis } from '@/components/progress/AiWorkoutAnalysis'
 import { BodyWeightSection } from '@/components/progress/BodyWeightSection'
+import { RpeTrendPanel } from '@/components/progress/RpeTrendPanel'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
@@ -401,6 +402,9 @@ export default function ProgressPage() {
               navigate={navigate}
               onSessionDeleted={() => setReloadEpoch((n) => n + 1)}
             />
+            <div className="mt-6">
+              <RpeTrendPanel />
+            </div>
           </>
         )}
 

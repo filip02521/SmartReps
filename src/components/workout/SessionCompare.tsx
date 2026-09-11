@@ -127,6 +127,7 @@ export function SessionCompare({
               <th className="pb-3 font-semibold">{pl.targetColumn}</th>
               <th className="pb-3 font-semibold text-[var(--sr-text-primary)]">{pl.youColumn}</th>
               <th className="pb-3 font-semibold">{pl.prevColumn}</th>
+              <th className="pb-3 font-semibold text-center">{pl.rpeLabel}/{pl.rirLabel}</th>
             </tr>
           </thead>
           <tbody>
@@ -135,6 +136,12 @@ export function SessionCompare({
               const diff = prev ? r.actual - prev.actual : null
               const setInsight = insights?.setInsights.get(r.setNumber)
               const badge = formatBuiltinSetInsightBadge(setInsight)
+              const effortLabel =
+                r.rpe != null
+                  ? pl.setLogDetailsRpeChip(r.rpe)
+                  : r.rir != null
+                    ? pl.setLogDetailsRirChip(r.rir)
+                    : null
               return (
                 <tr
                   key={r.setNumber}
@@ -163,6 +170,12 @@ export function SessionCompare({
                       {badge && setInsight?.kind === 'down' && (
                         <SummaryInsightBadge tone="down">{badge}</SummaryInsightBadge>
                       )}
+                      {/* Mobile-only RPE/RIR badge (compact, inline with actual) */}
+                      {effortLabel && (
+                        <span className="sm:hidden inline-flex items-center rounded-full bg-[var(--sr-brand-primary-muted)] px-1.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]">
+                          {effortLabel}
+                        </span>
+                      )}
                     </span>
                   </td>
                   <td className="py-3 tabular-nums text-[var(--sr-text-muted)]">
@@ -173,6 +186,15 @@ export function SessionCompare({
                       </span>
                     ) : (
                       '—'
+                    )}
+                  </td>
+                  <td className="hidden py-3 text-center tabular-nums sm:table-cell">
+                    {effortLabel ? (
+                      <span className="inline-flex items-center rounded-full bg-[var(--sr-brand-primary-muted)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]">
+                        {effortLabel}
+                      </span>
+                    ) : (
+                      <span className="text-[var(--sr-text-muted)]">—</span>
                     )}
                   </td>
                 </tr>

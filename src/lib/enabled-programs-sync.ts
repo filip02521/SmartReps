@@ -33,6 +33,8 @@ export type RemoteProfileSettings = {
   ai_reasoning_effort?: 'auto' | 'low' | 'medium' | 'high' | null
   ai_model?: string | null
   ai_base_url?: string | null
+  /** When true, user has dismissed the RPE/RIR education hint. Synced to cloud. */
+  rpe_rir_education_dismissed?: boolean | null
   ui_settings_updated_at?: string | null
   // Subscription status — pulled from cloud, NOT pushed (cloud → local only)
   subscription_status?: 'free' | 'trial' | 'pro' | 'lifetime' | 'expired' | null
@@ -148,6 +150,7 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
   // Sync AI model and base URL (NOT api key — that stays local-only)
   const aiModel = remote.ai_model ?? settings.aiModel
   const aiBaseUrl = remote.ai_base_url ?? settings.aiBaseUrl
+  const rpeRirEducationDismissed = remote.rpe_rir_education_dismissed ?? settings.rpeRirEducationDismissed
 
   const unchanged =
     theme === settings.theme &&
@@ -161,7 +164,8 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     aiProactiveCoach === settings.aiProactiveCoach &&
     aiReasoningEffort === settings.aiReasoningEffort &&
     aiModel === settings.aiModel &&
-    aiBaseUrl === settings.aiBaseUrl
+    aiBaseUrl === settings.aiBaseUrl &&
+    rpeRirEducationDismissed === settings.rpeRirEducationDismissed
 
   if (unchanged) {
     useAppStore.setState({ uiSettingsUpdatedAt: remote.ui_settings_updated_at })
@@ -182,6 +186,7 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     aiReasoningEffort,
     aiModel,
     aiBaseUrl,
+    rpeRirEducationDismissed,
   }
   useAppStore.setState({
     settings: next,

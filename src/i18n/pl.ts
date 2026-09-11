@@ -200,7 +200,6 @@ const plDict = {
   rpeHint: 'Subiektywny wysiłek (1-10)',
   rirLabel: 'RIR',
   rirHint: 'Powtórzenia w rezerwie (0-10)',
-  rpeRirToggle: 'Tryb oceny',
   rpeRirModeRpe: 'RPE',
   rpeRirModeRir: 'RIR',
   rpeRirClear: 'Wyczyść',
@@ -223,6 +222,48 @@ const plDict = {
   setNotePlaceholder: 'Jak poszło? Form cues...',
   setNoteSave: 'Zapisz',
   setNoteHint: 'Krótka notatka per seria',
+  // RPE/RIR progression suggestions
+  progressionSuggestionTitle: 'Sugestia na następny trening',
+  progressionSuggestionAvgRpe: 'Średnie RPE',
+  progressionSuggestionAvgRir: 'Średnie RIR',
+  progressionSuggestionApply: 'Zastosuj',
+  progressionSuggestionDismiss: 'Pomiń',
+  progressionSuggestionInfoOnly: 'Informacja',
+  progressionSuggestionConfidence: (level: 'high' | 'medium' | 'low'): string =>
+    level === 'high' ? 'Wysoka pewność' : level === 'medium' ? 'Średnia pewność' : 'Niska pewność',
+  progressionIncreaseReps: (rpe: number) => `Średnie RPE ${rpe} — bardzo lekko. Spróbuj +1 powtórzenie w każdej serii.`,
+  progressionIncreaseWeight: (rpe: number) => `Średnie RPE ${rpe} — bardzo lekko. Zwiększ ciężar o 2.5 kg.`,
+  progressionMaintainSweetSpot: (rpe: number) => `Średnie RPE ${rpe} — optymalna intensywność. Utrzymaj obecne obciążenie.`,
+  progressionMaintainHard: (rpe: number) => `Średnie RPE ${rpe} — ciężko ale OK. Utrzymaj, ale obserwuj zmęczenie.`,
+  progressionMaintainFailedSet: 'Co najmniej jedna seria nieudana — utrzymaj obecne obciążenie.',
+  progressionMaintainObserve: (rpe: number) => `Średnie RPE ${rpe} — lekko, ale za mało danych aby zwiększyć. Utrzymaj i obserwuj kolejne sesje.`,
+  progressionMaintainMaxEffort: (rpe: number) => `Średnie RPE ${rpe} — trening do upadku. Utrzymaj obciążenie i obserwuj — jeśli powtórzy się, rozważ deload.`,
+  progressionReduceVolume: (rpe: number) => `Średnie RPE ${rpe} — bardzo ciężko przez kilka sesji. Zmniejsz objętość o 20%.`,
+  progressionDeload: (rpe: number) => `Średnie RPE ${rpe} — maksymalny wysiłek przez kilka sesji. Czas na deload (−40% objętości).`,
+  // RPE/RIR trend panel
+  rpeTrendTitle: 'Trendy RPE/RIR',
+  rpeTrendSubtitle: 'Jak zmienia się intensywność w czasie',
+  rpeTrendSelectExercise: 'Wybierz ćwiczenie',
+  rpeTrendNoData: 'Brak danych RPE/RIR',
+  rpeTrendNoDataHint: 'Zacznij logować RPE/RIR podczas treningu, aby zobaczyć trendy intensywności.',
+  rpeTrendNoDataForExercise: 'Brak danych RPE/RIR dla tego ćwiczenia',
+  rpeTrendChartAria: (count: number) => `Wykres trendu RPE: ${count} punktów`,
+  rpeTrendDateColumn: 'Data',
+  rpeTrendRpeColumn: 'RPE',
+  rpeTrendRirColumn: 'RIR',
+  rpeTrendSetsColumn: 'Serie',
+  rpeTrendAllExercises: 'Wszystkie ćwiczenia',
+  rpeTrendBuiltinPrograms: 'Programy wbudowane',
+  rpeTrendCustomPlans: 'Plany własne',
+  // RPE/RIR education hint
+  rpeEducationTitle: 'RPE i RIR — jak logować intensywność',
+  rpeEducationSummary: 'Opcjonalnie — dodaj RPE lub RIR do serii, aby śledzić intensywność.',
+  rpeEducationRpeDesc: 'RPE (Rate of Perceived Exertion) 1–10: jak ciężko była seria. 7 = mogłeś zrobić 3 więcej, 10 = maks.',
+  rpeEducationRirDesc: 'RIR (Reps In Reserve) 0–10: ile powtórzeń zostało w zapasie. 0 = maks, 3 = lekko.',
+  rpeEducationRelationship: 'Wskazówka: RPE 7 ≈ RIR 3, RPE 8 ≈ RIR 2, RPE 9 ≈ RIR 1.',
+  rpeEducationLearnMore: 'Więcej',
+  rpeEducationHide: 'Mniej',
+  rpeEducationDismiss: 'Rozumiem',
   // Drop sets
   dropsetLabel: 'Drop set',
   dropsetHint: 'Redukcja ciężaru bez przerwy',
@@ -3094,6 +3135,7 @@ Zwróć JSON w tym formacie (to jest przykład, podmień wartości):
     activePlan: string,
     volumeTable: string,
     recentTable: string,
+    effortSummary: string,
   ) => `Przeanalizuj historię treningów użytkownika i daj konkretne sugestie.
 
 DANE:
@@ -3107,6 +3149,9 @@ ${activePlan}
 OBJĘTOŚĆ NA GRUPĘ MIĘŚNIOWĄ (serie/tydzień):
 ${volumeTable}
 
+INTENSYWNOŚĆ (RPE/RIR):
+${effortSummary}
+
 OSTATNIE SESJE:
 ${recentTable}
 
@@ -3115,7 +3160,8 @@ Zasady analizy:
 2. Sprawdź czy częstotliwość treningowa jest optymalna.
 3. Zidentyfikuj grupy mięśniowe z niedostateczną lub nadmierną objętością.
 4. Sprawdź czy progresja jest odpowiednia.
-5. Daj 3-5 konkretnych, praktycznych sugestii (po polsku).
+5. Uwzględnij intensywność (RPE/RIR) — czy użytkownik trenuje zbyt ciężko lub zbyt lekko.
+6. Daj 3-5 konkretnych, praktycznych sugestii (po polsku).
 
 Zwróć JSON w tym formacie (to jest przykład, podmień wartości):
 {
@@ -3150,6 +3196,15 @@ DOZWOLONE wartości muscleGroup: "chest", "back", "shoulders", "arms", "legs", "
   aiPromptDateRangeNone: 'brak danych',
   aiPromptNoActivePlan: '',
   aiPromptLanguageHint: 'Polish',
+  aiPromptEffortSummary: (avgRpe: number, avgRir: number, trend: string) =>
+    `Średnie RPE: ${avgRpe}, Średnie RIR: ${avgRir}, Trend: ${trend}`,
+  aiPromptEffortNoData: 'Brak danych RPE/RIR — użytkownik nie loguje intensywności.',
+  aiPromptEffortTrend: {
+    increasing: 'rosnący (intensywność rośnie)',
+    stable: 'stabilny',
+    decreasing: 'malejący (intensywność spada)',
+    unknown: 'za mało danych',
+  } as Record<'increasing' | 'stable' | 'decreasing' | 'unknown', string>,
 
   // ── AI post-workout prompt building blocks ──
   aiPromptPostWorkoutDaySummary: (day: number, totalReps: number, logs: string) =>

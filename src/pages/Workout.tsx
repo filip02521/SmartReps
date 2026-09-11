@@ -91,6 +91,10 @@ export default function WorkoutPage() {
   const [staleResume, setStaleResume] = useState<{ day: number; set: number; total: number } | null>(null)
   const staleConfirmedRef = useRef(false)
   const [pulseFlash, setPulseFlash] = useState(false)
+  // RPE/RIR + per-set note state for builtin workouts (mirrors CustomWorkout.tsx)
+  const [rpeRirValue, setRpeRirValue] = useState<number | null>(null)
+  const [rpeRirMode, setRpeRirMode] = useState<'rpe' | 'rir'>('rpe')
+  const [setNote, setSetNote] = useState<string | undefined>(undefined)
 
   const currentSetIndex = useWorkoutStore((s) => s.currentSetIndex)
   const setResults = useWorkoutStore((s) => s.setResults)
@@ -318,6 +322,9 @@ export default function WorkoutPage() {
       setSessionMeta(session)
       const setIdx = active?.currentSetIndex ?? 0
       setActual(getTargetReps(d.sets[setIdx]))
+      // Reset RPE/RIR and note for the current set (not yet logged)
+      setRpeRirValue(null)
+      setSetNote(undefined)
       await loadPreviousActual(setIdx, prog.cycleAttempt, prog.currentDay)
       void loadAllPreviousResults(prog.currentDay, d.sets.length, session.id)
       setInitialized(true)
@@ -519,6 +526,18 @@ export default function WorkoutPage() {
     setNegativeCountdown(null)
     negativePrepForSetRef.current = null
     setActual(removed.actual)
+    // Restore RPE/RIR and note from the undone set
+    if (removed.rpe != null) {
+      setRpeRirValue(removed.rpe)
+      setRpeRirMode('rpe')
+    } else if (removed.rir != null) {
+      setRpeRirValue(removed.rir)
+      setRpeRirMode('rir')
+    } else {
+      setRpeRirValue(null)
+      setRpeRirMode('rir')
+    }
+    setSetNote(removed.note)
 
     const editIndex = useWorkoutStore.getState().currentSetIndex
     try {
@@ -554,6 +573,12 @@ export default function WorkoutPage() {
         target: currentTarget,
         actual,
         passed,
+        ...(rpeRirValue != null
+          ? rpeRirMode === 'rpe'
+            ? { rpe: rpeRirValue }
+            : { rir: rpeRirValue }
+          : {}),
+        ...(setNote ? { note: setNote } : {}),
       }
 
       if (!passed) {
@@ -616,6 +641,9 @@ export default function WorkoutPage() {
       const restSec = day.restBetweenSetsSec > 0 ? day.restBetweenSetsSec : 60
       workout.setRestTimer(createRestTimer(restSec, 'expanded'))
       setActual(getTargetReps(day.sets[nextSetIndex]))
+      // Reset RPE/RIR and note for the new set
+      setRpeRirValue(null)
+      setSetNote(undefined)
       // Best-effort persist of the rest timer state (non-critical — timer is ephemeral).
       try {
         await persistState()
@@ -772,6 +800,12 @@ export default function WorkoutPage() {
       showTechniqueLink={true}
       sessionHasProgress={hasSessionProgress}
       sessionStartedAt={displayStartedAt}
+      rpeRirValue={rpeRirValue}
+      rpeRirMode={rpeRirMode}
+      setNote={setNote}
+      onRpeRirChange={setRpeRirValue}
+      onRpeRirModeChange={setRpeRirMode}
+      onSetNoteChange={setSetNote}
       onBack={() => {
         if (!hasSessionProgress) {
           discardEphemeralSession()

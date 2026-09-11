@@ -184,8 +184,8 @@ export function RpeTrendPanel() {
                 axisLine={{ stroke: 'var(--sr-border-subtle)' }}
               />
               <YAxis
-                domain={[1, 10]}
-                ticks={[1, 3, 5, 7, 9]}
+                domain={[0, 10]}
+                ticks={[0, 2, 4, 6, 8, 10]}
                 tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
                 tickLine={false}
                 axisLine={false}
@@ -204,6 +204,16 @@ export function RpeTrendPanel() {
                 stroke="var(--sr-brand-primary)"
                 strokeWidth={2}
                 dot={{ r: 3, fill: 'var(--sr-brand-primary)' }}
+                connectNulls
+              />
+              <Line
+                type="monotone"
+                dataKey="rir"
+                name={pl.rpeTrendRirColumn}
+                stroke="var(--sr-text-muted)"
+                strokeWidth={2}
+                strokeDasharray="4 3"
+                dot={{ r: 3, fill: 'var(--sr-text-muted)' }}
                 connectNulls
               />
             </LineChart>
