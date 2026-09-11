@@ -18,6 +18,10 @@ import { pl } from '@/i18n/pl'
 import { completeOnboardingIfSynced } from '@/lib/onboarding-from-sync'
 import { track, trackSyncError, AnalyticsEvents } from '@/lib/analytics'
 import { clearSignedOutPreference } from '@/lib/auth-lifecycle'
+import {
+  isSessionExpiredToastInCooldown,
+  markSessionExpiredToastShown,
+} from '@/lib/notification-cooldown'
 
 const AUTH_RETURN_KEY = 'auth-return-to'
 const AUTH_FROM_ONBOARDING_KEY = 'auth-from-onboarding'
@@ -239,15 +243,17 @@ function failureToastForReason(reason: SyncFailureReason): {
   message: string
   variant: 'info' | 'warning' | 'error'
   action?: { label: string; onClick: () => void }
+  durationMs?: number
 } {
   switch (reason) {
     case 'offline':
       return { message: pl.toastSyncFailedOffline, variant: 'info' }
     case 'auth_expired':
       return {
-        message: pl.toastSyncFailedSession,
-        variant: 'info',
+        message: pl.sessionLostReLogin,
+        variant: 'warning',
         action: loginToastAction(),
+        durationMs: 12000,
       }
     case 'dead_letter':
       return { message: pl.toastSyncFailedDeadLetter, variant: 'warning' }
@@ -266,15 +272,24 @@ async function inferFailureReason(errors: number): Promise<SyncFailureReason> {
   return 'unknown'
 }
 
-/** Coalesce rapid sync result toasts — success wins over a late failure toast. */
+/** Coalesce rapid sync result toasts — success wins over a late failure toast.
+ *  auth_expired toasts share a cooldown with notifyUnexpectedSessionLoss so
+ *  the user sees ONE "session expired" notification, not one per sync trigger. */
 function scheduleSyncResultToast(
   ok: boolean,
   opts: SyncToastOpts,
   reason?: SyncFailureReason,
 ) {
   if (ok && !opts.showSuccessToast) return
-  // auth_expired always shows — user must re-login, suppressing it hides the problem
-  if (!ok && reason !== 'auth_expired' && !opts.showFailureToast) return
+  // auth_expired: show once, then suppress for the cooldown period.
+  // The persistent "Session expired" badge in AccountHero (Profile) remains
+  // visible regardless — the user always knows they need to re-login.
+  if (!ok && reason === 'auth_expired') {
+    if (isSessionExpiredToastInCooldown()) return
+    markSessionExpiredToastShown()
+  } else if (!ok && !opts.showFailureToast) {
+    return
+  }
   if (!ok && reason === 'offline' && opts.silentOffline) return
   if (!ok && reason === 'no_session') return
 
@@ -287,7 +302,15 @@ function scheduleSyncResultToast(
       showToast(pl.toastSyncDone, 'success')
     } else if (pendingSyncToastResult && !pendingSyncToastResult.ok) {
       const toast = failureToastForReason(pendingSyncToastResult.reason ?? 'unknown')
-      showToast(toast.message, toast.variant, toast.action ? { action: toast.action } : undefined)
+      showToast(
+        toast.message,
+        toast.variant,
+        toast.action
+          ? { action: toast.action, durationMs: toast.durationMs }
+          : toast.durationMs
+            ? { durationMs: toast.durationMs }
+            : undefined,
+      )
     }
     pendingSyncToastResult = null
     syncToastTimer = null

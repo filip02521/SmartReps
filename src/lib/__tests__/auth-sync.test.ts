@@ -94,6 +94,7 @@ import {
   runAuthenticatedSync,
   shouldNavigateAfterAuth,
 } from '@/lib/auth-sync'
+import { __resetSessionExpiredCooldownForTests } from '@/lib/notification-cooldown'
 import {
   clearAccountSwitchPending,
   getAccountSwitchPending,
@@ -219,6 +220,7 @@ describe('runAuthenticatedSync', () => {
     vi.clearAllMocks()
     clearAccountSwitchPending()
     setLastSyncFailureReason.mockReset()
+    __resetSessionExpiredCooldownForTests()
     mockGetState.mockReturnValue({
       lastAuthUserId: 'user-a',
       setLastSyncedAt: vi.fn(),
@@ -277,6 +279,57 @@ describe('runAuthenticatedSync', () => {
 
     expect(result).toEqual({ ok: false, errors: 0, reason: 'auth_expired' })
     expect(setLastSyncFailureReason).toHaveBeenCalledWith('auth_expired')
+  })
+
+  it('shows session-lost toast on first auth_expired (with warning variant + action)', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+    } as never)
+
+    await runAuthenticatedSync({ showFailureToast: false })
+    await new Promise((r) => setTimeout(r, 500))
+
+    expect(showToast).toHaveBeenCalledWith(
+      expect.any(String),
+      'warning',
+      expect.objectContaining({
+        action: expect.objectContaining({ label: expect.any(String) }),
+        durationMs: 12000,
+      }),
+    )
+  })
+
+  it('suppresses auth_expired toast on second sync within cooldown', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+    } as never)
+
+    // First sync — shows toast
+    await runAuthenticatedSync({ showFailureToast: false })
+    await new Promise((r) => setTimeout(r, 500))
+    expect(showToast).toHaveBeenCalledTimes(1)
+
+    // Second sync — suppressed by cooldown
+    await runAuthenticatedSync({ showFailureToast: false })
+    await new Promise((r) => setTimeout(r, 500))
+    expect(showToast).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows auth_expired toast again after cooldown reset', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+    } as never)
+
+    await runAuthenticatedSync({ showFailureToast: false })
+    await new Promise((r) => setTimeout(r, 500))
+    expect(showToast).toHaveBeenCalledTimes(1)
+
+    // Reset cooldown (simulates successful login)
+    __resetSessionExpiredCooldownForTests()
+
+    await runAuthenticatedSync({ showFailureToast: false })
+    await new Promise((r) => setTimeout(r, 500))
+    expect(showToast).toHaveBeenCalledTimes(2)
   })
 
   it('shows human-readable toast for remote_error', async () => {

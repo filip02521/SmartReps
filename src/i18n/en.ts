@@ -1396,7 +1396,6 @@ export const en: Translation = {
   syncCtaLoginAgain: 'Log in again',
   syncCtaSessionExpired: 'Log in again',
   toastSyncFailedOffline: 'No network — sync will resume when connected',
-  toastSyncFailedSession: 'Session expired — log in again to sync',
   toastSyncFailedDeadLetter:
     'Some changes didn\u2019t reach the cloud — check the sync panel in Profile',
   toastSyncFailedRemote: 'Sync failed — try again',

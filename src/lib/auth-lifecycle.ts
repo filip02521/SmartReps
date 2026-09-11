@@ -13,11 +13,15 @@ import { showToast } from '@/stores/toast-store'
 import { trackSessionLostUnexpected } from '@/lib/analytics'
 import { pl } from '@/i18n/pl'
 import { unsubscribeWebPush } from '@/lib/web-push'
+import {
+  isSessionExpiredToastInCooldown,
+  markSessionExpiredToastShown,
+  resetSessionExpiredToastCooldown,
+} from '@/lib/notification-cooldown'
 
 /** Must match auth-sync AUTH_RETURN_KEY — avoid importing auth-sync (cycle). */
 const AUTH_RETURN_KEY = 'auth-return-to'
 
-let lastSessionLostToastAt = 0
 let lifecycleStarted = false
 
 async function waitForStoreHydration(timeoutMs = 3000): Promise<void> {
@@ -43,6 +47,7 @@ export function markIntentionalSignOut(): void {
 /** After a successful login, allow future unexpected-loss toasts again. */
 export function clearSignedOutPreference(): void {
   clearSignedOutPreferenceKeys()
+  resetSessionExpiredToastCooldown()
 }
 
 export function consumeIntentionalSignOut(): boolean {
@@ -95,9 +100,12 @@ export async function notifyUnexpectedSessionLoss(
   if (consumeIntentionalSignOut()) return
   if (isOnLoginRoute()) return
 
-  const now = Date.now()
-  if (now - lastSessionLostToastAt < 8000) return
-  lastSessionLostToastAt = now
+  // Shared cooldown — prevents repeated session-expired toasts when multiple
+  // sync triggers fire (online, visibility, boot, manual, post-workout).
+  // Both notifyUnexpectedSessionLoss (SIGNED_OUT) and scheduleSyncResultToast
+  // (auth_expired) use this same cooldown, so the user sees ONE notification.
+  if (isSessionExpiredToastInCooldown()) return
+  markSessionExpiredToastShown()
 
   trackSessionLostUnexpected()
 
@@ -106,7 +114,7 @@ export async function notifyUnexpectedSessionLoss(
       ? window.location.pathname + window.location.search
       : '/'
 
-  showToast(pl.sessionLostReLogin, 'info', {
+  showToast(pl.sessionLostReLogin, 'warning', {
     durationMs: 12000,
     action: {
       label: pl.sessionLostReLoginAction,

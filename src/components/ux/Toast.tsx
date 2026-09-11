@@ -115,10 +115,17 @@ export function ToastHost() {
                 <button
                   type="button"
                   className={cn(
-                    'mt-2 min-h-12 rounded-[var(--sr-radius-md)] px-3 text-sm font-semibold',
+                    'mt-2 min-h-12 rounded-[var(--sr-radius-md)] px-4 text-sm font-semibold',
                     FOCUS_RING,
+                    (t.variant === 'warning' || t.variant === 'error')
+                      ? 'text-white'
+                      : '',
                   )}
-                  style={{ color: chrome.accent }}
+                  style={
+                    (t.variant === 'warning' || t.variant === 'error')
+                      ? { background: chrome.accent }
+                      : { color: chrome.accent }
+                  }
                   onClick={() => {
                     const run = t.action?.onClick
                     dismiss(t.id)

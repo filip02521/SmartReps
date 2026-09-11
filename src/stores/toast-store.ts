@@ -36,10 +36,17 @@ const DURATION: Record<ToastVariant, number> = {
 export const useToastStore = create<ToastStore>((set, get) => ({
   toasts: [],
   push: (message, variant = 'success', opts) => {
+    // Dedup: if an identical toast (same message + variant + action label)
+    // is already visible, don't add a duplicate. This prevents the user from
+    // seeing 2+ "session expired" toasts stacked on top of each other.
+    const actionLabel = opts?.action?.label
     const existing = get().toasts.find(
-      (t) => t.message === message && t.variant === variant && !t.action && !opts?.action,
+      (t) =>
+        t.message === message &&
+        t.variant === variant &&
+        (t.action?.label ?? null) === (actionLabel ?? null),
     )
-    if (existing && !opts?.action) return
+    if (existing) return
 
     const id = crypto.randomUUID()
     set({

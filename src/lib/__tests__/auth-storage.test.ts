@@ -183,7 +183,7 @@ describe('auth lifecycle intentional sign-out', () => {
     expect(showToast).toHaveBeenCalledOnce()
     expect(showToast).toHaveBeenCalledWith(
       expect.any(String),
-      'info',
+      'warning',
       expect.objectContaining({
         action: expect.objectContaining({ label: expect.any(String) }),
         durationMs: 12000,

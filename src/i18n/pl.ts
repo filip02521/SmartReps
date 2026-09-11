@@ -1421,7 +1421,6 @@ const plDict = {
   syncCtaLoginAgain: 'Zaloguj ponownie',
   syncCtaSessionExpired: 'Zaloguj się ponownie',
   toastSyncFailedOffline: 'Brak sieci — synchronizacja wznowi się po połączeniu',
-  toastSyncFailedSession: 'Sesja wygasła — zaloguj się ponownie, aby syncować',
   toastSyncFailedDeadLetter:
     'Część zmian nie poszła do chmury — sprawdź panel synchronizacji w Profilu',
   toastSyncFailedRemote: 'Synchronizacja nie powiodła się — spróbuj ponownie',
