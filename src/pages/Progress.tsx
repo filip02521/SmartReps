@@ -8,6 +8,7 @@ import { BodyWeightSection } from '@/components/progress/BodyWeightSection'
 import { RpeTrendPanel } from '@/components/progress/RpeTrendPanel'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { Button } from '@/components/ui/Button'
 import { SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
 import { db } from '@/lib/db'
 import { getProgramProgress } from '@/lib/program-service'
@@ -323,6 +324,9 @@ export default function ProgressPage() {
       <div className={TAB_PAGE_SHELL}>
         <PageHeader title={pl.navProgress} />
         <ErrorBanner message={error} onRetry={() => setReloadEpoch((n) => n + 1)} />
+        <Button variant="ghost" className="mt-4" fullWidth onClick={() => navigate('/', { replace: true })}>
+          {pl.backHome}
+        </Button>
       </div>
     )
   }

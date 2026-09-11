@@ -1505,6 +1505,10 @@ const plDict = {
   no: 'Nie',
 
   errorCrash: 'Wystąpił nieoczekiwany błąd. Odśwież aplikację i spróbuj ponownie.',
+  errorCrashDesc: 'Coś poszło nie tak. Spróbuj odświeżyć stronę lub wróć do ekranu głównego.',
+  errorLoadPageDesc: 'Nie udało się wczytać tej strony. Spróbuj ponownie lub wróć do ekranu głównego.',
+  errorOfflineTitle: 'Brak połączenia',
+  errorOfflineDesc: 'Nie można wczytać strony bez połączenia z internetem. Spróbuj po przywróceniu sieci.',
 
   today: 'Dziś',
   tomorrow: 'Jutro',

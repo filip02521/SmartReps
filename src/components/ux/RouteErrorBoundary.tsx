@@ -1,6 +1,8 @@
 import { Component, type ReactNode } from 'react'
+import { AlertTriangle, WifiOff } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { isChunkLoadError } from '@/lib/chunk-load-recovery'
+import { Button } from '@/components/ui/Button'
 
 type Props = {
   children: ReactNode
@@ -47,23 +49,36 @@ export class RouteErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, wasChunkError: false, isOffline: false })
   }
 
+  handleHome = () => {
+    window.location.href = '/'
+  }
+
   render() {
     if (this.state.hasError) {
-      // If offline with a chunk error, reloading can't help — the chunk
-      // can't be fetched without network. Show an offline message instead.
-      const message = this.state.wasChunkError && this.state.isOffline
-        ? pl.offline
-        : pl.errorLoadPage
+      const isOfflineChunk = this.state.wasChunkError && this.state.isOffline
+      const title = isOfflineChunk ? pl.errorOfflineTitle : pl.errorLoadPage
+      const desc = isOfflineChunk ? pl.errorOfflineDesc : pl.errorLoadPageDesc
+      const Icon = isOfflineChunk ? WifiOff : AlertTriangle
       return (
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
-          <p className="sr-text-body text-[var(--sr-text)]">{message}</p>
-          <button
-            type="button"
-            onClick={this.handleRetry}
-            className="sr-btn sr-btn-primary"
+        <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-6 px-4 py-8 text-center safe-top safe-bottom">
+          <div
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--sr-error-muted)] text-[var(--sr-error)]"
+            aria-hidden
           >
-            {pl.retry}
-          </button>
+            <Icon size={32} strokeWidth={2} />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-[var(--sr-text-primary)]">{title}</h2>
+            <p className="text-sm leading-relaxed text-[var(--sr-text-secondary)]">{desc}</p>
+          </div>
+          <div className="flex w-full max-w-xs flex-col gap-2">
+            <Button type="button" size="touch" fullWidth onClick={this.handleRetry}>
+              {pl.retry}
+            </Button>
+            <Button type="button" variant="ghost" fullWidth onClick={this.handleHome}>
+              {pl.backHome}
+            </Button>
+          </div>
         </div>
       )
     }

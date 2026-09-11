@@ -678,12 +678,15 @@ export default function WorkoutPage() {
 
   if (initError) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <ErrorBanner message={initError} onRetry={() => {
-          const generation = ++initGenerationRef.current
-          setInitialized(false)
-          void initWorkout(generation)
-        }} />
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
+        <PageHeader title={pl.errorStartWorkout} />
+        <div className="mt-6">
+          <ErrorBanner message={initError} onRetry={() => {
+            const generation = ++initGenerationRef.current
+            setInitialized(false)
+            void initWorkout(generation)
+          }} />
+        </div>
         <Button variant="ghost" className="mt-4" fullWidth onClick={() => navigate('/', { replace: true })}>{pl.backHome}</Button>
       </div>
     )
@@ -756,8 +759,14 @@ export default function WorkoutPage() {
 
   if (!day || !currentTarget || !progress) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-8 safe-top">
-        <ErrorBanner message={pl.errorNoWorkoutData} onRetry={() => navigate('/', { replace: true })} />
+      <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
+        <PageHeader title={pl.errorNoWorkoutData} />
+        <div className="mt-6">
+          <ErrorBanner message={pl.errorNoWorkoutData} onRetry={() => navigate('/', { replace: true })} />
+        </div>
+        <Button variant="ghost" className="mt-4" fullWidth onClick={() => navigate('/', { replace: true })}>
+          {pl.backHome}
+        </Button>
       </div>
     )
   }

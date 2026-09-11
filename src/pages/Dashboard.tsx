@@ -415,13 +415,18 @@ export default function Dashboard() {
       </header>
 
       {loadError && (
-        <ErrorBanner
-          message={loadError}
-          onRetry={() => {
-            setLoadError(null)
-            reload()
-          }}
-        />
+        <div className="space-y-3">
+          <ErrorBanner
+            message={loadError}
+            onRetry={() => {
+              setLoadError(null)
+              reload()
+            }}
+          />
+          <Button variant="ghost" fullWidth onClick={() => navigate('/', { replace: true })}>
+            {pl.backHome}
+          </Button>
+        </div>
       )}
 
       {loading && !home ? (

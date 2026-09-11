@@ -1480,6 +1480,10 @@ export const en: Translation = {
   no: 'No',
 
   errorCrash: 'An unexpected error occurred. Refresh the app and try again.',
+  errorCrashDesc: 'Something went wrong. Try refreshing the page or go back to the home screen.',
+  errorLoadPageDesc: 'Failed to load this page. Try again or go back to the home screen.',
+  errorOfflineTitle: 'No connection',
+  errorOfflineDesc: 'Cannot load the page without an internet connection. Try again once you are back online.',
 
   today: 'Today',
   tomorrow: 'Tomorrow',
