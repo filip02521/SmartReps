@@ -213,6 +213,8 @@ export function SetRow({
   previousActual,
   editable,
   onClick,
+  rpe,
+  rir,
 }: {
   setNumber: number
   target: SetTarget
@@ -223,6 +225,10 @@ export function SetRow({
   /** Last completed set can be tapped to correct reps. */
   editable?: boolean
   onClick?: () => void
+  /** RPE for this set (optional, shown as badge when present). */
+  rpe?: number
+  /** RIR for this set (optional, shown as badge when present). */
+  rir?: number
 }) {
   const canPress = Boolean(onClick) && (state !== 'done' || editable)
   // Delta vs previous session — only show for completed sets with data
@@ -306,6 +312,14 @@ export function SetRow({
                 : pl.setDeltaEqual}
           </span>
         )}
+        {(rpe != null || rir != null) && state !== 'pending' && (
+          <span
+            className="shrink-0 rounded-full bg-[var(--sr-brand-primary-muted)] px-1.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]"
+            aria-label={rpe != null ? pl.setLogDetailsRpeChip(rpe) : pl.setLogDetailsRirChip(rir!)}
+          >
+            {rpe != null ? pl.setLogDetailsRpeChip(rpe) : pl.setLogDetailsRirChip(rir!)}
+          </span>
+        )}
       </span>
     </button>
   )
@@ -322,7 +336,7 @@ export function SetChecklist({
 }: {
   sets: SetTarget[]
   currentIndex: number
-  results: { setNumber: number; actual: number; passed: boolean }[]
+  results: { setNumber: number; actual: number; passed: boolean; rpe?: number; rir?: number }[]
   failedIndex?: number
   dimmed?: boolean
   onEditLastSet?: () => void
@@ -350,6 +364,8 @@ export function SetChecklist({
             previousActual={previousResults?.get(setNumber)}
             editable={editable}
             onClick={editable ? onEditLastSet : undefined}
+            rpe={result?.rpe}
+            rir={result?.rir}
           />
         )
       })}
@@ -458,104 +474,130 @@ export function RestTimerExpanded({
     <OverlayPortal>
       <div
         ref={trapRef}
-        className="fixed inset-0 flex flex-col items-center justify-center bg-[var(--sr-bg-overlay)] text-[var(--sr-text-primary)] safe-top safe-bottom"
+        className="fixed inset-0 flex flex-col bg-[var(--sr-bg-base)] text-[var(--sr-text-primary)] safe-top safe-bottom"
         style={{ zIndex: Z_REST_EXPANDED }}
         role="dialog"
         aria-modal="true"
         aria-label={pl.restLabel}
         onKeyDown={(e) => { if (e.key === 'Escape') onCollapse() }}
       >
-      <button
-        type="button"
-        aria-label={pl.collapseTimer}
-        className="absolute right-4 top-4 flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95"
-        onClick={onCollapse}
-      >
-        <ChevronDown size={24} aria-hidden />
-      </button>
-      <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
-        {isReady ? pl.restReady : pl.restLabel}
-      </p>
-      {/* Screen-reader announcement when rest ends — polite to avoid interrupting other speech. */}
-      {isReady && nextLabel && (
-        <p className="sr-only" aria-live="polite" aria-atomic="true">
-          {pl.restReady}. {nextLabel}
-        </p>
-      )}
-      {setLabel && (
-        <p className="mb-2 text-xs font-medium text-[var(--sr-text-muted)]">{setLabel}</p>
-      )}
-      <ProgressRing
-        progress={progress}
-        size={200}
-        reducedMotion={reducedMotion}
-        className={isUrgent && !reducedMotion ? 'animate-pulse' : undefined}
-        ringColor={isUrgent || isReady ? 'var(--sr-success)' : undefined}
-      >
-        <span
-          className={cn(
-            'tabular-nums text-5xl font-bold',
-            isReady
-              ? 'text-[var(--sr-success)]'
-              : isUrgent
-                ? 'text-[var(--sr-success)]'
-                : 'text-[var(--sr-text-primary)]',
-          )}
-          aria-live="polite"
-        >
-          {formatRestTime(remainingSec)}
-        </span>
-      </ProgressRing>
-      {nextLabel ? (
-        <p className="mt-4 px-4 text-center text-sm text-[var(--sr-text-secondary)]">{nextLabel}</p>
-      ) : null}
-      {isReady && (
-        <Button size="touch" className="mt-5" onClick={onSkip} aria-label={pl.restStartSet}>
-          {pl.restStartSet}
-        </Button>
-      )}
-      {nextExercise ? (
-        <div className="mt-2 w-44">
-          <ExerciseDemo exercise={nextExercise} compact showControls={false} />
-        </div>
-      ) : null}
-      {coachSuggestion ? (
-        <div
-          aria-live="polite"
-          className="mt-3 flex max-w-sm items-start gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_60%,var(--sr-bg-elevated))] p-3"
-        >
-          <AiCoachMark size="sm" />
-          <p className="min-w-0 flex-1 text-sm leading-relaxed text-[var(--sr-text-secondary)]">
-            {coachSuggestion}
-          </p>
-        </div>
-      ) : null}
-      <div className="mt-6 flex flex-wrap justify-center gap-3 px-4">
-        <Button variant="secondary" size="sm" className="min-h-12" onClick={onAdd15}>{pl.add15s}</Button>
-        <Button variant="secondary" size="sm" className="min-h-12" onClick={onAdd30}>{pl.add30s}</Button>
-        {!isReady && <Button variant="ghost" size="sm" className="min-h-12" onClick={onSkip}>{pl.skipRest}</Button>}
-      </div>
-      {onSetRest && (
-        <div className="mt-4 flex flex-col items-center gap-1.5 px-4">
-          <p className="sr-text-caption text-[var(--sr-text-muted)]">{pl.restSetTime}</p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {[30, 60, 90, 120].map((sec) => (
-              <button
-                key={sec}
-                type="button"
-                aria-label={pl.restPresetAria(sec)}
-                className={cn(
-                  'flex min-h-9 items-center rounded-full border border-[var(--sr-border-subtle)] px-3.5 text-xs font-medium tabular-nums text-[var(--sr-text-secondary)] transition-all hover:border-[var(--sr-border-strong)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
-                  FOCUS_RING,
-                )}
-                onClick={() => onSetRest(sec)}
-              >
-                {sec}s
-              </button>
-            ))}
+        {/* Header bar — solid, with collapse button */}
+        <div className="flex items-center justify-between border-b border-[var(--sr-border-subtle)] px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="sr-text-overline text-[var(--sr-text-muted)]">
+              {isReady ? pl.restReady : pl.restLabel}
+            </span>
+            {setLabel && (
+              <span className="sr-text-caption text-[var(--sr-text-muted)]">· {setLabel}</span>
+            )}
           </div>
+          <button
+            type="button"
+            aria-label={pl.collapseTimer}
+            className="flex min-h-10 min-w-10 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95"
+            onClick={onCollapse}
+          >
+            <ChevronDown size={22} aria-hidden />
+          </button>
         </div>
-      )}
+
+        {/* Screen-reader announcement when rest ends */}
+        {isReady && nextLabel && (
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {pl.restReady}. {nextLabel}
+          </p>
+        )}
+
+        {/* Timer — hero section, centered */}
+        <div className="flex flex-1 flex-col items-center justify-center px-4">
+          <ProgressRing
+            progress={progress}
+            size={200}
+            reducedMotion={reducedMotion}
+            className={isUrgent && !reducedMotion ? 'animate-pulse' : undefined}
+            ringColor={isUrgent || isReady ? 'var(--sr-success)' : undefined}
+          >
+            <span
+              className={cn(
+                'tabular-nums text-5xl font-bold',
+                isReady
+                  ? 'text-[var(--sr-success)]'
+                  : isUrgent
+                    ? 'text-[var(--sr-success)]'
+                    : 'text-[var(--sr-text-primary)]',
+              )}
+              aria-live="polite"
+            >
+              {formatRestTime(remainingSec)}
+            </span>
+          </ProgressRing>
+
+          {/* Next set info — below ring */}
+          {nextLabel ? (
+            <p className="mt-5 text-center text-sm font-medium text-[var(--sr-text-secondary)]">{nextLabel}</p>
+          ) : null}
+
+          {/* Start set button — prominent when ready */}
+          {isReady && (
+            <Button size="touch" className="mt-5" onClick={onSkip} aria-label={pl.restStartSet}>
+              {pl.restStartSet}
+            </Button>
+          )}
+
+          {/* Exercise demo — compact card */}
+          {nextExercise ? (
+            <div className="mt-4 w-44">
+              <ExerciseDemo exercise={nextExercise} compact showControls={false} />
+            </div>
+          ) : null}
+        </div>
+
+        {/* Coach suggestion — distinct card section */}
+        {coachSuggestion ? (
+          <div className="px-4 pb-2">
+            <div
+              aria-live="polite"
+              className="flex items-start gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] p-3"
+            >
+              <AiCoachMark size="sm" />
+              <p className="min-w-0 flex-1 text-sm leading-relaxed text-[var(--sr-text-secondary)]">
+                {coachSuggestion}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Action buttons — bottom section */}
+        <div className="border-t border-[var(--sr-border-subtle)] px-4 py-4">
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button variant="secondary" size="sm" className="min-h-12" onClick={onAdd15}>{pl.add15s}</Button>
+            <Button variant="secondary" size="sm" className="min-h-12" onClick={onAdd30}>{pl.add30s}</Button>
+            {!isReady && <Button variant="ghost" size="sm" className="min-h-12" onClick={onSkip}>{pl.skipRest}</Button>}
+          </div>
+
+          {/* Preset times */}
+          {onSetRest && (
+            <div className="mt-4 flex flex-col items-center gap-1.5">
+              <p className="sr-text-caption text-[var(--sr-text-muted)]">{pl.restSetTime}</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {[30, 60, 90, 120].map((sec) => (
+                  <button
+                    key={sec}
+                    type="button"
+                    aria-label={pl.restPresetAria(sec)}
+                    className={cn(
+                      'flex min-h-9 items-center rounded-full border border-[var(--sr-border-subtle)] px-3.5 text-xs font-medium tabular-nums text-[var(--sr-text-secondary)] transition-all hover:border-[var(--sr-border-strong)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+                      FOCUS_RING,
+                    )}
+                    onClick={() => onSetRest(sec)}
+                  >
+                    {sec}s
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </OverlayPortal>
   )
