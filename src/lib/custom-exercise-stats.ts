@@ -137,6 +137,7 @@ export type ExerciseListSummary = {
   prLabel: string | null
   sparkline: number[]
   trend: ExerciseTrend
+  lastSessionAt: string | null
 }
 
 type PrAccum = Pick<
@@ -250,6 +251,7 @@ export async function computeExerciseListSummaries(
   const valuesById = new Map<string, number[]>()
   const sessionCountById = new Map<string, number>()
   const prById = new Map<string, PrAccum>()
+  const lastSessionAtById = new Map<string, string>()
 
   const sessions = await db.workoutSessions.toArray()
 
@@ -260,6 +262,10 @@ export async function computeExerciseListSummaries(
       const pr = prById.get(ex.id) ?? emptyPr()
       accumulatePrFromLog(pr, row.log, ex.primaryMetric)
       prById.set(ex.id, pr)
+
+      const rowDate = row.session.completedAt ?? row.session.startedAt
+      const prev = lastSessionAtById.get(ex.id)
+      if (!prev || rowDate > prev) lastSessionAtById.set(ex.id, rowDate)
 
       const best = bestSetInLog(row.log, ex.primaryMetric)
       if (best) {
@@ -290,6 +296,7 @@ export async function computeExerciseListSummaries(
       sessionCount,
       sparkline: values.slice(-8),
       trend,
+      lastSessionAt: lastSessionAtById.get(ex.id) ?? null,
       prLabel:
         pr && (sessionCount > 0 || pr.prReps != null)
           ? exercisePrDisplay({

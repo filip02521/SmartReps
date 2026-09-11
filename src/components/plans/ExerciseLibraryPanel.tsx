@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Dumbbell, ChevronDown, Check } from 'lucide-react'
+import { Dumbbell, ChevronDown, Check, X, ArrowDownUp } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -53,6 +53,8 @@ export function ExerciseLibraryPanel({
   const [metricFilter, setMetricFilter] = useState<PrimaryMetric | 'all'>('all')
   const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | 'all'>('all')
   const [muscleSheetOpen, setMuscleSheetOpen] = useState(false)
+  const [sortSheetOpen, setSortSheetOpen] = useState(false)
+  const [sortBy, setSortBy] = useState<'name' | 'recent' | 'sessions'>('name')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
 
@@ -161,13 +163,38 @@ export function ExerciseLibraryPanel({
 
   const filteredExercises = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return exercises.filter((ex) => {
+    const filtered = exercises.filter((ex) => {
       if (metricFilter !== 'all' && ex.primaryMetric !== metricFilter) return false
       if (muscleFilter !== 'all' && ex.muscleGroup !== muscleFilter) return false
       if (q && !ex.name.toLowerCase().includes(q)) return false
       return true
     })
-  }, [exercises, search, metricFilter, muscleFilter])
+    const sorted = [...filtered]
+    if (sortBy === 'name') {
+      sorted.sort((a, b) => a.name.localeCompare(b.name, 'pl'))
+    } else if (sortBy === 'recent') {
+      sorted.sort((a, b) => {
+        const aDate = summaries.get(a.id)?.lastSessionAt ?? ''
+        const bDate = summaries.get(b.id)?.lastSessionAt ?? ''
+        return bDate.localeCompare(aDate)
+      })
+    } else if (sortBy === 'sessions') {
+      sorted.sort((a, b) => {
+        const aCount = summaries.get(a.id)?.sessionCount ?? 0
+        const bCount = summaries.get(b.id)?.sessionCount ?? 0
+        return bCount - aCount
+      })
+    }
+    return sorted
+  }, [exercises, search, metricFilter, muscleFilter, sortBy, summaries])
+
+  const hasActiveFilters = metricFilter !== 'all' || muscleFilter !== 'all' || search.trim() !== ''
+
+  function clearFilters() {
+    setMetricFilter('all')
+    setMuscleFilter('all')
+    setSearch('')
+  }
 
   return (
     <>
@@ -217,14 +244,29 @@ export function ExerciseLibraryPanel({
             />
           ) : (
             <>
-              <TextField
-                id="exercise-search"
-                placeholder={pl.exerciseSearchPlaceholder}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                inputClassName="py-2.5"
-                aria-label={pl.exerciseSearchPlaceholder}
-              />
+              <div className="relative">
+                <TextField
+                  id="exercise-search"
+                  placeholder={pl.exerciseSearchPlaceholder}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  inputClassName="py-2.5"
+                  aria-label={pl.exerciseSearchPlaceholder}
+                />
+                {search.trim() !== '' && (
+                  <button
+                    type="button"
+                    aria-label={pl.exerciseClearFilters}
+                    className={cn(
+                      'absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-elevated)] hover:text-[var(--sr-text-primary)] active:scale-95',
+                      FOCUS_RING,
+                    )}
+                    onClick={() => setSearch('')}
+                  >
+                    <X size={16} aria-hidden />
+                  </button>
+                )}
+              </div>
               <SegmentedControl
                 value={metricFilter}
                 onChange={(v) => setMetricFilter(v as PrimaryMetric | 'all')}
@@ -235,27 +277,63 @@ export function ExerciseLibraryPanel({
                   { value: 'reps_weight' as const, label: pl.exerciseMetricRepsWeight },
                 ]}
               />
-              <button
-                type="button"
-                onClick={() => setMuscleSheetOpen(true)}
-                className={cn(
-                  'flex min-h-12 w-full items-center justify-between gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-2.5 text-sm text-[var(--sr-text-primary)] transition-colors hover:border-[var(--sr-border-strong)]',
-                  FOCUS_RING,
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMuscleSheetOpen(true)}
+                  className={cn(
+                    'flex min-h-12 min-w-0 flex-1 items-center justify-between gap-2 rounded-[var(--sr-radius-md)] border px-4 py-2.5 text-sm transition-colors hover:border-[var(--sr-border-strong)]',
+                    muscleFilter === 'all'
+                      ? 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]'
+                      : 'border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)] font-medium',
+                    FOCUS_RING,
+                  )}
+                  aria-label={pl.exerciseMuscleGroup}
+                >
+                  <span className="break-words">
+                    {muscleFilter === 'all'
+                      ? `${pl.exerciseFilterAll} — ${pl.exerciseMuscleGroup}`
+                      : muscleGroupLabel(muscleFilter)}
+                  </span>
+                  <ChevronDown size={16} className="shrink-0" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortSheetOpen(true)}
+                  className={cn(
+                    'flex min-h-12 shrink-0 items-center gap-1.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-2.5 text-sm text-[var(--sr-text-secondary)] transition-colors hover:border-[var(--sr-border-strong)] hover:text-[var(--sr-text-primary)]',
+                    FOCUS_RING,
+                  )}
+                  aria-label={pl.exerciseSortLabel}
+                >
+                  <ArrowDownUp size={15} aria-hidden />
+                </button>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-[var(--sr-text-muted)]">
+                  {pl.exerciseResultCount(filteredExercises.length, exercises.length)}
+                </p>
+                {hasActiveFilters && filteredExercises.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className={cn(
+                      'text-xs font-medium text-[var(--sr-brand-primary)] transition-colors hover:text-[var(--sr-brand-primary)]/80 active:scale-95',
+                      FOCUS_RING,
+                    )}
+                  >
+                    {pl.exerciseClearFilters}
+                  </button>
                 )}
-                aria-label={pl.exerciseMuscleGroup}
-              >
-                <span className={cn(
-                  'break-words',
-                  muscleFilter === 'all' && 'text-[var(--sr-text-muted)]',
-                )}>
-                  {muscleFilter === 'all'
-                    ? `${pl.exerciseFilterAll} — ${pl.exerciseMuscleGroup}`
-                    : muscleGroupLabel(muscleFilter)}
-                </span>
-                <ChevronDown size={16} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
-              </button>
+              </div>
               {filteredExercises.length === 0 ? (
-                <EmptyState title={pl.exerciseSearchNoResults} />
+                <EmptyState
+                  title={hasActiveFilters ? pl.exerciseFilterNoResults : pl.exerciseSearchNoResults}
+                  action={hasActiveFilters ? {
+                    label: pl.exerciseClearFilters,
+                    onClick: clearFilters,
+                  } : undefined}
+                />
               ) : (
                 <ul className="flex flex-col gap-2">
                   {filteredExercises.map((ex) => (
@@ -464,6 +542,42 @@ export function ExerciseLibraryPanel({
                   {muscleGroupLabel(g)}
                 </span>
                 {muscleFilter === g && <Check size={16} className="text-[var(--sr-brand-primary)]" aria-hidden />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Sheet>
+
+      <Sheet
+        open={sortSheetOpen}
+        onClose={() => setSortSheetOpen(false)}
+        title={pl.exerciseSortLabel}
+        elevated
+      >
+        <ul className="flex flex-col gap-1 pb-2">
+          {([
+            { value: 'name', label: pl.exerciseSortName },
+            { value: 'recent', label: pl.exerciseSortRecent },
+            { value: 'sessions', label: pl.exerciseSortSessions },
+          ] as const).map((opt) => (
+            <li key={opt.value}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSortBy(opt.value)
+                  setSortSheetOpen(false)
+                }}
+                className={cn(
+                  'flex min-h-12 w-full items-center justify-between rounded-[var(--sr-radius-sm)] px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--sr-bg-elevated)]',
+                  FOCUS_RING,
+                )}
+              >
+                <span className={cn(
+                  sortBy === opt.value ? 'font-medium text-[var(--sr-text-primary)]' : 'text-[var(--sr-text-secondary)]',
+                )}>
+                  {opt.label}
+                </span>
+                {sortBy === opt.value && <Check size={16} className="text-[var(--sr-brand-primary)]" aria-hidden />}
               </button>
             </li>
           ))}

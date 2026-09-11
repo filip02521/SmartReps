@@ -4,6 +4,7 @@ import { ExerciseStatsIconButton } from '@/components/plans/ExerciseDetailSheet'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
 import type { ExerciseListSummary } from '@/lib/custom-exercise-stats'
 import { getDemoAnimationKey } from '@/lib/exercise-demo'
+import { muscleGroupLabel } from '@/lib/exercise-substitution'
 import { pl } from '@/i18n/pl'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { cn } from '@/lib/utils'
@@ -47,6 +48,8 @@ export function ExerciseLibraryRow({
     ? pl.exerciseListRowMeta(summary!.sessionCount, summary!.prLabel ?? '—')
     : metricLabel(exercise)
 
+  const muscleLabel = exercise.muscleGroup ? muscleGroupLabel(exercise.muscleGroup) : null
+
   return (
     <article
       className={cn(
@@ -86,16 +89,19 @@ export function ExerciseLibraryRow({
               />
             )}
           </div>
-          <p className="mt-0.5 break-words text-xs text-[var(--sr-text-muted)]">{subtitle}</p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <p className="break-words text-xs text-[var(--sr-text-muted)]">{subtitle}</p>
+            {muscleLabel && (
+              <span className="shrink-0 rounded-full bg-[var(--sr-bg-elevated)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--sr-text-secondary)]">
+                {muscleLabel}
+              </span>
+            )}
+          </div>
         </div>
         <ChevronRight size={18} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
       </button>
 
-      {mode === 'pick' && <ExerciseStatsIconButton onClick={onOpenDetail} />}
-
-      {mode === 'manage' && (
-        <ExerciseStatsIconButton onClick={onOpenDetail} />
-      )}
+      <ExerciseStatsIconButton onClick={onOpenDetail} />
 
       {mode === 'manage' && onEdit && (
         <button
