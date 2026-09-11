@@ -197,24 +197,24 @@ function ChallengeItem({
 
   return (
     <div
-      className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3"
+      className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-2.5"
       aria-label={title}
     >
       {/* Header row */}
       <button
         type="button"
         onClick={onToggleExpand}
-        className="flex w-full items-start gap-3 text-left"
+        className="flex w-full items-start gap-2.5 text-left"
         aria-expanded={expanded}
       >
         <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)]"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)]"
           style={{ backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)` }}
         >
-          <Icon size={18} style={{ color }} aria-hidden />
+          <Icon size={16} style={{ color }} aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-2">
+          <div className="flex items-start gap-1.5">
             <p className="break-words sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
               {title}
             </p>
@@ -246,7 +246,7 @@ function ChallengeItem({
 
       {/* Progress bar */}
       <div
-        className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--sr-bg-elevated)]"
+        className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--sr-bg-elevated)]"
         role="progressbar"
         aria-label={pl.challengeProgressAria(progress.current, progress.target)}
         aria-valuenow={Math.min(progress.current, progress.target)}
@@ -262,40 +262,44 @@ function ChallengeItem({
         />
       </div>
 
-      {/* Description + context */}
-      <p className="mt-2 sr-text-caption text-[var(--sr-text-secondary)]">
-        {description}
-      </p>
+      {/* Description + context — only when expanded */}
+      {expanded && (
+        <>
+          <p className="mt-2 sr-text-caption text-[var(--sr-text-secondary)]">
+            {description}
+          </p>
 
-      {/* Personal context: recent average + difficulty */}
-      {context && context.recentAverage > 0 && (
-        <div className="mt-1.5 flex items-center gap-2 sr-text-caption text-[var(--sr-text-muted)]">
-          <span>
-            {pl.challengeYourAverage(context.recentAverage)}
-          </span>
-          <span className="text-[var(--sr-text-muted)]">·</span>
-          <span className={cn(
-            'font-medium',
-            context.difficulty === 'easy' && 'text-[var(--sr-success)]',
-            context.difficulty === 'challenging' && 'text-[var(--sr-warning)]',
-            context.difficulty === 'hard' && 'text-[var(--sr-error)]',
-            context.difficulty === 'unknown' && 'text-[var(--sr-text-muted)]',
-          )}>
-            {context.difficulty === 'easy' && pl.challengeDifficultyEasy}
-            {context.difficulty === 'challenging' && pl.challengeDifficultyChallenging}
-            {context.difficulty === 'hard' && pl.challengeDifficultyHard}
-            {context.difficulty === 'unknown' && pl.challengeDifficultyUnknown}
-          </span>
-        </div>
+          {/* Personal context: recent average + difficulty */}
+          {context && context.recentAverage > 0 && (
+            <div className="mt-1.5 flex items-center gap-2 sr-text-caption text-[var(--sr-text-muted)]">
+              <span>
+                {pl.challengeYourAverage(context.recentAverage)}
+              </span>
+              <span className="text-[var(--sr-text-muted)]">·</span>
+              <span className={cn(
+                'font-medium',
+                context.difficulty === 'easy' && 'text-[var(--sr-success)]',
+                context.difficulty === 'challenging' && 'text-[var(--sr-warning)]',
+                context.difficulty === 'hard' && 'text-[var(--sr-error)]',
+                context.difficulty === 'unknown' && 'text-[var(--sr-text-muted)]',
+              )}>
+                {context.difficulty === 'easy' && pl.challengeDifficultyEasy}
+                {context.difficulty === 'challenging' && pl.challengeDifficultyChallenging}
+                {context.difficulty === 'hard' && pl.challengeDifficultyHard}
+                {context.difficulty === 'unknown' && pl.challengeDifficultyUnknown}
+              </span>
+            </div>
+          )}
+
+          {/* Auto-tracked badge */}
+          <div className="mt-2 flex items-center gap-1.5">
+            <ShieldCheck size={12} className="text-[var(--sr-success)]" aria-hidden />
+            <span className="sr-text-caption text-[var(--sr-text-muted)]">
+              {pl.challengeAutoTracked}
+            </span>
+          </div>
+        </>
       )}
-
-      {/* Auto-tracked badge */}
-      <div className="mt-2 flex items-center gap-1.5">
-        <ShieldCheck size={12} className="text-[var(--sr-success)]" aria-hidden />
-        <span className="sr-text-caption text-[var(--sr-text-muted)]">
-          {pl.challengeAutoTracked}
-        </span>
-      </div>
 
       {/* Expanded leaderboard */}
       {expanded && (
@@ -497,7 +501,7 @@ export function WeeklyChallengeCard() {
 
   return (
     <section
-      className="rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-gradient-to-br from-[var(--sr-brand-primary-muted)] to-[var(--sr-bg-elevated)] p-4"
+      className="rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-gradient-to-br from-[var(--sr-brand-primary-muted)] to-[var(--sr-bg-elevated)] p-3.5"
       aria-label={pl.challengeTitle}
     >
       {/* Header */}
@@ -544,7 +548,7 @@ export function WeeklyChallengeCard() {
       )}
 
       {/* Challenge list */}
-      <div className="mt-3 flex flex-col gap-2.5">
+      <div className="mt-2.5 flex flex-col gap-2">
         {(showAll ? challenges : scoredChallenges.map((s) => s.challenge)).map((ch) => {
           const idx = challenges.indexOf(ch)
           const p = progress[idx] ?? {
