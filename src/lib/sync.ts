@@ -1251,6 +1251,9 @@ export async function pullRemoteData(): Promise<SyncResult> {
 
   // Session tombstones — must be pulled BEFORE workout_sessions to prevent
   // temporarily resurrecting a deleted session that another device removed.
+  // Do NOT delete the remote session here — the sync queue delete from the
+  // originating device handles that. Deleting here is dangerous because a
+  // stale tombstone would delete an active session from the cloud.
   try {
     const { data: remoteTombstones, error: tombstoneError } = await supabase
       .from('session_tombstones')
@@ -1264,19 +1267,6 @@ export async function pullRemoteData(): Promise<SyncResult> {
       const localSession = await db.workoutSessions.get(r.session_id)
       if (localSession) {
         await db.workoutSessions.delete(r.session_id)
-      }
-      // Also delete the remote session if it still exists — the tombstone
-      // means it was deleted on some device, but the cloud delete may have
-      // failed (network error, queue item dead-lettered, etc.). Without this,
-      // the session lingers in the cloud forever and is fetched on every pull.
-      try {
-        await supabase
-          .from('workout_sessions')
-          .delete()
-          .eq('user_id', userId)
-          .eq('id', r.session_id)
-      } catch (err) {
-        trackSyncError('pull_session_tombstone_delete', err)
       }
     }
   } catch (err) {
@@ -1364,6 +1354,8 @@ export async function pullRemoteData(): Promise<SyncResult> {
   }
 
   // Pull body-weight tombstones from cloud — delete local entries deleted on another device
+  // Do NOT delete the remote entry here — the sync queue delete from the
+  // originating device handles that.
   try {
     const { data: remoteBwTombstones, error: rbtErr } = await supabase
       .from('body_weight_tombstones')
@@ -1374,16 +1366,6 @@ export async function pullRemoteData(): Promise<SyncResult> {
         await db.bodyWeightTombstones.put({ entryId: row.entry_id, deletedAt: row.deleted_at })
         const localEntry = await db.bodyWeight.get(row.entry_id)
         if (localEntry) await db.bodyWeight.delete(row.entry_id)
-        // Also delete the remote entry if it still exists — same reason as session tombstones.
-        try {
-          await supabase
-            .from('body_weight_entries')
-            .delete()
-            .eq('user_id', userId)
-            .eq('id', row.entry_id)
-        } catch (err) {
-          trackSyncError('pull_body_weight_tombstone_delete', err)
-        }
       }
     }
   } catch (err) {

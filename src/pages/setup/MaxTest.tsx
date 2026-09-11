@@ -50,14 +50,17 @@ export function HealthDisclaimer({
   )
 }
 
-/** Hold-to-repeat without pairing with onClick (avoids double-fire on tap). */
-function useRepeatPress(onStep: () => void) {
+/** Hold-to-repeat without pairing with onClick (avoids double-fire on tap).
+ * `onStep` fires on initial press and every tick during hold.
+ * `onFirst` fires only on the initial press (e.g. haptic feedback). */
+function useRepeatPress(onStep: () => void, onFirst?: () => void) {
   const steppingRef = useRef(false)
 
   const start = (e: MouseEvent | TouchEvent) => {
     e.preventDefault()
     if (steppingRef.current) return
     steppingRef.current = true
+    onFirst?.()
     onStep()
     let delay = 300
     let timer: number | null = null
@@ -116,8 +119,14 @@ export default function MaxTest() {
     }
   }, [hydrated, program])
 
-  const minusPress = useRepeatPress(() => { vibrate(8); setReps((r) => Math.max(0, r - 1)) })
-  const plusPress = useRepeatPress(() => { vibrate(8); setReps((r) => Math.min(999, r + 1)) })
+  const minusPress = useRepeatPress(
+    () => setReps((r) => Math.max(0, r - 1)),
+    () => vibrate(8),
+  )
+  const plusPress = useRepeatPress(
+    () => setReps((r) => Math.min(999, r + 1)),
+    () => vibrate(8),
+  )
 
   const acceptDisclaimer = () => {
     setSettings({ healthDisclaimerAccepted: true })
@@ -265,6 +274,7 @@ export default function MaxTest() {
             ref={inputRef}
             type="number"
             inputMode="numeric"
+            step={1}
             min={0}
             max={999}
             value={reps}
@@ -272,7 +282,7 @@ export default function MaxTest() {
             onChange={(e) => {
               const v = e.target.value
               if (v === '') { setReps(0); return }
-              const n = Math.max(0, Math.min(999, Number(v) || 0))
+              const n = Math.max(0, Math.min(999, parseInt(v, 10) || 0))
               setReps(n)
             }}
             onBlur={() => setEditing(false)}
@@ -284,7 +294,10 @@ export default function MaxTest() {
             type="button"
             aria-label={pl.testEditReps}
             onClick={() => { vibrate(8); setEditing(true) }}
-            className="sr-text-display tabular-nums rounded-[var(--sr-radius-md)] px-2 py-1 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95"
+            className={cn(
+              'sr-text-display tabular-nums rounded-[var(--sr-radius-md)] px-2 py-1 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95',
+              FOCUS_RING,
+            )}
           >
             <span aria-live="polite" aria-atomic="true">{reps}</span>
           </button>
