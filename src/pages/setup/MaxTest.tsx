@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type MouseEvent, type TouchEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Minus, Plus } from 'lucide-react'
+import { Check, Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { CheckboxField } from '@/components/ui/TextField'
@@ -17,6 +17,8 @@ import {
   techniqueLinkForProgram,
   techniqueLinkLabel,
 } from '@/components/setup/TechniqueGuide'
+import { FOCUS_RING } from '@/lib/ui-chrome'
+import { cn } from '@/lib/utils'
 import type { Program } from '@/data/plans/types'
 
 export function HealthDisclaimer({
@@ -128,6 +130,8 @@ export default function MaxTest() {
   }
 
   const warmupComplete = warmup.every(Boolean)
+  const warmupDone = warmup.filter(Boolean).length
+  const recommendedCycle = useMemo(() => selectCycleByTest(program, reps), [program, reps])
 
   const handleNext = async () => {
     if (submitLock.current || submitting) return
@@ -208,7 +212,17 @@ export default function MaxTest() {
       )}
 
       <div className="mt-2">
-        <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.warmup}</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.warmup}</p>
+          <span
+            className={cn(
+              'text-xs font-medium tabular-nums',
+              warmupComplete ? 'text-[var(--sr-success)]' : 'text-[var(--sr-text-muted)]',
+            )}
+          >
+            {pl.warmupProgress(warmupDone, warmupItems.length)}
+          </span>
+        </div>
         <div className="mt-2 flex flex-col gap-1">
           {warmupItems.map((item, i) => (
             <CheckboxField
@@ -231,6 +245,10 @@ export default function MaxTest() {
         </p>
       )}
 
+      <div className="mt-4 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] p-3">
+        <p className="text-sm text-[var(--sr-text-secondary)]">{pl.testHowTo}</p>
+      </div>
+
       <div className="mt-8 flex flex-col items-center">
         <p className="sr-text-display tabular-nums" aria-live="polite" aria-atomic="true">
           {reps}
@@ -242,20 +260,34 @@ export default function MaxTest() {
           <button
             type="button"
             aria-label={pl.lessReps}
-            className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] select-none"
+            className={cn(
+              'flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] select-none transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-95',
+              FOCUS_RING,
+            )}
             {...minusPress}
           >
-            <Minus />
+            <Minus aria-hidden />
           </button>
           <button
             type="button"
             aria-label={pl.moreReps}
-            className="flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] select-none"
+            className={cn(
+              'flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] select-none transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-95',
+              FOCUS_RING,
+            )}
             {...plusPress}
           >
-            <Plus />
+            <Plus aria-hidden />
           </button>
         </div>
+      </div>
+
+      {/* Live cycle preview — updates as user adjusts reps */}
+      <div className="mt-4 flex items-center justify-center gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary-muted)] bg-[var(--sr-brand-primary-muted)]/50 p-3">
+        <Check size={16} className="text-[var(--sr-brand-primary)]" aria-hidden />
+        <p className="text-sm font-medium text-[var(--sr-text-primary)]">
+          {pl.testRecommendedCycle(recommendedCycle.nameShort)}
+        </p>
       </div>
 
       {program === 'pullups' && reps === 0 && (
@@ -293,7 +325,7 @@ export default function MaxTest() {
       <p className="mt-4 text-center text-xs text-[var(--sr-text-muted)]">{pl.testHonesty}</p>
 
       <Button className="mt-6" fullWidth disabled={submitting} onClick={() => void handleNext()}>
-        {pl.nextPickCycle}
+        {pl.testNextWithCycle(recommendedCycle.nameShort)}
       </Button>
     </div>
   )
