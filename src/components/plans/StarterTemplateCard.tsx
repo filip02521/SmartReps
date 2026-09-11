@@ -81,7 +81,7 @@ export function StarterTemplateCard({
           <Icon size={20} aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-start gap-2">
             <h3 className="break-words text-base font-semibold text-[var(--sr-text-primary)]">
               {name}
             </h3>
@@ -144,10 +144,10 @@ export function StarterTemplateChip({ onClick }: { onClick: () => void }) {
         <Dumbbell size={14} aria-hidden />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-[var(--sr-text-primary)]">
+        <p className="break-words text-sm font-medium text-[var(--sr-text-primary)]">
           {pl.starterChipHint}
         </p>
-        <p className="truncate text-xs text-[var(--sr-text-secondary)]">
+        <p className="break-words text-xs text-[var(--sr-text-secondary)]">
           {pl.starterChipCta}
         </p>
       </div>

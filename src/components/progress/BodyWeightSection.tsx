@@ -171,29 +171,31 @@ export function BodyWeightSection() {
       {entries.length > 0 && (
         <ul className="mt-4 divide-y divide-[var(--sr-border-subtle)]">
           {entries.slice(0, 5).map((e) => (
-            <li key={e.id} className="flex items-center gap-3 py-2.5 sr-text-body-sm">
-              <span className="flex-1 font-medium tabular-nums text-[var(--sr-text-primary)]">
-                {kgToDisplay(e.weightKg, weightUnit)}
-                <span className="ml-1 text-xs font-normal text-[var(--sr-text-muted)]">
-                  {weightUnitLabel(weightUnit)}
+            <li key={e.id} className="py-2.5 sr-text-body-sm">
+              <div className="flex items-center gap-3">
+                <span className="flex-1 font-medium tabular-nums text-[var(--sr-text-primary)]">
+                  {kgToDisplay(e.weightKg, weightUnit)}
+                  <span className="ml-1 text-xs font-normal text-[var(--sr-text-muted)]">
+                    {weightUnitLabel(weightUnit)}
+                  </span>
                 </span>
-              </span>
-              <span className="text-xs text-[var(--sr-text-muted)]">
-                {format(new Date(e.measuredAt), 'd MMM yyyy', { locale: dateFnsLocale() })}
-              </span>
-              {e.note && (
-                <span className="min-w-0 flex-1 break-words text-xs text-[var(--sr-text-secondary)]">
-                  {e.note}
+                <span className="text-xs text-[var(--sr-text-muted)]">
+                  {format(new Date(e.measuredAt), 'd MMM yyyy', { locale: dateFnsLocale() })}
                 </span>
-              )}
-              <button
-                type="button"
-                className={`flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-error)] active:scale-95 ${FOCUS_RING}`}
-                onClick={() => void handleDelete(e.id)}
-                aria-label={pl.bodyWeightDelete}
+                <button
+                  type="button"
+                  className={`flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-error)] active:scale-95 ${FOCUS_RING}`}
+                  onClick={() => void handleDelete(e.id)}
+                  aria-label={pl.bodyWeightDelete}
               >
                 <Trash2 size={16} />
               </button>
+              </div>
+              {e.note && (
+                <p className="mt-1 break-words text-xs text-[var(--sr-text-secondary)]">
+                  {e.note}
+                </p>
+              )}
             </li>
           ))}
         </ul>

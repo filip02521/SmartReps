@@ -279,14 +279,14 @@ function FolloweeCard({
 
   return (
     <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 transition-colors hover:border-[var(--sr-border-strong)]">
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         <Avatar name={name} />
         <div className="min-w-0 flex-1">
-          <p className="truncate sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
+          <p className="break-words sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
             {name}
           </p>
           {profile.bio && (
-            <p className="truncate sr-text-caption text-[var(--sr-text-muted)]">
+            <p className="line-clamp-2 sr-text-caption text-[var(--sr-text-muted)]">
               {profile.bio}
             </p>
           )}
@@ -560,14 +560,14 @@ function FollowerCard({ profile }: { profile: FollowerProfile }) {
 
   return (
     <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 transition-colors hover:border-[var(--sr-border-strong)]">
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         <Avatar name={name} />
         <div className="min-w-0 flex-1">
-          <p className="truncate sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
+          <p className="break-words sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
             {name}
           </p>
           {profile.bio && (
-            <p className="truncate sr-text-caption text-[var(--sr-text-muted)]">
+            <p className="line-clamp-2 sr-text-caption text-[var(--sr-text-muted)]">
               {profile.bio}
             </p>
           )}

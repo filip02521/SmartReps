@@ -245,7 +245,7 @@ export function ExerciseLibraryPanel({
                 aria-label={pl.exerciseMuscleGroup}
               >
                 <span className={cn(
-                  'truncate',
+                  'break-words',
                   muscleFilter === 'all' && 'text-[var(--sr-text-muted)]',
                 )}>
                   {muscleFilter === 'all'

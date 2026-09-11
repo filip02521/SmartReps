@@ -172,8 +172,8 @@ export function ChallengeProgressRecap({
                   : 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',
               )}
             >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-start gap-1.5">
                   {p!.achieved && <Sparkles size={12} className="shrink-0 text-[var(--sr-success)]" aria-hidden />}
                   <span className="min-w-0 break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
                     {TYPE_LABEL[ch.challenge_type]}

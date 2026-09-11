@@ -210,7 +210,7 @@ function SetRestAdjustPanel({
         type="button"
         onClick={() => setExpanded((v) => !v)}
         className={cn(
-          'flex w-full items-center gap-2 px-3 py-2 text-left',
+          'flex w-full items-start gap-2 px-3 py-2 text-left',
           FOCUS_RING,
         )}
         aria-expanded={expanded}
@@ -717,7 +717,7 @@ function CustomDayExerciseRail({
                     : undefined
               }
               className={cn(
-                'flex min-w-[5.75rem] max-w-[9rem] shrink-0 flex-col gap-1 rounded-[var(--sr-radius-md)] px-2.5 py-2 text-left transition-colors',
+                'flex min-w-[5.75rem] max-w-[12rem] shrink-0 flex-col gap-1 rounded-[var(--sr-radius-md)] px-2.5 py-2 text-left transition-colors',
                 done && 'bg-[var(--sr-success-muted)]',
                 active &&
                   'border-2 border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]',
@@ -726,7 +726,7 @@ function CustomDayExerciseRail({
                   'cursor-pointer hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sr-brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sr-bg-base)]',
               )}
             >
-              <div className="grid grid-cols-[1rem_minmax(0,1fr)] items-center gap-x-1.5 gap-y-0.5">
+              <div className="grid grid-cols-[1rem_minmax(0,1fr)] items-start gap-x-1.5 gap-y-0.5">
                 {done ? (
                   <Check size={14} className="text-[var(--sr-success)]" aria-hidden />
                 ) : active ? (
@@ -1411,7 +1411,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
               <button
                 type="button"
                 onClick={onExerciseStats}
-                className="mx-auto flex max-w-full min-h-12 items-center justify-center gap-1.5 rounded-[var(--sr-radius-sm)] px-2 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
+                className="mx-auto flex max-w-full min-h-12 items-start justify-center gap-1.5 rounded-[var(--sr-radius-sm)] px-2 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
                 aria-label={pl.exerciseDetailOpenFor(exerciseDef.name)}
               >
                 <span className="break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
@@ -1426,7 +1426,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             )}
             <p className="break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">{setLine}</p>
             {(groupBadge || headerSub || sessionStartedAt) && (
-              <div className="mt-0.5 flex min-w-0 items-center justify-center gap-x-1.5">
+              <div className="mt-0.5 flex min-w-0 items-start justify-center gap-x-1.5">
                 {(groupBadge || headerSub) && (
                   <p className="min-w-0 break-words sr-text-caption text-[var(--sr-text-muted)]">
                     {[groupBadge, headerSub].filter(Boolean).join(' · ')}

@@ -118,7 +118,7 @@ function Leaderboard({
           <li
             key={entry.id}
             className={cn(
-              'flex items-center gap-3 rounded-[var(--sr-radius-sm)] px-3 py-2',
+              'flex items-start gap-3 rounded-[var(--sr-radius-sm)] px-3 py-2',
               isMe
                 ? 'border-2 border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)]'
                 : 'bg-[var(--sr-bg-elevated)]',
@@ -133,7 +133,7 @@ function Leaderboard({
             >
               {entry.rank <= 3 ? <Medal size={16} aria-hidden /> : entry.rank}
             </span>
-            <span className="min-w-0 flex-1 truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+            <span className="min-w-0 flex-1 break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
               {entry.display_name || pl.challengeAnonymous}
               {isMe && (
                 <span className="ml-1.5 text-[var(--sr-brand-primary)]">({pl.challengeYouLabel})</span>
@@ -214,7 +214,7 @@ function ChallengeItem({
           <Icon size={18} style={{ color }} aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-start gap-2">
             <p className="break-words sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
               {title}
             </p>

@@ -231,7 +231,7 @@ export function ActivityCalendar({
                       navigate(sessionRoute(s))
                     }}
                     className={cn(
-                      'flex w-full items-center gap-2.5 rounded-[var(--sr-radius-sm)] py-1.5 text-left transition-colors',
+                      'flex w-full items-start gap-2.5 rounded-[var(--sr-radius-sm)] py-1.5 text-left transition-colors',
                       canNavigate && 'hover:bg-[var(--sr-bg-elevated)] active:scale-[0.99]',
                       FOCUS_RING,
                     )}

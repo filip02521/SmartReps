@@ -68,7 +68,7 @@ export function ExerciseLibraryRow({
       >
         <ExerciseSparkline values={summary?.sparkline ?? []} active={hasHistory} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-start gap-1.5">
             <p className="break-words font-medium text-[var(--sr-text-primary)]">{exercise.name}</p>
             {hasDemo && (
               <span
