@@ -147,7 +147,6 @@ describe('mergeBodyWeightRemote — ID-based matching (BUG 4/5)', () => {
     const { mergeBodyWeightRemote } = await import('@/lib/sync')
     await mergeBodyWeightRemote({
       id: 'bw-1',
-
       weight_kg: 81,
       measured_at: '2026-09-01T10:00:00.000Z',
       note: 'updated',
@@ -164,7 +163,6 @@ describe('mergeBodyWeightRemote — ID-based matching (BUG 4/5)', () => {
     const { mergeBodyWeightRemote } = await import('@/lib/sync')
     await mergeBodyWeightRemote({
       id: 'bw-remote-1',
-
       weight_kg: 81,
       measured_at: '2026-09-01T10:00:00.000Z',
       note: 'updated',
@@ -182,7 +180,6 @@ describe('mergeBodyWeightRemote — ID-based matching (BUG 4/5)', () => {
     const { mergeBodyWeightRemote } = await import('@/lib/sync')
     await mergeBodyWeightRemote({
       id: 'bw-1',
-
       weight_kg: 81,
       measured_at: '2026-09-01T10:00:00.000Z',
       note: null,
@@ -198,7 +195,6 @@ describe('mergeBodyWeightRemote — ID-based matching (BUG 4/5)', () => {
     const { mergeBodyWeightRemote } = await import('@/lib/sync')
     await mergeBodyWeightRemote({
       id: 'bw-new',
-
       weight_kg: 75,
       measured_at: '2026-09-02T10:00:00.000Z',
       note: 'new entry',
@@ -236,7 +232,6 @@ describe('mergeActiveRemote — session-missing safety (BUG 9)', () => {
 
     const { mergeActiveRemote } = await import('@/lib/sync')
     await mergeActiveRemote('u1', {
-
       program: 'pushups',
       session_id: 'sess-1',
       current_set: 3,
@@ -276,7 +271,6 @@ describe('mergeActiveRemote — session-missing safety (BUG 9)', () => {
 
     const { mergeActiveRemote } = await import('@/lib/sync')
     await mergeActiveRemote('u1', {
-
       program: 'pushups',
       session_id: 'sess-1',
       current_set: 3,

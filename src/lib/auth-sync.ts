@@ -197,19 +197,25 @@ type SyncToastOpts = {
 }
 
 let authenticatedSyncLock: Promise<SyncResult> | null = null
+/** The actual underlying sync promise — persists even after the timeout
+ *  race clears the lock. waitForSyncToFinish waits on THIS, not the lock,
+ *  so a timed-out sync can't leave a zombie writing into a cleared DB. */
+let activeSyncPromise: Promise<SyncResult> | null = null
 
 /** Check if an authenticated sync is currently running. Used by clearAllLocalData
  *  to avoid racing with an active sync (which could write data back to a cleared DB). */
 export function isSyncRunning(): boolean {
-  return authenticatedSyncLock !== null
+  return activeSyncPromise !== null
 }
 
-/** Wait for any in-progress sync to complete before proceeding. */
+/** Wait for any in-progress sync to complete before proceeding.
+ *  Waits on the actual sync promise, not the lock — even if the timeout
+ *  race cleared the lock, the underlying sync is still tracked here. */
 export async function waitForSyncToFinish(timeoutMs = 10_000): Promise<void> {
-  if (!authenticatedSyncLock) return
+  if (!activeSyncPromise) return
   try {
     await Promise.race([
-      authenticatedSyncLock,
+      activeSyncPromise,
       new Promise<void>((_, reject) => setTimeout(() => reject(new Error('sync timeout')), timeoutMs)),
     ])
   } catch {
@@ -368,7 +374,6 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
       return { ok: false, errors: 0, reason: 'unknown' as SyncFailureReason }
     }
     const result = await syncForAccount(accountResult)
-
     let reason = result.reason
     if (!result.ok && !reason) {
       reason = await inferFailureReason(result.errors)
@@ -439,6 +444,20 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
     return finalResult
   })()
 
+  // Track the actual sync promise separately from the lock.
+  // The timeout race below may clear the lock, but the underlying sync
+  // keeps running. activeSyncPromise is cleared only when the sync
+  // actually completes, so waitForSyncToFinish can wait for the real
+  // completion — preventing zombie syncs from writing into a cleared DB.
+  const syncPromise = authenticatedSyncLock
+  activeSyncPromise = syncPromise
+  // Clear activeSyncPromise when the ACTUAL sync finishes (not the race).
+  void syncPromise.finally(() => {
+    if (activeSyncPromise === syncPromise) {
+      activeSyncPromise = null
+    }
+  })
+
   // Race the sync against a timeout. If the timeout wins, return a failure
   // result but still clear the lock so the next sync can proceed.
   const timeoutPromise = new Promise<SyncResult>((resolve) => {
@@ -447,7 +466,7 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
     }, SYNC_TIMEOUT_MS)
   })
 
-  return Promise.race([authenticatedSyncLock, timeoutPromise]).finally(() => {
+  return Promise.race([syncPromise, timeoutPromise]).finally(() => {
     authenticatedSyncLock = null
   })
 }

@@ -1,6 +1,7 @@
 import { db, type BodyWeightEntry } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
 import { sanitizeWeight } from '@/lib/sanitize'
+import { pl } from '@/i18n/pl'
 
 /**
  * Body weight tracking service.
@@ -16,7 +17,7 @@ export async function listBodyWeightEntries(): Promise<BodyWeightEntry[]> {
 export async function addBodyWeightEntry(weightKg: number, note?: string): Promise<BodyWeightEntry> {
   // Validate raw value BEFORE sanitization (sanitizeWeight clamps, which would hide out-of-range)
   if (!Number.isFinite(weightKg) || weightKg < 20 || weightKg > 500) {
-    throw new Error('Invalid weight value')
+    throw new Error(pl.bodyWeightInvalid)
   }
   const sanitizedWeight = sanitizeWeight(weightKg, 500)
   const entry: BodyWeightEntry = {
