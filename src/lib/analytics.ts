@@ -214,6 +214,31 @@ export function clearRecentSyncErrors(): void {
   recentSyncErrors.length = 0
 }
 
+/** Extract a human-readable message from any error type — including Supabase
+ *  PostgrestError (plain object with code/details/hint, NOT an Error instance)
+ *  and PostgresError. Without this, String(supabaseError) = "[object Object]". */
+function formatSyncErrorMessage(error: unknown): string {
+  if (error == null) return 'null'
+  if (error instanceof Error) return error.message
+  // Supabase PostgrestError — plain object with { message, code, details, hint }
+  if (typeof error === 'object') {
+    const e = error as Record<string, unknown>
+    const parts: string[] = []
+    if (typeof e.message === 'string' && e.message.length > 0) parts.push(e.message)
+    if (typeof e.code === 'string' && e.code.length > 0) parts.push(`code: ${e.code}`)
+    if (typeof e.details === 'string' && e.details.length > 0) parts.push(`details: ${e.details}`)
+    if (typeof e.hint === 'string' && e.hint.length > 0) parts.push(`hint: ${e.hint}`)
+    if (parts.length > 0) return parts.join(' | ')
+    // Fallback — try JSON stringify but avoid huge circular objects
+    try {
+      return JSON.stringify(error).slice(0, 300)
+    } catch {
+      return String(error)
+    }
+  }
+  return String(error)
+}
+
 /**
  * Track a sync section error (e.g. pull sessions failed, push body-weight failed).
  * Sends a breadcrumb to Sentry + a product analytics event so sync failures
@@ -222,7 +247,7 @@ export function clearRecentSyncErrors(): void {
  */
 export function trackSyncError(section: string, error: unknown): void {
   try {
-    const message = error instanceof Error ? error.message : String(error)
+    const message = formatSyncErrorMessage(error)
     console.warn(`[sync] ${section} failed`, error)
     addSyncBreadcrumb(`error: ${section}`, { message: message.slice(0, 200) })
     track(AnalyticsEvents.syncSectionError, {
