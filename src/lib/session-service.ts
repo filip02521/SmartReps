@@ -248,46 +248,46 @@ export async function finalizeSuccessfulDay(
   const key = progressKey(program, session.id)
   if (finalizedProgressKeys.has(key)) return
 
-  // Use a DB transaction with re-check to prevent double-completion race.
-  // Two concurrent calls could both observe status === 'in_progress' and both
-  // write 'completed'. The transaction + re-check ensures only one wins.
-  let alreadyCompleted = false
-  let totalReps = 0
-  await db.transaction('rw', db.workoutSessions, async () => {
-    const existing = await db.workoutSessions.get(session.id)
-    if (existing?.status === 'completed') {
-      alreadyCompleted = true
-      totalReps = existing.totalReps ?? 0
+  try {
+    // Use a DB transaction with re-check to prevent double-completion race.
+    // Two concurrent calls could both observe status === 'in_progress' and both
+    // write 'completed'. The transaction + re-check ensures only one wins.
+    let alreadyCompleted = false
+    let totalReps = 0
+    await db.transaction('rw', db.workoutSessions, async () => {
+      const existing = await db.workoutSessions.get(session.id)
+      if (existing?.status === 'completed') {
+        alreadyCompleted = true
+        totalReps = existing.totalReps ?? 0
+        return
+      }
+      totalReps = setResults.reduce((s, r) => s + sanitizeReps(r.actual), 0)
+      const updated: LocalWorkoutSession = {
+        ...session,
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+        passed: true,
+        totalReps,
+        setResults,
+      }
+      await db.workoutSessions.put(updated)
+    })
+
+    if (alreadyCompleted) {
+      // Session was already completed by a concurrent call — still advance progress
+      // if not yet done (e.g. after page reload, in-memory guard is empty)
+      if (!finalizedProgressKeys.has(key)) {
+        await completeWorkoutDay(program, true, totalReps, session.id, session.dayNumber)
+        finalizedProgressKeys.add(key)
+      }
+      markFirstWorkoutAndTrack(true, session.id)
+      void schedulePostWorkoutSync()
+      const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+      scheduleAchievementCheck()
       return
     }
-    totalReps = setResults.reduce((s, r) => s + sanitizeReps(r.actual), 0)
-    const updated: LocalWorkoutSession = {
-      ...session,
-      status: 'completed',
-      completedAt: new Date().toISOString(),
-      passed: true,
-      totalReps,
-      setResults,
-    }
-    await db.workoutSessions.put(updated)
-  })
 
-  if (alreadyCompleted) {
-    // Session was already completed by a concurrent call — still advance progress
-    // if not yet done (e.g. after page reload, in-memory guard is empty)
-    if (!finalizedProgressKeys.has(key)) {
-      await completeWorkoutDay(program, true, totalReps, session.id, session.dayNumber)
-      finalizedProgressKeys.add(key)
-    }
-    markFirstWorkoutAndTrack(true, session.id)
-    void schedulePostWorkoutSync()
-    const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
-    scheduleAchievementCheck()
-    return
-  }
-
-  // Enqueue sync after successful transaction
-  try {
+    // Enqueue sync after successful transaction
     const completed = await db.workoutSessions.get(session.id)
     if (completed) await enqueueSync('workout_sessions', 'update', completed)
 
@@ -312,39 +312,39 @@ export async function finalizeFailedDay(
   const key = progressKey(program, sessionId)
   if (finalizedProgressKeys.has(key)) return
 
-  let alreadyCompleted = false
-  let totalReps = 0
-  await db.transaction('rw', db.workoutSessions, async () => {
-    const existing = await db.workoutSessions.get(sessionId)
-    if (!existing) return
-    if (existing.status === 'completed') {
-      alreadyCompleted = true
-      totalReps = existing.totalReps ?? 0
+  try {
+    let alreadyCompleted = false
+    let totalReps = 0
+    await db.transaction('rw', db.workoutSessions, async () => {
+      const existing = await db.workoutSessions.get(sessionId)
+      if (!existing) return
+      if (existing.status === 'completed') {
+        alreadyCompleted = true
+        totalReps = existing.totalReps ?? 0
+        return
+      }
+      totalReps = setResults.reduce((s, r) => s + sanitizeReps(r.actual), 0)
+      const updated: LocalWorkoutSession = {
+        ...existing,
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+        passed: false,
+        totalReps,
+        setResults,
+      }
+      await db.workoutSessions.put(updated)
+    })
+
+    if (alreadyCompleted) {
+      if (!finalizedProgressKeys.has(key)) {
+        const existingForDay = await db.workoutSessions.get(sessionId)
+        await completeWorkoutDay(program, false, totalReps, sessionId, existingForDay?.dayNumber)
+        finalizedProgressKeys.add(key)
+      }
+      markFirstWorkoutAndTrack(false, sessionId)
       return
     }
-    totalReps = setResults.reduce((s, r) => s + sanitizeReps(r.actual), 0)
-    const updated: LocalWorkoutSession = {
-      ...existing,
-      status: 'completed',
-      completedAt: new Date().toISOString(),
-      passed: false,
-      totalReps,
-      setResults,
-    }
-    await db.workoutSessions.put(updated)
-  })
 
-  if (alreadyCompleted) {
-    if (!finalizedProgressKeys.has(key)) {
-      const existingForDay = await db.workoutSessions.get(sessionId)
-      await completeWorkoutDay(program, false, totalReps, sessionId, existingForDay?.dayNumber)
-      finalizedProgressKeys.add(key)
-    }
-    markFirstWorkoutAndTrack(false, sessionId)
-    return
-  }
-
-  try {
     const completed = await db.workoutSessions.get(sessionId)
     if (completed) await enqueueSync('workout_sessions', 'update', completed)
 
@@ -365,30 +365,35 @@ export async function finalizeFailedDay(
  *  even after the sync queue is flushed, the session won't be
  *  resurrected by another device pushing it back to the cloud. */
 export async function deleteWorkoutSession(sessionId: string): Promise<void> {
-  const session = await db.workoutSessions.get(sessionId)
-  if (!session) return
-  // 1. Enqueue cloud delete BEFORE local delete to prevent resurrection
-  await enqueueSync('workout_sessions', 'delete', { id: sessionId })
-  // 2. Store tombstone + delete locally in a transaction for atomicity
-  await db.transaction('rw', [db.sessionTombstones, db.workoutSessions], async () => {
-    await db.sessionTombstones.put({
-      sessionId,
-      deletedAt: new Date().toISOString(),
+  try {
+    const session = await db.workoutSessions.get(sessionId)
+    if (!session) return
+    // 1. Enqueue cloud delete BEFORE local delete to prevent resurrection
+    await enqueueSync('workout_sessions', 'delete', { id: sessionId })
+    // 2. Store tombstone + delete locally in a transaction for atomicity
+    await db.transaction('rw', [db.sessionTombstones, db.workoutSessions], async () => {
+      await db.sessionTombstones.put({
+        sessionId,
+        deletedAt: new Date().toISOString(),
+      })
+      await db.workoutSessions.delete(sessionId)
     })
-    await db.workoutSessions.delete(sessionId)
-  })
-  // 3. Clear active workout pointer if it references the deleted session
-  if (session.program !== 'custom' && (session.programKind ?? 'builtin') !== 'custom') {
-    const { clearActiveWorkout } = await import('@/lib/program-service')
-    await clearActiveWorkout(session.program as Program)
-  } else if (session.customPlanId) {
-    const { clearActiveCustomWorkout } = await import('@/lib/custom-session-service')
-    await clearActiveCustomWorkout(session.customPlanId)
+    // 3. Clear active workout pointer if it references the deleted session
+    if (session.program !== 'custom' && (session.programKind ?? 'builtin') !== 'custom') {
+      const { clearActiveWorkout } = await import('@/lib/program-service')
+      await clearActiveWorkout(session.program as Program)
+    } else if (session.customPlanId) {
+      const { clearActiveCustomWorkout } = await import('@/lib/custom-session-service')
+      await clearActiveCustomWorkout(session.customPlanId)
+    }
+    track(AnalyticsEvents.sessionDeleted, { program: session.program })
+    // 4. Re-evaluate achievements — session counts/streaks may have changed
+    const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+    scheduleAchievementCheck()
+  } catch (err) {
+    trackSyncError('delete_workout_session', err)
+    throw err
   }
-  track(AnalyticsEvents.sessionDeleted, { program: session.program })
-  // 4. Re-evaluate achievements — session counts/streaks may have changed
-  const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
-  scheduleAchievementCheck()
 }
 
 export async function abandonWorkoutSession(program: Program, sessionId: string): Promise<void> {

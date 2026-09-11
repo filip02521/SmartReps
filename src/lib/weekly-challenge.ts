@@ -78,10 +78,10 @@ export async function getActiveWeeklyChallenges(): Promise<WeeklyChallenge[]> {
     const { data: legacyData, error: legacyError } = await supabase.rpc('get_active_weekly_challenge')
     if (legacyError) throw error // throw original error
     if (!legacyData) return []
-    const raw = safeJsonParse(legacyData)
-    const ch = raw as Omit<WeeklyChallenge, 'challenge_type'>
+    const raw = safeJsonParse<Omit<WeeklyChallenge, 'challenge_type'>>(legacyData)
+    if (!raw) return []
     // Legacy challenges are always 'volume' type
-    return [{ ...ch, challenge_type: 'volume' as ChallengeType }]
+    return [{ ...raw, challenge_type: 'volume' as ChallengeType }]
   }
   const raw = safeJsonParse(data)
   if (!Array.isArray(raw)) return []
@@ -121,7 +121,8 @@ export async function submitChallengeProgress(args: {
         throw legacyError
       }
       const lraw = safeJsonParse<SubmitResult>(legacyData)
-      return lraw as SubmitResult
+      if (!lraw) throw new Error('parse_error')
+      return lraw
     }
     if (msg.includes('not_authenticated')) throw new Error('not_authenticated')
     if (msg.includes('invalid_reps')) throw new Error('invalid_reps')
@@ -130,7 +131,8 @@ export async function submitChallengeProgress(args: {
     throw error
   }
   const raw = safeJsonParse<SubmitResult>(data)
-  return raw as SubmitResult
+  if (!raw) throw new Error('parse_error')
+  return raw
 }
 
 /**
@@ -162,7 +164,7 @@ export async function getMyWeeklyChallengeEntry(
   if (error) throw error
   if (!data) return null
   const raw = safeJsonParse<ChallengeEntry>(data)
-  return raw as ChallengeEntry
+  return raw
 }
 
 /**

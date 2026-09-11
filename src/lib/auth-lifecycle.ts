@@ -80,6 +80,10 @@ export async function signOutUser(
   }
   // Belt-and-suspenders: clear durable mirror even if GoTrue removeItem raced.
   await wipeDurableAuthStorage()
+  // NOTE: Local workout data is NOT cleared here. The UI offers two options:
+  // - "Wyloguj — zostaw dane" (logoutOnly) — keeps data for offline re-login
+  // - "Wyloguj" (logoutAndClear) — calls clearAllLocalData() explicitly
+  // Adding clearAllLocalData() here would remove the user's choice.
 }
 
 function isOnLoginRoute(): boolean {

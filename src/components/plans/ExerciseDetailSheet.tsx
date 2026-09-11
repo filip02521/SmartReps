@@ -335,7 +335,7 @@ export function ExerciseDetailSheet({
                 ) : stats.chartPoints.length === 1 ? (
                   <p className="sr-text-body-sm text-[var(--sr-text-muted)]">
                     {pl.exerciseDetailChartSingle(
-                      stats.chartPoints[0]!.value,
+                      stats.chartPoints[0]?.value ?? 0,
                       chartValueLabel(exercise.primaryMetric),
                     )}
                   </p>

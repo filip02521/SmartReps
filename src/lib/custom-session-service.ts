@@ -12,7 +12,7 @@ import {
 import { getNextWorkoutDate } from '@/lib/progress-engine'
 import { enqueueSync, enqueueActiveCustomWorkoutSync } from '@/lib/sync'
 import { generateId } from '@/lib/utils'
-import { track, AnalyticsEvents } from '@/lib/analytics'
+import { track, AnalyticsEvents, trackSyncError } from '@/lib/analytics'
 import { useAppStore } from '@/stores/app-store'
 
 /** Prevent double finalize / double progression for the same session. */
@@ -146,61 +146,66 @@ export async function persistCustomActive(
 ) {
   if (!session.customPlanId) return
 
-  const linked = await db.workoutSessions.get(session.id)
-  if (linked?.status === 'completed' || linked?.status === 'abandoned') return
+  try {
+    const linked = await db.workoutSessions.get(session.id)
+    if (linked?.status === 'completed' || linked?.status === 'abandoned') return
 
-  const existing = await db.activeCustomWorkout.get(session.customPlanId)
+    const existing = await db.activeCustomWorkout.get(session.customPlanId)
 
-  const dayOverrideJson =
-    state.dayOverrideJson !== undefined
-      ? state.dayOverrideJson
-      : (existing?.dayOverrideJson ?? null)
+    const dayOverrideJson =
+      state.dayOverrideJson !== undefined
+        ? state.dayOverrideJson
+        : (existing?.dayOverrideJson ?? null)
 
-  const hasProgress = customSessionHasProgress(state.exerciseLogs)
-  if (!hasProgress && !dayOverrideJson) {
-    // Explicit clear of session-only edits — drop stale override without creating empty active.
-    if (existing?.sessionId === session.id && existing.dayOverrideJson) {
-      await db.activeCustomWorkout.put({
-        ...existing,
-        currentExerciseIndex: state.currentExerciseIndex,
-        currentSetIndex: state.currentSetIndex,
-        exerciseLogs: state.exerciseLogs,
-        restTimerJson: state.restTimerJson,
-        amrapEndAt: state.amrapEndAt ?? null,
-        amrapGroupId: state.amrapGroupId ?? null,
-        dayOverrideJson: null,
-        updatedAt: new Date().toISOString(),
-      })
-      const activeRow = await db.activeCustomWorkout.get(session.customPlanId)
-      if (activeRow) await enqueueActiveCustomWorkoutSync(session.customPlanId, activeRow)
+    const hasProgress = customSessionHasProgress(state.exerciseLogs)
+    if (!hasProgress && !dayOverrideJson) {
+      // Explicit clear of session-only edits — drop stale override without creating empty active.
+      if (existing?.sessionId === session.id && existing.dayOverrideJson) {
+        await db.activeCustomWorkout.put({
+          ...existing,
+          currentExerciseIndex: state.currentExerciseIndex,
+          currentSetIndex: state.currentSetIndex,
+          exerciseLogs: state.exerciseLogs,
+          restTimerJson: state.restTimerJson,
+          amrapEndAt: state.amrapEndAt ?? null,
+          amrapGroupId: state.amrapGroupId ?? null,
+          dayOverrideJson: null,
+          updatedAt: new Date().toISOString(),
+        })
+        const activeRow = await db.activeCustomWorkout.get(session.customPlanId)
+        if (activeRow) await enqueueActiveCustomWorkoutSync(session.customPlanId, activeRow)
+      }
+      return
     }
-    return
-  }
 
-  const row: LocalWorkoutSession = {
-    ...session,
-    exerciseLogs: state.exerciseLogs,
-    status: 'in_progress',
-    programKind: 'custom',
-  }
-  await db.workoutSessions.put(row)
+    const row: LocalWorkoutSession = {
+      ...session,
+      exerciseLogs: state.exerciseLogs,
+      status: 'in_progress',
+      programKind: 'custom',
+    }
+    await db.workoutSessions.put(row)
 
-  await db.activeCustomWorkout.put({
-    customPlanId: session.customPlanId,
-    sessionId: session.id,
-    currentExerciseIndex: state.currentExerciseIndex,
-    currentSetIndex: state.currentSetIndex,
-    exerciseLogs: state.exerciseLogs,
-    restTimerJson: state.restTimerJson,
-    amrapEndAt: state.amrapEndAt ?? null,
-    amrapGroupId: state.amrapGroupId ?? null,
-    dayOverrideJson,
-    displayStartedAt: state.displayStartedAt ?? existing?.displayStartedAt ?? null,
-    updatedAt: new Date().toISOString(),
-  })
-  const activeRow = await db.activeCustomWorkout.get(session.customPlanId)
-  if (activeRow) await enqueueActiveCustomWorkoutSync(session.customPlanId, activeRow)
-  await enqueueSync('workout_sessions', 'update', row)
+    await db.activeCustomWorkout.put({
+      customPlanId: session.customPlanId,
+      sessionId: session.id,
+      currentExerciseIndex: state.currentExerciseIndex,
+      currentSetIndex: state.currentSetIndex,
+      exerciseLogs: state.exerciseLogs,
+      restTimerJson: state.restTimerJson,
+      amrapEndAt: state.amrapEndAt ?? null,
+      amrapGroupId: state.amrapGroupId ?? null,
+      dayOverrideJson,
+      displayStartedAt: state.displayStartedAt ?? existing?.displayStartedAt ?? null,
+      updatedAt: new Date().toISOString(),
+    })
+    const activeRow = await db.activeCustomWorkout.get(session.customPlanId)
+    if (activeRow) await enqueueActiveCustomWorkoutSync(session.customPlanId, activeRow)
+    await enqueueSync('workout_sessions', 'update', row)
+  } catch (err) {
+    trackSyncError('persist_custom_active', err)
+    throw err
+  }
 }
 
 export async function clearActiveCustomWorkout(planId: string) {
@@ -243,118 +248,123 @@ export async function finalizeCustomDay(params: {
   // Use a DB transaction with re-check to prevent double-completion race.
   // Two concurrent calls (e.g. page reload + background sync) could both
   // observe status === 'in_progress' and both advance progress twice.
-  let alreadyCompleted = false
-  let existingPassed = false
-  await db.transaction('rw', db.workoutSessions, async () => {
-    const existing = await db.workoutSessions.get(session.id)
-    if (!existing) return
-    if (existing.status === 'completed') {
-      alreadyCompleted = true
-      existingPassed = existing.passed === true
-      return
-    }
-    if (finalizedCustomSessions.has(session.id)) {
-      alreadyCompleted = true
-      existingPassed = true
-      return
-    }
-    finalizedCustomSessions.add(session.id)
+  try {
+    let alreadyCompleted = false
+    let existingPassed = false
+    await db.transaction('rw', db.workoutSessions, async () => {
+      const existing = await db.workoutSessions.get(session.id)
+      if (!existing) return
+      if (existing.status === 'completed') {
+        alreadyCompleted = true
+        existingPassed = existing.passed === true
+        return
+      }
+      if (finalizedCustomSessions.has(session.id)) {
+        alreadyCompleted = true
+        existingPassed = true
+        return
+      }
+      finalizedCustomSessions.add(session.id)
 
-    // Custom: completing the day always counts as done (no Strong-style restart).
-    // Below-target sets stay on logs for a soft summary note only.
-    const completed: LocalWorkoutSession = {
-      ...session,
-      status: 'completed',
-      completedAt: now,
-      passed: true,
-      totalReps,
-      exerciseLogs,
-      programKind: 'custom',
-      customPlanId: plan.id,
-      progressionDiffJson,
-      sessionDayPatchJson: sessionDayPatchJson ?? null,
-    }
-    await db.workoutSessions.put(completed)
-  })
-
-  if (alreadyCompleted) {
-    return { passed: existingPassed, hitTargets: existingPassed }
-  }
-
-  // Enqueue sync + advance progress AFTER successful transaction
-  const completedSession = await db.workoutSessions.get(session.id)
-  if (completedSession) await enqueueSync('workout_sessions', 'update', completedSession)
-  if (session.customPlanId) await clearActiveCustomWorkout(session.customPlanId)
-
-  const progress = await getOrCreateCustomProgress(plan.id)
-
-  if (isLastDay) {
-    // Increment cycleAttempt so progression/deload math works correctly.
-    // Without this, cycleAttempt stays at 1 forever and every cycle is treated as cycle 2,
-    // causing deload to fire every cycle and progression to be re-applied infinitely.
-    const nextCycleAttempt = (progress.cycleAttempt ?? 1) + 1
-    await saveCustomProgress({
-      ...progress,
-      status: 'cycle_complete',
-      currentDay: 1,
-      cycleAttempt: nextCycleAttempt,
-      lastWorkoutAt: now,
-      nextWorkoutAfter: null,
-      updatedAt: now,
+      // Custom: completing the day always counts as done (no Strong-style restart).
+      // Below-target sets stay on logs for a soft summary note only.
+      const completed: LocalWorkoutSession = {
+        ...session,
+        status: 'completed',
+        completedAt: now,
+        passed: true,
+        totalReps,
+        exerciseLogs,
+        programKind: 'custom',
+        customPlanId: plan.id,
+        progressionDiffJson,
+        sessionDayPatchJson: sessionDayPatchJson ?? null,
+      }
+      await db.workoutSessions.put(completed)
     })
-    if (hitTargets) {
-      await applyCycleProgression(plan.id)
+
+    if (alreadyCompleted) {
+      return { passed: existingPassed, hitTargets: existingPassed }
     }
-  } else {
-    const sorted = [...plan.days].map((d) => d.dayNumber).sort((a, b) => a - b)
-    const idx = sorted.indexOf(session.dayNumber)
-    const nextDay = sorted[idx + 1] ?? session.dayNumber + 1
-    await saveCustomProgress({
-      ...progress,
-      status: 'rest',
-      currentDay: nextDay,
-      lastWorkoutAt: now,
-      nextWorkoutAfter: getNextWorkoutDate(new Date(now), restDays).toISOString(),
-      updatedAt: now,
-    })
-  }
 
-  const store = useAppStore.getState()
-  if (!store.hasCompletedFirstWorkout) {
-    store.setHasCompletedFirstWorkout(true)
-    track(AnalyticsEvents.firstWorkoutDone)
-  }
-  track(AnalyticsEvents.dayCompleted)
-  void schedulePostWorkoutSync()
+    // Enqueue sync + advance progress AFTER successful transaction
+    const completedSession = await db.workoutSessions.get(session.id)
+    if (completedSession) await enqueueSync('workout_sessions', 'update', completedSession)
+    if (session.customPlanId) await clearActiveCustomWorkout(session.customPlanId)
 
-  // Community: first train on imported plan
-  if (plan.communityPublicationId) {
-    const prior = await db.workoutSessions
-      .where('customPlanId')
-      .equals(plan.id)
-      .filter((s) => s.id !== session.id && s.status === 'completed')
-      .count()
-    if (prior === 0) {
-      try {
-        const { recordCommunityTrained } = await import('@/lib/achievements/community-impact')
-        const res = await recordCommunityTrained(plan.communityPublicationId)
-        if (res.counted) {
-          track(AnalyticsEvents.communityTrained, { counted: true })
-          const importMs = new Date(plan.createdAt).getTime()
-          if (Number.isFinite(importMs) && Date.now() - importMs <= 48 * 60 * 60 * 1000) {
-            track(AnalyticsEvents.communityImportTrained48h)
+    const progress = await getOrCreateCustomProgress(plan.id)
+
+    if (isLastDay) {
+      // Increment cycleAttempt so progression/deload math works correctly.
+      // Without this, cycleAttempt stays at 1 forever and every cycle is treated as cycle 2,
+      // causing deload to fire every cycle and progression to be re-applied infinitely.
+      const nextCycleAttempt = (progress.cycleAttempt ?? 1) + 1
+      await saveCustomProgress({
+        ...progress,
+        status: 'cycle_complete',
+        currentDay: 1,
+        cycleAttempt: nextCycleAttempt,
+        lastWorkoutAt: now,
+        nextWorkoutAfter: null,
+        updatedAt: now,
+      })
+      if (hitTargets) {
+        await applyCycleProgression(plan.id)
+      }
+    } else {
+      const sorted = [...plan.days].map((d) => d.dayNumber).sort((a, b) => a - b)
+      const idx = sorted.indexOf(session.dayNumber)
+      const nextDay = sorted[idx + 1] ?? session.dayNumber + 1
+      await saveCustomProgress({
+        ...progress,
+        status: 'rest',
+        currentDay: nextDay,
+        lastWorkoutAt: now,
+        nextWorkoutAfter: getNextWorkoutDate(new Date(now), restDays).toISOString(),
+        updatedAt: now,
+      })
+    }
+
+    const store = useAppStore.getState()
+    if (!store.hasCompletedFirstWorkout) {
+      store.setHasCompletedFirstWorkout(true)
+      track(AnalyticsEvents.firstWorkoutDone)
+    }
+    track(AnalyticsEvents.dayCompleted)
+    void schedulePostWorkoutSync()
+
+    // Community: first train on imported plan
+    if (plan.communityPublicationId) {
+      const prior = await db.workoutSessions
+        .where('customPlanId')
+        .equals(plan.id)
+        .filter((s) => s.id !== session.id && s.status === 'completed')
+        .count()
+      if (prior === 0) {
+        try {
+          const { recordCommunityTrained } = await import('@/lib/achievements/community-impact')
+          const res = await recordCommunityTrained(plan.communityPublicationId)
+          if (res.counted) {
+            track(AnalyticsEvents.communityTrained, { counted: true })
+            const importMs = new Date(plan.createdAt).getTime()
+            if (Number.isFinite(importMs) && Date.now() - importMs <= 48 * 60 * 60 * 1000) {
+              track(AnalyticsEvents.communityImportTrained48h)
+            }
           }
+        } catch (err) {
+          console.warn('[community] record_trained failed', err)
+          track(AnalyticsEvents.communityImportError, { step: 'record_trained' })
         }
-      } catch (err) {
-        console.warn('[community] record_trained failed', err)
-        track(AnalyticsEvents.communityImportError, { step: 'record_trained' })
       }
     }
-  }
 
-  const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
-  scheduleAchievementCheck()
-  return { passed: true, hitTargets }
+    const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+    scheduleAchievementCheck()
+    return { passed: true, hitTargets }
+  } catch (err) {
+    trackSyncError('finalize_custom_day', err)
+    throw err
+  }
 }
 
 /** Last logged result for the same exercise + set (any day, most recent session). */

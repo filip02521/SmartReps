@@ -251,7 +251,7 @@ export async function saveExercise(
     updatedAt: now,
   }
   const issues = validateExerciseDefinition(ex)
-  if (issues.length) throw new Error(issues[0]!.message)
+  if (issues.length) throw new Error(issues[0]?.message ?? 'validation_error')
   await db.exercises.put(ex)
   await enqueueSync('user_exercises', existing ? 'update' : 'insert', ex)
   return ex
@@ -332,7 +332,7 @@ export async function saveCustomPlan(
   const shouldValidate = opts?.activate || (next.status === 'active' && !opts?.skipValidation)
   if (shouldValidate) {
     const issues = validateCustomPlan(next, byId)
-    if (issues.length) throw new Error(issues[0]!.message)
+    if (issues.length) throw new Error(issues[0]?.message ?? 'validation_error')
   }
   const existing = await db.customPlans.get(plan.id)
   await db.customPlans.put(next)

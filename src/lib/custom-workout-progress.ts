@@ -21,7 +21,7 @@ export function getChecklistSlots(
   const planned = day.exercises[exerciseIndex]
   if (!planned || planned.sets.length === 0) return []
   const group = getGroupForExercise(day, exerciseIndex)
-  const template = planned.sets[planned.sets.length - 1] ?? planned.sets[0]!
+  const template = planned.sets[planned.sets.length - 1] ?? planned.sets[0]
 
   if (group?.kind === 'circuit') {
     const rounds = getExerciseTargetSetCount(day, exerciseIndex)

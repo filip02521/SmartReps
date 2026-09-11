@@ -57,7 +57,7 @@ export function pickCanonicalExercise(
     const ageDiff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     if (ageDiff !== 0) return ageDiff
     return a.id.localeCompare(b.id)
-  })[0]!
+  })[0] ?? group[0]
 }
 
 export async function findActiveExerciseByDedupKey(

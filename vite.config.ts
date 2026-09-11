@@ -83,6 +83,17 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 1200,
+    // Vite 8 uses oxc by default, but oxc doesn't expose dropConsole through
+    // Vite config yet. Use terser for production minification to strip
+    // console.* and debugger statements. See:
+    // https://github.com/vitejs/rolldown-vite/discussions/302
+    minify: process.env.NODE_ENV === 'production' ? 'terser' : 'oxc',
+    terserOptions: {
+      compress: {
+        drop_console: process.env.NODE_ENV === 'production',
+        drop_debugger: process.env.NODE_ENV === 'production',
+      },
+    },
     rollupOptions: {
       output: {
         // Force recharts into a single chunk to avoid Rolldown circular-dependency

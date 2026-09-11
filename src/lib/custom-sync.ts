@@ -437,8 +437,8 @@ export async function pushCustomEntities(userId: string): Promise<number> {
           plan_id: tombstone.planId,
           deleted_at: tombstone.deletedAt,
         }, { onConflict: 'user_id,plan_id' })
-    } catch {
-      // Non-fatal — will retry on next sync
+    } catch (err) {
+      trackSyncError('push_custom_plan_tombstone', err)
     }
   }
 
@@ -452,8 +452,8 @@ export async function pushCustomEntities(userId: string): Promise<number> {
           exercise_id: tombstone.exerciseId,
           deleted_at: tombstone.deletedAt,
         }, { onConflict: 'user_id,exercise_id' })
-    } catch {
-      // Non-fatal — will retry on next sync
+    } catch (err) {
+      trackSyncError('push_exercise_tombstone', err)
     }
   }
 
@@ -492,13 +492,13 @@ export async function pullCustomEntities(userId: string): Promise<number> {
               .delete()
               .eq('user_id', userId)
               .eq('custom_plan_id', row.plan_id)
-          } catch {
-            // Non-fatal — will retry on next sync
+          } catch (err) {
+            trackSyncError('pull_custom_plan_tombstone_delete', err)
           }
         }
       }
-    } catch {
-      // Tombstone table may not exist yet — best-effort
+    } catch (err) {
+      trackSyncError('pull_custom_plan_tombstones', err)
     }
 
     // Pull exercise tombstones — archive/delete local exercises deleted on another device.
@@ -515,13 +515,13 @@ export async function pullCustomEntities(userId: string): Promise<number> {
           // Also delete the remote exercise if it still exists — same reason as plan tombstones.
           try {
             await supabase.from('user_exercises').delete().eq('user_id', userId).eq('id', row.exercise_id)
-          } catch {
-            // Non-fatal — will retry on next sync
+          } catch (err) {
+            trackSyncError('pull_exercise_tombstone_delete', err)
           }
         }
       }
-    } catch {
-      // Tombstone table may not exist yet — best-effort
+    } catch (err) {
+      trackSyncError('pull_exercise_tombstones', err)
     }
 
     const { data: exercises, error: exErr } = await supabase
@@ -551,6 +551,20 @@ export async function pullCustomEntities(userId: string): Promise<number> {
       if (await db.exerciseTombstones.get(mapped.id)) continue
       // Dedup by name: if a local exercise has the same name but different ID,
       // replace it with the remote one (the cloud ID is canonical after sync).
+      // BUT: if the remote is archived and local is active, keep the local one —
+      // an archived remote should not overwrite an active local exercise.
+      if (mapped.archived) {
+        // Remote is archived — don't replace an active local exercise that has a
+        // different ID (dedup would incorrectly overwrite active with archived).
+        // But if same ID and local is newer, push local back to un-archive remote.
+        const local = await db.exercises.get(mapped.id)
+        if (!local || new Date(mapped.updatedAt) >= new Date(local.updatedAt)) {
+          await db.exercises.put(mapped)
+        } else {
+          await upsertUserExercise(userId, local)
+        }
+        continue
+      }
       const localByName = (await db.exercises.toArray()).find(
         (e) => !e.archived && e.name.trim().toLowerCase() === mapped.name.trim().toLowerCase(),
       )

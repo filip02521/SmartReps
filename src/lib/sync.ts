@@ -51,6 +51,16 @@ export type SyncResult = {
 
 const SYNC_QUEUE_CAP = 500
 
+/** Lock for pushProfileSettingsOnly — prevents concurrent calls from
+ *  racing with each other (e.g. rapid toggle + FollowManager update).
+ *  Also waits for any in-progress authenticated sync (auth-sync.ts) to
+ *  finish before proceeding, via dynamic import to avoid circular deps. */
+let profileSyncLock: Promise<SyncResult> | null = null
+
+export function isProfileSyncRunning(): boolean {
+  return profileSyncLock !== null
+}
+
 export async function enqueueSync(table: string, action: SyncAction, payload: unknown) {
   let payloadJson: string
   try {
@@ -66,7 +76,8 @@ export async function enqueueSync(table: string, action: SyncAction, payload: un
     // Deduplicate: if there's already a pending item for the same table+action+payload,
     // skip adding a duplicate. This prevents the queue from growing unboundedly when
     // the same entity is updated repeatedly while offline.
-    // Use filter() instead of where() because syncQueue doesn't have a 'table' index.
+    // We can't use where('table') here because we need to match on table+action+payload,
+    // and Dexie doesn't support multi-field compound queries on non-indexed fields.
     const all = await db.syncQueue.toArray()
     const existing = all.find(
       (item) => item.table === table && item.action === action && item.payload === payloadJson,
@@ -85,10 +96,10 @@ export async function enqueueSync(table: string, action: SyncAction, payload: un
     // This prevents unbounded growth without losing data.
     const count = await db.syncQueue.count()
     if (count > SYNC_QUEUE_CAP) {
-      const all = await db.syncQueue.orderBy('createdAt').toArray()
+      const queueItems = await db.syncQueue.orderBy('createdAt').toArray()
       // Group by table + entityId, keep latest per group
-      const latestByKey = new Map<string, typeof all[0]>()
-      for (const item of all) {
+      const latestByKey = new Map<string, typeof queueItems[0]>()
+      for (const item of queueItems) {
         let entityId = ''
         try {
           const parsed = JSON.parse(item.payload)
@@ -102,7 +113,7 @@ export async function enqueueSync(table: string, action: SyncAction, payload: un
       }
       const keepIds = new Set([...latestByKey.values()].map((i) => i.id!))
       // Delete items not in keep set
-      for (const item of all) {
+      for (const item of queueItems) {
         if (!keepIds.has(item.id!)) {
           await db.syncQueue.delete(item.id!)
         }
@@ -283,24 +294,43 @@ async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
  *  toggle), skip the pull — it could merge remote over our just-changed local
  *  value and revert the user's toggle. */
 export async function pushProfileSettingsOnly(): Promise<SyncResult> {
-  const userId = await getUserId()
-  if (!userId) return { ok: true, errors: 0 }
-  try {
-    // Pull first to sync local LWW clocks with remote — but ONLY when local
-    // timestamps are missing. If they're present, the local change is
-    // authoritative and pulling would risk overwriting it via LWW merge.
-    const { enabledProgramsUpdatedAt, uiSettingsUpdatedAt, enabledCustomWorkoutsUpdatedAt } =
-      useAppStore.getState()
-    if (!enabledProgramsUpdatedAt || !uiSettingsUpdatedAt || !enabledCustomWorkoutsUpdatedAt) {
-      const pull = await pullProfileEnabledPrograms(userId)
-      if (!pull.ok) return { ok: false, errors: 1 }
+  // If already running, return the existing promise
+  if (profileSyncLock) return profileSyncLock
+
+  profileSyncLock = (async () => {
+    const userId = await getUserId()
+    if (!userId) return { ok: true, errors: 0 }
+    try {
+      // Wait for any in-progress authenticated sync to finish before touching
+      // profile settings — avoids race where both syncWithRemote and this
+      // function push/pull profile simultaneously. Dynamic import avoids cycle.
+      try {
+        const { waitForSyncToFinish } = await import('@/lib/auth-sync')
+        await waitForSyncToFinish()
+      } catch {
+        // auth-sync module unavailable — proceed without coordination
+      }
+
+      // Pull first to sync local LWW clocks with remote — but ONLY when local
+      // timestamps are missing. If they're present, the local change is
+      // authoritative and pulling would risk overwriting it via LWW merge.
+      const { enabledProgramsUpdatedAt, uiSettingsUpdatedAt, enabledCustomWorkoutsUpdatedAt } =
+        useAppStore.getState()
+      if (!enabledProgramsUpdatedAt || !uiSettingsUpdatedAt || !enabledCustomWorkoutsUpdatedAt) {
+        const pull = await pullProfileEnabledPrograms(userId)
+        if (!pull.ok) return { ok: false, errors: 1 }
+      }
+      await upsertProfileEnabledPrograms(userId)
+      return { ok: true, errors: 0 }
+    } catch (err) {
+      trackSyncError('push_profile_settings_only', err)
+      return { ok: false, errors: 1 }
     }
-    await upsertProfileEnabledPrograms(userId)
-    return { ok: true, errors: 0 }
-  } catch (err) {
-    trackSyncError('push_profile_settings_only', err)
-    return { ok: false, errors: 1 }
-  }
+  })()
+
+  return profileSyncLock.finally(() => {
+    profileSyncLock = null
+  })
 }
 
 async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
@@ -1222,8 +1252,8 @@ export async function pullRemoteData(): Promise<SyncResult> {
           .delete()
           .eq('user_id', userId)
           .eq('id', r.session_id)
-      } catch {
-        // Non-fatal — will retry on next sync
+      } catch (err) {
+        trackSyncError('pull_session_tombstone_delete', err)
       }
     }
   } catch (err) {
@@ -1300,8 +1330,8 @@ export async function pullRemoteData(): Promise<SyncResult> {
             entry_id: tombstone.entryId,
             deleted_at: tombstone.deletedAt,
           }, { onConflict: 'user_id,entry_id' })
-      } catch {
-        // Non-fatal — will retry on next sync
+      } catch (err) {
+        trackSyncError('push_body_weight_tombstone', err)
       }
     }
   } catch (err) {
@@ -1328,8 +1358,8 @@ export async function pullRemoteData(): Promise<SyncResult> {
             .delete()
             .eq('user_id', userId)
             .eq('id', row.entry_id)
-        } catch {
-          // Non-fatal — will retry on next sync
+        } catch (err) {
+          trackSyncError('pull_body_weight_tombstone_delete', err)
         }
       }
     }
@@ -1371,8 +1401,8 @@ export async function pullRemoteData(): Promise<SyncResult> {
     try {
       const { pruneOldAiInsights } = await import('@/lib/ai/proactive-coach')
       await pruneOldAiInsights()
-    } catch {
-      /* best-effort */
+    } catch (err) {
+      trackSyncError('prune_ai_insights', err)
     }
   } catch (err) {
     errors++
@@ -1391,8 +1421,8 @@ export async function pullRemoteData(): Promise<SyncResult> {
             session_id: tombstone.sessionId,
             deleted_at: tombstone.deletedAt,
           }, { onConflict: 'user_id,session_id' })
-      } catch {
-        // Non-fatal — will retry on next sync
+      } catch (err) {
+        trackSyncError('push_session_tombstone', err)
       }
     }
   } catch (err) {
@@ -1415,7 +1445,27 @@ export async function pullRemoteData(): Promise<SyncResult> {
     trackSyncError('pull_custom_entities_wrapper', err)
   }
 
+  // Prune old tombstones (30+ days) — by this point, all devices have had
+  // ample time to sync and see the tombstones. Removing them prevents
+  // unbounded growth and reduces per-sync work.
+  try {
+    await pruneOldTombstones()
+  } catch (err) {
+    trackSyncError('prune_old_tombstones', err)
+  }
+
   return { ok: errors === 0, errors, tombstoneErrors }
+}
+
+/** Prune local tombstones older than 30 days. Safe because all devices have
+ *  had sufficient time to pull tombstones and apply deletions by then. */
+const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000
+async function pruneOldTombstones(): Promise<void> {
+  const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString()
+  await db.sessionTombstones.where('deletedAt').below(cutoff).delete()
+  await db.customPlanTombstones.where('deletedAt').below(cutoff).delete()
+  await db.exerciseTombstones.where('deletedAt').below(cutoff).delete()
+  await db.bodyWeightTombstones.where('deletedAt').below(cutoff).delete()
 }
 
 export async function syncWithRemote(): Promise<SyncResult> {
@@ -1499,8 +1549,8 @@ async function dropPendingActiveCustomWorkoutUpdates(customPlanId: string) {
       if (payload.customPlanId === customPlanId) {
         await db.syncQueue.delete(item.id)
       }
-    } catch {
-      // ignore malformed queue rows
+    } catch (err) {
+      trackSyncError('drop_pending_active_custom_workout_parse', err)
     }
   }
 }
@@ -1522,8 +1572,8 @@ async function dropPendingActiveWorkoutUpdates(program: string) {
       if (payload.program === program) {
         await db.syncQueue.delete(item.id)
       }
-    } catch {
-      // ignore malformed queue rows
+    } catch (err) {
+      trackSyncError('drop_pending_active_workout_parse', err)
     }
   }
 }

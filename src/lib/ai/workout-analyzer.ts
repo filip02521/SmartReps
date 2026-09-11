@@ -101,8 +101,8 @@ async function gatherWorkoutHistory(
     (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime(),
   )
 
-  const first = sorted[0]!.startedAt
-  const last = sorted[sorted.length - 1]!.startedAt
+  const first = sorted[0]?.startedAt ?? sessions[0]?.startedAt ?? ''
+  const last = sorted[sorted.length - 1]?.startedAt ?? ''
   const weeksSpan = Math.max(
     1,
     (new Date(last).getTime() - new Date(first).getTime()) / (1000 * 60 * 60 * 24 * 7),
@@ -198,7 +198,7 @@ async function gatherWorkoutHistory(
     }
 
     recentSessions.push({
-      date: session.startedAt.split('T')[0]!,
+      date: session.startedAt.split('T')[0] ?? session.startedAt,
       planName:
         session.program === 'custom'
           ? pl.calendarSessionCustom
@@ -278,7 +278,7 @@ async function gatherWorkoutHistory(
     totalSessions: sessions.length,
     totalSets,
     totalReps,
-    dateRange: { first: first.split('T')[0]!, last: last.split('T')[0]! },
+    dateRange: { first: first.split('T')[0] ?? first, last: last.split('T')[0] ?? last },
     sessionsPerWeek: Math.round((sessions.length / weeksSpan) * 10) / 10,
     muscleGroupVolume,
     recentSessions,

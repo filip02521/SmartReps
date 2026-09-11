@@ -11,7 +11,13 @@ export async function hasPendingSyncQueue(
   const wanted = Array.isArray(actions) ? actions : [actions]
   let items: import('@/lib/db').SyncQueueItem[]
   try {
-    items = await db.syncQueue.toArray()
+    // Use the `table` index (v14) to filter without scanning the entire queue.
+    // Falls back to toArray() if the index doesn't exist (older DB versions).
+    try {
+      items = await db.syncQueue.where('table').equals(table).toArray()
+    } catch {
+      items = await db.syncQueue.toArray()
+    }
   } catch (err) {
     trackSyncError('sync_queue_db_error', err)
     return false
@@ -21,8 +27,8 @@ export async function hasPendingSyncQueue(
     try {
       const payload = JSON.parse(item.payload) as unknown
       if (match(payload)) return true
-    } catch {
-      // ignore malformed queue rows
+    } catch (err) {
+      trackSyncError('sync_queue_parse_error', err)
     }
   }
   return false

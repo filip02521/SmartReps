@@ -44,7 +44,8 @@ export async function upsertCommunityReview(args: {
     throw error
   }
   const raw = safeJsonParse<CommunityReview>(data)
-  return raw as CommunityReview
+  if (!raw) throw new Error('parse_error')
+  return raw
 }
 
 /**
@@ -90,7 +91,7 @@ export async function getMyCommunityReview(
   if (error) throw error
   if (!data) return null
   const raw = safeJsonParse<CommunityReview>(data)
-  return raw as CommunityReview
+  return raw
 }
 
 /**

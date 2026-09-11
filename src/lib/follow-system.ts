@@ -74,8 +74,9 @@ export async function toggleFollow(
     if (msg.includes('user_not_public')) throw new Error('user_not_public')
     throw error
   }
-  const raw = safeJsonParse(data)
-  return raw as ToggleFollowResult
+  const raw = safeJsonParse<ToggleFollowResult>(data)
+  if (!raw) throw new Error('parse_error')
+  return raw
 }
 
 /**
@@ -138,7 +139,8 @@ export async function upsertMyPublicProfile(args: {
     throw error
   }
   const raw = safeJsonParse<PublicProfile>(data)
-  return raw as PublicProfile
+  if (!raw) throw new Error('parse_error')
+  return raw
 }
 
 /**
@@ -149,7 +151,7 @@ export async function getMyPublicProfile(): Promise<PublicProfile | null> {
   if (error) throw error
   if (!data) return null
   const raw = safeJsonParse<PublicProfile>(data)
-  return raw as PublicProfile
+  return raw
 }
 
 /**
@@ -168,7 +170,7 @@ export async function getPublicProfile(
   }
   if (!data) return null
   const raw = safeJsonParse<PublicProfile & { is_following: boolean }>(data)
-  return raw as PublicProfile & { is_following: boolean }
+  return raw
 }
 
 /**
@@ -198,12 +200,5 @@ export async function refreshMyPublicProfileStats(): Promise<{
     pushup_max: number
     pullup_max: number
   }>(data)
-  return raw as {
-    total_sessions: number
-    total_reps: number
-    current_streak_weeks: number
-    best_streak_weeks: number
-    pushup_max: number
-    pullup_max: number
-  }
+  return raw
 }

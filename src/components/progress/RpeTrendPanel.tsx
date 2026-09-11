@@ -114,7 +114,7 @@ export function RpeTrendPanel() {
 
   const chartData = useMemo(() => {
     if (groups.length === 0) return []
-    return groups[0]!.points.map((p) => ({
+    return (groups[0]?.points ?? []).map((p) => ({
       date: p.date,
       rpe: p.avgRpe,
       rir: p.avgRir,

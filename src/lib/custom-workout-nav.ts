@@ -108,8 +108,8 @@ function nextCircuitPosition(
   const nextRound = roundIndex + 1
   if (nextRound < rounds) {
     return {
-      next: { exerciseIndex: indices[0]!, setIndex: nextRound },
-      restSec: restAfterGroupRound(day, group, indices[indices.length - 1]!),
+      next: { exerciseIndex: indices[0] ?? 0, setIndex: nextRound },
+      restSec: restAfterGroupRound(day, group, indices[indices.length - 1] ?? 0),
       dayComplete: false,
     }
   }
@@ -141,7 +141,7 @@ function nextAmrapPosition(
   const now = Date.now()
   if (amrapEndAt != null && now < amrapEndAt) {
     return {
-      next: { exerciseIndex: indices[0]!, setIndex: roundIndex + 1 },
+      next: { exerciseIndex: indices[0] ?? 0, setIndex: roundIndex + 1 },
       restSec: 0,
       dayComplete: false,
     }

@@ -626,7 +626,7 @@ export function isAchievementMet(id: AchievementId, snap: AchievementSnapshot): 
   if (!def) return false
   if (def.tiers && def.tiers.length > 0) {
     const value = achievementMetricValue(id, snap)
-    return value >= def.tiers[0]!.threshold
+    return value >= (def.tiers[0]?.threshold ?? 0)
   }
   return achievementMetricValue(id, snap) >= achievementBaseThreshold(id)
 }

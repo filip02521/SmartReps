@@ -69,7 +69,7 @@ export function AchievementDetailSheet({
               // For tiered: show current tier rarity (or first tier rarity if locked)
               // For non-tiered: show base rarity
               hasTiers
-                ? (currentTierDef?.rarity ?? def.tiers![0]!.rarity)
+                ? (currentTierDef?.rarity ?? def.tiers?.[0]?.rarity ?? def.rarity)
                 : def.rarity,
             )}
             {trophyTier && (

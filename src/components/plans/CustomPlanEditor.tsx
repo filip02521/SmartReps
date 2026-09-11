@@ -1365,7 +1365,7 @@ export function CustomPlanEditor({
                   const sets: SetPrescription[] = Array.from({ length: n }, (_, i) => {
                     const prev = planned.sets[i]
                     if (prev) return prev
-                    return defaultSets(metric, exDef?.durationDisplayUnit)[0]!
+                    return defaultSets(metric, exDef?.durationDisplayUnit)[0] ?? { reps: { kind: 'fixed', value: 8 } }
                   })
                   updatePlanned(view.dayIndex, view.exerciseIndex, { sets })
                 }}

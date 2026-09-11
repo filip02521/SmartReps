@@ -94,7 +94,7 @@ export function ConfettiCanvas({
         rotation: Math.random() * Math.PI * 2,
         rotationSpeed: (Math.random() - 0.5) * 0.3,
         size: 6 + Math.random() * 8,
-        color: colors[Math.floor(Math.random() * colors.length)] ?? colors[0]!,
+        color: colors[Math.floor(Math.random() * colors.length)] ?? colors[0] ?? '#fff',
         shape: Math.random() > 0.5 ? 'rect' : 'circle',
         life: 0,
         maxLife: 60 + Math.random() * 40,

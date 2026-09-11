@@ -17,7 +17,7 @@ export function generateId(): string {
 }
 
 /** Safely parse JSON from Supabase RPC returns or storage. Returns null on malformed JSON. */
-export function safeJsonParse<T = unknown>(raw: string | unknown): T | null {
+export function safeJsonParse<T = unknown>(raw: unknown): T | null {
   if (typeof raw !== 'string') return (raw as T) ?? null
   try {
     return JSON.parse(raw) as T

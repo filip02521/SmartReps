@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
 import { clientsClaim } from 'workbox-core'
-import { registerRoute } from 'workbox-routing'
+import { registerRoute, setCatchHandler } from 'workbox-routing'
 import { NetworkFirst, StaleWhileRevalidate, CacheFirst } from 'workbox-strategies'
 import { CacheableResponsePlugin } from 'workbox-cacheable-response'
 import { ExpirationPlugin } from 'workbox-expiration'
@@ -20,6 +20,7 @@ cleanupOutdatedCaches()
 
 // HTML navigations: network-first so deploys never serve stale index.html + missing chunks.
 // Only cache status 200 — opaque (status 0) responses can be blank/cross-origin pages.
+// Falls back to a cached page or inline offline HTML when network and cache both fail.
 registerRoute(
   ({ request }) => request.mode === 'navigate',
   new NetworkFirst({
@@ -31,6 +32,41 @@ registerRoute(
     ],
   }),
 )
+
+// Offline fallback for navigation requests — if NetworkFirst fails (timeout + no cache),
+// serve a minimal offline page so the user sees a branded message instead of browser's
+// generic "No Internet" page. Uses setCatchHandler so it only fires when workbox's
+// router can't handle the request (i.e. network + cache both failed).
+setCatchHandler(async ({ request }) => {
+  if (request.mode !== 'navigate') {
+    return Response.error()
+  }
+  // Try cached navigation first
+  const cache = await caches.open('sr-navigations')
+  const cached = await cache.match(request, { ignoreSearch: true })
+  if (cached) return cached
+  // Inline offline page
+  return new Response(
+    `<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<title>SmartReps — Offline</title>` +
+      `<style>*{margin:0;padding:0;box-sizing:border-box}` +
+      `body{font-family:system-ui,-apple-system,sans-serif;background:#0f0f0f;color:#fff;` +
+      `display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem}` +
+      `.card{text-align:center;max-width:400px}` +
+      `h1{font-size:1.5rem;margin-bottom:0.5rem}` +
+      `p{color:#999;font-size:0.95rem;line-height:1.5}` +
+      `</style></head><body><div class="card">` +
+      `<h1>🏋️ SmartReps</h1>` +
+      `<p>Jesteś offline. Twoje dane treningowe są zapisane lokalnie i będą ` +
+      `zsynchronizowane po przywróceniu połączenia.</p>` +
+      `</div></body></html>`,
+    {
+      status: 503,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    },
+  )
+})
 
 // Runtime cache for hashed JS/CSS chunks (lazy routes, vendor splits).
 // Vite emits content-hashed filenames (e.g. Progress-a1b2c3.js). When a deploy

@@ -43,7 +43,7 @@ export function getCustomPlanDisplayDay(
 ): number {
   const days = sortedDayNumbers(plan)
   if (days.length === 0) return 1
-  if (!progress || progress.status === 'cycle_complete') return days[0]!
+  if (!progress || progress.status === 'cycle_complete') return days[0] ?? 1
   return progress.currentDay
 }
 

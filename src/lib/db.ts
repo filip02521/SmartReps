@@ -421,6 +421,29 @@ class SmartRepsDB extends Dexie {
       bodyWeightTombstones: 'entryId, deletedAt',
       aiPlanDrafts: 'id, createdAt',
     })
+
+    // v14: Add `table` index to syncQueue — allows hasPendingSyncQueue to
+    // filter by table without scanning the entire queue (O(n) → O(log n)).
+    this.version(14).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, status, startedAt, [program+status], customPlanId',
+      activeWorkout: 'program',
+      activeCustomWorkout: 'customPlanId',
+      syncQueue: '++id, createdAt, table',
+      maxTests: '++id, program, testedAt, &[program+testedAt]',
+      exercises: 'id, updatedAt, archived',
+      customPlans: 'id, status, updatedAt',
+      customProgramProgress: '++id, &customPlanId, updatedAt',
+      achievementUnlocks: 'id, unlockedAt',
+      bodyWeight: 'id, measuredAt',
+      aiInsights: 'id, type, sessionId, weekKey, createdAt',
+      sessionTombstones: 'sessionId, deletedAt',
+      aiAnalysisCache: 'id, createdAt',
+      customPlanTombstones: 'planId, deletedAt',
+      exerciseTombstones: 'exerciseId, deletedAt',
+      bodyWeightTombstones: 'entryId, deletedAt',
+      aiPlanDrafts: 'id, createdAt',
+    })
   }
 }
 
