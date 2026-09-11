@@ -1,6 +1,6 @@
-import { cn, formatRestTime } from '@/lib/utils'
+import { cn, formatRestTime, vibrate } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
-import { Check, ChevronDown, ChevronRight, Minus, Plus, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, ChevronUp, Minus, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { BrandLoader } from '@/components/ui/BrandLoader'
 import { OverlayPortal } from '@/components/ui/OverlayPortal'
@@ -401,30 +401,31 @@ export function RestTimerPill({
   const isUrgent = remainingSec > 0 && remainingSec <= 5
   return (
     <div className="flex items-center gap-2 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-2 shadow-[var(--sr-shadow-card)]">
+      {/* Live region outside the button for reliable screen-reader updates */}
+      <span className="sr-only" aria-live="polite" aria-atomic="true">
+        {formatRestTime(remainingSec)}
+      </span>
       <button
         type="button"
         onClick={onExpand}
-        aria-live="off"
+        aria-label={`${pl.restLabel}: ${formatRestTime(remainingSec)}`}
         className={cn(
           'flex min-h-12 flex-1 items-center justify-between rounded-[var(--sr-radius-full)] bg-[var(--sr-brand-primary-muted)] px-5 py-3 transition-all hover:brightness-110 active:scale-[0.98]',
-          isUrgent && 'bg-[var(--sr-success-muted)]',
+          isUrgent && 'bg-[var(--sr-warning-muted)]',
           FOCUS_RING,
         )}
       >
         <span className="text-sm font-medium text-[var(--sr-text-secondary)]">{pl.restLabel}</span>
-        <span className="sr-only" role="status" aria-live="polite">
-          {formatRestTime(remainingSec)}
-        </span>
         <span
           className={cn(
             'tabular-nums text-2xl font-bold',
-            isUrgent ? 'text-[var(--sr-success)]' : 'text-[var(--sr-text-primary)]',
+            isUrgent ? 'text-[var(--sr-warning)]' : 'text-[var(--sr-text-primary)]',
           )}
           aria-hidden
         >
           {formatRestTime(remainingSec)}
         </span>
-        <ChevronDown size={18} className="rotate-180 text-[var(--sr-text-muted)]" />
+        <ChevronUp size={18} className="text-[var(--sr-text-muted)]" aria-hidden />
       </button>
       {onAdd15 && (
         <Button variant="secondary" size="sm" className="min-h-12 shrink-0" onClick={onAdd15}>
@@ -469,6 +470,14 @@ export function RestTimerExpanded({
   // Last 5 seconds — pulse + color shift to signal urgency
   const isUrgent = remainingSec > 0 && remainingSec <= 5
   const isReady = remainingSec <= 0
+  // Distinct colors: urgent=warning, ready=success
+  const ringColor = isReady ? 'var(--sr-success)' : isUrgent ? 'var(--sr-warning)' : undefined
+
+  const handleAdd15 = () => { vibrate(8); onAdd15() }
+  const handleAdd30 = () => { vibrate(8); onAdd30() }
+  const handleSkip = () => { vibrate(10); onSkip() }
+  const handleCollapse = () => { vibrate(8); onCollapse() }
+  const handleSetRest = (sec: number) => { vibrate(8); onSetRest?.(sec) }
 
   return (
     <OverlayPortal>
@@ -498,16 +507,16 @@ export function RestTimerExpanded({
               'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
               FOCUS_RING,
             )}
-            onClick={onCollapse}
+            onClick={handleCollapse}
           >
             <ChevronDown size={22} aria-hidden />
           </button>
         </div>
 
-        {/* Screen-reader announcement when rest ends */}
-        {isReady && nextLabel && (
+        {/* Screen-reader announcement when rest ends — always announce, even without nextLabel */}
+        {isReady && (
           <p className="sr-only" aria-live="polite" aria-atomic="true">
-            {pl.restReady}. {nextLabel}
+            {pl.restReady}{nextLabel ? `. ${nextLabel}` : ''}
           </p>
         )}
 
@@ -517,16 +526,17 @@ export function RestTimerExpanded({
             progress={progress}
             size={200}
             reducedMotion={reducedMotion}
-            className={isUrgent && !reducedMotion ? 'animate-pulse' : undefined}
-            ringColor={isUrgent || isReady ? 'var(--sr-success)' : undefined}
+            ringColor={ringColor}
+            ariaLabel={pl.restLabel}
+            ariaValueText={`${formatRestTime(remainingSec)}`}
           >
             <span
               className={cn(
-                'tabular-nums text-5xl font-bold',
+                'tabular-nums text-[clamp(2.25rem,14vw,3rem)] font-bold',
                 isReady
                   ? 'text-[var(--sr-success)]'
                   : isUrgent
-                    ? 'text-[var(--sr-success)]'
+                    ? 'text-[var(--sr-text-primary)]'
                     : 'text-[var(--sr-text-primary)]',
               )}
               aria-hidden
@@ -537,12 +547,12 @@ export function RestTimerExpanded({
 
           {/* Next set info — below ring */}
           {nextLabel ? (
-            <p className="mt-5 text-center text-sm font-medium text-[var(--sr-text-secondary)]">{nextLabel}</p>
+            <p className="mt-5 break-words text-center text-sm font-medium text-[var(--sr-text-secondary)]">{nextLabel}</p>
           ) : null}
 
-          {/* Start set button — prominent when ready */}
+          {/* Start set button — prominent, full-width when ready */}
           {isReady && (
-            <Button size="touch" className="mt-5" onClick={onSkip} aria-label={pl.restStartSet}>
+            <Button size="touch" fullWidth className="mt-6 max-w-sm shadow-[0_0_24px_var(--sr-success-muted)]" onClick={handleSkip} aria-label={pl.restStartSet}>
               {pl.restStartSet}
             </Button>
           )}
@@ -560,10 +570,11 @@ export function RestTimerExpanded({
           <div className="shrink-0 px-4 pb-2 pt-2">
             <div
               aria-live="polite"
+              aria-atomic="true"
               className="flex items-start gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-bg-surface)] p-3"
             >
               <AiCoachMark size="sm" />
-              <p className="min-w-0 flex-1 text-sm leading-relaxed text-[var(--sr-text-primary)]">
+              <p className="min-w-0 flex-1 break-words text-sm leading-relaxed text-[var(--sr-text-primary)]">
                 {coachSuggestion}
               </p>
             </div>
@@ -573,13 +584,13 @@ export function RestTimerExpanded({
         {/* Action buttons — bottom section */}
         <div className="shrink-0 border-t border-[var(--sr-border-strong)] px-4 py-4">
           <div className="flex flex-wrap justify-center gap-3">
-            <Button variant="secondary" size="sm" className="min-h-12" onClick={onAdd15}>{pl.add15s}</Button>
-            <Button variant="secondary" size="sm" className="min-h-12" onClick={onAdd30}>{pl.add30s}</Button>
-            {!isReady && <Button variant="ghost" size="sm" className="min-h-12" onClick={onSkip}>{pl.skipRest}</Button>}
+            <Button variant="secondary" size="sm" className="min-h-12" onClick={handleAdd15}>{pl.add15s}</Button>
+            <Button variant="secondary" size="sm" className="min-h-12" onClick={handleAdd30}>{pl.add30s}</Button>
+            {!isReady && <Button variant="ghost" size="sm" className="min-h-12" onClick={handleSkip}>{pl.skipRest}</Button>}
           </div>
 
-          {/* Preset times */}
-          {onSetRest && (
+          {/* Preset times — hidden when ready to reduce clutter */}
+          {onSetRest && !isReady && (
             <div className="mt-4 flex flex-col items-center gap-1.5">
               <p className="sr-text-caption text-[var(--sr-text-muted)]">{pl.restSetTime}</p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -592,7 +603,7 @@ export function RestTimerExpanded({
                       'flex min-h-9 items-center rounded-full border border-[var(--sr-border-subtle)] px-3.5 text-xs font-medium tabular-nums text-[var(--sr-text-secondary)] transition-all hover:border-[var(--sr-border-strong)] hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
                       FOCUS_RING,
                     )}
-                    onClick={() => onSetRest(sec)}
+                    onClick={() => handleSetRest(sec)}
                   >
                     {sec}s
                   </button>
