@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { safeJsonParse } from '@/lib/utils'
 
 export type PublicAchievementBadge = {
   achievement_id: string
@@ -73,7 +74,7 @@ export async function toggleFollow(
     if (msg.includes('user_not_public')) throw new Error('user_not_public')
     throw error
   }
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse(data)
   return raw as ToggleFollowResult
 }
 
@@ -83,7 +84,7 @@ export async function toggleFollow(
 export async function getFollowing(limit = 50): Promise<FolloweeProfile[]> {
   const { data, error } = await supabase.rpc('get_following', { p_limit: limit })
   if (error) throw error
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse(data)
   if (!Array.isArray(raw)) return []
   return raw as FolloweeProfile[]
 }
@@ -94,7 +95,7 @@ export async function getFollowing(limit = 50): Promise<FolloweeProfile[]> {
 export async function getFollowers(limit = 50): Promise<FollowerProfile[]> {
   const { data, error } = await supabase.rpc('get_followers', { p_limit: limit })
   if (error) throw error
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse(data)
   if (!Array.isArray(raw)) return []
   return raw as FollowerProfile[]
 }
@@ -107,10 +108,10 @@ export async function getFollowCounts(userId: string): Promise<FollowCounts> {
     p_user_id: userId,
   })
   if (error) throw error
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse<FollowCounts>(data)
   return {
-    followers: Number((raw as FollowCounts)?.followers ?? 0),
-    following: Number((raw as FollowCounts)?.following ?? 0),
+    followers: Number(raw?.followers ?? 0),
+    following: Number(raw?.following ?? 0),
   }
 }
 
@@ -136,7 +137,7 @@ export async function upsertMyPublicProfile(args: {
     if (msg.includes('bio_too_long')) throw new Error('bio_too_long')
     throw error
   }
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse<PublicProfile>(data)
   return raw as PublicProfile
 }
 
@@ -147,7 +148,7 @@ export async function getMyPublicProfile(): Promise<PublicProfile | null> {
   const { data, error } = await supabase.rpc('get_my_public_profile')
   if (error) throw error
   if (!data) return null
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse<PublicProfile>(data)
   return raw as PublicProfile
 }
 
@@ -166,7 +167,7 @@ export async function getPublicProfile(
     throw error
   }
   if (!data) return null
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse<PublicProfile & { is_following: boolean }>(data)
   return raw as PublicProfile & { is_following: boolean }
 }
 
@@ -189,7 +190,14 @@ export async function refreshMyPublicProfileStats(): Promise<{
     throw error
   }
   if (!data) return null
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse<{
+    total_sessions: number
+    total_reps: number
+    current_streak_weeks: number
+    best_streak_weeks: number
+    pushup_max: number
+    pullup_max: number
+  }>(data)
   return raw as {
     total_sessions: number
     total_reps: number

@@ -4,11 +4,17 @@
  * Uses MCP (old project) for reading and REST API with service_role key (new project) for writing.
  *
  * Usage: NEW_SERVICE_KEY=... node scripts/migrate-to-new-supabase.mjs
+ *
+ * Reads JSON exports from ./migration-data/ (gitignored) and inserts into the new project.
  */
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync, writeFileSync } from 'fs'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
-const OLD_URL = 'https://pwfymoxjrgnovzcmmfyn.supabase.co'
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const DATA_DIR = join(__dirname, '..', 'migration-data')
+
 const NEW_URL = 'https://epjtnhsqzgtjhghzqefx.supabase.co'
 const NEW_SERVICE_KEY = process.env.NEW_SERVICE_KEY || ''
 
@@ -21,11 +27,6 @@ if (!NEW_SERVICE_KEY) {
 const newClient = createClient(NEW_URL, NEW_SERVICE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
-
-// Old project client — we need the anon key. Since we don't have it,
-// we'll use the MCP data files instead.
-// For now, this script reads from /tmp/sr_migration/*.json files
-// (exported via MCP execute_sql) and inserts into the new project.
 
 async function createAuthUsers(users) {
   const mapping = {} // old_id → new_id
@@ -76,13 +77,13 @@ async function insertTable(table, rows, userIdMapping = {}) {
 
 async function main() {
   // Step 1: Create auth users
-  const users = JSON.parse(readFileSync('/tmp/sr_migration/auth_users.json', 'utf-8'))
+  const users = JSON.parse(readFileSync(join(DATA_DIR, 'auth_users.json'), 'utf-8'))
   console.log(`\n=== Step 1: Creating ${users.length} auth users ===`)
   const userIdMapping = await createAuthUsers(users)
   console.log(`Mapping: ${Object.keys(userIdMapping).length} users mapped`)
 
   // Save mapping for reference
-  writeFileSync('/tmp/sr_migration/user_mapping.json', JSON.stringify(userIdMapping, null, 2))
+  writeFileSync(join(DATA_DIR, 'user_mapping.json'), JSON.stringify(userIdMapping, null, 2))
 
   // Step 2: Insert data tables (read from MCP-exported JSON files)
   const tables = [
@@ -108,7 +109,7 @@ async function main() {
 
   for (const table of tables) {
     try {
-      const data = JSON.parse(readFileSync(`/tmp/sr_migration/${table}.json`, 'utf-8'))
+      const data = JSON.parse(readFileSync(join(DATA_DIR, `${table}.json`), 'utf-8'))
       console.log(`\n=== Inserting ${table} (${data.length} rows) ===`)
       await insertTable(table, data, userIdMapping)
     } catch (e) {
@@ -117,7 +118,7 @@ async function main() {
   }
 
   console.log('\n=== Migration complete ===')
-  console.log(`User mapping saved to /tmp/sr_migration/user_mapping.json`)
+  console.log(`User mapping saved to ${join(DATA_DIR, 'user_mapping.json')}`)
 }
 
 main().catch(console.error)

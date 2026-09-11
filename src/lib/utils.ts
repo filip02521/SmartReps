@@ -16,6 +16,16 @@ export function generateId(): string {
   return crypto.randomUUID()
 }
 
+/** Safely parse JSON from Supabase RPC returns or storage. Returns null on malformed JSON. */
+export function safeJsonParse<T = unknown>(raw: string | unknown): T | null {
+  if (typeof raw !== 'string') return (raw as T) ?? null
+  try {
+    return JSON.parse(raw) as T
+  } catch {
+    return null
+  }
+}
+
 export function vibrate(pattern: number | number[]) {
   if (typeof navigator !== 'undefined' && navigator.vibrate) {
     navigator.vibrate(pattern)

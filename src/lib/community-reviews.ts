@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { safeJsonParse } from '@/lib/utils'
 
 export type CommunityReview = {
   id: string
@@ -42,7 +43,7 @@ export async function upsertCommunityReview(args: {
     if (msg.includes('not_authenticated')) throw new Error('not_authenticated')
     throw error
   }
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse<CommunityReview>(data)
   return raw as CommunityReview
 }
 
@@ -70,10 +71,10 @@ export async function getCommunityReviewSummary(
     p_publication_id: publicationId,
   })
   if (error) throw error
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse<ReviewSummary>(data)
   return {
-    avg_rating: Number((raw as ReviewSummary)?.avg_rating ?? 0),
-    review_count: Number((raw as ReviewSummary)?.review_count ?? 0),
+    avg_rating: Number(raw?.avg_rating ?? 0),
+    review_count: Number(raw?.review_count ?? 0),
   }
 }
 
@@ -88,7 +89,7 @@ export async function getMyCommunityReview(
   })
   if (error) throw error
   if (!data) return null
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse<CommunityReview>(data)
   return raw as CommunityReview
 }
 

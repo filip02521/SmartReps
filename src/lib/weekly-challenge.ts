@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { safeJsonParse } from '@/lib/utils'
 import { db } from '@/lib/db'
 import { allSetsPassed } from '@/lib/progress-engine'
 import type { Program } from '@/data/plans/types'
@@ -77,12 +78,12 @@ export async function getActiveWeeklyChallenges(): Promise<WeeklyChallenge[]> {
     const { data: legacyData, error: legacyError } = await supabase.rpc('get_active_weekly_challenge')
     if (legacyError) throw error // throw original error
     if (!legacyData) return []
-    const raw = typeof legacyData === 'string' ? (JSON.parse(legacyData) as unknown) : legacyData
+    const raw = safeJsonParse(legacyData)
     const ch = raw as Omit<WeeklyChallenge, 'challenge_type'>
     // Legacy challenges are always 'volume' type
     return [{ ...ch, challenge_type: 'volume' as ChallengeType }]
   }
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse(data)
   if (!Array.isArray(raw)) return []
   return raw as WeeklyChallenge[]
 }
@@ -119,7 +120,7 @@ export async function submitChallengeProgress(args: {
         if (lmsg.includes('display_name_too_long')) throw new Error('display_name_too_long')
         throw legacyError
       }
-      const lraw = typeof legacyData === 'string' ? (JSON.parse(legacyData) as unknown) : legacyData
+      const lraw = safeJsonParse<SubmitResult>(legacyData)
       return lraw as SubmitResult
     }
     if (msg.includes('not_authenticated')) throw new Error('not_authenticated')
@@ -128,7 +129,7 @@ export async function submitChallengeProgress(args: {
     if (msg.includes('display_name_too_long')) throw new Error('display_name_too_long')
     throw error
   }
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse<SubmitResult>(data)
   return raw as SubmitResult
 }
 
@@ -144,7 +145,7 @@ export async function getWeeklyChallengeLeaderboard(
     p_limit: limit,
   })
   if (error) throw error
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse(data)
   if (!Array.isArray(raw)) return []
   return raw as LeaderboardEntry[]
 }
@@ -160,7 +161,7 @@ export async function getMyWeeklyChallengeEntry(
   })
   if (error) throw error
   if (!data) return null
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
+  const raw = safeJsonParse<ChallengeEntry>(data)
   return raw as ChallengeEntry
 }
 

@@ -9,6 +9,9 @@ dist/
 .env.*
 !.env.example
 
+# Migration data (one-time scripts)
+migration-data/
+
 # TypeScript
 *.tsbuildinfo
 

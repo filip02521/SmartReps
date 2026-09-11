@@ -9,7 +9,7 @@ import {
   markProgramActiveIfReady,
   saveActiveWorkout,
 } from '@/lib/program-service'
-import { track, AnalyticsEvents } from '@/lib/analytics'
+import { track, AnalyticsEvents, trackSyncError } from '@/lib/analytics'
 import { useAppStore } from '@/stores/app-store'
 
 function requireBuiltinProgram(program: Program | 'custom'): Program {
@@ -95,32 +95,37 @@ export async function ensureWorkoutSessionPersisted(
 ): Promise<void> {
   if (!sessionHasProgress(state.setResults)) return
 
-  const existing = await db.workoutSessions.get(session.id)
-  const row: LocalWorkoutSession = {
-    ...session,
-    status: 'in_progress',
-    setResults: state.setResults,
-  }
-  if (!existing) {
-    await saveWorkoutSession(row)
-  } else if (existing.status === 'in_progress') {
-    await saveWorkoutSession({ ...existing, setResults: state.setResults })
-  } else {
-    // Session is already completed or abandoned — don't overwrite it or
-    // re-activate the program. This prevents flipping a rest/cycle_failed
-    // progress back to 'active' based on a stale/completed session.
-    return
-  }
+  try {
+    const existing = await db.workoutSessions.get(session.id)
+    const row: LocalWorkoutSession = {
+      ...session,
+      status: 'in_progress',
+      setResults: state.setResults,
+    }
+    if (!existing) {
+      await saveWorkoutSession(row)
+    } else if (existing.status === 'in_progress') {
+      await saveWorkoutSession({ ...existing, setResults: state.setResults })
+    } else {
+      // Session is already completed or abandoned — don't overwrite it or
+      // re-activate the program. This prevents flipping a rest/cycle_failed
+      // progress back to 'active' based on a stale/completed session.
+      return
+    }
 
-  await saveActiveWorkout(requireBuiltinProgram(session.program), {
-    sessionId: session.id,
-    currentSetIndex: state.currentSetIndex,
-    setResults: state.setResults,
-    restTimerJson: state.restTimerJson,
-    failedRetryUsed: state.failedRetryUsed,
-    displayStartedAt: state.displayStartedAt,
-  })
-  await markProgramActiveIfReady(requireBuiltinProgram(session.program))
+    await saveActiveWorkout(requireBuiltinProgram(session.program), {
+      sessionId: session.id,
+      currentSetIndex: state.currentSetIndex,
+      setResults: state.setResults,
+      restTimerJson: state.restTimerJson,
+      failedRetryUsed: state.failedRetryUsed,
+      displayStartedAt: state.displayStartedAt,
+    })
+    await markProgramActiveIfReady(requireBuiltinProgram(session.program))
+  } catch (err) {
+    trackSyncError('ensure_workout_session_persisted', err)
+    throw err
+  }
 }
 
 export async function saveWorkoutSession(session: LocalWorkoutSession): Promise<void> {
@@ -282,16 +287,21 @@ export async function finalizeSuccessfulDay(
   }
 
   // Enqueue sync after successful transaction
-  const completed = await db.workoutSessions.get(session.id)
-  if (completed) await enqueueSync('workout_sessions', 'update', completed)
+  try {
+    const completed = await db.workoutSessions.get(session.id)
+    if (completed) await enqueueSync('workout_sessions', 'update', completed)
 
-  await clearActiveWorkout(program)
-  await completeWorkoutDay(program, true, totalReps, session.id, session.dayNumber)
-  finalizedProgressKeys.add(key)
-  markFirstWorkoutAndTrack(true, session.id)
-  void schedulePostWorkoutSync()
-  const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
-  scheduleAchievementCheck()
+    await clearActiveWorkout(program)
+    await completeWorkoutDay(program, true, totalReps, session.id, session.dayNumber)
+    finalizedProgressKeys.add(key)
+    markFirstWorkoutAndTrack(true, session.id)
+    void schedulePostWorkoutSync()
+    const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+    scheduleAchievementCheck()
+  } catch (err) {
+    trackSyncError('finalize_successful_day', err)
+    throw err
+  }
 }
 
 export async function finalizeFailedDay(
@@ -334,14 +344,19 @@ export async function finalizeFailedDay(
     return
   }
 
-  const completed = await db.workoutSessions.get(sessionId)
-  if (completed) await enqueueSync('workout_sessions', 'update', completed)
+  try {
+    const completed = await db.workoutSessions.get(sessionId)
+    if (completed) await enqueueSync('workout_sessions', 'update', completed)
 
-  await clearActiveWorkout(program)
-  await completeWorkoutDay(program, false, totalReps, sessionId, completed?.dayNumber)
-  finalizedProgressKeys.add(key)
-  markFirstWorkoutAndTrack(false, sessionId)
-  void schedulePostWorkoutSync()
+    await clearActiveWorkout(program)
+    await completeWorkoutDay(program, false, totalReps, sessionId, completed?.dayNumber)
+    finalizedProgressKeys.add(key)
+    markFirstWorkoutAndTrack(false, sessionId)
+    void schedulePostWorkoutSync()
+  } catch (err) {
+    trackSyncError('finalize_failed_day', err)
+    throw err
+  }
 }
 
 /** Delete a completed session from history (local + cloud sync).

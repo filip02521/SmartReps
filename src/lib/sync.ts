@@ -80,13 +80,41 @@ export async function enqueueSync(table: string, action: SyncAction, payload: un
       createdAt: new Date().toISOString(),
     })
 
-    // Cap: if the queue exceeds the cap, remove oldest items.
-    // This prevents unbounded growth in pathological offline scenarios.
+    // Cap: if the queue exceeds the cap, coalesce by entity instead of dropping.
+    // For items with the same table + entity id, keep only the latest action.
+    // This prevents unbounded growth without losing data.
     const count = await db.syncQueue.count()
     if (count > SYNC_QUEUE_CAP) {
-      const oldest = await db.syncQueue.orderBy('createdAt').limit(count - SYNC_QUEUE_CAP).toArray()
-      for (const item of oldest) {
-        await db.syncQueue.delete(item.id!)
+      const all = await db.syncQueue.orderBy('createdAt').toArray()
+      // Group by table + entityId, keep latest per group
+      const latestByKey = new Map<string, typeof all[0]>()
+      for (const item of all) {
+        let entityId = ''
+        try {
+          const parsed = JSON.parse(item.payload)
+          entityId = String(parsed.id ?? parsed.customPlanId ?? parsed.program ?? '')
+        } catch { entityId = item.payload }
+        const key = `${item.table}:${entityId}`
+        const prev = latestByKey.get(key)
+        if (!prev || item.createdAt > prev.createdAt) {
+          latestByKey.set(key, item)
+        }
+      }
+      const keepIds = new Set([...latestByKey.values()].map((i) => i.id!))
+      // Delete items not in keep set
+      for (const item of all) {
+        if (!keepIds.has(item.id!)) {
+          await db.syncQueue.delete(item.id!)
+        }
+      }
+      // If still over cap after coalescing, drop oldest (last resort)
+      const remaining = await db.syncQueue.count()
+      if (remaining > SYNC_QUEUE_CAP) {
+        const oldest = await db.syncQueue.orderBy('createdAt').limit(remaining - SYNC_QUEUE_CAP).toArray()
+        for (const item of oldest) {
+          await db.syncQueue.delete(item.id!)
+        }
+        trackSyncError('sync_queue_cap_exceeded', new Error(`Queue still over cap after coalescing: ${remaining}`))
       }
     }
   } catch (err) {
@@ -562,7 +590,8 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
       const { upsertUserExercise } = await import('@/lib/custom-sync')
       if (action === 'delete') {
         const id = (payload as { id: string }).id
-        await supabase.from('user_exercises').delete().eq('id', id).eq('user_id', userId)
+        const { error } = await supabase.from('user_exercises').delete().eq('id', id).eq('user_id', userId)
+        if (error) throw error
       } else {
         await upsertUserExercise(userId, payload as import('@/lib/exercise-model').ExerciseDefinition)
       }
@@ -572,7 +601,8 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
       const { upsertCustomPlan } = await import('@/lib/custom-sync')
       if (action === 'delete') {
         const id = (payload as { id: string }).id
-        await supabase.from('custom_plans').delete().eq('id', id).eq('user_id', userId)
+        const { error } = await supabase.from('custom_plans').delete().eq('id', id).eq('user_id', userId)
+        if (error) throw error
       } else {
         await upsertCustomPlan(userId, payload as import('@/lib/exercise-model').CustomPlan)
       }

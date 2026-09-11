@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { safeJsonParse } from '@/lib/utils'
 import type { CommunityTag } from '@/data/community-tags'
 import type { CommunitySnapshot } from '@/lib/community-snapshot'
 import { parseCommunitySnapshot } from '@/lib/community-snapshot'
@@ -205,8 +206,8 @@ export async function toggleCommunityLike(
     }
     throw error
   }
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
-  const row = raw as { liked?: boolean; like_count?: number }
+  const raw = safeJsonParse<{ liked?: boolean; like_count?: number }>(data)
+  const row = raw ?? {}
   // Re-evaluate achievements — author's like_total may have changed
   void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
   return { liked: Boolean(row.liked), like_count: Number(row.like_count ?? 0) }
@@ -219,8 +220,8 @@ export async function recordCommunityImport(
     p_publication_id: publicationId,
   })
   if (error) throw error
-  const raw = typeof data === 'string' ? (JSON.parse(data) as unknown) : data
-  const row = raw as { import_count?: number; counted?: boolean }
+  const raw = safeJsonParse<{ import_count?: number; counted?: boolean }>(data)
+  const row = raw ?? {}
   // Re-evaluate achievements — author's import_total may have changed
   void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
   return {
