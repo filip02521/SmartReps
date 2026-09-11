@@ -18,7 +18,7 @@ import {
   techniqueLinkLabel,
 } from '@/components/setup/TechniqueGuide'
 import { FOCUS_RING } from '@/lib/ui-chrome'
-import { cn } from '@/lib/utils'
+import { cn, vibrate } from '@/lib/utils'
 import type { Program } from '@/data/plans/types'
 
 export function HealthDisclaimer({
@@ -116,8 +116,8 @@ export default function MaxTest() {
     }
   }, [hydrated, program])
 
-  const minusPress = useRepeatPress(() => setReps((r) => Math.max(0, r - 1)))
-  const plusPress = useRepeatPress(() => setReps((r) => Math.min(999, r + 1)))
+  const minusPress = useRepeatPress(() => { vibrate(8); setReps((r) => Math.max(0, r - 1)) })
+  const plusPress = useRepeatPress(() => { vibrate(8); setReps((r) => Math.min(999, r + 1)) })
 
   const acceptDisclaimer = () => {
     setSettings({ healthDisclaimerAccepted: true })
@@ -129,9 +129,19 @@ export default function MaxTest() {
     navigate('/', { replace: true })
   }
 
+  const [editing, setEditing] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
   const warmupComplete = warmup.every(Boolean)
   const warmupDone = warmup.filter(Boolean).length
   const recommendedCycle = useMemo(() => selectCycleByTest(program, reps), [program, reps])
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [editing])
 
   const handleNext = async () => {
     if (submitLock.current || submitting) return
@@ -250,9 +260,35 @@ export default function MaxTest() {
       </div>
 
       <div className="mt-8 flex flex-col items-center">
-        <p className="sr-text-display tabular-nums" aria-live="polite" aria-atomic="true">
-          {reps}
-        </p>
+        {editing ? (
+          <input
+            ref={inputRef}
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={999}
+            value={reps}
+            aria-label={pl.testRepsLabel}
+            onChange={(e) => {
+              const v = e.target.value
+              if (v === '') { setReps(0); return }
+              const n = Math.max(0, Math.min(999, Number(v) || 0))
+              setReps(n)
+            }}
+            onBlur={() => setEditing(false)}
+            onKeyDown={(e) => { if (e.key === 'Enter') setEditing(false) }}
+            className="sr-text-display w-32 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] p-2 text-center tabular-nums outline-none ring-2 ring-[var(--sr-brand-primary)]"
+          />
+        ) : (
+          <button
+            type="button"
+            aria-label={pl.testEditReps}
+            onClick={() => { vibrate(8); setEditing(true) }}
+            className="sr-text-display tabular-nums rounded-[var(--sr-radius-md)] px-2 py-1 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95"
+          >
+            <span aria-live="polite" aria-atomic="true">{reps}</span>
+          </button>
+        )}
         <p className="text-sm text-[var(--sr-text-muted)]">
           {program === 'pushups' ? pl.pushups : program === 'pullups' ? pl.pullups : pl.squats}
         </p>
@@ -283,7 +319,11 @@ export default function MaxTest() {
       </div>
 
       {/* Live cycle preview — updates as user adjusts reps */}
-      <div className="mt-4 flex items-center justify-center gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary-muted)] bg-[var(--sr-brand-primary-muted)]/50 p-3">
+      <div
+        className="mt-4 flex items-center justify-center gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary-muted)] bg-[var(--sr-brand-primary-muted)]/50 p-3"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         <Check size={16} className="text-[var(--sr-brand-primary)]" aria-hidden />
         <p className="text-sm font-medium text-[var(--sr-text-primary)]">
           {pl.testRecommendedCycle(recommendedCycle.nameShort)}
@@ -296,10 +336,7 @@ export default function MaxTest() {
           className="mt-4"
           fullWidth
           disabled={submitting}
-          onClick={() => {
-            setReps(0)
-            void handleNext()
-          }}
+          onClick={() => void handleNext()}
         >
           {pl.cantPullup}
         </Button>
@@ -312,9 +349,7 @@ export default function MaxTest() {
           className="mt-4"
           fullWidth
           onClick={() => {
-            if (program === 'pushups') {
-              setTestDraft({ program, reps, warmup })
-            }
+            setTestDraft({ program, reps, warmup })
             navigate(techniqueLinkForProgram(program, 'test'))
           }}
         >

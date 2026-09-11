@@ -363,6 +363,8 @@ export const en: Translation = {
   testHonesty: 'Don\'t cheat — better to start lower.',
   testRecommendedCycle: (cycle: string) => `Fits: cycle ${cycle}`,
   testNextWithCycle: (cycle: string) => `Next — cycle ${cycle}`,
+  testEditReps: 'Edit rep count',
+  testRepsLabel: 'Reps',
   testPullupRules:
     'Count only full reps — chin above the bar. Don\'t count partials.',
   cantPullup: 'I can\'t do a pull-up',
@@ -1413,6 +1415,8 @@ export const en: Translation = {
   syncDeadLetter: (n: number) =>
     n === 1 ? '1 item waiting to re-sync' : `${n} items waiting to re-sync`,
   syncRetryDead: 'Retry sync',
+  syncClearDead: 'Clear failed',
+  syncClearDeadConfirm: 'These items failed to sync after multiple attempts. Clear them to start fresh.',
   syncStatusLocalOnly: 'Local only',
   syncStatusLoggedIn: 'Connected to cloud',
   syncStatusLoggedOutLocally: 'Logged out — data stays local',

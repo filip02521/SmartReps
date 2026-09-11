@@ -708,7 +708,7 @@ export async function flushSyncQueue(): Promise<number> {
   if (!userId) return 0
 
   const MAX_ATTEMPTS = 5
-  const DEAD_LETTER_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+  const DEAD_LETTER_TTL_MS = 3 * 24 * 60 * 60 * 1000 // 3 days — items that fail 5 times are likely permanently invalid
   let errors = 0
   const items = await db.syncQueue.orderBy('createdAt').toArray()
   const now = Date.now()
@@ -729,6 +729,13 @@ export async function flushSyncQueue(): Promise<number> {
       errors++
       const attempts = (item.attempts ?? 0) + 1
       trackSyncError('queue_item', err)
+      // Log table + action for diagnostics — helps identify which operations fail
+      console.warn('[sync:queue] item failed', {
+        table: item.table,
+        action: item.action,
+        attempts,
+        error: err instanceof Error ? err.message : String(err),
+      })
       if (item.id !== undefined) {
         await db.syncQueue.update(item.id, { attempts })
         if (attempts >= MAX_ATTEMPTS) {
@@ -747,6 +754,22 @@ export async function flushSyncQueue(): Promise<number> {
 export async function getDeadLetterCount(): Promise<number> {
   const items = await db.syncQueue.toArray()
   return items.filter((i) => (i.attempts ?? 0) >= 5).length
+}
+
+/** Permanently remove all dead-letter items (attempts >= 5) from the queue.
+ *  These items have failed repeatedly and are unlikely to succeed on retry.
+ *  Use this to clear a stuck queue when dead letter items are accumulating
+ *  and the user wants to start fresh. */
+export async function clearDeadLetterItems(): Promise<number> {
+  const items = await db.syncQueue.toArray()
+  let cleared = 0
+  for (const item of items) {
+    if (item.id !== undefined && (item.attempts ?? 0) >= 5) {
+      await db.syncQueue.delete(item.id)
+      cleared++
+    }
+  }
+  return cleared
 }
 
 export async function retryDeadLetterItems(): Promise<SyncResult> {

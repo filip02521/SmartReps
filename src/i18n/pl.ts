@@ -380,6 +380,8 @@ const plDict = {
   testHonesty: 'Nie oszukuj — lepiej zacząć niżej.',
   testRecommendedCycle: (cycle: string) => `Pasuje: cykl ${cycle}`,
   testNextWithCycle: (cycle: string) => `Dalej — cykl ${cycle}`,
+  testEditReps: 'Edytuj liczbę powtórzeń',
+  testRepsLabel: 'Powtórzenia',
   testPullupRules:
     'Licz tylko pełne powtórzenia — broda nad drążkiem. Niepełnych nie wliczaj.',
   cantPullup: 'Nie umiem się podciągnąć',
@@ -1438,6 +1440,8 @@ const plDict = {
       ? '1 element czeka na ponowną synchronizację'
       : `${n} elementów czeka na ponowną synchronizację`,
   syncRetryDead: 'Ponów synchronizację',
+  syncClearDead: 'Wyczyść nieudane',
+  syncClearDeadConfirm: 'Te elementy nie udało się zsynchronizować po wielokrotnych próbach. Wyczyść je, aby zacząć od nowa.',
   syncStatusLocalOnly: 'Tylko na tym urządzeniu',
   syncStatusLoggedIn: 'Połączono z chmurą',
   syncStatusLoggedOutLocally: 'Wylogowano — dane zostają lokalnie',

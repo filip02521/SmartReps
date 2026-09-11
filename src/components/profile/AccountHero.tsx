@@ -13,7 +13,7 @@ import {
   type SyncAccountState,
   type SyncStatusSnapshot,
 } from '@/lib/sync-status'
-import { retryDeadLetterItems } from '@/lib/sync'
+import { retryDeadLetterItems, clearDeadLetterItems } from '@/lib/sync'
 import { useAppStore } from '@/stores/app-store'
 import { showToast } from '@/stores/toast-store'
 import { cn } from '@/lib/utils'
@@ -129,6 +129,21 @@ export function AccountHero({
     }
   }
 
+  const handleClearDeadLetter = async () => {
+    if (retrying) return
+    setRetrying(true)
+    try {
+      const cleared = await clearDeadLetterItems()
+      showToast(
+        cleared > 0 ? pl.toastSyncDone : pl.toastSyncFailed,
+        cleared > 0 ? 'success' : 'info',
+      )
+      await refresh()
+    } finally {
+      setRetrying(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -153,17 +168,30 @@ export function AccountHero({
             <p className="text-sm text-[var(--sr-warning)]">
               {pl.syncDeadLetter(snapshot.deadLetterCount)}
             </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="mt-3"
-              fullWidth
-              disabled={retrying || syncing}
-              onClick={() => void handleRetryDeadLetter()}
-            >
-              {retrying && <BrandLoader size={18} className="mr-2" />}
-              {retrying ? pl.syncInProgress : pl.syncRetryDead}
-            </Button>
+            <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
+              {pl.syncClearDeadConfirm}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                disabled={retrying || syncing}
+                onClick={() => void handleRetryDeadLetter()}
+              >
+                {retrying && <BrandLoader size={18} className="mr-2" />}
+                {retrying ? pl.syncInProgress : pl.syncRetryDead}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1"
+                disabled={retrying || syncing}
+                onClick={() => void handleClearDeadLetter()}
+              >
+                {pl.syncClearDead}
+              </Button>
+            </div>
           </div>
         </div>
       )}
