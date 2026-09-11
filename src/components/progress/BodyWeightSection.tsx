@@ -182,7 +182,7 @@ export function BodyWeightSection() {
                 {format(new Date(e.measuredAt), 'd MMM yyyy', { locale: dateFnsLocale() })}
               </span>
               {e.note && (
-                <span className="max-w-24 truncate text-xs text-[var(--sr-text-secondary)]">
+                <span className="min-w-0 flex-1 break-words text-xs text-[var(--sr-text-secondary)]">
                   {e.note}
                 </span>
               )}

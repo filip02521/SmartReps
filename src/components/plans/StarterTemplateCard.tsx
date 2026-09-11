@@ -82,7 +82,7 @@ export function StarterTemplateCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate text-base font-semibold text-[var(--sr-text-primary)]">
+            <h3 className="break-words text-base font-semibold text-[var(--sr-text-primary)]">
               {name}
             </h3>
             <Badge variant={difficultyVariant(template.difficulty)}>

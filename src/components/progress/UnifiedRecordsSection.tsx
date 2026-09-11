@@ -173,7 +173,7 @@ export function UnifiedRecordsSection({
                     <ExerciseSparkline values={pr.sparkline} active={pr.sessionCount > 0} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <p className="truncate font-semibold text-[var(--sr-text-primary)]">
+                        <p className="break-words font-semibold text-[var(--sr-text-primary)]">
                           {pr.name}
                         </p>
                         {trendDotClass(pr.trend) && (

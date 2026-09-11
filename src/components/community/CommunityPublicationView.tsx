@@ -514,7 +514,7 @@ export function CommunityPublicationView({ slug, onBack }: Props) {
                   const ex = row.snapshot_json.exercises.find((e) => e.id === pe.exerciseId)
                   return (
                     <li key={`${day.dayNumber}-${pe.order}`} className="flex justify-between gap-2">
-                      <span className="min-w-0 truncate">{ex?.name ?? pl.planEllipsis}</span>
+                      <span className="min-w-0 break-words">{ex?.name ?? pl.planEllipsis}</span>
                       <span className="shrink-0 text-[var(--sr-text-muted)]">
                         {pl.planSetsShort(pe.sets.length)}
                       </span>

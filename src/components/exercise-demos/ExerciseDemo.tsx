@@ -131,7 +131,7 @@ export const ExerciseDemo = memo(function ExerciseDemo({
               When name is hidden, show a subtle "show animation" hint instead. */}
           {(!hideNameWhenCollapsed || expanded) ? (
             <div className="min-w-0 flex-1">
-              <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+              <p className="break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
                 {exerciseName}
               </p>
               {muscleGroup && (

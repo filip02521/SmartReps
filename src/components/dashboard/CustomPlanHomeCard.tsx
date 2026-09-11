@@ -142,7 +142,7 @@ export function CustomPlanHomeCard({
             <Dumbbell size={18} strokeWidth={2.25} />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="min-w-0 line-clamp-2 sr-text-h3 text-[var(--sr-text-primary)]">
+            <h3 className="min-w-0 break-words sr-text-h3 text-[var(--sr-text-primary)]">
               {model.planName}
             </h3>
           </div>
@@ -349,7 +349,7 @@ export function CustomPlanHomeCard({
                           key={`${ex.exerciseId}-${idx}`}
                           className="flex items-baseline justify-between gap-2"
                         >
-                          <span className="min-w-0 truncate sr-text-body-sm text-[var(--sr-text-primary)]">
+                          <span className="min-w-0 break-words sr-text-body-sm text-[var(--sr-text-primary)]">
                             {name}
                           </span>
                           <span className="shrink-0 sr-text-caption text-[var(--sr-text-muted)]">

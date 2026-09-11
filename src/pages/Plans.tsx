@@ -599,7 +599,7 @@ export default function PlansPage() {
                             {totalEx > 0 ? ` · ${pl.planTotalExercises(totalEx)}` : ''}
                           </p>
                           {names ? (
-                            <p className="mt-1 truncate text-sm text-[var(--sr-text-secondary)]">
+                            <p className="mt-1 line-clamp-2 text-sm text-[var(--sr-text-secondary)]">
                               {names}
                             </p>
                           ) : null}

@@ -216,7 +216,7 @@ function SetRestAdjustPanel({
         aria-expanded={expanded}
         aria-label={summary}
       >
-        <span className="min-w-0 flex-1 truncate sr-text-body-sm font-medium text-[var(--sr-text-secondary)]">
+        <span className="min-w-0 flex-1 break-words sr-text-body-sm font-medium text-[var(--sr-text-secondary)]">
           {summary}
         </span>
         <ChevronDown
@@ -741,7 +741,7 @@ function CustomDayExerciseRail({
                 )}
                 <span
                   className={cn(
-                    'truncate text-sm font-medium leading-tight',
+                    'line-clamp-2 text-sm font-medium leading-tight',
                     done && 'text-[var(--sr-success)]',
                     active && 'text-[var(--sr-text-primary)]',
                     !done && !active && 'text-[var(--sr-text-secondary)]',
@@ -842,7 +842,7 @@ function CustomDayPlanSheet({
                 )}
               >
               <div className="flex items-baseline justify-between gap-2">
-                <p className="min-w-0 flex-1 truncate font-medium text-[var(--sr-text-primary)]">
+                <p className="min-w-0 flex-1 break-words font-medium text-[var(--sr-text-primary)]">
                   {i + 1}. {name}
                 </p>
                 <p className="shrink-0 text-xs text-[var(--sr-text-muted)]">
@@ -1414,21 +1414,21 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
                 className="mx-auto flex max-w-full min-h-12 items-center justify-center gap-1.5 rounded-[var(--sr-radius-sm)] px-2 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
                 aria-label={pl.exerciseDetailOpenFor(exerciseDef.name)}
               >
-                <span className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+                <span className="break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
                   {exerciseDef.name}
                 </span>
                 <BarChart2 size={15} className="shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
               </button>
             ) : (
-              <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+              <p className="break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
                 {exerciseDef.name}
               </p>
             )}
-            <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">{setLine}</p>
+            <p className="break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">{setLine}</p>
             {(groupBadge || headerSub || sessionStartedAt) && (
               <div className="mt-0.5 flex min-w-0 items-center justify-center gap-x-1.5">
                 {(groupBadge || headerSub) && (
-                  <p className="min-w-0 truncate sr-text-caption text-[var(--sr-text-muted)]">
+                  <p className="min-w-0 break-words sr-text-caption text-[var(--sr-text-muted)]">
                     {[groupBadge, headerSub].filter(Boolean).join(' · ')}
                   </p>
                 )}

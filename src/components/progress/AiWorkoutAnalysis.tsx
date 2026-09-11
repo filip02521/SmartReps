@@ -318,7 +318,7 @@ export function AiWorkoutAnalysis() {
                       className="rounded-[var(--sr-radius-sm)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-2"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="min-w-0 flex-1 truncate font-medium text-[var(--sr-text-primary)]">
+                        <span className="min-w-0 flex-1 break-words font-medium text-[var(--sr-text-primary)]">
                           {label}
                         </span>
                         <span className={cn('shrink-0 text-right text-xs font-semibold', statusColor)}>

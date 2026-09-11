@@ -198,7 +198,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
             <ArrowLeft size={22} />
           </button>
           <div className="min-w-0 flex-1 px-1 text-center">
-            <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+            <p className="break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
               {pl.workoutHeader(programLabel, progress.currentDay, currentSetIndex + 1, day.sets.length)}
             </p>
             {sessionStartedAt && (

@@ -129,7 +129,7 @@ export function WorkoutResultCard({
                 className="flex items-center justify-between gap-2 rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-surface)] px-3 py-2"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
+                  <p className="break-words sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
                     {prRecordLabel(record)}
                   </p>
                   <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">

@@ -69,7 +69,7 @@ export function ExerciseLibraryRow({
         <ExerciseSparkline values={summary?.sparkline ?? []} active={hasHistory} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <p className="truncate font-medium text-[var(--sr-text-primary)]">{exercise.name}</p>
+            <p className="break-words font-medium text-[var(--sr-text-primary)]">{exercise.name}</p>
             {hasDemo && (
               <span
                 className="flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--sr-brand-primary-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--sr-brand-primary)]"
@@ -86,7 +86,7 @@ export function ExerciseLibraryRow({
               />
             )}
           </div>
-          <p className="mt-0.5 truncate text-xs text-[var(--sr-text-muted)]">{subtitle}</p>
+          <p className="mt-0.5 break-words text-xs text-[var(--sr-text-muted)]">{subtitle}</p>
         </div>
         <ChevronRight size={18} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
       </button>

@@ -577,7 +577,7 @@ export function CustomPlanEditor({
                         </span>
                       </p>
                       {d.exercises.length > 0 && (
-                        <p className="mt-1 truncate text-sm text-[var(--sr-text-secondary)]">
+                        <p className="mt-1 line-clamp-2 text-sm text-[var(--sr-text-secondary)]">
                           {dayExerciseNames(d, exercises)}
                         </p>
                       )}

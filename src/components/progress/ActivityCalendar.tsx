@@ -247,7 +247,7 @@ export function ActivityCalendar({
                     >
                       {s.passed === false ? <X size={12} strokeWidth={3} /> : <Check size={12} strokeWidth={3} />}
                     </span>
-                    <span className="min-w-0 flex-1 truncate sr-text-body-sm text-[var(--sr-text-primary)]">
+                    <span className="min-w-0 flex-1 break-words sr-text-body-sm text-[var(--sr-text-primary)]">
                       {sessionLabel(s, customPlanNames)}
                     </span>
                     {s.totalReps != null && s.totalReps > 0 && (

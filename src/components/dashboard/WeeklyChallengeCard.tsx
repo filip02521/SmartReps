@@ -215,7 +215,7 @@ function ChallengeItem({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
+            <p className="break-words sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
               {title}
             </p>
             {recommended && !progress.achieved && (
