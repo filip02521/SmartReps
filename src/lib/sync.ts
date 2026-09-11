@@ -1432,13 +1432,15 @@ export async function pullRemoteData(): Promise<SyncResult> {
   }
 
   // Custom entities (plans, exercises, progress, active custom workouts)
-  // Tombstones are pulled first inside pullCustomEntities — if this fails, custom
-  // plan resurrection is possible, so treat its errors as tombstone errors.
+  // Tombstones are pulled first inside pullCustomEntities — only actual
+  // tombstone errors block push to prevent resurrection. Non-tombstone errors
+  // (e.g. RPC failure, RLS issue) should NOT block the push phase, otherwise
+  // the sync queue grows unboundedly and never gets flushed.
   try {
     const { pullCustomEntities } = await import('@/lib/custom-sync')
-    const customErrors = await pullCustomEntities(userId)
-    errors += customErrors
-    tombstoneErrors += customErrors
+    const customResult = await pullCustomEntities(userId)
+    errors += customResult.errors
+    tombstoneErrors += customResult.tombstoneErrors
   } catch (err) {
     errors++
     tombstoneErrors++
@@ -1484,11 +1486,18 @@ export async function syncWithRemote(): Promise<SyncResult> {
 
   // Pull before push — stale local Dexie must not clobber newer remote progress.
   const pull = await pullRemoteData()
-  // If tombstone pulls failed, do NOT push — stale local data could resurrect
-  // rows deleted on another device whose tombstone pull failed. Non-tombstone
-  // errors (e.g. AI insights) are safe to push past. Retry the whole sync next time.
+  // If tombstone pulls failed, skip the ENTITY push (sessions, plans, etc.)
+  // to avoid resurrecting deleted rows. BUT still flush the sync queue —
+  // queue items are individual operations that already have tombstone checks
+  // in processQueueItem. Without flushing, the queue grows unboundedly.
   if ((pull.tombstoneErrors ?? 0) > 0) {
     trackSyncSection('syncWithRemote', 'complete', { ok: false, reason: 'tombstone_pull_failed' })
+    // Still flush the queue — items are individually tombstone-checked
+    try {
+      await flushSyncQueue()
+    } catch (err) {
+      trackSyncError('flush_sync_queue_after_tombstone_failure', err)
+    }
     trackSyncResult({
       ok: false,
       errors: pull.errors,

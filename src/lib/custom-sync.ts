@@ -462,8 +462,15 @@ export async function pushCustomEntities(userId: string): Promise<number> {
   return errors
 }
 
-export async function pullCustomEntities(userId: string): Promise<number> {
+export type PullCustomEntitiesResult = {
+  errors: number
+  /** Only errors from tombstone pull/push — these block push to prevent resurrection. */
+  tombstoneErrors: number
+}
+
+export async function pullCustomEntities(userId: string): Promise<PullCustomEntitiesResult> {
   let errors = 0
+  let tombstoneErrors = 0
   try {
     // Pull custom plan tombstones first — delete local plans that were deleted
     // on another device before merging remote plans (prevents resurrection).
@@ -500,6 +507,8 @@ export async function pullCustomEntities(userId: string): Promise<number> {
         }
       }
     } catch (err) {
+      tombstoneErrors++
+      errors++
       trackSyncError('pull_custom_plan_tombstones', err)
     }
 
@@ -523,6 +532,8 @@ export async function pullCustomEntities(userId: string): Promise<number> {
         }
       }
     } catch (err) {
+      tombstoneErrors++
+      errors++
       trackSyncError('pull_exercise_tombstones', err)
     }
 
@@ -643,7 +654,7 @@ export async function pullCustomEntities(userId: string): Promise<number> {
     trackSyncError('pull_custom_entities', err)
     errors++
   }
-  return errors
+  return { errors, tombstoneErrors }
 }
 
 // Exported for tests

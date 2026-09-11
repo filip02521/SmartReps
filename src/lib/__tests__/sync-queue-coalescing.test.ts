@@ -47,7 +47,7 @@ vi.mock('@/lib/enabled-programs-sync', () => ({
 }))
 
 vi.mock('@/lib/custom-sync', () => ({
-  pullCustomEntities: vi.fn().mockResolvedValue(0),
+  pullCustomEntities: vi.fn().mockResolvedValue({ errors: 0, tombstoneErrors: 0 }),
   pushCustomEntities: vi.fn().mockResolvedValue(0),
 }))
 

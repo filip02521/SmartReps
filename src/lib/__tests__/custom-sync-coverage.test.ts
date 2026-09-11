@@ -236,8 +236,8 @@ describe('pullCustomEntities', () => {
       }
       return makeQueryBuilder(table)
     })
-    const errors = await pullCustomEntities('user-1')
-    expect(errors).toBeGreaterThan(0)
+    const result = await pullCustomEntities('user-1')
+    expect(result.errors).toBeGreaterThan(0)
   })
 })
 
@@ -402,8 +402,8 @@ describe('pushCustomEntities — trackSyncError on failures', () => {
       }
       return makeQueryBuilder(table)
     })
-    const errors = await pullCustomEntities('user-1')
-    expect(errors).toBeGreaterThan(0)
+    const result = await pullCustomEntities('user-1')
+    expect(result.errors).toBeGreaterThan(0)
     expect(trackSyncError).toHaveBeenCalledWith(
       'pull_custom_entities',
       expect.anything(),
