@@ -100,14 +100,17 @@ export async function notifyUnexpectedSessionLoss(
   if (consumeIntentionalSignOut()) return
   if (isOnLoginRoute()) return
 
+  // Track analytics BEFORE cooldown check — the event tracks the session loss
+  // itself, not the toast. If scheduleSyncResultToast (auth_expired) already
+  // set the cooldown, we still want to record that the SIGNED_OUT event fired.
+  trackSessionLostUnexpected()
+
   // Shared cooldown — prevents repeated session-expired toasts when multiple
   // sync triggers fire (online, visibility, boot, manual, post-workout).
   // Both notifyUnexpectedSessionLoss (SIGNED_OUT) and scheduleSyncResultToast
   // (auth_expired) use this same cooldown, so the user sees ONE notification.
   if (isSessionExpiredToastInCooldown()) return
   markSessionExpiredToastShown()
-
-  trackSessionLostUnexpected()
 
   const returnTo =
     typeof window !== 'undefined' && !window.location.pathname.startsWith('/setup/')

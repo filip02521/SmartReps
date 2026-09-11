@@ -246,7 +246,7 @@ export function SetRow({
       className={cn(
         'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] border px-3 py-2.5 text-left transition-all active:scale-[0.99]',
         FOCUS_RING,
-        state === 'active' && 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] ring-2 ring-[var(--sr-brand-primary)]/30',
+        state === 'active' && 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] ring-2 ring-inset ring-[var(--sr-brand-primary)]/30',
         state === 'done' && 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
         state === 'failed' && 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]',
         state === 'pending' && 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] hover:border-[var(--sr-border-strong)]',

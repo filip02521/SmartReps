@@ -118,12 +118,12 @@ export function ToastHost() {
                     'mt-2 min-h-12 rounded-[var(--sr-radius-md)] px-4 text-sm font-semibold',
                     FOCUS_RING,
                     (t.variant === 'warning' || t.variant === 'error')
-                      ? 'text-white'
+                      ? 'border'
                       : '',
                   )}
                   style={
                     (t.variant === 'warning' || t.variant === 'error')
-                      ? { background: chrome.accent }
+                      ? { background: chrome.muted, color: chrome.accent, borderColor: chrome.accent }
                       : { color: chrome.accent }
                   }
                   onClick={() => {

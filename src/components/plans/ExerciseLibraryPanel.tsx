@@ -256,7 +256,7 @@ export function ExerciseLibraryPanel({
                 {search.trim() !== '' && (
                   <button
                     type="button"
-                    aria-label={pl.exerciseClearFilters}
+                    aria-label={pl.exerciseClearSearch}
                     className={cn(
                       'absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-elevated)] hover:text-[var(--sr-text-primary)] active:scale-95',
                       FOCUS_RING,

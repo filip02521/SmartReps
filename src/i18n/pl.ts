@@ -1859,6 +1859,7 @@ const plDict = {
   exerciseSearchNoResults: 'Brak ćwiczeń pasujących do wyszukiwania.',
   exerciseFilterNoResults: 'Brak ćwiczeń dla wybranych filtrów.',
   exerciseClearFilters: 'Wyczyść filtry',
+  exerciseClearSearch: 'Wyczyść wyszukiwanie',
   exerciseResultCount: (shown: number, total: number) =>
     `${shown} z ${total} ${total === 1 ? 'ćwiczenia' : 'ćwiczeń'}`,
   exerciseSortLabel: 'Sortuj',

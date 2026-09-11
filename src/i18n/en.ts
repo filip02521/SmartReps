@@ -1834,6 +1834,7 @@ export const en: Translation = {
   exerciseSearchNoResults: 'No exercises match your search.',
   exerciseFilterNoResults: 'No exercises match the selected filters.',
   exerciseClearFilters: 'Clear filters',
+  exerciseClearSearch: 'Clear search',
   exerciseResultCount: (shown: number, total: number) =>
     `${shown} of ${total} ${total === 1 ? 'exercise' : 'exercises'}`,
   exerciseSortLabel: 'Sort',
