@@ -3,15 +3,19 @@
  * Migrate data from old Supabase project (pwfymoxjrgnovzcmmfyn) to new (epjtnhsqzgtjhghzqefx).
  * Uses MCP (old project) for reading and REST API with service_role key (new project) for writing.
  *
- * Usage: node scripts/migrate-to-new-supabase.mjs
+ * Usage: NEW_SERVICE_KEY=... node scripts/migrate-to-new-supabase.mjs
  */
 import { createClient } from '@supabase/supabase-js'
-import { readFileSync } from 'fs'
+import { readFileSync, writeFileSync } from 'fs'
 
 const OLD_URL = 'https://pwfymoxjrgnovzcmmfyn.supabase.co'
 const NEW_URL = 'https://epjtnhsqzgtjhghzqefx.supabase.co'
-const OLD_ANON_KEY = process.env.OLD_ANON_KEY || '' // We don't have this — use MCP instead
-const NEW_SERVICE_KEY = readFileSync('/tmp/sr_new_service_key', 'utf-8').trim()
+const NEW_SERVICE_KEY = process.env.NEW_SERVICE_KEY || ''
+
+if (!NEW_SERVICE_KEY) {
+  console.error('Error: Set NEW_SERVICE_KEY env var to the new project service_role key.')
+  process.exit(1)
+}
 
 // New project client with service_role (bypasses RLS)
 const newClient = createClient(NEW_URL, NEW_SERVICE_KEY, {
@@ -116,5 +120,4 @@ async function main() {
   console.log(`User mapping saved to /tmp/sr_migration/user_mapping.json`)
 }
 
-import { writeFileSync } from 'fs'
 main().catch(console.error)
