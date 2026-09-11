@@ -26,22 +26,24 @@ function remoteCustomSessionHasProgress(logs: ExerciseLog[]): boolean {
 }
 
 export async function upsertUserExercise(userId: string, ex: ExerciseDefinition) {
-  // Use onConflict: 'user_id,name' to handle the UNIQUE constraint on (user_id, name).
-  // If a local exercise has a different ID but the same name as a cloud exercise,
-  // the upsert updates the existing cloud row (keeping the local ID as the canonical one).
-  const { error } = await supabase.from('user_exercises').upsert({
-    id: ex.id,
-    user_id: userId,
-    name: ex.name,
-    primary_metric: ex.primaryMetric,
-    rest_default_sec: ex.restDefaultSec,
-    archived: ex.archived,
-    muscle_group: ex.muscleGroup ?? null,
-    source: ex.source ?? 'user',
-    duration_display_unit: ex.durationDisplayUnit ?? 'min',
-    created_at: ex.createdAt,
-    updated_at: ex.updatedAt,
-  }, { onConflict: 'user_id,name' })
+  // Use the safe RPC that does NOT change the cloud exercise's primary key on
+  // (user_id, name) conflict. The old upsert with onConflict: 'user_id,name'
+  // updated ALL columns including id, which changed the cloud ID to match the
+  // local ID and broke plan_json / exercise_logs_json references to the old ID.
+  // The RPC keeps the existing cloud ID and only updates non-id fields.
+  const { error } = await supabase.rpc('upsert_user_exercise_safe', {
+    p_id: ex.id,
+    p_user_id: userId,
+    p_name: ex.name,
+    p_primary_metric: ex.primaryMetric,
+    p_rest_default_sec: ex.restDefaultSec,
+    p_archived: ex.archived,
+    p_muscle_group: ex.muscleGroup ?? null,
+    p_source: ex.source ?? 'user',
+    p_duration_display_unit: ex.durationDisplayUnit ?? 'min',
+    p_created_at: ex.createdAt,
+    p_updated_at: ex.updatedAt,
+  })
   if (error) throw error
 }
 

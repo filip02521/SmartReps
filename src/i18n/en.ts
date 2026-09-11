@@ -2193,6 +2193,9 @@ export const en: Translation = {
   customNextSet: (set: number, label: string) => `Next: Set ${set} \u00B7 ${label}`,
   customWorkoutMissingDay: 'This plan day is empty — finish editing in Plans \u2192 Mine.',
   customWorkoutMissingExercise: 'The plan exercise has been removed or archived.',
+  customWorkoutMissingExerciseDesc: 'This exercise may have been deleted on another device or not synced correctly. Try syncing or replace it with another.',
+  customWorkoutSyncAndRetry: 'Sync and retry',
+  customWorkoutSyncAndRetryHint: 'Pulls the latest data from the cloud — may restore the missing exercise.',
   exerciseMetricLocked: 'Cannot change the exercise type when it\u2019s used in a plan.',
   exerciseMetricLockedHint: 'Exercise type is locked — used in a plan.',
   exerciseMetricChangeWarn: (n: number) =>

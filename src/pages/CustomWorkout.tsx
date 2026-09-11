@@ -1593,15 +1593,36 @@ export default function CustomWorkoutPage() {
         : loadErrorKind === 'empty_day'
           ? pl.customWorkoutMissingDay
           : pl.customWorkoutProblemTitle
+    const errorDesc =
+      loadErrorKind === 'missing_exercise' ? pl.customWorkoutMissingExerciseDesc : loadError
     return (
       <>
         <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-          <PageHeader title={errorTitle} subtitle={loadError} />
+          <PageHeader title={errorTitle} subtitle={errorDesc} />
           <div className="mt-6 flex w-full flex-col gap-2">
-            {planId && loadErrorDayNumber != null && (
+            {loadErrorKind === 'missing_exercise' && (
               <Button
                 type="button"
                 size="touch"
+                fullWidth
+                onClick={async () => {
+                  const { runAuthenticatedSync } = await import('@/lib/auth-sync')
+                  await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
+                  setLoadError(null)
+                  setLoadErrorKind(null)
+                  setMissingExerciseId(null)
+                  setLoading(true)
+                  const generation = ++initGenerationRef.current
+                  await initWorkout(generation)
+                }}
+              >
+                {pl.customWorkoutSyncAndRetry}
+              </Button>
+            )}
+            {planId && loadErrorDayNumber != null && (
+              <Button
+                type="button"
+                variant="secondary"
                 fullWidth
                 onClick={() =>
                   navigate(

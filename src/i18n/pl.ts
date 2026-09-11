@@ -2218,6 +2218,9 @@ const plDict = {
   customNextSet: (set: number, label: string) => `Następnie: Seria ${set} · ${label}`,
   customWorkoutMissingDay: 'Ten dzień planu jest pusty — dokończ edycję w Plany → Moje.',
   customWorkoutMissingExercise: 'Ćwiczenie z planu zostało usunięte lub zarchiwizowane.',
+  customWorkoutMissingExerciseDesc: 'To ćwiczenie mogło zostać usunięte na innym urządzeniu lub nie zsyncowało się poprawnie. Spróbuj synchronizację lub zastąp je innym.',
+  customWorkoutSyncAndRetry: 'Synchronizuj i spróbuj ponownie',
+  customWorkoutSyncAndRetryHint: 'Pobiera najnowsze dane z chmury — może przywrócić brakujące ćwiczenie.',
   exerciseMetricLocked: 'Nie można zmienić typu ćwiczenia używanego w planie.',
   exerciseMetricLockedHint: 'Typ ćwiczenia jest zablokowany — używane w planie.',
   exerciseMetricChangeWarn: (n: number) =>
