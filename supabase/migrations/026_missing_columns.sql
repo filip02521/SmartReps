@@ -25,3 +25,6 @@ ALTER TABLE public.user_exercises ADD COLUMN IF NOT EXISTS muscle_group text;
 -- 'keys' stores the full Web Push subscription keys object for edge functions that need it.
 ALTER TABLE public.push_subscriptions ADD COLUMN IF NOT EXISTS enabled boolean NOT NULL DEFAULT true;
 ALTER TABLE public.push_subscriptions ADD COLUMN IF NOT EXISTS keys jsonb;
+
+-- Reload PostgREST schema cache so new columns/tables are immediately visible
+NOTIFY pgrst, 'reload schema';

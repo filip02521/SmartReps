@@ -37,3 +37,6 @@ ALTER TABLE active_workout_state
   DROP CONSTRAINT active_workout_state_session_id_fkey,
   ADD CONSTRAINT active_workout_state_session_id_fkey
     FOREIGN KEY (session_id) REFERENCES workout_sessions(id) ON DELETE CASCADE;
+
+-- Reload PostgREST schema cache so changes are immediately visible
+NOTIFY pgrst, 'reload schema';

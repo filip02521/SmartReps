@@ -29,3 +29,6 @@ CREATE POLICY ai_insights_owner ON public.ai_insights
 CREATE INDEX IF NOT EXISTS ai_insights_user_week ON public.ai_insights(user_id, week_key);
 CREATE INDEX IF NOT EXISTS ai_insights_user_session ON public.ai_insights(user_id, session_id);
 CREATE INDEX IF NOT EXISTS ai_insights_user_type ON public.ai_insights(user_id, type);
+
+-- Reload PostgREST schema cache so new columns/tables are immediately visible
+NOTIFY pgrst, 'reload schema';

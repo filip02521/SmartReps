@@ -38,3 +38,6 @@ WHERE id IN (
 -- Step 3: Add unique constraint to prevent future duplicates
 ALTER TABLE user_exercises
   ADD CONSTRAINT user_exercises_user_id_name_key UNIQUE (user_id, name);
+
+-- Reload PostgREST schema cache so changes are immediately visible
+NOTIFY pgrst, 'reload schema';

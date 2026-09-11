@@ -73,3 +73,6 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION upsert_user_exercise_safe TO authenticated;
+
+-- Reload PostgREST schema cache so changes are immediately visible
+NOTIFY pgrst, 'reload schema';

@@ -3,3 +3,6 @@
 -- The 3-arg version is a legacy function that lacks showcase_slots support and is callable by anon (security risk).
 
 DROP FUNCTION IF EXISTS upsert_my_public_profile(text, text, boolean);
+
+-- Reload PostgREST schema cache so changes are immediately visible
+NOTIFY pgrst, 'reload schema';

@@ -18,3 +18,6 @@ CREATE POLICY session_tombstones_owner ON public.session_tombstones
 -- ── AI model and base URL in profiles (NOT api key) ──
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS ai_model text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS ai_base_url text;
+
+-- Reload PostgREST schema cache so new columns/tables are immediately visible
+NOTIFY pgrst, 'reload schema';
