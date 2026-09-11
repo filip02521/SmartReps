@@ -9,6 +9,7 @@ import { db } from '@/lib/db'
 import type { ExerciseLog } from '@/lib/exercise-model'
 import { rpeToRir, rirToRpe } from '@/lib/exercise-model'
 import { setRpeValue, setRirValue } from '@/lib/rpe-analysis'
+import { pl } from '@/i18n/pl'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -44,15 +45,19 @@ function sessionDateLabel(iso: string): string {
 
 function builtinSessionLabel(program: string, dayNumber: number): string {
   const programLabel =
-    program === 'pushups' ? 'Pompki' : program === 'pullups' ? 'Podciągania' : program === 'squats' ? 'Przysiady' : program
+    program === 'pushups' ? pl.pushupsProgram
+      : program === 'pullups' ? pl.pullupsProgram
+      : program === 'squats' ? pl.squatsProgram
+      : program
   return `${programLabel} D${dayNumber}`
 }
 
-function customSessionLabel(logs: ExerciseLog[], exerciseMap: Map<string, { name?: string }>): string {
-  if (logs.length === 0) return 'Trening'
-  const first = logs[0]
-  const def = exerciseMap.get(first.exerciseId)
-  return def?.name ?? first.exerciseId
+function customSessionLabel(
+  log: ExerciseLog,
+  exerciseMap: Map<string, { name?: string }>,
+): string {
+  const def = exerciseMap.get(log.exerciseId)
+  return def?.name ?? pl.exerciseFallbackName
 }
 
 // ─── Aggregation ─────────────────────────────────────────────────────────────
@@ -147,7 +152,7 @@ export async function getCustomRpeTrend(
       const points = byExercise.get(log.exerciseId) ?? []
       points.push({
         date: sessionDateLabel(session.startedAt),
-        sessionLabel: customSessionLabel(logs, exerciseMap),
+        sessionLabel: customSessionLabel(log, exerciseMap),
         avgRpe,
         avgRir,
         setCount: rpes.length,
@@ -164,7 +169,7 @@ export async function getCustomRpeTrend(
     const def = exerciseMap.get(exerciseId)
     groups.push({
       key: exerciseId,
-      label: def?.name ?? exerciseId,
+      label: def?.name ?? pl.exerciseFallbackName,
       points: limited,
     })
   }

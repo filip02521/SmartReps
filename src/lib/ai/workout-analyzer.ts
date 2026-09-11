@@ -91,6 +91,9 @@ async function gatherWorkoutHistory(
       sessionsPerWeek: 0,
       muscleGroupVolume: [],
       recentSessions: [],
+      avgRpe: null,
+      avgRir: null,
+      effortTrend: 'unknown',
     }
   }
 
@@ -221,6 +224,41 @@ async function gatherWorkoutHistory(
     }))
     .sort((a, b) => b.weeklySets - a.weeklySets)
 
+  // RPE/RIR aggregation across recent sessions (last 10)
+  const recentForEffort = [...sorted].reverse().slice(0, 10)
+  const allRpes: number[] = []
+  for (const s of recentForEffort) {
+    // Builtin
+    for (const r of s.setResults ?? []) {
+      if (r.rpe != null) allRpes.push(r.rpe)
+      else if (r.rir != null) allRpes.push(10 - r.rir)
+    }
+    // Custom
+    for (const log of s.exerciseLogs ?? []) {
+      for (const set of log.sets ?? []) {
+        if (set.rpe != null) allRpes.push(set.rpe)
+        else if (set.rir != null) allRpes.push(10 - set.rir)
+      }
+    }
+  }
+  const avgRpe =
+    allRpes.length > 0
+      ? Math.round((allRpes.reduce((a, b) => a + b, 0) / allRpes.length) * 10) / 10
+      : null
+  const avgRir = avgRpe != null ? Math.round((10 - avgRpe) * 10) / 10 : null
+
+  // Effort trend: compare first half vs second half of recent sessions
+  let effortTrend: WorkoutHistorySummary['effortTrend'] = 'unknown'
+  if (allRpes.length >= 4) {
+    const half = Math.floor(allRpes.length / 2)
+    const firstHalfAvg = allRpes.slice(0, half).reduce((a, b) => a + b, 0) / half
+    const secondHalfAvg = allRpes.slice(half).reduce((a, b) => a + b, 0) / (allRpes.length - half)
+    const diff = secondHalfAvg - firstHalfAvg
+    if (diff > 0.5) effortTrend = 'increasing'
+    else if (diff < -0.5) effortTrend = 'decreasing'
+    else effortTrend = 'stable'
+  }
+
   return {
     totalSessions: sessions.length,
     totalSets,
@@ -229,5 +267,8 @@ async function gatherWorkoutHistory(
     sessionsPerWeek: Math.round((sessions.length / weeksSpan) * 10) / 10,
     muscleGroupVolume,
     recentSessions,
+    avgRpe,
+    avgRir,
+    effortTrend,
   }
 }

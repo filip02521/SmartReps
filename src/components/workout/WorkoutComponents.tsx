@@ -478,11 +478,11 @@ export function RestTimerExpanded({
         style={{ zIndex: Z_REST_EXPANDED }}
         role="dialog"
         aria-modal="true"
-        aria-label={pl.restLabel}
-        onKeyDown={(e) => { if (e.key === 'Escape') onCollapse() }}
+        aria-label={isReady ? pl.restReady : pl.restLabel}
+        onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onCollapse() } }}
       >
         {/* Header bar — solid, with collapse button */}
-        <div className="flex items-center justify-between border-b border-[var(--sr-border-subtle)] px-4 py-3">
+        <div className="flex shrink-0 items-center justify-between border-b border-[var(--sr-border-strong)] px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="sr-text-overline text-[var(--sr-text-muted)]">
               {isReady ? pl.restReady : pl.restLabel}
@@ -494,7 +494,10 @@ export function RestTimerExpanded({
           <button
             type="button"
             aria-label={pl.collapseTimer}
-            className="flex min-h-10 min-w-10 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95"
+            className={cn(
+              'flex min-h-11 min-w-11 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              FOCUS_RING,
+            )}
             onClick={onCollapse}
           >
             <ChevronDown size={22} aria-hidden />
@@ -508,8 +511,8 @@ export function RestTimerExpanded({
           </p>
         )}
 
-        {/* Timer — hero section, centered */}
-        <div className="flex flex-1 flex-col items-center justify-center px-4">
+        {/* Timer — hero section, centered, scrollable on short screens */}
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-4">
           <ProgressRing
             progress={progress}
             size={200}
@@ -526,7 +529,7 @@ export function RestTimerExpanded({
                     ? 'text-[var(--sr-success)]'
                     : 'text-[var(--sr-text-primary)]',
               )}
-              aria-live="polite"
+              aria-hidden
             >
               {formatRestTime(remainingSec)}
             </span>
@@ -554,13 +557,13 @@ export function RestTimerExpanded({
 
         {/* Coach suggestion — distinct card section */}
         {coachSuggestion ? (
-          <div className="px-4 pb-2">
+          <div className="shrink-0 px-4 pb-2 pt-2">
             <div
               aria-live="polite"
-              className="flex items-start gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)] p-3"
+              className="flex items-start gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-bg-surface)] p-3"
             >
               <AiCoachMark size="sm" />
-              <p className="min-w-0 flex-1 text-sm leading-relaxed text-[var(--sr-text-secondary)]">
+              <p className="min-w-0 flex-1 text-sm leading-relaxed text-[var(--sr-text-primary)]">
                 {coachSuggestion}
               </p>
             </div>
@@ -568,7 +571,7 @@ export function RestTimerExpanded({
         ) : null}
 
         {/* Action buttons — bottom section */}
-        <div className="border-t border-[var(--sr-border-subtle)] px-4 py-4">
+        <div className="shrink-0 border-t border-[var(--sr-border-strong)] px-4 py-4">
           <div className="flex flex-wrap justify-center gap-3">
             <Button variant="secondary" size="sm" className="min-h-12" onClick={onAdd15}>{pl.add15s}</Button>
             <Button variant="secondary" size="sm" className="min-h-12" onClick={onAdd30}>{pl.add30s}</Button>

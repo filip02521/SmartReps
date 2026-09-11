@@ -274,7 +274,11 @@ async function inferFailureReason(errors: number): Promise<SyncFailureReason> {
 
 /** Coalesce rapid sync result toasts — success wins over a late failure toast.
  *  auth_expired toasts share a cooldown with notifyUnexpectedSessionLoss so
- *  the user sees ONE "session expired" notification, not one per sync trigger. */
+ *  the user sees ONE "session expired" notification, not one per sync trigger.
+ *  The cooldown is set inside the timer callback (when the toast is actually
+ *  displayed), not when the sync result is received — this prevents a
+ *  success toast from suppressing the auth_expired notification while
+ *  still consuming the cooldown. */
 function scheduleSyncResultToast(
   ok: boolean,
   opts: SyncToastOpts,
@@ -286,7 +290,6 @@ function scheduleSyncResultToast(
   // visible regardless — the user always knows they need to re-login.
   if (!ok && reason === 'auth_expired') {
     if (isSessionExpiredToastInCooldown()) return
-    markSessionExpiredToastShown()
   } else if (!ok && !opts.showFailureToast) {
     return
   }
@@ -296,12 +299,22 @@ function scheduleSyncResultToast(
   if (ok) pendingSyncToastResult = { ok: true }
   else if (!pendingSyncToastResult?.ok) pendingSyncToastResult = { ok: false, reason }
 
+  // Prevent a success result from overwriting a pending auth_expired toast —
+  // auth_expired is high-priority and must not be silently discarded.
+  if (ok && pendingSyncToastResult && !pendingSyncToastResult.ok && pendingSyncToastResult.reason === 'auth_expired') {
+    return
+  }
+
   if (syncToastTimer) clearTimeout(syncToastTimer)
   syncToastTimer = setTimeout(() => {
     if (pendingSyncToastResult?.ok) {
       showToast(pl.toastSyncDone, 'success')
     } else if (pendingSyncToastResult && !pendingSyncToastResult.ok) {
       const toast = failureToastForReason(pendingSyncToastResult.reason ?? 'unknown')
+      // Mark cooldown only when the toast is actually displayed
+      if (pendingSyncToastResult.reason === 'auth_expired') {
+        markSessionExpiredToastShown()
+      }
       showToast(
         toast.message,
         toast.variant,

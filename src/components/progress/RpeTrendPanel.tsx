@@ -36,6 +36,7 @@ export function RpeTrendPanel() {
       if (!hasData) {
         setOptions([])
         setGroups([])
+        setSelectedKey(null)
         return
       }
 
@@ -66,7 +67,11 @@ export function RpeTrendPanel() {
       }
 
       setOptions(opts)
-      setSelectedKey((prev) => prev ?? opts[0]?.key ?? null)
+      setSelectedKey((prev) => {
+        // Keep current selection if still valid, otherwise pick first
+        if (prev && opts.some((o) => o.key === prev)) return prev
+        return opts[0]?.key ?? null
+      })
     } finally {
       setLoading(false)
     }
@@ -111,10 +116,10 @@ export function RpeTrendPanel() {
     if (groups.length === 0) return []
     return groups[0]!.points.map((p) => ({
       date: p.date,
-      rpe: p.avgRpe ?? 0,
-      rir: p.avgRir ?? 0,
+      rpe: p.avgRpe,
+      rir: p.avgRir,
       sets: p.setCount,
-    }))
+    })) as Array<Record<string, string | number>>
   }, [groups])
 
   const hasEnoughData = chartData.length >= 2

@@ -31,19 +31,28 @@ function cleanupStaleAuthTokens(): void {
   const currentRef = projectRefFromUrl(url)
   if (!currentRef) return
 
+  const STALE_REF_KEY = 'sr:supabase-project-ref'
+  let storedRef: string | null = null
+  let canWrite = true
+
   try {
-    const STALE_REF_KEY = 'sr:supabase-project-ref'
-    const storedRef = localStorage.getItem(STALE_REF_KEY)
-
-    if (storedRef && storedRef !== currentRef) {
-      // Project changed — wipe all auth tokens (localStorage + IndexedDB)
-      void wipeDurableAuthStorage()
-    }
-
-    // Always update the stored ref to the current project
-    localStorage.setItem(STALE_REF_KEY, currentRef)
+    storedRef = localStorage.getItem(STALE_REF_KEY)
   } catch {
-    // localStorage unavailable (private mode, etc.) — best-effort
+    // localStorage unavailable (private mode, quota) — can't detect change
+    canWrite = false
+  }
+
+  if (storedRef && storedRef !== currentRef) {
+    // Project changed — wipe all auth tokens (localStorage + IndexedDB)
+    void wipeDurableAuthStorage()
+  }
+
+  if (canWrite) {
+    try {
+      localStorage.setItem(STALE_REF_KEY, currentRef)
+    } catch {
+      // best-effort — next reload will retry the cleanup
+    }
   }
 }
 
