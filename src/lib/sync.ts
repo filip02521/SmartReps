@@ -1015,7 +1015,7 @@ async function reconcileActiveWorkoutsAfterPull(remotePrograms: Set<string>): Pr
   }
 }
 
-async function mergeActiveRemote(userId: string, remote: RemoteActiveRow) {
+export async function mergeActiveRemote(userId: string, remote: RemoteActiveRow) {
   const program = remote.program as Program
   if (await hasPendingActiveWorkoutDelete(program)) return
 
@@ -1102,7 +1102,7 @@ async function mergeMaxTestRemote(remote: RemoteMaxTestRow) {
   })
 }
 
-async function mergeBodyWeightRemote(remote: RemoteBodyWeightRow) {
+export async function mergeBodyWeightRemote(remote: RemoteBodyWeightRow) {
   // Skip if tombstoned (deleted on this device)
   if (await db.bodyWeightTombstones.get(remote.id)) return
 

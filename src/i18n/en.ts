@@ -692,9 +692,12 @@ export const en: Translation = {
 
   // Program start
   programReady: 'Ready!',
+  cycleAssigned: 'Cycle assigned',
+  cycleAssignedSubtitle: 'We\'ve assigned the right level based on your test. Start training now or come back later.',
   firstTraining: 'Your first workout:',
   startDay1: 'Start Day 1',
   backToPicker: 'Back to level picker',
+  goToDashboard: 'Go to dashboard',
 
   // Summary
   dayComplete: (n: number) => `Day ${n} complete`,

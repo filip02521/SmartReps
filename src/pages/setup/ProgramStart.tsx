@@ -26,7 +26,7 @@ export default function ProgramStart() {
   const [searchParams] = useSearchParams()
   const isRetestUrl = searchParams.get('retest') === '1'
   const isLevelChangeUrl = searchParams.get('change') === '1'
-  const { pendingStart, pendingTest, setPendingStart, setPendingTest, clearPendingStart } = useAppStore()
+  const { pendingStart, pendingTest, setPendingStart, clearPendingStart } = useAppStore()
   const navigate = useNavigate()
   const hydrated = useStoreHydrated()
   const leavingRef = useRef(false)
@@ -36,7 +36,6 @@ export default function ProgramStart() {
 
   const isRetest = isRetestUrl || !!pendingStart?.isRetest
   const isLevelChange = isLevelChangeUrl || !!pendingStart?.isLevelChange
-  const modeQuery = isRetest ? '?retest=1' : isLevelChange ? '?change=1' : ''
 
   useEffect(() => {
     if (!hydrated || leavingRef.current) return
@@ -107,23 +106,39 @@ export default function ProgramStart() {
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
       {!isLevelChange && !isRetest && <SetupStepper current="start" />}
       <PageHeader
-        title={isLevelChange ? pl.levelChangeReady : pl.programReady}
-        subtitle={pl.programReadySubtitle(
-          program === 'pushups'
-            ? pl.pushupsProgram
-            : program === 'pullups'
-              ? pl.pullupsProgram
-              : pl.squatsProgram,
-          pendingStart.cycleName,
-        )}
+        title={isLevelChange ? pl.levelChangeReady : pl.cycleAssigned}
+        subtitle={isLevelChange
+          ? pl.programReadySubtitle(
+              program === 'pushups'
+                ? pl.pushupsProgram
+                : program === 'pullups'
+                  ? pl.pullupsProgram
+                  : pl.squatsProgram,
+              pendingStart.cycleName,
+            )
+          : pl.cycleAssignedSubtitle
+        }
       />
 
       {isLevelChange && (
         <p className="mt-2 text-sm text-[var(--sr-text-secondary)]">{pl.levelChangeHint}</p>
       )}
 
+      {!isLevelChange && (
+        <p className="mt-3 text-sm font-medium text-[var(--sr-text-secondary)]">
+          {pl.programReadySubtitle(
+            program === 'pushups'
+              ? pl.pushupsProgram
+              : program === 'pullups'
+                ? pl.pullupsProgram
+                : pl.squatsProgram,
+            pendingStart.cycleName,
+          )}
+        </p>
+      )}
+
       <CycleDayRail
-        className="mt-2"
+        className="mt-4"
         totalDays={cycle?.days.length ?? 1}
         days={(cycle?.days ?? []).map((d) => ({
           dayNumber: d.dayNumber,
@@ -189,24 +204,12 @@ export default function ProgramStart() {
         className="mt-2"
         fullWidth
         onClick={() => {
-          const start = pendingStart
           leavingRef.current = true
-          if (isLevelChange) {
-            clearPendingStart()
-            navigate(`/setup/cycle/${program}?change=1`, { replace: true })
-            return
-          }
-          setPendingTest({
-            program: start.program,
-            reps: start.reps ?? 1,
-            cycleId: start.cycleId,
-            committedMaxTestId: start.committedMaxTestId,
-          })
           clearPendingStart()
-          navigate(`/setup/cycle/${program}${modeQuery}`, { replace: true })
+          navigate('/', { replace: true })
         }}
       >
-        {pl.backToPicker}
+        {pl.goToDashboard}
       </Button>
     </div>
   )

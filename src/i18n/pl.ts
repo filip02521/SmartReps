@@ -709,9 +709,12 @@ const plDict = {
 
   // Program start
   programReady: 'Gotowe!',
+  cycleAssigned: 'Cykl przypisany',
+  cycleAssignedSubtitle: 'Przydzieliliśmy odpowiedni poziom na podstawie Twojego testu. Rozpocznij trening teraz lub wróć później.',
   firstTraining: 'Twój pierwszy trening:',
   startDay1: 'Rozpocznij Dzień 1',
   backToPicker: 'Wróć do wyboru poziomu',
+  goToDashboard: 'Wróć na dashboard',
 
   // Summary
   dayComplete: (n: number) => `Dzień ${n} ukończony`,
