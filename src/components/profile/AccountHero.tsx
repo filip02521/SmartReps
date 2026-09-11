@@ -134,10 +134,11 @@ export function AccountHero({
     setRetrying(true)
     try {
       const cleared = await clearDeadLetterItems()
-      showToast(
-        cleared > 0 ? pl.toastSyncDone : pl.toastSyncFailed,
-        cleared > 0 ? 'success' : 'info',
-      )
+      if (cleared > 0) {
+        showToast(pl.toastSyncDone, 'success')
+      } else {
+        showToast(pl.toastSyncFailed, 'info')
+      }
       await refresh()
     } finally {
       setRetrying(false)

@@ -57,7 +57,6 @@ BEGIN
     p_created_at, p_updated_at
   )
   ON CONFLICT (id) DO UPDATE SET
-    user_id = EXCLUDED.user_id,
     name = EXCLUDED.name,
     primary_metric = EXCLUDED.primary_metric,
     rest_default_sec = EXCLUDED.rest_default_sec,
@@ -66,6 +65,8 @@ BEGIN
     source = EXCLUDED.source,
     duration_display_unit = EXCLUDED.duration_display_unit,
     updated_at = EXCLUDED.updated_at;
+  -- Note: user_id is intentionally NOT updated on conflict — changing the
+  -- owner of an existing exercise would be a data integrity violation.
 
   RETURN p_id;
 END;

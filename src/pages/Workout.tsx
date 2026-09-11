@@ -764,9 +764,6 @@ export default function WorkoutPage() {
         <div className="mt-6">
           <ErrorBanner message={pl.errorNoWorkoutData} onRetry={() => navigate('/', { replace: true })} />
         </div>
-        <Button variant="ghost" className="mt-4" fullWidth onClick={() => navigate('/', { replace: true })}>
-          {pl.backHome}
-        </Button>
       </div>
     )
   }

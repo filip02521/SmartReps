@@ -485,8 +485,12 @@ async function upsertSession(userId: string, row: LocalWorkoutSession) {
       .select('id, set_number, exercise_order')
       .eq('session_id', row.id)
     if (listError) throw listError
+    // Only delete orphans with exercise_order > 0 (custom exercise sets).
+    // exercise_order === 0 is the builtin set space, managed by the
+    // setResults block above — deleting them here would wipe builtin sets
+    // when a session has both setResults and exerciseLogs.
     const orphanIds = (remoteSets ?? [])
-      .filter((s) => !keepKeys.has(`${s.exercise_order ?? 0}:${s.set_number}`))
+      .filter((s) => (s.exercise_order ?? 0) > 0 && !keepKeys.has(`${s.exercise_order ?? 0}:${s.set_number}`))
       .map((s) => s.id)
     if (orphanIds.length > 0) {
       const { error: delError } = await supabase.from('set_results').delete().in('id', orphanIds)
@@ -713,7 +717,7 @@ export async function flushSyncQueue(): Promise<number> {
   const items = await db.syncQueue.orderBy('createdAt').toArray()
   const now = Date.now()
   for (const item of items) {
-    // Purge dead-letter items older than 7 days — they're permanently failed
+    // Purge dead-letter items older than 3 days — they're permanently failed
     // (e.g. referenced a deleted remote row, schema mismatch, etc.)
     if ((item.attempts ?? 0) >= MAX_ATTEMPTS) {
       const age = now - new Date(item.createdAt).getTime()
@@ -1016,11 +1020,17 @@ async function mergeActiveRemote(userId: string, remote: RemoteActiveRow) {
   if (await hasPendingActiveWorkoutDelete(program)) return
 
   // Do not resurrect active for a session that is already finished/cancelled
-  // locally, OR that no longer exists (deleted via tombstone, or abandoned —
-  // abandoned sessions are not pulled so session will be null). A missing
-  // session means it's not in progress on this device.
+  // locally. BUT: only delete the remote active workout if the local session
+  // EXISTS and is NOT in_progress. If the local session doesn't exist (e.g.
+  // session pull failed, new device), do NOT delete the remote — it could
+  // be a valid in-progress workout from another device. The push phase or
+  // a future successful session pull will handle cleanup.
   const session = await db.workoutSessions.get(remote.session_id)
-  if (!session || session.status !== 'in_progress') {
+  if (!session) {
+    // Session not pulled yet — skip merge, don't destroy remote state.
+    return
+  }
+  if (session.status !== 'in_progress') {
     // But don't delete a local active workout that was just created here and
     // not yet pushed — check for a pending update first.
     if (await hasPendingActiveWorkoutUpdate(program)) return
@@ -1029,7 +1039,7 @@ async function mergeActiveRemote(userId: string, remote: RemoteActiveRow) {
   }
 
   const remoteSets = remote.set_results_json ?? []
-  const sessionSets = session?.setResults.length ?? 0
+  const sessionSets = session.setResults.length
   if (remoteSets.length === 0 && sessionSets === 0) {
     await deleteActiveWorkoutRemote(userId, program)
     return
@@ -1096,22 +1106,38 @@ async function mergeBodyWeightRemote(remote: RemoteBodyWeightRow) {
   // Skip if tombstoned (deleted on this device)
   if (await db.bodyWeightTombstones.get(remote.id)) return
 
+  // First try to match by ID — the primary key. This is the correct match.
+  const byId = await db.bodyWeight.get(remote.id)
+  if (byId) {
+    const remoteNote = remote.note ?? undefined
+    if (byId.weightKg !== remote.weight_kg || byId.note !== remoteNote) {
+      await db.bodyWeight.update(remote.id, {
+        weightKg: remote.weight_kg,
+        note: remoteNote,
+      })
+    }
+    return
+  }
+
+  // Fallback: match by timestamp (for entries created before ID-based sync).
   // Normalize both sides to epoch ms — Postgres returns "2026-09-03 16:52:29.877+00"
   // while local stores ISO "2026-09-03T16:52:29.877Z". String comparison fails.
   const remoteMs = new Date(remote.measured_at).getTime()
   const all = await db.bodyWeight.toArray()
-  const existing = all.find((e) => new Date(e.measuredAt).getTime() === remoteMs)
+  const existingByTs = all.find((e) => new Date(e.measuredAt).getTime() === remoteMs)
 
-  if (existing) {
-    // Update if remote has different data (edited on another device).
-    // Without updatedAt, we can't do LWW — but updating with remote data
-    // is safe because the remote is the source of truth for edits made
-    // on other devices. Only update if values actually differ to avoid
-    // unnecessary Dexie writes.
+  if (existingByTs) {
+    // The local entry has a different ID than the remote. If we keep the
+    // local ID, the push phase will create a duplicate cloud row (upsert
+    // by user_id,id). Replace the local entry with the remote one to keep
+    // IDs consistent across devices.
     const remoteNote = remote.note ?? undefined
-    if (existing.weightKg !== remote.weight_kg || existing.note !== remoteNote) {
-      await db.bodyWeight.update(existing.id, {
+    if (existingByTs.weightKg !== remote.weight_kg || existingByTs.note !== remoteNote || existingByTs.id !== remote.id) {
+      await db.bodyWeight.delete(existingByTs.id)
+      await db.bodyWeight.add({
+        id: remote.id,
         weightKg: remote.weight_kg,
+        measuredAt: new Date(remoteMs).toISOString(),
         note: remoteNote,
       })
     }

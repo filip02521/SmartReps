@@ -50,7 +50,7 @@ export class RouteErrorBoundary extends Component<Props, State> {
   }
 
   handleHome = () => {
-    window.location.href = '/'
+    window.location.replace('/')
   }
 
   render() {

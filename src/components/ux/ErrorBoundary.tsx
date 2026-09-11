@@ -50,7 +50,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 type="button"
                 variant="ghost"
                 fullWidth
-                onClick={() => { window.location.href = '/' }}
+                onClick={() => { window.location.replace('/') }}
               >
                 {pl.backHome}
               </Button>
