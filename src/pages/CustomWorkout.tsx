@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import { trackError } from '@/lib/analytics'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -133,6 +134,7 @@ export default function CustomWorkoutPage() {
   const [loadErrorKind, setLoadErrorKind] = useState<CustomLoadErrorKind | null>(null)
   const [loadErrorDayNumber, setLoadErrorDayNumber] = useState<number | null>(null)
   const [missingExerciseId, setMissingExerciseId] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
   const [replaceOpen, setReplaceOpen] = useState(false)
   const [swapOpen, setSwapOpen] = useState(false)
   const [swapConfirm, setSwapConfirm] = useState<ExerciseDefinition | null>(null)
@@ -1595,35 +1597,62 @@ export default function CustomWorkoutPage() {
           : pl.customWorkoutProblemTitle
     const errorDesc =
       loadErrorKind === 'missing_exercise' ? pl.customWorkoutMissingExerciseDesc : loadError
+    const handleSyncAndRetry = async () => {
+      setSyncing(true)
+      try {
+        const { runAuthenticatedSync } = await import('@/lib/auth-sync')
+        await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
+        setLoadError(null)
+        setLoadErrorKind(null)
+        setMissingExerciseId(null)
+        setLoading(true)
+        const generation = ++initGenerationRef.current
+        await initWorkout(generation)
+      } catch {
+        // Toast already shown by runAuthenticatedSync
+      } finally {
+        setSyncing(false)
+      }
+    }
     return (
       <>
         <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
-          <PageHeader title={errorTitle} subtitle={errorDesc} />
-          <div className="mt-6 flex w-full flex-col gap-2">
+          <div role="alert" aria-live="assertive" className="mb-6">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sr-warning-muted)]">
+              <AlertTriangle size={28} className="text-[var(--sr-warning)]" aria-hidden />
+            </div>
+            <h1 className="sr-text-h1">{errorTitle}</h1>
+            <p className="mt-1 break-words sr-text-body-sm text-[var(--sr-text-secondary)]">{errorDesc}</p>
+          </div>
+          <div className="flex w-full flex-col gap-3">
             {loadErrorKind === 'missing_exercise' && (
-              <Button
-                type="button"
-                size="touch"
-                fullWidth
-                onClick={async () => {
-                  const { runAuthenticatedSync } = await import('@/lib/auth-sync')
-                  await runAuthenticatedSync({ showSuccessToast: true, showFailureToast: true })
-                  setLoadError(null)
-                  setLoadErrorKind(null)
-                  setMissingExerciseId(null)
-                  setLoading(true)
-                  const generation = ++initGenerationRef.current
-                  await initWorkout(generation)
-                }}
-              >
-                {pl.customWorkoutSyncAndRetry}
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  size="touch"
+                  fullWidth
+                  disabled={syncing}
+                  onClick={() => void handleSyncAndRetry()}
+                >
+                  {syncing ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" aria-hidden />
+                      {pl.syncInProgress}
+                    </>
+                  ) : (
+                    pl.customWorkoutSyncAndRetry
+                  )}
+                </Button>
+                <p className="text-xs text-[var(--sr-text-muted)]">{pl.customWorkoutSyncAndRetryHint}</p>
+              </>
             )}
             {planId && loadErrorDayNumber != null && (
               <Button
                 type="button"
                 variant="secondary"
+                size="touch"
                 fullWidth
+                disabled={syncing}
                 onClick={() =>
                   navigate(
                     `/plans?tab=mine&edit=${planId}&day=${loadErrorDayNumber}`,
@@ -1638,7 +1667,9 @@ export default function CustomWorkoutPage() {
                 <Button
                   type="button"
                   variant="secondary"
+                  size="touch"
                   fullWidth
+                  disabled={syncing}
                   onClick={() => setReplaceOpen(true)}
                 >
                   {pl.customWorkoutReplaceExercise}
@@ -1654,6 +1685,7 @@ export default function CustomWorkoutPage() {
                   type="button"
                   variant="ghost"
                   fullWidth
+                  disabled={syncing}
                   onClick={() => void handleSkipMissingExercise()}
                 >
                   {pl.customWorkoutSkipExercise}
@@ -1661,7 +1693,7 @@ export default function CustomWorkoutPage() {
                 <p className="text-xs text-[var(--sr-text-muted)]">{pl.customWorkoutSkipExerciseHint}</p>
               </>
             )}
-            <Button type="button" variant="ghost" fullWidth onClick={() => navigate('/plans?tab=mine')}>
+            <Button type="button" variant="ghost" fullWidth disabled={syncing} onClick={() => navigate('/plans?tab=mine')}>
               {pl.myPlansTitle}
             </Button>
           </div>
