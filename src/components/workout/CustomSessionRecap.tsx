@@ -10,6 +10,7 @@ import type {
   PrimaryMetric,
   SetPrescription,
 } from '@/lib/exercise-model'
+import { isVolumeProgress } from '@/lib/exercise-model'
 import {
   formatPrescriptionTarget,
   formatSetActualDisplay,
@@ -227,7 +228,9 @@ export function CustomSessionRecap({ current, previous, exerciseMap, insights, w
                         className={`py-2 text-base font-semibold tabular-nums ${
                           set.passed
                             ? 'text-[var(--sr-text-primary)]'
-                            : 'text-[var(--sr-error)]'
+                            : isVolumeProgress(set.prescription, set.actual, metric)
+                              ? 'text-[var(--sr-warning)]'
+                              : 'text-[var(--sr-error)]'
                         }`}
                       >
                         <span

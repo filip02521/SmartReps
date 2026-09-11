@@ -1,4 +1,4 @@
-import { ArrowLeft, BarChart2, ListOrdered, Minus, MoreVertical, Plus, Repeat } from 'lucide-react'
+import { ArrowLeft, BarChart2, ListOrdered, Minus, MoreVertical, Plus, Repeat, TrendingUp } from 'lucide-react'
 import { useEffect, useState, type RefObject, ReactNode } from 'react'
 import { Check, ChevronDown, ChevronRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -389,7 +389,7 @@ function WorkoutMetricColumn({
 
 function SetStatusIcon({ state }: { state: 'pending' | 'active' | 'done' | 'partial' | 'failed' }) {
   if (state === 'done') return <Check size={16} className="animate-check-in text-[var(--sr-success)]" />
-  if (state === 'partial') return <Repeat size={14} className="text-[var(--sr-warning)]" />
+  if (state === 'partial') return <TrendingUp size={14} className="text-[var(--sr-warning)]" />
   if (state === 'failed') return <X size={16} className="text-[var(--sr-error)]" />
   if (state === 'active') return <ChevronRight size={16} className="text-[var(--sr-brand-primary)]" />
   return <span className="inline-block h-4 w-4" />

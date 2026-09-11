@@ -413,8 +413,8 @@ export function ExerciseDetailSheet({
                             </p>
                           </div>
                         </div>
-                        <Badge variant={set.passed ? 'success' : 'error'}>
-                          {set.passed ? pl.passedShort : pl.failedShort}
+                        <Badge variant={set.passed ? 'success' : set.volumeProgress ? 'warning' : 'error'}>
+                          {set.passed ? pl.passedShort : set.volumeProgress ? pl.customWorkoutSetVolumeProgress : pl.failedShort}
                         </Badge>
                       </li>
                     ))}

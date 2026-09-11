@@ -3,6 +3,7 @@ import { dateFnsLocale } from '@/lib/date-locale'
 import { db } from '@/lib/db'
 import type { LocalMaxTest, LocalWorkoutSession } from '@/lib/db'
 import type { ExerciseDefinition, ExerciseLog, PrimaryMetric, SetLog } from '@/lib/exercise-model'
+import { isVolumeProgress } from '@/lib/exercise-model'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import {
   builtinProgramLabel,
@@ -37,6 +38,7 @@ export type ExerciseLastSetRow = {
   actualLabel: string
   targetLabel: string
   passed: boolean
+  volumeProgress: boolean
 }
 
 export type ExerciseTrend = 'up' | 'down' | 'flat' | null
@@ -461,6 +463,7 @@ export async function computeExerciseDetailStats(
           actualLabel: formatSetActualDisplay(set.actual, metric, weightUnit, exercise.durationDisplayUnit ?? 'min'),
           targetLabel: formatPrescriptionTarget(set.prescription, metric, weightUnit, exercise.durationDisplayUnit ?? 'min'),
           passed: set.passed,
+          volumeProgress: isVolumeProgress(set.prescription, set.actual, metric),
         }))
     }
   }

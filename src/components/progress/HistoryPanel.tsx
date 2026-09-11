@@ -33,6 +33,7 @@ import { useAppStore } from '@/stores/app-store'
 import { deleteWorkoutSession } from '@/lib/session-service'
 import { db } from '@/lib/db'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
+import { isVolumeProgress } from '@/lib/exercise-model'
 import type { Program } from '@/data/plans/types'
 import type { LocalWorkoutSession } from '@/lib/db'
 import type { NavigateFunction } from 'react-router-dom'
@@ -513,11 +514,13 @@ export function HistoryPanel({
                                 'font-semibold tabular-nums',
                                 set.passed
                                   ? 'text-[var(--sr-text-primary)]'
-                                  : 'text-[var(--sr-error)]',
+                                  : isVolumeProgress(set.prescription, set.actual, metric)
+                                    ? 'text-[var(--sr-warning)]'
+                                    : 'text-[var(--sr-error)]',
                               )}
                             >
                               {formatExerciseSetSummary(metric, set, weightUnit, def?.durationDisplayUnit ?? 'min')}
-                              {!set.passed && ` · ${pl.failedShort}`}
+                              {!set.passed && !isVolumeProgress(set.prescription, set.actual, metric) && ` · ${pl.failedShort}`}
                             </span>
                           </li>
                         ))}
