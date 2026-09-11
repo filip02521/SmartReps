@@ -529,6 +529,22 @@ export async function pullCustomEntities(userId: string): Promise<number> {
       .select('*')
       .eq('user_id', userId)
     if (exErr) throw exErr
+
+    // Clean up stale tombstones BEFORE pulling: if a tombstoned exercise ID
+    // still exists in the cloud (user_exercises), the tombstone is stale —
+    // the exercise was resurrected or the tombstone was created in error
+    // (e.g. by dedup during migration 068). Remove the tombstone so the
+    // exercise can be pulled in the loop below.
+    {
+      const remoteExerciseIds = new Set((exercises ?? []).map((r) => (r as RemoteExercise).id))
+      const localTombstones = await db.exerciseTombstones.toArray()
+      for (const t of localTombstones) {
+        if (remoteExerciseIds.has(t.exerciseId)) {
+          await db.exerciseTombstones.delete(t.exerciseId)
+        }
+      }
+    }
+
     for (const row of (exercises ?? []) as RemoteExercise[]) {
       const mapped = mapExercise(row)
       // Skip if tombstoned (deleted on this or another device)
