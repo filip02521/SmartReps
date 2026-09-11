@@ -931,6 +931,8 @@ const plDict = {
   customWorkoutSetsCount: (n: number) => `${n}`,
   customWorkoutSetsAdjustHint: 'Tylko ten trening — zapis w planie na końcu.',
   customWorkoutSetExtraBadge: 'dodana',
+  customWorkoutSetVolumeProgress: 'Progres objętości',
+  customWorkoutSetVolumeProgressHint: 'Mniej powtórzeń, ale większy ciężar — objętość powyżej celu.',
   customWorkoutAddSetHint: 'Tylko na ten trening — na końcu zdecydujesz, czy zapisać w planie.',
   customWorkoutRestAdjustLabel: 'Przerwa między seriami',
   customSummaryUpdatePlanTitle: 'Zaktualizować plan?',

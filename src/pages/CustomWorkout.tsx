@@ -12,7 +12,7 @@ import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { pl } from '@/i18n/pl'
 import { db } from '@/lib/db'
 import type { CustomPlan, ExerciseDefinition, SetActual, SetLog } from '@/lib/exercise-model'
-import { validateSetLog } from '@/lib/exercise-model'
+import { validateSetLog, isVolumeProgress } from '@/lib/exercise-model'
 import { suggestSubstitutes } from '@/lib/exercise-substitution'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import {
@@ -1129,9 +1129,17 @@ export default function CustomWorkoutPage() {
 
     try {
       if (!passed) {
-        // Custom workouts: accept below-target set and continue immediately —
-        // no retry prompt, just start the rest timer and move on.
-        onSetFailedFeedback({ sound: timerSound, vibration: timerVibration })
+        // Volume progress: reps below target but weight up enough that
+        // volume (reps × weight) >= target volume. Treat as a positive
+        // completion — use the success feedback, not the failure sound.
+        const volumeProgress = isVolumeProgress(prescription, actual, exDef.primaryMetric)
+        if (volumeProgress) {
+          onSetCompleteFeedback({ sound: timerSound, vibration: timerVibration })
+        } else {
+          // Custom workouts: accept below-target set and continue immediately —
+          // no retry prompt, just start the rest timer and move on.
+          onSetFailedFeedback({ sound: timerSound, vibration: timerVibration })
+        }
         await acceptSetAndContinue(result)
         return
       }

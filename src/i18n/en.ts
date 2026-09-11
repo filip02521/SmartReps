@@ -910,6 +910,8 @@ export const en: Translation = {
   customWorkoutSetsCount: (n: number) => `${n}`,
   customWorkoutSetsAdjustHint: 'This workout only — plan save at the end.',
   customWorkoutSetExtraBadge: 'added',
+  customWorkoutSetVolumeProgress: 'Volume progress',
+  customWorkoutSetVolumeProgressHint: 'Fewer reps but heavier weight — volume above target.',
   customWorkoutAddSetHint: 'This workout only — you\'ll decide whether to save to the plan at the end.',
   customWorkoutRestAdjustLabel: 'Rest between sets',
   customSummaryUpdatePlanTitle: 'Update plan?',

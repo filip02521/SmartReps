@@ -359,6 +359,47 @@ export function validateSetLog(
   return true
 }
 
+/** Extract the numeric target value from a MetricTarget (for volume calculations). */
+function metricTargetValue(target: MetricTarget): number {
+  switch (target.kind) {
+    case 'fixed':
+    case 'min':
+    case 'exact':
+      return target.value
+    case 'max':
+      return target.minValue
+  }
+}
+
+/**
+ * For reps_weight exercises: check if a below-target set still represents
+ * progress via volume (reps × weight). Returns true when:
+ * - The set did NOT pass (reps below target)
+ * - But the actual volume (reps × weight) >= target volume (targetReps × targetWeight)
+ *
+ * Example: target 10 reps @ 20kg (volume 200), actual 8 reps @ 30kg (volume 240).
+ * 240 >= 200 → volume progress → should be marked amber, not red.
+ *
+ * Only applies when the prescription specifies BOTH reps and weight targets.
+ * Bodyweight reps_weight (no prescription weight) falls back to pure reps.
+ */
+export function isVolumeProgress(
+  prescription: SetPrescription,
+  actual: SetActual,
+  metric: PrimaryMetric,
+): boolean {
+  if (metric !== 'reps_weight') return false
+  if (prescription.reps == null || prescription.weightKg == null) return false
+  if (actual.reps == null || actual.weightKg == null) return false
+  // Only relevant when reps are below target (otherwise it's a normal pass)
+  if (metricTargetMet(prescription.reps, actual.reps)) return false
+  const targetReps = metricTargetValue(prescription.reps)
+  const targetWeight = metricTargetValue(prescription.weightKg)
+  const targetVolume = targetReps * targetWeight
+  const actualVolume = actual.reps * actual.weightKg
+  return actualVolume >= targetVolume && actual.weightKg > targetWeight
+}
+
 export function setTargetToMetricTarget(target: SetTarget): MetricTarget {
   switch (target.kind) {
     case 'fixed':

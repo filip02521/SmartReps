@@ -28,6 +28,7 @@ import type {
   SetLog,
   SetPrescription,
 } from '@/lib/exercise-model'
+import { isVolumeProgress } from '@/lib/exercise-model'
 import {
   canJumpToExercise,
   countPassedSets,
@@ -386,8 +387,9 @@ function WorkoutMetricColumn({
   )
 }
 
-function SetStatusIcon({ state }: { state: 'pending' | 'active' | 'done' | 'failed' }) {
+function SetStatusIcon({ state }: { state: 'pending' | 'active' | 'done' | 'partial' | 'failed' }) {
   if (state === 'done') return <Check size={16} className="animate-check-in text-[var(--sr-success)]" />
+  if (state === 'partial') return <Repeat size={14} className="text-[var(--sr-warning)]" />
   if (state === 'failed') return <X size={16} className="text-[var(--sr-error)]" />
   if (state === 'active') return <ChevronRight size={16} className="text-[var(--sr-brand-primary)]" />
   return <span className="inline-block h-4 w-4" />
@@ -409,7 +411,7 @@ function CustomSetRow({
   setNumber: number
   prescription: SetPrescription
   metric: PrimaryMetric
-  state: 'pending' | 'active' | 'done' | 'failed'
+  state: 'pending' | 'active' | 'done' | 'partial' | 'failed'
   result?: SetLog
   /** Previous session's result for this set — for delta indicator. */
   previousResult?: { reps?: number; durationSec?: number; weightKg?: number }
@@ -426,7 +428,7 @@ function CustomSetRow({
 
   // Delta vs previous session — only for completed sets with same metric
   const showDelta =
-    state === 'done' &&
+    (state === 'done' || state === 'partial') &&
     result != null &&
     previousResult != null
   const rawDelta = showDelta ? computeCustomDelta(result.actual, previousResult, metric) : 0
@@ -435,6 +437,17 @@ function CustomSetRow({
     rawDelta != null && metric === 'duration_sec' && durationUnit === 'min'
       ? secToDisplay(rawDelta, 'min')
       : rawDelta
+
+  const completedLabel =
+    state === 'done' && actualLabel != null
+      ? editable
+        ? `${actualLabel} / ${targetLabel} · ${pl.editShort}`
+        : `${actualLabel} / ${targetLabel}`
+      : state === 'partial' && actualLabel != null
+        ? `${actualLabel} / ${targetLabel}`
+        : state === 'failed' && actualLabel != null
+          ? `${actualLabel} / ${targetLabel}`
+          : targetLabel
 
   return (
     <button
@@ -454,6 +467,7 @@ function CustomSetRow({
         state === 'active' &&
           'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] ring-2 ring-inset ring-[var(--sr-brand-primary)]/30',
         state === 'done' && 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
+        state === 'partial' && 'border-[var(--sr-warning)]/40 bg-[var(--sr-warning-muted)]',
         state === 'failed' && 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]',
         state === 'pending' && 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] hover:border-[var(--sr-border-strong)]',
         editable && 'ring-1 ring-[var(--sr-brand-primary)]/40',
@@ -463,6 +477,7 @@ function CustomSetRow({
         className={cn(
           'flex min-w-0 items-center gap-2 font-medium',
           state === 'done' && 'text-[var(--sr-success)]',
+          state === 'partial' && 'text-[var(--sr-warning)]',
           state === 'failed' && 'text-[var(--sr-error)]',
           state === 'pending' && 'text-[var(--sr-text-secondary)]',
           state === 'active' && 'text-[var(--sr-text-primary)]',
@@ -483,18 +498,13 @@ function CustomSetRow({
           className={cn(
             'shrink-0 tabular-nums text-base font-semibold',
             state === 'done' && 'text-[var(--sr-text-primary)]',
+            state === 'partial' && 'text-[var(--sr-warning)]',
             state === 'failed' && 'text-[var(--sr-error)]',
             state === 'pending' && 'text-[var(--sr-text-primary)]',
             state === 'active' && 'text-[var(--sr-text-primary)]',
           )}
         >
-          {state === 'done' && actualLabel != null
-            ? editable
-              ? `${actualLabel} / ${targetLabel} · ${pl.editShort}`
-              : `${actualLabel} / ${targetLabel}`
-            : state === 'failed' && actualLabel != null
-              ? `${actualLabel} / ${targetLabel}`
-              : targetLabel}
+          {completedLabel}
         </span>
         {showDelta && delta !== null && (
           <span
@@ -565,16 +575,20 @@ function CustomSetChecklist({
       {sets.map((prescription, i) => {
         const setNumber = i + 1
         const result = results.find((r) => r.setNumber === setNumber)
-        let state: 'pending' | 'active' | 'done' | 'failed' = 'pending'
+        let state: 'pending' | 'active' | 'done' | 'partial' | 'failed' = 'pending'
         if (result?.passed) state = 'done'
-        else if (result && !result.passed) state = 'failed'
+        else if (result && !result.passed) {
+          // Check if this is volume progress (below reps target but weight up enough
+          // that volume >= target volume) — mark amber instead of red.
+          state = isVolumeProgress(prescription, result.actual, metric) ? 'partial' : 'failed'
+        }
         else if (failedIndex === i) state = 'failed'
         else if (i === currentIndex) state = 'active'
         const editable =
           Boolean(onEditLastSet) &&
           result != null &&
           setNumber === lastLoggedSetNumber &&
-          (state === 'done' || state === 'failed')
+          (state === 'done' || state === 'partial' || state === 'failed')
         return (
           <CustomSetRow
             key={setNumber}

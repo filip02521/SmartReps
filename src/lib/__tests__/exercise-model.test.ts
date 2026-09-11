@@ -3,6 +3,7 @@ import {
   validateCustomPlan,
   validateExerciseDefinition,
   validateSetLog,
+  isVolumeProgress,
   type CustomPlan,
   type ExerciseDefinition,
 } from '@/lib/exercise-model'
@@ -70,6 +71,83 @@ describe('exercise-model', () => {
         'reps_weight',
       ),
     ).toBe(true)
+  })
+
+  describe('isVolumeProgress', () => {
+    it('returns true when reps below target but volume >= target volume', () => {
+      // Target: 10 reps @ 20kg (volume 200), actual: 8 reps @ 30kg (volume 240)
+      expect(
+        isVolumeProgress(
+          { reps: { kind: 'fixed', value: 10 }, weightKg: { kind: 'fixed', value: 20 } },
+          { reps: 8, weightKg: 30 },
+          'reps_weight',
+        ),
+      ).toBe(true)
+    })
+
+    it('returns false when reps below target and volume below target', () => {
+      // Target: 10 reps @ 20kg (volume 200), actual: 5 reps @ 30kg (volume 150)
+      expect(
+        isVolumeProgress(
+          { reps: { kind: 'fixed', value: 10 }, weightKg: { kind: 'fixed', value: 20 } },
+          { reps: 5, weightKg: 30 },
+          'reps_weight',
+        ),
+      ).toBe(false)
+    })
+
+    it('returns false when reps meet target (normal pass)', () => {
+      expect(
+        isVolumeProgress(
+          { reps: { kind: 'fixed', value: 10 }, weightKg: { kind: 'fixed', value: 20 } },
+          { reps: 10, weightKg: 20 },
+          'reps_weight',
+        ),
+      ).toBe(false)
+    })
+
+    it('returns false when weight did not increase above target', () => {
+      // Target: 10 reps @ 20kg (volume 200), actual: 11 reps @ 20kg (volume 220)
+      // Volume >= target but weight same — this is a normal pass (reps met) or
+      // if reps below: not volume progress because weight didn't go up.
+      expect(
+        isVolumeProgress(
+          { reps: { kind: 'fixed', value: 12 }, weightKg: { kind: 'fixed', value: 20 } },
+          { reps: 11, weightKg: 20 },
+          'reps_weight',
+        ),
+      ).toBe(false)
+    })
+
+    it('returns false for non-reps_weight metrics', () => {
+      expect(
+        isVolumeProgress(
+          { reps: { kind: 'fixed', value: 10 } },
+          { reps: 8 },
+          'reps',
+        ),
+      ).toBe(false)
+    })
+
+    it('returns false when prescription has no weight target', () => {
+      expect(
+        isVolumeProgress(
+          { reps: { kind: 'fixed', value: 10 } },
+          { reps: 8, weightKg: 30 },
+          'reps_weight',
+        ),
+      ).toBe(false)
+    })
+
+    it('returns false when actual weight is missing', () => {
+      expect(
+        isVolumeProgress(
+          { reps: { kind: 'fixed', value: 10 }, weightKg: { kind: 'fixed', value: 20 } },
+          { reps: 8 },
+          'reps_weight',
+        ),
+      ).toBe(false)
+    })
   })
 
   it('validates custom plan with known exercises', () => {
