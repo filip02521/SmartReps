@@ -184,7 +184,7 @@ test.describe('SmartReps routing critical paths', () => {
     for (let i = 0; i < 12; i += 1) {
       await page.getByRole('button', { name: 'Więcej' }).click()
     }
-    await page.getByRole('button', { name: 'Dalej — wybierz cykl' }).click()
+    await page.getByRole('button', { name: /Dalej — cykl/ }).click()
 
     await expect(page).toHaveURL(/\/setup\/cycle\/pushups/)
     await page.getByRole('button', { name: /Wybierz ten poziom/ }).click()
@@ -251,7 +251,7 @@ test.describe('SmartReps routing critical paths', () => {
     for (let i = 0; i < 8; i += 1) {
       await page.getByRole('button', { name: 'Więcej' }).click()
     }
-    await page.getByRole('button', { name: 'Dalej — wybierz cykl' }).click()
+    await page.getByRole('button', { name: /Dalej — cykl/ }).click()
 
     await expect(page).toHaveURL(/\/setup\/cycle\/pushups/)
     await page.getByRole('button', { name: /Wybierz ten poziom/ }).first().click()
