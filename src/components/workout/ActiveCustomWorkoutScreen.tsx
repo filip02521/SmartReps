@@ -31,7 +31,7 @@ import type {
 import { isVolumeProgress } from '@/lib/exercise-model'
 import {
   canJumpToExercise,
-  countPassedSets,
+  countLoggedSets,
   getChecklistSlots,
   getExerciseTargetSetCount,
   isExerciseDoneForDisplay,
@@ -702,7 +702,7 @@ function CustomDayExerciseRail({
           const def = exerciseDefs.get(pe.exerciseId)
           const name = def?.name ?? pl.planEllipsis
           const log = exerciseLogs[i]
-          const passedSets = countPassedSets(log)
+          const loggedSets = countLoggedSets(log)
           const totalSets = getExerciseTargetSetCount(planDay, i)
           const done = isExerciseDoneForDisplay(planDay, i, exerciseLogs, currentExerciseIndex)
           const active = i === currentExerciseIndex
@@ -717,7 +717,7 @@ function CustomDayExerciseRail({
           const Tag = interactive ? 'button' : 'div'
           const setsLabel = done
             ? pl.planSetsShort(totalSets)
-            : pl.customWorkoutExerciseDone(passedSets, totalSets)
+            : pl.customWorkoutExerciseDone(loggedSets, totalSets)
 
           return (
             <Tag
@@ -828,7 +828,7 @@ function CustomDayPlanSheet({
           const metric = def?.primaryMetric ?? 'reps'
           const active = i === currentExerciseIndex
           const log = exerciseLogs[i]
-          const doneSets = countPassedSets(log)
+          const doneSets = countLoggedSets(log)
           const totalSets = getExerciseTargetSetCount(planDay, i)
           const done = isExerciseDoneForDisplay(planDay, i, exerciseLogs, currentExerciseIndex)
           const canJump = Boolean(
@@ -888,6 +888,7 @@ function CustomDayPlanSheet({
                 {slots.map((s, si) => {
                   const setLog = log?.sets.find((r) => r.setNumber === si + 1)
                   const doneSet = setLog?.passed === true
+                  const volProgress = setLog != null && !setLog.passed && isVolumeProgress(setLog.prescription, setLog.actual, metric)
                   return (
                     <span
                       key={si}
@@ -895,14 +896,18 @@ function CustomDayPlanSheet({
                         'rounded-[var(--sr-radius-full)] px-2.5 py-1 text-xs font-semibold tabular-nums',
                         doneSet
                           ? 'bg-[var(--sr-success-muted)] text-[var(--sr-success)]'
-                          : active && si === doneSets
-                            ? 'bg-[var(--sr-brand-primary-muted)] text-[var(--sr-text-primary)] ring-1 ring-[var(--sr-brand-primary)]'
-                            : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-primary)]',
+                          : volProgress
+                            ? 'bg-[var(--sr-warning-muted)] text-[var(--sr-warning)]'
+                            : active && si === doneSets
+                              ? 'bg-[var(--sr-brand-primary-muted)] text-[var(--sr-text-primary)] ring-1 ring-[var(--sr-brand-primary)]'
+                              : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-primary)]',
                       )}
                     >
                       {doneSet && setLog
                         ? formatSetActualDisplay(setLog.actual, metric, 'kg', def?.durationDisplayUnit ?? 'min')
-                        : formatPrescriptionTarget(s, metric, 'kg', def?.durationDisplayUnit ?? 'min')}
+                        : volProgress && setLog
+                          ? formatSetActualDisplay(setLog.actual, metric, 'kg', def?.durationDisplayUnit ?? 'min')
+                          : formatPrescriptionTarget(s, metric, 'kg', def?.durationDisplayUnit ?? 'min')}
                     </span>
                   )
                 })}
