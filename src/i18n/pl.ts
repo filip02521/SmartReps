@@ -1445,6 +1445,7 @@ const plDict = {
   syncRetryDead: 'Ponów synchronizację',
   syncClearDead: 'Wyczyść nieudane',
   syncClearDeadConfirm: 'Te elementy nie udało się zsynchronizować po wielokrotnych próbach. Wyczyść je, aby zacząć od nowa.',
+  syncErrorDetails: 'Szczegóły błędów synchronizacji',
   syncStatusLocalOnly: 'Tylko na tym urządzeniu',
   syncStatusLoggedIn: 'Połączono z chmurą',
   syncStatusLoggedOutLocally: 'Wylogowano — dane zostają lokalnie',

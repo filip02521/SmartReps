@@ -197,6 +197,10 @@ export function AccountHero({
         </div>
       )}
 
+      {snapshot.recentErrors.length > 0 && snapshot.accountState === 'sync_error' && (
+        <SyncErrorDiagnostics errors={snapshot.recentErrors} />
+      )}
+
       {/* FAQ — styled collapsible (not native <details>) */}
       <FaqCollapsible />
 
@@ -229,6 +233,48 @@ export function AccountHero({
             {pl.logout}
           </Button>
         )}
+      </div>
+    </div>
+  )
+}
+
+/** Sync error diagnostics — shows recent sync failures with section + message. */
+function SyncErrorDiagnostics({ errors }: { errors: import('@/lib/analytics').SyncErrorEntry[] }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="overflow-hidden rounded-[var(--sr-radius-md)] border border-[var(--sr-error)]/30 bg-[var(--sr-error)]/5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-sm font-medium text-[var(--sr-text-primary)] transition-colors hover:bg-[var(--sr-bg-elevated)]"
+      >
+        {pl.syncErrorDetails}
+        <ChevronDown
+          size={18}
+          className={cn(
+            'shrink-0 text-[var(--sr-text-muted)] transition-transform duration-200',
+            open && 'rotate-180',
+          )}
+          aria-hidden
+        />
+      </button>
+      <div
+        className={cn(
+          'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out',
+          open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+        )}
+      >
+        <div className="overflow-hidden">
+          <ul className="flex flex-col gap-1.5 border-t border-[var(--sr-border-subtle)] px-3 py-3 text-xs leading-relaxed text-[var(--sr-text-secondary)]">
+            {errors.slice(-5).reverse().map((err, i) => (
+              <li key={i} className="flex flex-col gap-0.5">
+                <span className="font-medium text-[var(--sr-text-primary)]">{err.section}</span>
+                <span className="break-words text-[var(--sr-text-muted)]">{err.message}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </div>
   )

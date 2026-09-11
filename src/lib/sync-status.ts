@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js'
 import { hasSignedOutPreference } from '@/lib/auth-prefs'
 import { db } from '@/lib/db'
 import { getDeadLetterCount, type SyncFailureReason } from '@/lib/sync'
+import { getRecentSyncErrors, type SyncErrorEntry } from '@/lib/analytics'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { useAppStore } from '@/stores/app-store'
 
@@ -21,6 +22,7 @@ export type SyncStatusSnapshot = {
   online: boolean
   email: string | null
   lastSyncFailureReason: SyncFailureReason | null
+  recentErrors: SyncErrorEntry[]
 }
 
 const DEAD_LETTER_ATTEMPTS = 5
@@ -90,5 +92,6 @@ export async function getSyncStatusSnapshot(opts?: {
     online: opts?.online ?? (typeof navigator !== 'undefined' ? navigator.onLine : true),
     email,
     lastSyncFailureReason: lastSyncFailureReason as SyncFailureReason | null,
+    recentErrors: getRecentSyncErrors(),
   }
 }

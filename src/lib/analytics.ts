@@ -194,6 +194,26 @@ export function trackSyncSection(section: string, status: 'start' | 'complete', 
   }
 }
 
+/** In-memory log of recent sync errors — surfaced in the Profile diagnostics panel
+ *  so the user (and support) can see exactly which section failed and why,
+ *  without needing DevTools or Sentry. Capped at 20 entries; oldest dropped. */
+export type SyncErrorEntry = {
+  section: string
+  message: string
+  timestamp: string
+}
+
+const MAX_SYNC_ERROR_ENTRIES = 20
+const recentSyncErrors: SyncErrorEntry[] = []
+
+export function getRecentSyncErrors(): SyncErrorEntry[] {
+  return [...recentSyncErrors]
+}
+
+export function clearRecentSyncErrors(): void {
+  recentSyncErrors.length = 0
+}
+
 /**
  * Track a sync section error (e.g. pull sessions failed, push body-weight failed).
  * Sends a breadcrumb to Sentry + a product analytics event so sync failures
@@ -209,6 +229,15 @@ export function trackSyncError(section: string, error: unknown): void {
       section,
       message: message.slice(0, 120),
     })
+    // Store in-memory for the diagnostics panel
+    recentSyncErrors.push({
+      section,
+      message: message.slice(0, 300),
+      timestamp: new Date().toISOString(),
+    })
+    if (recentSyncErrors.length > MAX_SYNC_ERROR_ENTRIES) {
+      recentSyncErrors.shift()
+    }
     if (sentryReady) {
       Sentry.captureException(error, { extra: { syncSection: section } })
     }

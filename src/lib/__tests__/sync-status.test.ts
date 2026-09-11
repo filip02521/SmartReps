@@ -17,6 +17,10 @@ vi.mock('@/lib/sync', () => ({
   getDeadLetterCount: vi.fn(),
 }))
 
+vi.mock('@/lib/analytics', () => ({
+  getRecentSyncErrors: vi.fn(() => []),
+}))
+
 vi.mock('@/lib/db', () => ({
   db: {
     syncQueue: {

@@ -389,6 +389,13 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
     if (finalResult.ok) {
       useAppStore.getState().setLastSyncedAt(new Date().toISOString())
       useAppStore.getState().setLastSyncFailureReason(null)
+      // Clear in-memory sync error log — sync succeeded, old errors are stale
+      try {
+        const { clearRecentSyncErrors } = await import('@/lib/analytics')
+        clearRecentSyncErrors()
+      } catch {
+        /* best-effort */
+      }
       await completeOnboardingIfSynced()
       track(AnalyticsEvents.syncOk)
     } else {

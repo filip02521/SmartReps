@@ -1420,6 +1420,7 @@ export const en: Translation = {
   syncRetryDead: 'Retry sync',
   syncClearDead: 'Clear failed',
   syncClearDeadConfirm: 'These items failed to sync after multiple attempts. Clear them to start fresh.',
+  syncErrorDetails: 'Sync error details',
   syncStatusLocalOnly: 'Local only',
   syncStatusLoggedIn: 'Connected to cloud',
   syncStatusLoggedOutLocally: 'Logged out — data stays local',
