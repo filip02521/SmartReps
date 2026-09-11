@@ -14,6 +14,7 @@ vi.mock('@/lib/db', () => ({
           filter: (fn: (s: LocalWorkoutSession) => boolean) => ({
             toArray: async () => sessions.filter(fn),
           }),
+          toArray: async () => sessions,
         }),
       }),
       filter: (fn: (s: LocalWorkoutSession) => boolean) => ({

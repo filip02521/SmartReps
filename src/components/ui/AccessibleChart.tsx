@@ -21,7 +21,7 @@ export function AccessibleChart({
   /** Short human-readable summary, e.g. "Wykres najlepszej serii: 8 punktów, trend rosnący". */
   label: string
   /** Data rows for the fallback table. */
-  data: Array<Record<string, string | number>>
+  data: Array<Record<string, string | number | null>>
   /** Column definitions: key → header label. */
   columns: Array<{ key: string; header: string }>
   /** Optional className for the chart wrapper. */

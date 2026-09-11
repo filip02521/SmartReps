@@ -227,17 +227,28 @@ async function gatherWorkoutHistory(
   // RPE/RIR aggregation across recent sessions (last 10)
   const recentForEffort = [...sorted].reverse().slice(0, 10)
   const allRpes: number[] = []
+  const allRirs: number[] = []
   for (const s of recentForEffort) {
     // Builtin
     for (const r of s.setResults ?? []) {
-      if (r.rpe != null) allRpes.push(r.rpe)
-      else if (r.rir != null) allRpes.push(10 - r.rir)
+      if (r.rpe != null) {
+        allRpes.push(r.rpe)
+        allRirs.push(10 - r.rpe)
+      } else if (r.rir != null) {
+        allRpes.push(10 - r.rir)
+        allRirs.push(r.rir)
+      }
     }
     // Custom
     for (const log of s.exerciseLogs ?? []) {
       for (const set of log.sets ?? []) {
-        if (set.rpe != null) allRpes.push(set.rpe)
-        else if (set.rir != null) allRpes.push(10 - set.rir)
+        if (set.rpe != null) {
+          allRpes.push(set.rpe)
+          allRirs.push(10 - set.rpe)
+        } else if (set.rir != null) {
+          allRpes.push(10 - set.rir)
+          allRirs.push(set.rir)
+        }
       }
     }
   }
@@ -245,15 +256,19 @@ async function gatherWorkoutHistory(
     allRpes.length > 0
       ? Math.round((allRpes.reduce((a, b) => a + b, 0) / allRpes.length) * 10) / 10
       : null
-  const avgRir = avgRpe != null ? Math.round((10 - avgRpe) * 10) / 10 : null
+  const avgRir =
+    allRirs.length > 0
+      ? Math.round((allRirs.reduce((a, b) => a + b, 0) / allRirs.length) * 10) / 10
+      : null
 
-  // Effort trend: compare first half vs second half of recent sessions
+  // Effort trend: compare first half (recent) vs second half (older) of recent sessions.
+  // allRpes is built from recentForEffort which is recent-first (sorted.reverse().slice).
   let effortTrend: WorkoutHistorySummary['effortTrend'] = 'unknown'
   if (allRpes.length >= 4) {
     const half = Math.floor(allRpes.length / 2)
-    const firstHalfAvg = allRpes.slice(0, half).reduce((a, b) => a + b, 0) / half
-    const secondHalfAvg = allRpes.slice(half).reduce((a, b) => a + b, 0) / (allRpes.length - half)
-    const diff = secondHalfAvg - firstHalfAvg
+    const recentAvg = allRpes.slice(0, half).reduce((a, b) => a + b, 0) / half
+    const olderAvg = allRpes.slice(half).reduce((a, b) => a + b, 0) / (allRpes.length - half)
+    const diff = recentAvg - olderAvg
     if (diff > 0.5) effortTrend = 'increasing'
     else if (diff < -0.5) effortTrend = 'decreasing'
     else effortTrend = 'stable'

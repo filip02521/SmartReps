@@ -119,7 +119,7 @@ export function RpeTrendPanel() {
       rpe: p.avgRpe,
       rir: p.avgRir,
       sets: p.setCount,
-    })) as Array<Record<string, string | number>>
+    }))
   }, [groups])
 
   const hasEnoughData = chartData.length >= 2
@@ -150,7 +150,7 @@ export function RpeTrendPanel() {
             id="rpe-trend-select"
             value={selectedKey ?? ''}
             onChange={(e) => setSelectedKey(e.target.value || null)}
-            className="w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2 sr-text-body-sm text-[var(--sr-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--sr-brand-primary)]/30"
+            className="min-h-11 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2 sr-text-body-sm text-[var(--sr-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--sr-brand-primary)]/30"
           >
             {options.map((opt) => (
               <option key={opt.key} value={opt.key}>
@@ -200,6 +200,7 @@ export function RpeTrendPanel() {
               <Line
                 type="monotone"
                 dataKey="rpe"
+                name={pl.rpeTrendRpeColumn}
                 stroke="var(--sr-brand-primary)"
                 strokeWidth={2}
                 dot={{ r: 3, fill: 'var(--sr-brand-primary)' }}

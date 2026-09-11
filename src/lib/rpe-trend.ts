@@ -6,9 +6,7 @@
  */
 
 import { db } from '@/lib/db'
-import type { ExerciseLog } from '@/lib/exercise-model'
-import { rpeToRir, rirToRpe } from '@/lib/exercise-model'
-import { setRpeValue, setRirValue } from '@/lib/rpe-analysis'
+import { logRpeValue, logRirValue, setRpeValue, setRirValue } from '@/lib/rpe-analysis'
 import { pl } from '@/i18n/pl'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -16,8 +14,6 @@ import { pl } from '@/i18n/pl'
 export type RpeTrendPoint = {
   /** ISO date string (YYYY-MM-DD) */
   date: string
-  /** Display label for the session (e.g. "Pushups D1", "Bench Press") */
-  sessionLabel: string
   /** Average RPE across sets with effort data (null if no data) */
   avgRpe: number | null
   /** Average RIR across sets with effort data (null if no data) */
@@ -49,15 +45,17 @@ function builtinSessionLabel(program: string, dayNumber: number): string {
       : program === 'pullups' ? pl.pullupsProgram
       : program === 'squats' ? pl.squatsProgram
       : program
-  return `${programLabel} D${dayNumber}`
+  return `${programLabel} ${pl.chartDayShort(dayNumber)}`
 }
 
-function customSessionLabel(
-  log: ExerciseLog,
-  exerciseMap: Map<string, { name?: string }>,
-): string {
-  const def = exerciseMap.get(log.exerciseId)
-  return def?.name ?? pl.exerciseFallbackName
+/**
+ * Stable sort comparator: primary by ISO date, secondary by sessionId.
+ * Ensures deterministic ordering when multiple sessions share the same date.
+ */
+function sortByDateThenId(a: RpeTrendPoint, b: RpeTrendPoint): number {
+  const byDate = a.date.localeCompare(b.date)
+  if (byDate !== 0) return byDate
+  return a.sessionId.localeCompare(b.sessionId)
 }
 
 // ─── Aggregation ─────────────────────────────────────────────────────────────
@@ -94,7 +92,6 @@ export async function getBuiltinRpeTrend(
     const points = byDay.get(dayNumber) ?? []
     points.push({
       date: sessionDateLabel(session.startedAt),
-      sessionLabel: builtinSessionLabel(program, dayNumber),
       avgRpe,
       avgRir,
       setCount: rpes.length,
@@ -106,8 +103,8 @@ export async function getBuiltinRpeTrend(
   // Build groups, sort points oldest-first, limit to last N
   const groups: RpeTrendGroup[] = []
   for (const [dayNumber, points] of byDay.entries()) {
-    const sorted = points.sort((a, b) => a.date.localeCompare(b.date))
-    const limited = sorted.slice(-limit)
+    const sorted = points.sort(sortByDateThenId)
+    const limited = limit > 0 ? sorted.slice(-limit) : sorted
     groups.push({
       key: `${program}-d${dayNumber}`,
       label: builtinSessionLabel(program, dayNumber),
@@ -127,7 +124,9 @@ export async function getCustomRpeTrend(
   limit = 10,
 ): Promise<RpeTrendGroup[]> {
   const sessions = await db.workoutSessions
-    .filter((s) => s.customPlanId === customPlanId && s.status === 'completed')
+    .where('customPlanId')
+    .equals(customPlanId)
+    .filter((s) => s.status === 'completed')
     .toArray()
 
   // Flatten all sets across all sessions, grouped by exerciseId
@@ -135,15 +134,11 @@ export async function getCustomRpeTrend(
   for (const session of sessions) {
     const logs = session.exerciseLogs ?? []
     for (const log of logs) {
-      const rpes = log.sets
-        .map((s) => (s.rpe != null ? s.rpe : s.rir != null ? rirToRpe(s.rir) : null))
-        .filter((v): v is number => v != null)
+      const rpes = log.sets.map(logRpeValue).filter((v): v is number => v != null)
       if (rpes.length === 0) continue
 
       const avgRpe = Math.round((rpes.reduce((s, v) => s + v, 0) / rpes.length) * 10) / 10
-      const rirs = log.sets
-        .map((s) => (s.rir != null ? s.rir : s.rpe != null ? rpeToRir(s.rpe) : null))
-        .filter((v): v is number => v != null)
+      const rirs = log.sets.map(logRirValue).filter((v): v is number => v != null)
       const avgRir =
         rirs.length > 0
           ? Math.round((rirs.reduce((s, v) => s + v, 0) / rirs.length) * 10) / 10
@@ -152,7 +147,6 @@ export async function getCustomRpeTrend(
       const points = byExercise.get(log.exerciseId) ?? []
       points.push({
         date: sessionDateLabel(session.startedAt),
-        sessionLabel: customSessionLabel(log, exerciseMap),
         avgRpe,
         avgRir,
         setCount: rpes.length,
@@ -164,8 +158,8 @@ export async function getCustomRpeTrend(
 
   const groups: RpeTrendGroup[] = []
   for (const [exerciseId, points] of byExercise.entries()) {
-    const sorted = points.sort((a, b) => a.date.localeCompare(b.date))
-    const limited = sorted.slice(-limit)
+    const sorted = points.sort(sortByDateThenId)
+    const limited = limit > 0 ? sorted.slice(-limit) : sorted
     const def = exerciseMap.get(exerciseId)
     groups.push({
       key: exerciseId,
@@ -180,10 +174,12 @@ export async function getCustomRpeTrend(
 /**
  * Check if any completed sessions have RPE/RIR data.
  * Used to show empty state in the trend panel.
+ * Uses the `status` index and stops at the first match for efficiency.
  */
 export async function hasAnyRpeData(): Promise<boolean> {
   const sessions = await db.workoutSessions
-    .filter((s) => s.status === 'completed')
+    .where('status')
+    .equals('completed')
     .toArray()
   for (const session of sessions) {
     // Builtin

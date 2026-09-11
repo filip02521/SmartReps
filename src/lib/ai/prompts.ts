@@ -100,6 +100,12 @@ export type WorkoutHistorySummary = {
     exercises: { name: string; sets: number; reps?: number; weightKg?: number }[]
   }[]
   activePlanName?: string
+  /** Average RPE across recent sessions with effort data. null if no data. */
+  avgRpe: number | null
+  /** Average RIR across recent sessions with effort data. null if no data. */
+  avgRir: number | null
+  /** Effort trend classification based on recent RPE. */
+  effortTrend: 'increasing' | 'stable' | 'decreasing' | 'unknown'
 }
 
 export function buildWorkoutAnalysisPrompt(
@@ -124,6 +130,16 @@ export function buildWorkoutAnalysisPrompt(
     ? `- ${history.activePlanName}`
     : pl.aiPromptNoActivePlan
 
+  // RPE/RIR effort summary
+  const effortSummary =
+    history.avgRpe != null && history.avgRir != null
+      ? pl.aiPromptEffortSummary(
+          history.avgRpe,
+          history.avgRir,
+          pl.aiPromptEffortTrend[history.effortTrend],
+        )
+      : pl.aiPromptEffortNoData
+
   const userPrompt = pl.aiPromptAnalysisBuild(
     history.totalSessions,
     history.totalSets,
@@ -133,6 +149,7 @@ export function buildWorkoutAnalysisPrompt(
     activePlan,
     volumeTable || pl.aiPromptVolumeEmpty,
     recentTable || pl.aiPromptRecentEmpty,
+    effortSummary,
   )
 
   return {
@@ -218,9 +235,10 @@ export function buildPostWorkoutPrompt(
         const reps = s.actual.reps ?? 0
         const weight = s.actual.weightKg ?? 0
         const dur = s.actual.durationSec
-        if (dur != null) return `${s.setNumber}: ${dur}s`
-        if (weight > 0) return `${s.setNumber}: ${reps}x${weight}kg`
-        return `${s.setNumber}: ${reps}`
+        const effort = s.rpe != null ? ` RPE${s.rpe}` : s.rir != null ? ` RIR${s.rir}` : ''
+        if (dur != null) return `${s.setNumber}: ${dur}s${effort}`
+        if (weight > 0) return `${s.setNumber}: ${reps}x${weight}kg${effort}`
+        return `${s.setNumber}: ${reps}${effort}`
       }).join(', ')
       return `  ${name}: ${sets}`
     }).join('\n')
@@ -228,7 +246,8 @@ export function buildPostWorkoutPrompt(
   } else {
     const sets = session.setResults.map((r) => {
       const target = r.target.kind === 'max' ? `${r.target.minReps}+` : `${r.target.reps}`
-      return pl.aiPromptPostWorkoutSetResult(r.setNumber, r.actual, target)
+      const effort = r.rpe != null ? ` RPE${r.rpe}` : r.rir != null ? ` RIR${r.rir}` : ''
+      return `${pl.aiPromptPostWorkoutSetResult(r.setNumber, r.actual, target)}${effort}`
     }).join(', ')
     currentSummary = pl.aiPromptPostWorkoutDayBrief(session.dayNumber, session.totalReps ?? 0, sets)
   }
