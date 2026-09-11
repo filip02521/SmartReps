@@ -465,7 +465,7 @@ function CustomSetRow({
       className={cn(
         'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] border px-3 py-2.5 text-left transition-all active:scale-[0.99]',
         state === 'active' &&
-          'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)]',
+          'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] shadow-[inset_3px_0_0_0_var(--sr-brand-primary)]',
         state === 'done' && 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
         state === 'partial' && 'border-[var(--sr-warning)]/40 bg-[var(--sr-warning-muted)]',
         state === 'failed' && 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]',
@@ -520,6 +520,14 @@ function CustomSetRow({
               : delta < 0
                 ? pl.setDeltaDown(Math.abs(delta))
                 : pl.setDeltaEqual}
+          </span>
+        )}
+        {state === 'partial' && (
+          <span
+            className="shrink-0 rounded-full bg-[var(--sr-warning-muted)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--sr-warning)]"
+            title={pl.customWorkoutSetVolumeProgressHint}
+          >
+            {pl.customWorkoutSetVolumeProgressShort}
           </span>
         )}
       </span>

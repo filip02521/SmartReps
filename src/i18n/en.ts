@@ -911,6 +911,7 @@ export const en: Translation = {
   customWorkoutSetsAdjustHint: 'This workout only — plan save at the end.',
   customWorkoutSetExtraBadge: 'added',
   customWorkoutSetVolumeProgress: 'Volume progress',
+  customWorkoutSetVolumeProgressShort: 'Vol +',
   customWorkoutSetVolumeProgressHint: 'Fewer reps but heavier weight — volume above target.',
   customWorkoutAddSetHint: 'This workout only — you\'ll decide whether to save to the plan at the end.',
   customWorkoutRestAdjustLabel: 'Rest between sets',
