@@ -1,6 +1,7 @@
 import { TrendingUp, Minus, ArrowDown, Info } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 import type { ProgressionSuggestion } from '@/lib/rpe-analysis'
 
 /**
@@ -99,7 +100,7 @@ export function ProgressionSuggestionPanel({
               <button
                 type="button"
                 onClick={onApply}
-                className="min-h-11 rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)] px-4 py-2 sr-text-body-sm font-semibold text-white transition-colors hover:brightness-110 active:scale-[0.98]"
+                className={cn('min-h-11 rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)] px-4 py-2 sr-text-body-sm font-semibold text-white transition-colors hover:brightness-110 active:scale-[0.98]', FOCUS_RING)}
               >
                 {pl.progressionSuggestionApply}
               </button>
@@ -108,7 +109,7 @@ export function ProgressionSuggestionPanel({
               <button
                 type="button"
                 onClick={onDismiss}
-                className="min-h-11 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] px-4 py-2 sr-text-body-sm font-medium text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)]"
+                className={cn('min-h-11 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] px-4 py-2 sr-text-body-sm font-medium text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)]', FOCUS_RING)}
               >
                 {pl.progressionSuggestionDismiss}
               </button>

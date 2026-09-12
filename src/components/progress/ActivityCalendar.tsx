@@ -154,7 +154,8 @@ export function ActivityCalendar({
                 hasCompleted && !isSelected && !isToday && 'bg-[var(--sr-brand-primary)]/8',
                 !hasCompleted && 'cursor-default',
               )}
-              aria-label={hasCompleted ? format(day, 'd MMMM yyyy', { locale: dateFnsLocale() }) : undefined}
+              aria-label={format(day, 'd MMMM yyyy', { locale: dateFnsLocale() })}
+              aria-pressed={hasCompleted ? isSelected === true : undefined}
             >
               <span className={cn(
                 'tabular-nums',

@@ -122,7 +122,14 @@ export function SkeletonCard({ className }: { className?: string }) {
 
 export function StepIndicator({ current, total }: { current: number; total: number }) {
   return (
-    <div className="flex gap-2">
+    <div
+      className="flex gap-2"
+      role="progressbar"
+      aria-label={pl.setupProgress}
+      aria-valuemin={0}
+      aria-valuemax={total}
+      aria-valuenow={current + 1}
+    >
       {Array.from({ length: total }, (_, i) => (
         <div
           key={i}
@@ -130,6 +137,7 @@ export function StepIndicator({ current, total }: { current: number; total: numb
             'h-1.5 flex-1 rounded-full transition-colors',
             i <= current ? 'bg-[var(--sr-brand-primary)]' : 'bg-[var(--sr-bg-surface)]',
           )}
+          aria-hidden
         />
       ))}
     </div>

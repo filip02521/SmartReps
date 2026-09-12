@@ -10,7 +10,7 @@ import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { selectCycleByTest, isHigherCycle, isLowerCycle, getRetestOptions } from '@/lib/cycle-selector'
-import { getNextWorkoutDate, getTestBlockDays, isWorkoutAvailable } from '@/lib/progress-engine'
+import { getNextWorkoutDate, getTestBlockDays, isWorkoutAvailable, daysUntilWorkout } from '@/lib/progress-engine'
 import { getCyclesByProgram } from '@/data/plans'
 import { getCycleDescription } from '@/lib/plan-resolver'
 import { initProgramProgress, updateProgramProgress, getProgramProgress } from '@/lib/program-service'
@@ -26,6 +26,8 @@ import { Sheet } from '@/components/ui/Sheet'
 import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { getCelebrationBadge } from '@/lib/progress-engine'
+import { FOCUS_RING } from '@/lib/ui-chrome'
+import { cn } from '@/lib/utils'
 import type { Cycle, Program } from '@/data/plans/types'
 
 export default function CyclePicker() {
@@ -149,6 +151,7 @@ export default function CyclePicker() {
           setSelectedId(warningBaseline.id)
         }}
         onPreferTest={() => void beginProgramSetup(navigate, program, { retest: true })}
+        onBack={() => navigate('/', { replace: true })}
         onConfirm={async () => {
           if (submitLock.current || submitting) return
           submitLock.current = true
@@ -209,7 +212,11 @@ export default function CyclePicker() {
         existing?.nextWorkoutAfter &&
         !isWorkoutAvailable(new Date(existing.nextWorkoutAfter))
       ) {
-        setRestBlocked(pl.testBlockedRest)
+        setRestBlocked(
+          pl.testBlockedRest(
+            pl.restIn(daysUntilWorkout(new Date(existing.nextWorkoutAfter))),
+          ),
+        )
         return
       }
 
@@ -294,6 +301,9 @@ export default function CyclePicker() {
           pendingTest.reps,
           program === 'pushups' ? pl.pushups : program === 'pullups' ? pl.pullups : pl.squats,
         )}
+        onBack={() =>
+          navigate(`/setup/test/${program}${isRetest ? '?retest=1' : ''}`)
+        }
       />
 
       {celebration && <Badge variant="success">{celebration}</Badge>}
@@ -329,7 +339,7 @@ export default function CyclePicker() {
         </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-3">
+      <div className="mt-6 flex flex-col gap-3" role="radiogroup" aria-label={pl.pickLevel}>
         {visibleCycles.map((cycle) => (
           <CycleCard
             key={cycle.id}
@@ -397,6 +407,7 @@ function LevelChangePicker({
   onHideWarning,
   onResetToBaseline,
   onPreferTest,
+  onBack,
   onConfirm,
 }: {
   program: Program
@@ -418,6 +429,7 @@ function LevelChangePicker({
   onHideWarning: () => void
   onResetToBaseline: () => void
   onPreferTest: () => void
+  onBack: () => void
   onConfirm: () => Promise<void>
 }) {
   const cycles = getCyclesByProgram(program)
@@ -439,6 +451,7 @@ function LevelChangePicker({
       <PageHeader
         title={pl.levelChangeTitle}
         subtitle={pl.levelChangeSubtitle}
+        onBack={onBack}
       />
 
       <p className="mt-3 text-sm text-[var(--sr-text-secondary)]">{pl.levelChangeHint}</p>
@@ -453,7 +466,7 @@ function LevelChangePicker({
         </p>
       )}
 
-      <div className="mt-6 flex flex-col gap-3">
+      <div className="mt-6 flex flex-col gap-3" role="radiogroup" aria-label={pl.levelChangeTitle}>
         {visible.map((cycle) => (
           <CycleCard
             key={cycle.id}
@@ -533,9 +546,18 @@ function CycleCard({
 
   return (
     <Card
-      className="cursor-pointer sr-card transition-colors"
+      className={cn('cursor-pointer sr-card transition-colors', FOCUS_RING)}
       style={{ outline: isSel ? '2px solid var(--sr-brand-primary)' : isRec ? '1px solid var(--sr-brand-primary-muted)' : undefined }}
+      role="radio"
+      aria-checked={isSel}
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect()
+        }
+      }}
     >
       <div className="flex items-center justify-between">
         <div>

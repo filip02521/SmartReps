@@ -255,6 +255,7 @@ export function AchievementTile({
     <button
       type="button"
       onClick={onClick}
+      disabled={!onClick}
       aria-label={title}
       className={cn(
         FOCUS_RING,

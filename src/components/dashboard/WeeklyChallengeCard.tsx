@@ -204,7 +204,7 @@ function ChallengeItem({
       <button
         type="button"
         onClick={onToggleExpand}
-        className="flex w-full items-start gap-2.5 text-left"
+        className={cn('flex w-full items-start gap-2.5 rounded-[var(--sr-radius-sm)] text-left', FOCUS_RING)}
         aria-expanded={expanded}
       >
         <div

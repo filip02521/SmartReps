@@ -20,6 +20,7 @@ import { track, AnalyticsEvents } from '@/lib/analytics'
 import { showToast } from '@/stores/toast-store'
 import type { Program } from '@/data/plans/types'
 import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 
 type WizardStep = 'welcome' | 'interest' | 'programs' | 'next'
 
@@ -300,7 +301,7 @@ export default function Onboarding() {
               <button
                 key={i}
                 type="button"
-                className="flex min-h-[var(--sr-spacing-touch)] min-w-[var(--sr-spacing-touch)] items-center justify-center rounded-full"
+                className={cn('flex min-h-[var(--sr-spacing-touch)] min-w-[var(--sr-spacing-touch)] items-center justify-center rounded-full', FOCUS_RING)}
                 aria-label={pl.onboardingSlideAria(i + 1, 3)}
                 aria-current={i === activeSlide}
                 onClick={() => {
@@ -510,7 +511,7 @@ function InterestCard({
       type="button"
       onClick={onToggle}
       aria-pressed={selected}
-      className="min-h-[var(--sr-spacing-touch)] rounded-[var(--sr-radius-lg)] border-2 px-4 py-4 text-left transition-all active:scale-[0.98]"
+      className={cn('min-h-[var(--sr-spacing-touch)] rounded-[var(--sr-radius-lg)] border-2 px-4 py-4 text-left transition-all active:scale-[0.98]', FOCUS_RING)}
       style={{
         borderColor: selected ? accent : 'var(--sr-border-subtle)',
         background: selected ? accentMuted : 'transparent',
@@ -576,7 +577,7 @@ function ProgramCard({
       type="button"
       onClick={onToggle}
       aria-pressed={selected}
-      className="flex min-h-[var(--sr-spacing-touch)] items-center justify-between gap-3 rounded-[var(--sr-radius-lg)] border-2 px-4 py-3.5 text-left transition-all active:scale-[0.98]"
+      className={cn('flex min-h-[var(--sr-spacing-touch)] items-center justify-between gap-3 rounded-[var(--sr-radius-lg)] border-2 px-4 py-3.5 text-left transition-all active:scale-[0.98]', FOCUS_RING)}
       style={{
         borderColor: selected ? accent : 'var(--sr-border-subtle)',
         background: selected ? accentMuted : 'transparent',

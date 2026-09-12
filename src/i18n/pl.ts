@@ -399,7 +399,8 @@ const plDict = {
   warmupItemsPullups: ['Wymachy i krążenia barków', 'Aktywacja łopatek (scapular pull)', '10–15 s zwisu na drążku'],
   warmupItemsSquats: ['Wymachy nóg', 'Skręty tułowia', '10 lekkich przysiadów'],
   nextPickCycle: 'Dalej — wybierz cykl',
-  testBlockedRest: 'Poczekaj co najmniej 2 dni przerwy przed i po teście max.',
+  testBlockedRest: (when: string) =>
+    `Poczekaj co najmniej 2 dni przerwy przed i po teście max. Trening dostępny ${when}.`,
   setupProgress: 'Postęp konfiguracji',
   setupStepTest: 'Test',
   setupStepCycle: 'Poziom',
@@ -816,6 +817,8 @@ const plDict = {
   workoutSetsSectionTitle: 'Twoje serie',
   workoutTargetLabel: 'Cel',
   workoutProgressAria: (done: number, total: number) => `Postęp: ${done} z ${total} serii`,
+  workoutSetStatusAria: (current: number, total: number, target: number, unit: string) =>
+    `Seria ${current} z ${total}, cel ${target} ${unit}`,
   workoutTargetBadge: (target: number, unit: string) => `Cel: ${target} ${unit}`,
   customWorkoutSetTimeSec: 'Czas ćwiczeń',
   customSessionDurationTotalHint: 'Suma czasu z serii (np. plank)',

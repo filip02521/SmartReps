@@ -5,6 +5,7 @@ import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { useOnline } from '@/hooks/useOnline'
 import { isSupabaseConfigured } from '@/lib/supabase/client'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 import { allSetsPassed } from '@/lib/progress-engine'
 import {
   getActiveWeeklyChallenges,
@@ -147,7 +148,8 @@ export function ChallengeProgressRecap({
         type="button"
         onClick={() => navigate('/')}
         className={cn(
-          'flex w-full items-center gap-2 text-left',
+          'flex w-full items-center gap-2 rounded-[var(--sr-radius-md)] text-left',
+          FOCUS_RING,
         )}
         aria-label={anyAchieved ? pl.challengeRecapAchieved : pl.challengeRecapTitle}
       >

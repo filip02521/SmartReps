@@ -1,3 +1,4 @@
+import { useRef, type KeyboardEvent } from 'react'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 
@@ -22,6 +23,30 @@ export function SegmentedControl<T extends string>({
   stretch?: boolean
   'aria-label'?: string
 }) {
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  // ARIA radiogroup keyboard pattern: arrows/Home/End move selection,
+  // only the checked radio is in the Tab order (roving tabindex).
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (disabled) return
+    const idx = options.findIndex((o) => o.value === value)
+    let next = -1
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      next = (idx + 1) % options.length
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      next = (idx - 1 + options.length) % options.length
+    } else if (e.key === 'Home') {
+      next = 0
+    } else if (e.key === 'End') {
+      next = options.length - 1
+    }
+    if (next >= 0 && next !== idx) {
+      e.preventDefault()
+      onChange(options[next].value)
+      btnRefs.current[next]?.focus()
+    }
+  }
+
   // Use radiogroup semantics — these are mutually exclusive choices (filters,
   // language selectors), not tab panels. Avoids implying tablist/tabpanel
   // relationships that don't exist here.
@@ -36,15 +61,23 @@ export function SegmentedControl<T extends string>({
       role="radiogroup"
       aria-label={ariaLabel}
       aria-disabled={disabled || undefined}
+      onKeyDown={handleKeyDown}
     >
-      {options.map((opt) => {
+      {options.map((opt, i) => {
         const selected = value === opt.value
+        // Fallback: when value matches no option, the first radio stays
+        // in the Tab order so the group remains keyboard-reachable.
+        const tabbable = selected || (!options.some((o) => o.value === value) && i === 0)
         return (
           <button
             key={opt.value}
+            ref={(el) => {
+              btnRefs.current[i] = el
+            }}
             type="button"
             role="radio"
             aria-checked={selected}
+            tabIndex={disabled ? -1 : tabbable ? 0 : -1}
             disabled={disabled}
             className={cn(
               'rounded-[var(--sr-radius-full)] font-medium transition-all duration-150 active:scale-[0.97]',

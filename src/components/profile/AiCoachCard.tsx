@@ -2,6 +2,8 @@ import { ChevronRight } from 'lucide-react'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { Badge } from '@/components/ui/Card'
 import { pl } from '@/i18n/pl'
+import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 
 /**
  * AI Coach card for the Profile page — promotes coach status
@@ -19,7 +21,7 @@ export function AiCoachCard({
     <button
       type="button"
       onClick={onOpenSettings}
-      className="flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-brand-primary)]/30 p-3.5 text-left transition-colors hover:bg-[var(--sr-bg-surface)]"
+      className={cn('flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-brand-primary)]/30 p-3.5 text-left transition-colors hover:bg-[var(--sr-bg-surface)]', FOCUS_RING)}
       style={{
         backgroundImage: `linear-gradient(
           135deg,

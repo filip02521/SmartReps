@@ -24,7 +24,7 @@ const sizes: Record<Size, string> = {
   md: 'min-h-12 px-4 py-2 text-base rounded-[var(--sr-radius-md)] gap-2',
   lg: 'min-h-12 px-6 py-2.5 text-base rounded-[var(--sr-radius-md)] gap-2',
   touch:
-    'min-h-14 px-6 py-3 text-lg font-semibold rounded-[var(--sr-radius-md)] min-h-[var(--sr-spacing-touch)] gap-2.5',
+    'min-h-[var(--sr-spacing-touch)] px-6 py-3 text-lg font-semibold rounded-[var(--sr-radius-md)] gap-2.5',
 }
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

@@ -252,7 +252,7 @@ export function HistoryPanel({
             )}
             <button
               type="button"
-              className="sr-text-body-sm text-[var(--sr-brand-primary)] underline-offset-2 hover:underline"
+              className={cn('sr-text-body-sm text-[var(--sr-brand-primary)] underline-offset-2 hover:underline rounded-[var(--sr-radius-sm)]', FOCUS_RING)}
               onClick={clearFilters}
             >
               {pl.clearFilters}

@@ -318,7 +318,7 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
 
       <div className="flex-shrink-0 px-4 pt-3">
         <p className="sr-only" aria-live="polite" aria-atomic="true">
-          {pl.setColumn} {currentSetIndex + 1} z {day.sets.length}, {pl.targetColumn.toLowerCase()} {targetReps} {unit}
+          {pl.workoutSetStatusAria(currentSetIndex + 1, day.sets.length, targetReps, unit)}
         </p>
         {currentSetIndex === 0 && !isResting && !preparingNegative && (
           <WarmupPanel

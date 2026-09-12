@@ -382,7 +382,8 @@ export const en: Translation = {
   warmupItemsPullups: ['Arm swings and shoulder circles', 'Scapular pull-ups', '10–15 s dead hang'],
   warmupItemsSquats: ['Leg swings', 'Torso twists', '10 light squats'],
   nextPickCycle: 'Next — pick a cycle',
-  testBlockedRest: 'Wait at least 2 days of rest before and after a max test.',
+  testBlockedRest: (when: string) =>
+    `Wait at least 2 days of rest before and after a max test. Workout available ${when}.`,
   setupProgress: 'Setup progress',
   setupStepTest: 'Test',
   setupStepCycle: 'Level',
@@ -798,6 +799,8 @@ export const en: Translation = {
   workoutSetsSectionTitle: 'Your sets',
   workoutTargetLabel: 'Target',
   workoutProgressAria: (done: number, total: number) => `Progress: ${done} of ${total} sets`,
+  workoutSetStatusAria: (current: number, total: number, target: number, unit: string) =>
+    `Set ${current} of ${total}, target ${target} ${unit}`,
   workoutTargetBadge: (target: number, unit: string) => `Target: ${target} ${unit}`,
   customWorkoutSetTimeSec: 'Exercise time',
   customSessionDurationTotalHint: 'Total time from sets (e.g. plank)',

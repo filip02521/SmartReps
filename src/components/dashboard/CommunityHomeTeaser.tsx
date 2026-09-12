@@ -4,7 +4,7 @@ import { Users } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { CommunityPlanCard } from '@/components/community/CommunityPlanCard'
-import { SkeletonCard } from '@/components/ux/Feedback'
+import { SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { useOnline } from '@/hooks/useOnline'
 import {
@@ -32,6 +32,8 @@ export function CommunityHomeTeaser() {
   const [rows, setRows] = useState<CommunityPublicationRow[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
+
+  const [reloadTick, setReloadTick] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -78,11 +80,9 @@ export function CommunityHomeTeaser() {
     return () => {
       cancelled = true
     }
-  }, [online])
+  }, [online, reloadTick])
 
-  if (loadError && rows.length === 0) return null
-
-  if (rows.length === 0 && !loading) return null
+  if (rows.length === 0 && !loading && !loadError) return null
 
   return (
     <section className="mt-8">
@@ -99,6 +99,12 @@ export function CommunityHomeTeaser() {
           ))}
         </ul>
       ) : null}
+      {loadError && rows.length === 0 && (
+        <ErrorBanner
+          message={pl.communityTeaserLoadError}
+          onRetry={() => setReloadTick((t) => t + 1)}
+        />
+      )}
       <ul className="flex flex-col gap-2">
         {rows.map((row) => (
           <li key={row.id}>

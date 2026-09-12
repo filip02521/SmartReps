@@ -33,7 +33,7 @@ export function CycleDayPicker({
   className?: string
 }) {
   return (
-    <div className={cn('flex flex-wrap gap-2', className)} role="list" aria-label={pl.cycleDays}>
+    <div className={cn('flex flex-wrap gap-2', className)} role="group" aria-label={pl.cycleDays}>
       {days.map((d) => {
         const selected = selectedDay === d.dayNumber
         const isCurrent = d.status === 'current'
@@ -42,7 +42,6 @@ export function CycleDayPicker({
           <button
             key={d.dayNumber}
             type="button"
-            role="listitem"
             aria-pressed={selected}
             aria-current={isCurrent ? 'step' : undefined}
             aria-label={`${pl.dayOfTotal(d.dayNumber, totalDays)} — ${dayStatusAria(d.status)}`}

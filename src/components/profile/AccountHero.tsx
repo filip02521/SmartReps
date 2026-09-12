@@ -17,6 +17,7 @@ import { retryDeadLetterItems, clearDeadLetterItems } from '@/lib/sync'
 import { useAppStore } from '@/stores/app-store'
 import { showToast } from '@/stores/toast-store'
 import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 
 const stateBadge: Record<
   SyncAccountState,
@@ -247,7 +248,7 @@ function SyncErrorDiagnostics({ errors }: { errors: import('@/lib/analytics').Sy
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-sm font-medium text-[var(--sr-text-primary)] transition-colors hover:bg-[var(--sr-bg-elevated)]"
+        className={cn('flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-sm font-medium text-[var(--sr-text-primary)] transition-colors hover:bg-[var(--sr-bg-elevated)]', FOCUS_RING)}
       >
         {pl.syncErrorDetails}
         <ChevronDown
@@ -289,7 +290,7 @@ function FaqCollapsible() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-sm font-medium text-[var(--sr-text-primary)] transition-colors hover:bg-[var(--sr-bg-elevated)]"
+        className={cn('flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-sm font-medium text-[var(--sr-text-primary)] transition-colors hover:bg-[var(--sr-bg-elevated)]', FOCUS_RING)}
       >
         {pl.syncFaqTitle}
         <ChevronDown

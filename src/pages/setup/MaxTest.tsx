@@ -12,7 +12,7 @@ import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { selectCycleByTest } from '@/lib/cycle-selector'
 import { getProgramProgress } from '@/lib/program-service'
-import { isWorkoutAvailable } from '@/lib/progress-engine'
+import { isWorkoutAvailable, daysUntilWorkout } from '@/lib/progress-engine'
 import {
   techniqueLinkForProgram,
   techniqueLinkLabel,
@@ -116,6 +116,11 @@ export default function MaxTest() {
     if (draft?.program === program) {
       setReps(draft.reps)
       setWarmup(draft.warmup.length === 3 ? draft.warmup : [false, false, false])
+    } else {
+      // Coming back from the cycle picker — prefill reps from the pending test
+      // so the user adjusts instead of re-entering from zero.
+      const pending = useAppStore.getState().pendingTest
+      if (pending?.program === program) setReps(pending.reps)
     }
   }, [hydrated, program])
 
@@ -169,7 +174,11 @@ export default function MaxTest() {
         progress?.nextWorkoutAfter &&
         !isWorkoutAvailable(new Date(progress.nextWorkoutAfter))
       ) {
-        setBlocked(pl.testBlockedRest)
+        setBlocked(
+          pl.testBlockedRest(
+            pl.restIn(daysUntilWorkout(new Date(progress.nextWorkoutAfter))),
+          ),
+        )
         return
       }
 
@@ -216,6 +225,7 @@ export default function MaxTest() {
       <PageHeader
         title={title}
         subtitle={isRetest ? pl.retestSubtitle : pl.testPrompt}
+        onBack={() => navigate('/', { replace: true })}
       />
 
       {blocked && (

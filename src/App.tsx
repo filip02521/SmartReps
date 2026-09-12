@@ -21,7 +21,6 @@ import TechniquePushups from '@/pages/setup/TechniquePushups'
 import TechniquePullups from '@/pages/setup/TechniquePullups'
 import TechniqueSquats from '@/pages/setup/TechniqueSquats'
 import NotFound from '@/pages/NotFound'
-import { DemoPreview } from '@/pages/DemoPreview'
 import PrivacyPage from '@/pages/legal/Privacy'
 import TermsPage from '@/pages/legal/Terms'
 import { ToastHost } from '@/components/ux/Toast'
@@ -35,6 +34,11 @@ const PlansPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Plans')))
 const ProfilePage = lazy(lazyWithChunkRecovery(() => import('@/pages/Profile')))
 const CommunityPublicationPage = lazy(
   lazyWithChunkRecovery(() => import('@/pages/CommunityPublication')),
+)
+const DemoPreviewPage = lazy(
+  lazyWithChunkRecovery(() =>
+    import('@/pages/DemoPreview').then((m) => ({ default: m.DemoPreview })),
+  ),
 )
 
 function LazyPage({ children }: { children: React.ReactNode }) {
@@ -141,7 +145,9 @@ export default function App() {
           <Route path="/workout/custom/:planId/summary" element={<EagerPage><CustomSessionSummary /></EagerPage>} />
         </Route>
         <Route path="/not-found" element={<EagerPage><NotFound /></EagerPage>} />
-        <Route path="/demo-preview" element={<EagerPage><DemoPreview /></EagerPage>} />
+        {import.meta.env.DEV && (
+          <Route path="/demo-preview" element={<LazyPage><DemoPreviewPage /></LazyPage>} />
+        )}
         <Route path="*" element={<EagerPage><NotFound /></EagerPage>} />
       </Routes>
       </div>
