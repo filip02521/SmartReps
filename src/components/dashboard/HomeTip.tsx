@@ -4,12 +4,14 @@ import { pl } from '@/i18n/pl'
 import type { Program } from '@/data/plans/types'
 import type { NoticeTone } from '@/components/ux/NoticeCard'
 import type { ReactNode } from 'react'
-import { Activity, BarChart3, List, User } from 'lucide-react'
+import { Activity, BarChart3, ChevronRight, List, Sparkles, User } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 
 function tipMeta(kind: TipKind): { tone: NoticeTone; title: string; icon: ReactNode } {
   switch (kind) {
     case 'welcome':
-      return { tone: 'brand', title: pl.homeTipTitleWelcome, icon: noticeIcon('brand') }
+      return { tone: 'brand', title: pl.homeTipTitleWelcome, icon: <Sparkles size={20} strokeWidth={2.25} /> }
     case 'stale':
       return { tone: 'warning', title: pl.homeTipTitleStale, icon: <AlertTriangle size={20} strokeWidth={2.25} /> }
     case 'test_ready':
@@ -57,6 +59,7 @@ export function HomeTip({
   onNavigate?: (path: string) => void
 }) {
   const meta = tipMeta(tip.kind)
+  const isWelcome = tip.kind === 'welcome'
   const actionLabel =
     tip.actionLabel ??
     (tip.scrollProgram ? pl.homeTipShowCard : undefined)
@@ -77,34 +80,120 @@ export function HomeTip({
       tone={meta.tone}
       icon={meta.icon}
       title={tip.title ?? meta.title}
-      message={tip.kind === 'welcome' ? undefined : tip.message}
+      message={isWelcome ? undefined : tip.message}
       actionLabel={actionLabel}
       onAction={handleAction}
       stackActions={Boolean(actionLabel && handleAction)}
-      demotePrimary
+      demotePrimary={!isWelcome}
       onDismiss={tip.dismissible ? () => onDismiss(tip.id) : undefined}
     >
-      {tip.kind === 'welcome' && (
-        <ul className="mt-2 flex flex-col gap-2">
-          <WelcomeItem icon={<Activity size={16} />} text={pl.homeTipWelcomeTraining} />
-          <WelcomeItem icon={<BarChart3 size={16} />} text={pl.homeTipWelcomeProgress} />
-          <WelcomeItem icon={<List size={16} />} text={pl.homeTipWelcomePlans} />
-          <WelcomeItem icon={<User size={16} />} text={pl.homeTipWelcomeProfile} />
-        </ul>
+      {isWelcome && (
+        <WelcomeGuide
+          scrollProgram={tip.scrollProgram}
+          onScroll={onScroll}
+          onNavigate={onNavigate}
+        />
       )}
     </NoticeCard>
   )
 }
 
-function WelcomeItem({ icon, text }: { icon: ReactNode; text: string }) {
+type WelcomeItemDef = {
+  icon: ReactNode
+  title: string
+  description: string
+  onClick?: () => void
+}
+
+function WelcomeGuide({
+  scrollProgram,
+  onScroll,
+  onNavigate,
+}: {
+  scrollProgram?: Program | null
+  onScroll?: (program: Program) => void
+  onNavigate?: (path: string) => void
+}) {
+  const items: WelcomeItemDef[] = [
+    {
+      icon: <Activity size={16} strokeWidth={2.25} />,
+      title: pl.navWorkout,
+      description: pl.homeTipWelcomeTraining,
+      onClick: scrollProgram && onScroll ? () => onScroll(scrollProgram) : undefined,
+    },
+    {
+      icon: <BarChart3 size={16} strokeWidth={2.25} />,
+      title: pl.navProgress,
+      description: pl.homeTipWelcomeProgress,
+      onClick: onNavigate ? () => onNavigate('/progress') : undefined,
+    },
+    {
+      icon: <List size={16} strokeWidth={2.25} />,
+      title: pl.navPlans,
+      description: pl.homeTipWelcomePlans,
+      onClick: onNavigate ? () => onNavigate('/plans') : undefined,
+    },
+    {
+      icon: <User size={16} strokeWidth={2.25} />,
+      title: pl.navProfile,
+      description: pl.homeTipWelcomeProfile,
+      onClick: onNavigate ? () => onNavigate('/profile') : undefined,
+    },
+  ]
+
   return (
-    <li className="flex items-start gap-2.5">
-      <span className="mt-0.5 shrink-0 text-[var(--sr-brand-primary)]" aria-hidden>
-        {icon}
-      </span>
-      <span className="sr-text-body-sm leading-relaxed text-[var(--sr-text-secondary)]">
-        {text}
-      </span>
+    <div className="mt-3">
+      <ul className="flex flex-col gap-1.5" aria-label={pl.homeTipTitleWelcome}>
+        {items.map((item, i) => (
+          <WelcomeItem key={i} {...item} />
+        ))}
+      </ul>
+      <p className="mt-3 flex items-center gap-1.5 text-xs leading-relaxed text-[var(--sr-text-muted)]">
+        <ChevronRight size={14} className="shrink-0 rotate-90" aria-hidden />
+        {pl.homeTipWelcomeHint}
+      </p>
+    </div>
+  )
+}
+
+function WelcomeItem({ icon, title, description, onClick }: WelcomeItemDef) {
+  const clickable = Boolean(onClick)
+  return (
+    <li>
+      <button
+        type="button"
+        disabled={!clickable}
+        onClick={onClick}
+        aria-label={`${title}. ${description}`}
+        className={cn(
+          'flex w-full items-center gap-2.5 rounded-[var(--sr-radius-md)] p-2 text-left transition-colors',
+          clickable && 'hover:bg-[var(--sr-bg-surface)] active:bg-[var(--sr-bg-surface)]',
+          clickable && FOCUS_RING,
+          !clickable && 'cursor-default',
+        )}
+      >
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)]"
+          aria-hidden
+        >
+          {icon}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="text-sm font-medium leading-snug text-[var(--sr-text-primary)]">
+            {title}
+          </span>
+          <span className="text-xs leading-relaxed text-[var(--sr-text-secondary)]">
+            {description}
+          </span>
+        </span>
+        {clickable && (
+          <ChevronRight
+            size={16}
+            className="shrink-0 text-[var(--sr-text-muted)]"
+            aria-hidden
+          />
+        )}
+      </button>
     </li>
   )
 }
