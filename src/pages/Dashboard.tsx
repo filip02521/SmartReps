@@ -502,8 +502,8 @@ export default function Dashboard() {
                 onClick: () => navigate('/plans?tab=mine'),
               }}
               secondaryAction={{
-                label: pl.noProgramsGoProfile,
-                onClick: () => navigate('/profile'),
+                label: pl.noProgramsEnableProgram,
+                onClick: () => navigate('/plans?tab=programs'),
               }}
             />
           ) : (

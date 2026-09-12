@@ -31,22 +31,22 @@ describe('enabled-custom-plans', () => {
     expect(result.map((p) => p.id)).toEqual(['a', 'b', 'c'])
   })
 
-  it('ignores explicit enabled list on home — dashboard always shows all active', () => {
+  it('honors explicit enabled list on home — hidden plans are not shown', () => {
     const all = [plan('a'), plan('b'), plan('c')]
     const result = resolveHomeCustomPlans(all, {
       enabledCustomPlanIds: ['c', 'a'],
       customPlansFilterExplicit: true,
     })
-    expect(result.map((p) => p.id)).toEqual(['a', 'b', 'c'])
+    expect(result.map((p) => p.id)).toEqual(['a', 'c'])
   })
 
-  it('shows all active on home even when explicit filter has no ids', () => {
+  it('shows nothing on home when explicit filter has no ids (all hidden)', () => {
     expect(
       resolveHomeCustomPlans([plan('a')], {
         enabledCustomPlanIds: [],
         customPlansFilterExplicit: true,
       }),
-    ).toEqual([plan('a')])
+    ).toEqual([])
   })
 
   it('profile toggle defaults to all active when not explicit', () => {
@@ -62,13 +62,24 @@ describe('enabled-custom-plans', () => {
     expect(pruneEnabledCustomPlanIds(['a', 'b', 'c'], 'b')).toEqual(['a', 'c'])
   })
 
-  it('counts hidden plans beyond the 3-card limit (ignores explicit filter)', () => {
-    const all = [plan('a'), plan('b'), plan('c'), plan('d')]
+  it('counts hidden plans beyond the 3-card limit among eligible only', () => {
+    const all = [plan('a'), plan('b'), plan('c'), plan('d'), plan('e')]
     expect(
       countHiddenHomeCustomPlans(all, {
+        // 'e' hidden via toggle — not eligible, not counted
         enabledCustomPlanIds: ['a', 'b', 'c', 'd'],
         customPlansFilterExplicit: true,
       }),
     ).toBe(1)
+  })
+
+  it('counts zero hidden when all eligible plans fit under the limit', () => {
+    const all = [plan('a'), plan('b')]
+    expect(
+      countHiddenHomeCustomPlans(all, {
+        enabledCustomPlanIds: ['a'],
+        customPlansFilterExplicit: true,
+      }),
+    ).toBe(0)
   })
 })

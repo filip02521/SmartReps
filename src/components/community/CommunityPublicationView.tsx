@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Heart, Share2, Flag } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useSeo } from '@/hooks/useSeo'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -133,6 +134,13 @@ export function CommunityPublicationView({ slug, onBack }: Props) {
   useEffect(() => {
     void load()
   }, [load])
+
+  // Public shared page — set title/description/OG from the publication once loaded.
+  useSeo({
+    title: row?.title ?? pl.appName,
+    description: row?.description.trim() || pl.seoDefaultDescription,
+    path: `/community/${slug}`,
+  })
 
   function goLogin() {
     const path = `/community/${slug}`

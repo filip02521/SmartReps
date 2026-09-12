@@ -814,7 +814,6 @@ test.describe('custom plans smoke', () => {
         }
       })
     }, ids.planId)
-    console.log('DEBUG progress:', progress)
     expect(progress.status).toBe('cycle_complete')
     expect(progress.currentDay).toBe(1)
   })

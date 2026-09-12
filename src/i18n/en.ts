@@ -143,9 +143,9 @@ export const en: Translation = {
   resumeDespiteRestHint:
     'You have an unfinished workout — you can complete it despite the recommended rest.',
   noProgramsTitle: 'Your workout, your rules',
-  noProgramsDesc: 'Start with your own plan — or enable pushups / pull-ups in your profile.',
+  noProgramsDesc: 'Start with your own plan — or enable pushups / pull-ups / squats in Plans.',
   noProgramsCreatePlan: 'Create a plan',
-  noProgramsGoProfile: 'Enable a training program',
+  noProgramsEnableProgram: 'Enable a training program',
   goToProfile: 'Go to profile',
   rest: 'Rest',
   test: 'Take test',
@@ -1008,7 +1008,7 @@ export const en: Translation = {
   customWorkoutProblemTitle: 'Can\'t start the workout',
   missingSessionHint: 'The session expired or doesn\'t exist on this device.',
   customHomeEmptyTitle: 'No plans yet',
-  customHomeEmptyCta: 'Enable plans in your profile',
+  customHomeEmptyCta: 'Open my plans',
   customHomeLoadError: 'Failed to load plans.',
   customProgressionAppliedTitle: 'New targets for the next cycle',
   customProgressionAppliedHint: 'Progression updated the sets in your plan.',
@@ -1052,8 +1052,8 @@ export const en: Translation = {
   customEditBlockedActiveDay: 'This day has an active workout — edit other days.',
   customHomeMorePlans: (n: number) =>
     n === 1 ? '+1 more plan in Plans' : `+${n} more plans in Plans`,
-  customHomePinPrompt: 'In your Profile you can choose which plans appear on the home screen.',
-  customHomeEmptyHint: 'Enable plans in Profile → Active plans.',
+  customHomePinPrompt: 'In Plans you can choose which plans appear on the home screen.',
+  customHomeEmptyHint: 'In Plans → Mine, open the plan menu and choose "Show on Training".',
   customLastWorkoutInsight: (planName: string, when: string) =>
     `Last custom workout: ${planName} · ${when}`,
   customCycleRailTitle: 'Cycle map',

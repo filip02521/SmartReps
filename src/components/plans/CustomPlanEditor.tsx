@@ -392,8 +392,8 @@ export function CustomPlanEditor({
           showToast(pl.customHomePinPrompt, 'info', {
             durationMs: 10000,
             action: {
-              label: pl.navProfile,
-              onClick: () => navigate('/profile'),
+              label: pl.navPlans,
+              onClick: () => navigate('/plans?tab=mine'),
             },
           })
         }

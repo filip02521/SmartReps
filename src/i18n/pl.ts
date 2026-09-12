@@ -153,9 +153,9 @@ const plDict = {
   resumeDespiteRestHint:
     'Masz niedokończony trening — możesz go dokończyć mimo zalecanej przerwy.',
   noProgramsTitle: 'Twój trening, Twoje zasady',
-  noProgramsDesc: 'Zacznij od własnego planu — albo włącz pompki / podciąganie w profilu.',
+  noProgramsDesc: 'Zacznij od własnego planu — albo włącz pompki / podciąganie / przysiady w Planach.',
   noProgramsCreatePlan: 'Stwórz plan',
-  noProgramsGoProfile: 'Włącz program treningowy',
+  noProgramsEnableProgram: 'Włącz program treningowy',
   goToProfile: 'Przejdź do profilu',
   rest: 'Przerwa',
   test: 'Wykonaj test',
@@ -1029,7 +1029,7 @@ const plDict = {
   customWorkoutProblemTitle: 'Nie można rozpocząć treningu',
   missingSessionHint: 'Sesja wygasła lub nie istała na tym urządzeniu.',
   customHomeEmptyTitle: 'Brak planów na starcie',
-  customHomeEmptyCta: 'Włącz plany w profilu',
+  customHomeEmptyCta: 'Otwórz moje plany',
   customHomeLoadError: 'Nie udało się wczytać planów.',
   customProgressionAppliedTitle: 'Nowe cele na kolejny cykl',
   customProgressionAppliedHint: 'Progresja zaktualizowała serie w planie.',
@@ -1072,9 +1072,13 @@ const plDict = {
   customWorkoutSwapConfirmAction: 'Zamień i wyzeruj',
   customEditBlockedActiveDay: 'Ten dzień jest w trakcie treningu — edytuj inne dni.',
   customHomeMorePlans: (n: number) =>
-    n === 1 ? '+1 plan więcej w Plany' : `+${n} plany więcej w Plany`,
-  customHomePinPrompt: 'W Profilu możesz wybrać, które plany widzisz na ekranie głównym.',
-  customHomeEmptyHint: 'Włącz plany w Profilu → Aktywne plany.',
+    n === 1
+      ? '+1 plan więcej w Planach'
+      : n < 5
+        ? `+${n} plany więcej w Planach`
+        : `+${n} planów więcej w Planach`,
+  customHomePinPrompt: 'W Planach możesz wybrać, które plany widzisz na ekranie głównym.',
+  customHomeEmptyHint: 'W Planach → Moje otwórz menu planu i wybierz „Pokaż na treningu”.',
   customLastWorkoutInsight: (planName: string, when: string) =>
     `Ostatni własny trening: ${planName} · ${when}`,
   customCycleRailTitle: 'Mapa cyklu',

@@ -9,7 +9,9 @@ import { reconcileActiveWorkout } from '@/lib/program-service'
 import { getCustomPlanResumeInfo } from '@/lib/custom-plan-resume'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { resolveBuiltin, getDayPlan } from '@/lib/plan-resolver'
-import { Z_SHEET } from '@/lib/ui-chrome'
+import { Z_SHEET, FOCUS_RING } from '@/lib/ui-chrome'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
+import { registerSheetEscape } from '@/lib/sheet-escape'
 import type { Program } from '@/data/plans/types'
 
 type ResumeTarget =
@@ -23,6 +25,21 @@ export function ResumeWorkoutPrompt() {
   const [target, setTarget] = useState<ResumeTarget | null>(null)
   const location = useLocation()
   const navigate = useNavigate()
+  const trapRef = useFocusTrap(target !== null)
+
+  const onDismiss = () => {
+    try {
+      localStorage.setItem(DISMISS_KEY, Date.now().toString())
+    } catch {
+      // localStorage unavailable — dismiss for this session only
+    }
+    setTarget(null)
+  }
+
+  useEffect(() => {
+    if (!target) return
+    return registerSheetEscape(onDismiss)
+  }, [target])
 
   useEffect(() => {
     // Don't show on workout pages — user is already in the workout flow
@@ -104,15 +121,6 @@ export function ResumeWorkoutPrompt() {
     }
   }
 
-  const onDismiss = () => {
-    try {
-      localStorage.setItem(DISMISS_KEY, Date.now().toString())
-    } catch {
-      // localStorage unavailable — dismiss for this session only
-    }
-    setTarget(null)
-  }
-
   return createPortal(
     <div
       className="fixed inset-0 flex items-end justify-center bg-[var(--sr-bg-overlay)]"
@@ -123,6 +131,7 @@ export function ResumeWorkoutPrompt() {
       }}
     >
       <div
+        ref={trapRef}
         role="dialog"
         aria-modal="true"
         aria-label={pl.resumePromptTitle}
@@ -147,7 +156,10 @@ export function ResumeWorkoutPrompt() {
             type="button"
             onClick={onDismiss}
             aria-label={pl.resumePromptSkip}
-            className="flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full p-1.5 text-[var(--sr-text-muted)] hover:bg-[var(--sr-bg-surface)]"
+            className={cn(
+              'flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full p-1.5 text-[var(--sr-text-muted)] hover:bg-[var(--sr-bg-surface)]',
+              FOCUS_RING,
+            )}
           >
             <X size={20} />
           </button>
@@ -156,14 +168,20 @@ export function ResumeWorkoutPrompt() {
           <button
             type="button"
             onClick={onResume}
-            className="flex min-h-12 flex-1 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)] px-4 py-3 text-center text-sm font-semibold text-white active:scale-[0.99]"
+            className={cn(
+              'flex min-h-12 flex-1 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)] px-4 py-3 text-center text-sm font-semibold text-white active:scale-[0.99]',
+              FOCUS_RING,
+            )}
           >
             {pl.resumePromptResume}
           </button>
           <button
             type="button"
             onClick={onDismiss}
-            className="flex min-h-12 flex-1 items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-center text-sm font-semibold text-[var(--sr-text-secondary)] active:scale-[0.99]"
+            className={cn(
+              'flex min-h-12 flex-1 items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-center text-sm font-semibold text-[var(--sr-text-secondary)] active:scale-[0.99]',
+              FOCUS_RING,
+            )}
           >
             {pl.resumePromptSkip}
           </button>

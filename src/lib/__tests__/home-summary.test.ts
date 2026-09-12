@@ -375,6 +375,24 @@ describe('pickTip + tipSuppressionFrom', () => {
     expect(tip?.kind).not.toBe('welcome')
   })
 
+  it('welcome card hidden for restored users (hasAnyCompletedSession=true)', () => {
+    // After clearAllLocalData + cloud restore, hasCompletedFirstWorkout resets
+    // to false but sessions exist — a returning user must not see the welcome card.
+    const tip = pickTip(
+      [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],
+      0,
+      null,
+      null,
+      {
+        daysSinceLastPassedSession: null,
+        enabledProgramCount: 1,
+        hasCompletedFirstWorkout: false,
+        hasAnyCompletedSession: true,
+      },
+    )
+    expect(tip?.kind).not.toBe('welcome')
+  })
+
   it('habit-zero dismissed for the day is skipped', () => {
     const tip = pickTip(
       [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],

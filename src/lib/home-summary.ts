@@ -86,6 +86,10 @@ export type PickTipOpts = {
   plateauProgram?: Program | null
   /** True gdy użytkownik ukończył pierwszy trening — ukrywa kartę powitalną. */
   hasCompletedFirstWorkout?: boolean
+  /** True gdy istnieją ukończone sesje (np. przywrócone z chmury po
+   *  clearAllLocalData, gdy hasCompletedFirstWorkout się resetuje) — ukrywa
+   *  kartę powitalną dla powracających użytkowników. */
+  hasAnyCompletedSession?: boolean
   /** Sticky dismiss flag for the welcome card (survives across days). */
   welcomeCardDismissed?: boolean
 }
@@ -461,6 +465,7 @@ export function pickTip(
   // the daily dismissedHomeTipId mechanism).
   if (
     opts?.hasCompletedFirstWorkout === false &&
+    !opts?.hasAnyCompletedSession &&
     !opts?.welcomeCardDismissed &&
     !dismissed.has('welcome')
   ) {
@@ -864,6 +869,7 @@ export async function loadHomeDashboard(
       dismissedHabitMetTip: opts?.dismissedHabitMetTip,
       plateauProgram,
       hasCompletedFirstWorkout: opts?.hasCompletedFirstWorkout,
+      hasAnyCompletedSession: completedAll.length > 0,
       welcomeCardDismissed: opts?.welcomeCardDismissed,
       unseenAchievements: await import('@/lib/achievements/store').then((m) =>
         m.countUnseenUnlocks(),

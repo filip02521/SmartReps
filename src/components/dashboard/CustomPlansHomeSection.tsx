@@ -30,6 +30,7 @@ export function CustomPlansHomeSection({
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const [cards, setCards] = useState<CustomPlanHomeCardModel[]>([])
   const [extraPlanCount, setExtraPlanCount] = useState(0)
+  const [activePlanCount, setActivePlanCount] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState(false)
   const [reloadTick, setReloadTick] = useState(0)
@@ -38,6 +39,7 @@ export function CustomPlansHomeSection({
     void (async () => {
       try {
         const all = (await listCustomPlans()).filter((p) => p.status === 'active')
+        setActivePlanCount(all.length)
         const plans = resolveHomeCustomPlans(all, {
           enabledCustomPlanIds: enabledIds,
           customPlansFilterExplicit: filterExplicit,
@@ -119,7 +121,10 @@ export function CustomPlansHomeSection({
 
   if (cards.length === 0) {
     if (hideEmptyDiscover) return null
-    if (filterExplicit && enabledIds.length === 0) {
+    // "All hidden" state — only when the user actually has active plans that
+    // are all hidden via the Plans → Moje toggle. When there are no active
+    // plans at all, fall through to the create/discover empty state below.
+    if (filterExplicit && enabledIds.length === 0 && activePlanCount > 0) {
       return (
         <section className={shellClass} aria-label={aria}>
           <EmptyState
@@ -128,7 +133,7 @@ export function CustomPlansHomeSection({
             description={pl.customHomeEmptyHint}
             action={{
               label: pl.customHomeEmptyCta,
-              onClick: () => navigate('/profile'),
+              onClick: () => navigate('/plans?tab=mine'),
             }}
           />
         </section>
