@@ -161,6 +161,42 @@
       <div class="wordmark">Smart<span class="accent">Reps</span></div>
     </div>
     <div id="root"></div>
+    <script>
+      (() => {
+        const guardKey = 'sr-boot-recovery-count'
+        let recovering = false
+        const recover = async () => {
+          if (recovering || document.getElementById('root')?.hasChildNodes()) return
+          recovering = true
+          let count = 0
+          try { count = Number(sessionStorage.getItem(guardKey) || 0) } catch {}
+          if (count >= 2 || !navigator.onLine) return
+          try { sessionStorage.setItem(guardKey, String(count + 1)) } catch {}
+          try {
+            const registrations = await navigator.serviceWorker?.getRegistrations?.() || []
+            await Promise.allSettled(registrations.map((registration) => registration.update()))
+            registrations.forEach((registration) => {
+              registration.waiting?.postMessage({ type: 'SKIP_WAITING' })
+            })
+            if ('caches' in window) {
+              const keys = await caches.keys()
+              await Promise.allSettled(
+                keys
+                  .filter((key) => key.includes('precache') || key === 'sr-navigations')
+                  .map((key) => caches.delete(key)),
+              )
+            }
+          } catch {}
+          window.setTimeout(() => {
+            window.location.replace(`/?__sr_recover=${Date.now()}`)
+          }, 500)
+        }
+        window.addEventListener('error', (event) => {
+          if (event.target instanceof HTMLScriptElement) void recover()
+        }, true)
+        window.setTimeout(() => void recover(), 8000)
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

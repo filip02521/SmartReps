@@ -79,6 +79,7 @@ createRoot(document.getElementById('root')!).render(
 )
 
 window.requestAnimationFrame(() => {
+  try { sessionStorage.removeItem('sr-boot-recovery-count') } catch { void 0 }
   // Hide HTML boot splash as soon as React splash mounts; then fade React splash.
   void import('@/lib/theme-color').then((m) => m.hideBootSplash())
   window.setTimeout(hideSplash, 900)
