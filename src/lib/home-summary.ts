@@ -86,6 +86,8 @@ export type PickTipOpts = {
   plateauProgram?: Program | null
   /** True gdy użytkownik ukończył pierwszy trening — ukrywa kartę powitalną. */
   hasCompletedFirstWorkout?: boolean
+  /** Sticky dismiss flag for the welcome card (survives across days). */
+  welcomeCardDismissed?: boolean
 }
 
 export type TipSuppression = {
@@ -442,19 +444,7 @@ export function pickTip(
   const activeTrainable = (c: ProgramCardModel) =>
     c.bucket === 'ready' || c.bucket.startsWith('resume')
 
-  // Welcome card — highest priority for new users (before any workout completed)
-  if (opts?.hasCompletedFirstWorkout === false && !dismissed.has('welcome')) {
-    const firstCard = cards.find((c) => c.bucket !== 'unconfigured') ?? cards[0]
-    return {
-      id: 'welcome',
-      kind: 'welcome',
-      message: '',
-      dismissible: true,
-      scrollProgram: firstCard?.program,
-      actionLabel: pl.homeTipWelcomeCta,
-    }
-  }
-
+  // Stale unfinished session is most urgent — always wins over welcome card.
   const staleCard = cards.find((c) => c.bucket === 'resume_stale')
   if (staleCard) {
     return {
@@ -463,6 +453,25 @@ export function pickTip(
       message: pl.staleSession,
       dismissible: false,
       scrollProgram: staleCard.program,
+    }
+  }
+
+  // Welcome card — for new users (before any workout completed).
+  // Uses sticky welcomeCardDismissed flag (survives across days, unlike
+  // the daily dismissedHomeTipId mechanism).
+  if (
+    opts?.hasCompletedFirstWorkout === false &&
+    !opts?.welcomeCardDismissed &&
+    !dismissed.has('welcome')
+  ) {
+    const firstCard = cards.find((c) => c.bucket !== 'unconfigured') ?? cards[0]
+    return {
+      id: 'welcome',
+      kind: 'welcome',
+      message: '',
+      dismissible: true,
+      scrollProgram: firstCard?.program,
+      actionLabel: pl.homeTipWelcomeCta,
     }
   }
 
@@ -681,6 +690,7 @@ export async function loadHomeDashboard(
     showLoginBackup?: boolean
     dismissedHabitMetTip?: boolean
     hasCompletedFirstWorkout?: boolean
+    welcomeCardDismissed?: boolean
   },
 ): Promise<HomeLoadResult> {
   const allSessions = await db.workoutSessions.toArray()
@@ -854,6 +864,7 @@ export async function loadHomeDashboard(
       dismissedHabitMetTip: opts?.dismissedHabitMetTip,
       plateauProgram,
       hasCompletedFirstWorkout: opts?.hasCompletedFirstWorkout,
+      welcomeCardDismissed: opts?.welcomeCardDismissed,
       unseenAchievements: await import('@/lib/achievements/store').then((m) =>
         m.countUnseenUnlocks(),
       ),

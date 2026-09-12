@@ -63,9 +63,11 @@ export default function Dashboard() {
   const hasCompletedFirstWorkout = useAppStore((s) => s.hasCompletedFirstWorkout)
   const dismissedLoginBackupTip = useAppStore((s) => s.dismissedLoginBackupTip)
   const dismissedHabitMetTip = useAppStore((s) => s.dismissedHabitMetTip)
+  const welcomeCardDismissed = useAppStore((s) => s.welcomeCardDismissed)
   const hasSeenLoginCloudPrompt = useAppStore((s) => s.hasSeenLoginCloudPrompt)
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const dismissHomeTip = useAppStore((s) => s.dismissHomeTip)
+  const setWelcomeCardDismissed = useAppStore((s) => s.setWelcomeCardDismissed)
   const setDismissedLoginBackupTip = useAppStore((s) => s.setDismissedLoginBackupTip)
   const setDismissedHabitMetTip = useAppStore((s) => s.setDismissedHabitMetTip)
   const navigate = useNavigate()
@@ -112,6 +114,7 @@ export default function Dashboard() {
       showLoginBackup,
       dismissedHabitMetTip,
       hasCompletedFirstWorkout,
+      welcomeCardDismissed,
     })
       .then(async (result) => {
         if (!cancelled) {
@@ -147,6 +150,7 @@ export default function Dashboard() {
     hasCompletedFirstWorkout,
     dismissedLoginBackupTip,
     dismissedHabitMetTip,
+    welcomeCardDismissed,
     hasSeenLoginCloudPrompt,
     hasSession,
   ])
@@ -464,6 +468,9 @@ export default function Dashboard() {
                 tip={home.tip}
                 onDismiss={(id) => {
                   dismissHomeTip(id, localDayKey())
+                  if (home.tip?.kind === 'welcome') {
+                    setWelcomeCardDismissed(true)
+                  }
                   if (home.tip?.kind === 'login_backup') {
                     setDismissedLoginBackupTip(true)
                   }

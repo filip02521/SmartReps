@@ -116,6 +116,8 @@ type AppStore = {
   dismissedLoginBackupTip: boolean
   /** Sticky dismiss for habit_met home tip (3 sessions / 14d). */
   dismissedHabitMetTip: boolean
+  /** Sticky dismiss for welcome card (post-onboarding feature guide). */
+  welcomeCardDismissed: boolean
   /** Last sync failure reason for SyncStatusPanel (A1/A2). */
   lastSyncFailureReason: string | null
   setSettings: (partial: Partial<UserSettings>) => void
@@ -137,6 +139,7 @@ type AppStore = {
   setHasSeenLoginCloudPrompt: (v: boolean) => void
   setDismissedLoginBackupTip: (v: boolean) => void
   setDismissedHabitMetTip: (v: boolean) => void
+  setWelcomeCardDismissed: (v: boolean) => void
   setLastSyncFailureReason: (reason: string | null) => void
   /** Update subscription status from cloud sync or Stripe webhook. NOT user-editable. */
   setSubscriptionStatus: (status: UserSettings['subscriptionStatus'], expiresAt: string | null, trialStartedAt: string | null) => void
@@ -206,6 +209,7 @@ export const useAppStore = create<AppStore>()(
       hasSeenLoginCloudPrompt: false,
       dismissedLoginBackupTip: false,
       dismissedHabitMetTip: false,
+      welcomeCardDismissed: false,
       lastSyncFailureReason: null,
       setSettings: (partial) =>
         set((s) => {
@@ -251,6 +255,7 @@ export const useAppStore = create<AppStore>()(
       setHasSeenLoginCloudPrompt: (hasSeenLoginCloudPrompt) => set({ hasSeenLoginCloudPrompt }),
       setDismissedLoginBackupTip: (dismissedLoginBackupTip) => set({ dismissedLoginBackupTip }),
       setDismissedHabitMetTip: (dismissedHabitMetTip) => set({ dismissedHabitMetTip }),
+      setWelcomeCardDismissed: (welcomeCardDismissed) => set({ welcomeCardDismissed }),
       setLastSyncFailureReason: (lastSyncFailureReason) => set({ lastSyncFailureReason }),
       setSubscriptionStatus: (subscriptionStatus, subscriptionExpiresAt, trialStartedAt) =>
         set((s) => ({
@@ -304,6 +309,7 @@ export const useAppStore = create<AppStore>()(
           dismissedLoginBackupTip: p.dismissedLoginBackupTip ?? false,
           dismissedHabitMetTip:
             fromVersion < 7 ? false : (p.dismissedHabitMetTip ?? false),
+          welcomeCardDismissed: p.welcomeCardDismissed ?? false,
           lastSyncFailureReason: p.lastSyncFailureReason ?? null,
           settings: {
             ...baseSettings,
@@ -339,6 +345,7 @@ export const useAppStore = create<AppStore>()(
         hasSeenLoginCloudPrompt: s.hasSeenLoginCloudPrompt,
         dismissedLoginBackupTip: s.dismissedLoginBackupTip,
         dismissedHabitMetTip: s.dismissedHabitMetTip,
+        welcomeCardDismissed: s.welcomeCardDismissed,
         lastSyncFailureReason: s.lastSyncFailureReason,
       }),
     },
