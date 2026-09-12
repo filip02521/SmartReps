@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { BrandLoader } from '@/components/ui/BrandLoader'
 import { FeedbackBanner } from '@/components/ux/Feedback'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { pl } from '@/i18n/pl'
@@ -196,7 +197,9 @@ export function AiWorkoutAnalysis() {
               ? pl.aiCoachAnalysisDone
               : error
                 ? pl.aiCoachErrorRetry
-                : pl.aiCoachReady
+                : !apiKey
+                  ? pl.aiCoachConfigDisconnected
+                  : pl.aiCoachReady
         }
         pulse={loading}
       />
@@ -233,16 +236,25 @@ export function AiWorkoutAnalysis() {
         </div>
       )}
 
+      {/* No API key — explain why the CTA below is disabled */}
+      {!apiKey && !loading && !result && hasSessions && (
+        <div className="mt-3">
+          <FeedbackBanner variant="warning" message={pl.aiCoachNoApiKey} />
+        </div>
+      )}
+
       {/* CTA — before first analysis or after error (only if sessions exist) */}
       {!result && !loading && hasSessions && (
         <Button
           type="button"
           variant="secondary"
+          size="touch"
           fullWidth
           disabled={!apiKey}
           onClick={handleAnalyze}
           className="mt-3 gap-2"
         >
+          <Sparkles size={18} aria-hidden />
           {pl.aiAnalyze}
         </Button>
       )}
@@ -250,7 +262,7 @@ export function AiWorkoutAnalysis() {
       {/* Loading — coach thinking state */}
       {loading && (
         <div className="mt-3 flex flex-col items-center gap-3 py-6">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--sr-border-subtle)] border-t-[var(--sr-brand-primary)]" />
+          <BrandLoader size={40} label={pl.aiCoachAnalyzing} />
           <p className="text-sm text-[var(--sr-text-muted)]">{pl.aiCoachAnalyzing}</p>
         </div>
       )}

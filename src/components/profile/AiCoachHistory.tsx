@@ -2,11 +2,13 @@ import { useEffect, useState, useCallback } from 'react'
 import { ChevronDown, ChevronUp, MessageSquareOff } from 'lucide-react'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { Button } from '@/components/ui/Button'
+import { BrandLoader } from '@/components/ui/BrandLoader'
 import { pl } from '@/i18n/pl'
 import { db, type LocalAiInsight, type AiInsightType } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
 import { showToast } from '@/stores/toast-store'
 import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 
 type FilterType = 'all' | AiInsightType
 
@@ -97,7 +99,8 @@ export function AiCoachHistory() {
             type="button"
             onClick={() => setFilter(f.key)}
             className={cn(
-              'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+              FOCUS_RING,
+              'min-h-9 rounded-full px-3 py-1 text-xs font-medium transition-colors',
               filter === f.key
                 ? 'bg-[var(--sr-brand-primary)] text-white'
                 : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-secondary)] hover:bg-[var(--sr-border-subtle)]',
@@ -112,7 +115,7 @@ export function AiCoachHistory() {
       <div className="mt-3 flex flex-col gap-2">
         {loading ? (
           <div className="flex items-center justify-center py-6">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--sr-border-subtle)] border-t-[var(--sr-brand-primary)]" />
+            <BrandLoader size={28} />
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex items-center gap-2 py-6 text-center">
@@ -141,7 +144,8 @@ export function AiCoachHistory() {
                 <button
                   type="button"
                   onClick={() => setExpanded(isExpanded ? null : insight.id)}
-                  className="flex w-full items-start gap-2 text-left"
+                  aria-expanded={isExpanded}
+                  className={cn(FOCUS_RING, 'flex w-full items-start gap-2 rounded-[var(--sr-radius-sm)] text-left')}
                 >
                   <div className="min-w-0 flex-1">
                     <span className="text-sm font-semibold text-[var(--sr-text-primary)]">

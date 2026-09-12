@@ -1648,7 +1648,6 @@ export const en: Translation = {
   aiProviderCustom: 'Custom endpoint',
   aiApiKeyLabel: 'API key',
   aiApiKeyPlaceholder: 'sk-... or AIza...',
-  aiApiKeySaved: 'API key saved',
   aiModelLabel: 'Model',
   aiModelHint: 'The cheapest and fastest model is enough. For Gemini: "gemini-2.5-flash-lite" (free) or "gemini-2.5-flash".',
   aiBaseUrlLabel: 'API base URL',

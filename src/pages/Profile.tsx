@@ -394,10 +394,7 @@ export default function ProfilePage() {
             document.documentElement.lang = lang
           }
         }}
-        onAiApiKeySave={(key) => {
-          setSettings({ aiApiKey: key })
-          showToast(pl.aiApiKeySaved, 'success')
-        }}
+        onAiApiKeySave={(key) => setSettings({ aiApiKey: key })}
         onAiModelSave={(model) => setSettings({ aiModel: model })}
         onAiBaseUrlSave={(url) => setSettings({ aiBaseUrl: url })}
         onAiProactiveCoachChange={(enabled) => setSettings({ aiProactiveCoach: enabled })}

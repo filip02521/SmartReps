@@ -2,6 +2,7 @@ import { useState, useRef, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
+import { BrandLoader } from '@/components/ui/BrandLoader'
 import { TextField } from '@/components/ui/TextField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { FeedbackBanner } from '@/components/ux/Feedback'
@@ -299,7 +300,9 @@ export function AiPlanGenerator({
               ? pl.aiCoachPlanReady
               : step === 'error'
                 ? pl.aiCoachErrorRetry
-                : pl.aiCoachReady
+                : !apiKey
+                  ? pl.aiCoachConfigDisconnected
+                  : pl.aiCoachReady
         }
         pulse={step === 'generating'}
       />
@@ -416,7 +419,7 @@ export function AiPlanGenerator({
       {/* GENERATING STEP — coach thinking */}
       {step === 'generating' && (
         <div className="mt-3 flex flex-col items-center gap-4 py-8">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--sr-border-subtle)] border-t-[var(--sr-brand-primary)]" />
+          <BrandLoader size={48} label={pl.aiCoachGenerating} />
           <p className="text-sm text-[var(--sr-text-muted)]">{pl.aiCoachGenerating}</p>
         </div>
       )}

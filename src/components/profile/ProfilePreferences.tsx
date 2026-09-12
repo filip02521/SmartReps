@@ -8,6 +8,7 @@ import { InfoHint } from '@/components/ui/InfoHint'
 import { AiCoachHeader } from '@/components/brand/AiCoachHeader'
 import { pl } from '@/i18n/pl'
 import type { UserSettings } from '@/stores/app-store'
+import { showToast } from '@/stores/toast-store'
 
 type Theme = UserSettings['theme']
 
@@ -253,7 +254,6 @@ export function AiCoachSection({
   const [modelDraft, setModelDraft] = useState(aiModel)
   const [baseUrlDraft, setBaseUrlDraft] = useState(aiBaseUrl)
   const [baseUrlError, setBaseUrlError] = useState('')
-  const [saved, setSaved] = useState(false)
   useEffect(() => {
     setApiKeyDraft(aiApiKey)
   }, [aiApiKey])
@@ -281,8 +281,7 @@ export function AiCoachSection({
     onAiApiKeySave(apiKeyDraft.trim())
     onAiModelSave(modelDraft.trim() || 'gpt-4o-mini')
     onAiBaseUrlSave(trimmedUrl)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+    showToast(pl.aiCoachConfigSaved, 'success')
   }
 
   const providerHint = (() => {
@@ -373,8 +372,14 @@ export function AiCoachSection({
               </>
             }
             value={baseUrlDraft}
-            onChange={(e) => setBaseUrlDraft(e.target.value)}
+            onChange={(e) => {
+              setBaseUrlDraft(e.target.value)
+              if (baseUrlError) setBaseUrlError('')
+            }}
             placeholder={pl.aiBaseUrlPlaceholder}
+            aria-invalid={baseUrlError ? true : undefined}
+            hint={baseUrlError || undefined}
+            hintClassName={baseUrlError ? 'text-[var(--sr-error)]' : undefined}
           />
         )}
       </div>
@@ -417,24 +422,17 @@ export function AiCoachSection({
         </div>
       )}
 
-      {/* Save + feedback */}
-      <div className="mt-5 flex items-center gap-3">
+      {/* Save */}
+      <div className="mt-5">
         <Button
           type="button"
-          size="md"
+          size="touch"
+          fullWidth
           onClick={handleSave}
         >
           {pl.aiCoachConfigSave}
         </Button>
-        {saved && (
-          <span className="text-xs font-medium text-[var(--sr-success)]">
-            {pl.aiCoachConfigSaved}
-          </span>
-        )}
       </div>
-      {baseUrlError && (
-        <p className="mt-1.5 text-xs text-[var(--sr-error)]">{baseUrlError}</p>
-      )}
     </>
   )
 }

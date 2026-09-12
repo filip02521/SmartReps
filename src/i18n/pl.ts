@@ -1673,7 +1673,6 @@ const plDict = {
   aiProviderCustom: 'Własny endpoint',
   aiApiKeyLabel: 'Klucz API',
   aiApiKeyPlaceholder: 'sk-... lub AIza...',
-  aiApiKeySaved: 'Klucz API zapisany',
   aiModelLabel: 'Model',
   aiModelHint: 'Najtańszy i najszybszy model wystarczy. Dla Gemini: „gemini-2.5-flash-lite" (darmowy) lub „gemini-2.5-flash".',
   aiBaseUrlLabel: 'Adres API (Base URL)',
