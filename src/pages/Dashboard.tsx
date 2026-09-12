@@ -518,7 +518,7 @@ export default function Dashboard() {
                   variant="ghost"
                   fullWidth
                   className="mt-4"
-                  onClick={() => navigate('/profile')}
+                  onClick={() => navigate('/plans?tab=programs')}
                 >
                   {pl.homeAddSecondProgram}
                 </Button>
