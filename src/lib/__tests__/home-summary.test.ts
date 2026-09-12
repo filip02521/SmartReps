@@ -300,6 +300,81 @@ describe('pickTip + tipSuppressionFrom', () => {
     expect(tipSuppressionFrom(tip).stale).toBe(true)
   })
 
+  it('welcome card shows for new users (hasCompletedFirstWorkout=false)', () => {
+    const tip = pickTip(
+      [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],
+      0,
+      null,
+      null,
+      { daysSinceLastPassedSession: null, enabledProgramCount: 1, hasCompletedFirstWorkout: false },
+    )
+    expect(tip?.kind).toBe('welcome')
+    expect(tip?.dismissible).toBe(true)
+    expect(tip?.actionLabel).toBe(pl.homeTipWelcomeCta)
+  })
+
+  it('welcome card hidden when hasCompletedFirstWorkout=true', () => {
+    const tip = pickTip(
+      [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],
+      0,
+      null,
+      null,
+      { daysSinceLastPassedSession: null, enabledProgramCount: 1, hasCompletedFirstWorkout: true },
+    )
+    expect(tip?.kind).not.toBe('welcome')
+  })
+
+  it('welcome card hidden when welcomeCardDismissed=true', () => {
+    const tip = pickTip(
+      [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],
+      0,
+      null,
+      null,
+      { daysSinceLastPassedSession: null, enabledProgramCount: 1, hasCompletedFirstWorkout: false, welcomeCardDismissed: true },
+    )
+    expect(tip?.kind).not.toBe('welcome')
+  })
+
+  it('welcome card hidden when dismissed for the day', () => {
+    const tip = pickTip(
+      [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],
+      0,
+      'welcome',
+      localDayKey(),
+      { daysSinceLastPassedSession: null, enabledProgramCount: 1, hasCompletedFirstWorkout: false },
+    )
+    expect(tip?.kind).not.toBe('welcome')
+  })
+
+  it('stale wins over welcome card', () => {
+    const tip = pickTip(
+      [
+        card({
+          program: 'pushups',
+          bucket: 'resume_stale',
+          resume: resumeStale,
+          progress: prog({}),
+        }),
+      ],
+      0,
+      null,
+      null,
+      { daysSinceLastPassedSession: null, enabledProgramCount: 1, hasCompletedFirstWorkout: false },
+    )
+    expect(tip?.kind).toBe('stale')
+  })
+
+  it('welcome card does not show when hasCompletedFirstWorkout is undefined', () => {
+    const tip = pickTip(
+      [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],
+      0,
+      null,
+      null,
+      { daysSinceLastPassedSession: null, enabledProgramCount: 1 },
+    )
+    expect(tip?.kind).not.toBe('welcome')
+  })
+
   it('habit-zero dismissed for the day is skipped', () => {
     const tip = pickTip(
       [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],
