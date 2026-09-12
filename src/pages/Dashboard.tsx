@@ -111,6 +111,7 @@ export default function Dashboard() {
       dismissedHomeTipDay,
       showLoginBackup,
       dismissedHabitMetTip,
+      hasCompletedFirstWorkout,
     })
       .then(async (result) => {
         if (!cancelled) {

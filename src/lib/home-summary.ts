@@ -49,6 +49,7 @@ export type HomeProgramBar = {
 }
 
 export type TipKind =
+  | 'welcome'
   | 'stale'
   | 'test_ready'
   | 'test_rest'
@@ -83,6 +84,8 @@ export type PickTipOpts = {
   unseenAchievements?: number
   /** When set, a plateau warning tip is shown for this program. */
   plateauProgram?: Program | null
+  /** True gdy użytkownik ukończył pierwszy trening — ukrywa kartę powitalną. */
+  hasCompletedFirstWorkout?: boolean
 }
 
 export type TipSuppression = {
@@ -439,6 +442,19 @@ export function pickTip(
   const activeTrainable = (c: ProgramCardModel) =>
     c.bucket === 'ready' || c.bucket.startsWith('resume')
 
+  // Welcome card — highest priority for new users (before any workout completed)
+  if (opts?.hasCompletedFirstWorkout === false && !dismissed.has('welcome')) {
+    const firstCard = cards.find((c) => c.bucket !== 'unconfigured') ?? cards[0]
+    return {
+      id: 'welcome',
+      kind: 'welcome',
+      message: '',
+      dismissible: true,
+      scrollProgram: firstCard?.program,
+      actionLabel: pl.homeTipWelcomeCta,
+    }
+  }
+
   const staleCard = cards.find((c) => c.bucket === 'resume_stale')
   if (staleCard) {
     return {
@@ -664,6 +680,7 @@ export async function loadHomeDashboard(
     dismissedHomeTipDay?: string | null
     showLoginBackup?: boolean
     dismissedHabitMetTip?: boolean
+    hasCompletedFirstWorkout?: boolean
   },
 ): Promise<HomeLoadResult> {
   const allSessions = await db.workoutSessions.toArray()
@@ -836,6 +853,7 @@ export async function loadHomeDashboard(
       showLoginBackup: opts?.showLoginBackup,
       dismissedHabitMetTip: opts?.dismissedHabitMetTip,
       plateauProgram,
+      hasCompletedFirstWorkout: opts?.hasCompletedFirstWorkout,
       unseenAchievements: await import('@/lib/achievements/store').then((m) =>
         m.countUnseenUnlocks(),
       ),
