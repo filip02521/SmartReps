@@ -197,8 +197,31 @@ type SyncToastOpts = {
 }
 
 let authenticatedSyncLock: Promise<SyncResult> | null = null
-/** The actual underlying sync promise — persists even after the timeout
- *  race clears the lock. waitForSyncToFinish waits on THIS, not the lock,
+const SYNC_TIMEOUT_MS = 90_000
+
+async function raceSyncWithTimeout(
+  syncPromise: Promise<SyncResult>,
+  opts?: SyncToastOpts,
+): Promise<SyncResult> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  const timeoutPromise = new Promise<SyncResult>((resolve) => {
+    timeoutId = setTimeout(() => {
+      resolve({ ok: false, errors: 0, reason: 'remote_error' })
+    }, SYNC_TIMEOUT_MS)
+  })
+  const result = await Promise.race([syncPromise, timeoutPromise]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId)
+  })
+  if (!result.ok && result.errors === 0 && result.reason === 'remote_error') {
+    useAppStore.getState().setLastSyncFailureReason('remote_error')
+    scheduleSyncResultToast(false, opts ?? {}, 'remote_error')
+    track(AnalyticsEvents.syncFailed, { errors: 0, reason: 'remote_error' })
+  }
+  return result
+}
+
+/** The actual underlying sync promise — persists even after the timeout.
+ *  waitForSyncToFinish waits on THIS, not the caller's timeout race,
  *  so a timed-out sync can't leave a zombie writing into a cleared DB. */
 let activeSyncPromise: Promise<SyncResult> | null = null
 
@@ -362,12 +385,10 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
   if (opts?.showFailureToast) pendingSyncToasts.showFailureToast = true
   if (opts?.silentOffline) pendingSyncToasts.silentOffline = true
 
-  if (authenticatedSyncLock) return authenticatedSyncLock
+  if (authenticatedSyncLock) return raceSyncWithTimeout(authenticatedSyncLock, opts)
 
-  // Timeout guard: if sync hangs (slow network, unresponsive server), release
-  // the lock after 90s so future sync attempts aren't blocked forever.
-  const SYNC_TIMEOUT_MS = 90_000
-
+  // Timeout guard: if sync hangs (slow network, unresponsive server), return
+  // a failure while keeping the underlying sync single-flight until it settles.
   authenticatedSyncLock = (async () => {
     const accountResult = await ensureAccountForSession(session.user.id)
     if (accountResult === 'needs_confirm') {
@@ -449,11 +470,20 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
     }
 
     return finalResult
-  })()
+  })().catch((err) => {
+    trackSyncError('authenticated_sync', err)
+    const reason: SyncFailureReason = 'remote_error'
+    const toastOpts = { ...pendingSyncToasts }
+    pendingSyncToasts = {}
+    useAppStore.getState().setLastSyncFailureReason(reason)
+    scheduleSyncResultToast(false, toastOpts, reason)
+    track(AnalyticsEvents.syncFailed, { errors: 1, reason })
+    return { ok: false, errors: 1, reason }
+  })
 
-  // Track the actual sync promise separately from the lock.
-  // The timeout race below may clear the lock, but the underlying sync
-  // keeps running. activeSyncPromise is cleared only when the sync
+  // Track the actual sync promise separately from the caller's timeout race.
+  // The underlying sync and lock stay active until the operation settles.
+  // activeSyncPromise is cleared only when the sync
   // actually completes, so waitForSyncToFinish can wait for the real
   // completion — preventing zombie syncs from writing into a cleared DB.
   const syncPromise = authenticatedSyncLock
@@ -463,19 +493,14 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
     if (activeSyncPromise === syncPromise) {
       activeSyncPromise = null
     }
+    if (authenticatedSyncLock === syncPromise) {
+      authenticatedSyncLock = null
+    }
   })
 
   // Race the sync against a timeout. If the timeout wins, return a failure
-  // result but still clear the lock so the next sync can proceed.
-  const timeoutPromise = new Promise<SyncResult>((resolve) => {
-    setTimeout(() => {
-      resolve({ ok: false, errors: 0, reason: 'network' as SyncFailureReason })
-    }, SYNC_TIMEOUT_MS)
-  })
-
-  return Promise.race([syncPromise, timeoutPromise]).finally(() => {
-    authenticatedSyncLock = null
-  })
+  // while the underlying single-flight sync remains tracked until completion.
+  return raceSyncWithTimeout(syncPromise, opts)
 }
 
 /** Single-flight: sync + optional post-login navigation (OTP code, Kontynuuj). */

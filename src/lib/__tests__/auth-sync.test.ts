@@ -344,6 +344,15 @@ describe('runAuthenticatedSync', () => {
       undefined,
     )
   })
+
+  it('converts an unexpected sync rejection into a reported failure', async () => {
+    vi.mocked(syncWithRemote).mockRejectedValue(new Error('network failed'))
+
+    const result = await runAuthenticatedSync({ showFailureToast: false })
+
+    expect(result).toEqual({ ok: false, errors: 1, reason: 'remote_error' })
+    expect(setLastSyncFailureReason).toHaveBeenCalledWith('remote_error')
+  })
 })
 
 describe('completeSignInFlow', () => {

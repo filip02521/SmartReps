@@ -239,6 +239,48 @@ describe('pullCustomEntities', () => {
     const result = await pullCustomEntities('user-1')
     expect(result.errors).toBeGreaterThan(0)
   })
+
+  it('classifies a resolved tombstone query error as tombstone failure', async () => {
+    const { pullCustomEntities } = await import('@/lib/custom-sync')
+    mockFrom.mockImplementation((table: string) =>
+      table === 'custom_plan_tombstones'
+        ? makeQueryBuilder(table, { selectError: { message: 'rls denied' } })
+        : makeQueryBuilder(table),
+    )
+
+    const result = await pullCustomEntities('user-1')
+
+    expect(result.errors).toBeGreaterThan(0)
+    expect(result.tombstoneErrors).toBe(1)
+  })
+
+  it('keeps a tombstone authoritative when the deleted exercise still exists remotely', async () => {
+    const { pullCustomEntities } = await import('@/lib/custom-sync')
+    mockDb.exerciseTombstones.get.mockImplementation((id: string) =>
+      id === 'ex-deleted' ? Promise.resolve({ exerciseId: id }) : Promise.resolve(undefined),
+    )
+    mockFrom.mockImplementation((table: string) =>
+      table === 'user_exercises'
+        ? makeQueryBuilder(table, {
+            selectData: [{
+              id: 'ex-deleted',
+              name: 'Deleted',
+              primary_metric: 'reps',
+              rest_default_sec: 60,
+              archived: false,
+              created_at: '2026-01-01',
+              updated_at: '2026-01-02',
+            }],
+          })
+        : makeQueryBuilder(table),
+    )
+
+    await pullCustomEntities('user-1')
+
+    expect(mockDb.exercises.put).not.toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'ex-deleted' }),
+    )
+  })
 })
 
 describe('mergeActiveCustomRemote (via pullCustomEntities)', () => {
@@ -446,6 +488,27 @@ describe('pushCustomEntities — trackSyncError on failures', () => {
     expect(errors).toBeGreaterThan(0)
     expect(trackSyncError).toHaveBeenCalledWith(
       'push_active_custom_workout',
+      expect.anything(),
+    )
+  })
+
+  it('counts resolved custom plan tombstone upsert errors', async () => {
+    const { pushCustomEntities } = await import('@/lib/custom-sync')
+    const { trackSyncError } = await import('@/lib/analytics')
+    mockDb.customPlanTombstones.toArray.mockResolvedValue([
+      { planId: 'plan-deleted', deletedAt: '2026-01-02' },
+    ])
+    mockFrom.mockImplementation((table: string) =>
+      table === 'custom_plan_tombstones'
+        ? makeQueryBuilder(table, { upsertError: { message: 'rls denied' } })
+        : makeQueryBuilder(table),
+    )
+
+    const errors = await pushCustomEntities('user-1')
+
+    expect(errors).toBeGreaterThan(0)
+    expect(trackSyncError).toHaveBeenCalledWith(
+      'push_custom_plan_tombstone',
       expect.anything(),
     )
   })

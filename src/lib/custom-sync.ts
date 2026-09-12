@@ -17,7 +17,6 @@ import {
   hasPendingCustomPlanDelete,
   hasPendingCustomPlanUpsert,
   hasPendingCustomProgressUpsert,
-  removePendingSyncQueueItems,
 } from '@/lib/sync-queue-utils'
 import { supabase } from '@/lib/supabase/client'
 import { trackSyncError } from '@/lib/analytics'
@@ -399,13 +398,18 @@ export async function pushCustomEntities(userId: string): Promise<number> {
     }
   }
 
-  const { data: remoteProgress } = await supabase
+  const { data: remoteProgress, error: remoteProgressError } = await supabase
     .from('custom_program_progress')
     .select('*')
     .eq('user_id', userId)
   const remoteByPlan = new Map<string, RemoteCustomProgressRow>()
-  for (const row of (remoteProgress ?? []) as RemoteCustomProgressRow[]) {
-    remoteByPlan.set(row.custom_plan_id, row)
+  if (remoteProgressError) {
+    errors++
+    trackSyncError('fetch_remote_custom_progress', remoteProgressError)
+  } else {
+    for (const row of (remoteProgress ?? []) as RemoteCustomProgressRow[]) {
+      remoteByPlan.set(row.custom_plan_id, row)
+    }
   }
 
   for (const prog of await db.customProgramProgress.toArray()) {
@@ -433,14 +437,16 @@ export async function pushCustomEntities(userId: string): Promise<number> {
   // Push local custom plan tombstones to cloud
   for (const tombstone of await db.customPlanTombstones.toArray()) {
     try {
-      await supabase
+      const { error } = await supabase
         .from('custom_plan_tombstones')
         .upsert({
           user_id: userId,
           plan_id: tombstone.planId,
           deleted_at: tombstone.deletedAt,
         }, { onConflict: 'user_id,plan_id' })
+      if (error) throw error
     } catch (err) {
+      errors++
       trackSyncError('push_custom_plan_tombstone', err)
     }
   }
@@ -448,14 +454,16 @@ export async function pushCustomEntities(userId: string): Promise<number> {
   // Push local exercise tombstones to cloud
   for (const tombstone of await db.exerciseTombstones.toArray()) {
     try {
-      await supabase
+      const { error } = await supabase
         .from('exercise_tombstones')
         .upsert({
           user_id: userId,
           exercise_id: tombstone.exerciseId,
           deleted_at: tombstone.deletedAt,
         }, { onConflict: 'user_id,exercise_id' })
+      if (error) throw error
     } catch (err) {
+      errors++
       trackSyncError('push_exercise_tombstone', err)
     }
   }
@@ -483,15 +491,14 @@ export async function pullCustomEntities(userId: string): Promise<PullCustomEnti
         .from('custom_plan_tombstones')
         .select('plan_id, deleted_at')
         .eq('user_id', userId)
-      if (!ptErr && planTombstones) {
-        for (const row of planTombstones as { plan_id: string; deleted_at: string }[]) {
-          await db.customPlanTombstones.put({ planId: row.plan_id, deletedAt: row.deleted_at })
-          const localPlan = await db.customPlans.get(row.plan_id)
-          if (localPlan) await db.customPlans.delete(row.plan_id)
-          const localProg = await db.customProgramProgress.where('customPlanId').equals(row.plan_id).first()
-          if (localProg?.id != null) await db.customProgramProgress.delete(localProg.id)
-          await db.activeCustomWorkout.delete(row.plan_id)
-        }
+      if (ptErr) throw ptErr
+      for (const row of (planTombstones ?? []) as { plan_id: string; deleted_at: string }[]) {
+        await db.customPlanTombstones.put({ planId: row.plan_id, deletedAt: row.deleted_at })
+        const localPlan = await db.customPlans.get(row.plan_id)
+        if (localPlan) await db.customPlans.delete(row.plan_id)
+        const localProg = await db.customProgramProgress.where('customPlanId').equals(row.plan_id).first()
+        if (localProg?.id != null) await db.customProgramProgress.delete(localProg.id)
+        await db.activeCustomWorkout.delete(row.plan_id)
       }
     } catch (err) {
       tombstoneErrors++
@@ -503,50 +510,31 @@ export async function pullCustomEntities(userId: string): Promise<PullCustomEnti
     // Do NOT delete the remote exercise here — the sync queue delete from the
     // originating device handles that. Deleting here is dangerous because a
     // stale tombstone (exercise re-created or tombstone created in error) would
-    // delete an active exercise from the cloud. The stale tombstone cleanup
-    // below handles the case where the tombstone is stale.
+    // delete an active exercise from the cloud. Tombstones remain authoritative
+    // until an explicit recovery path removes them.
     try {
       const { data: exTombstones, error: etErr } = await supabase
         .from('exercise_tombstones')
         .select('exercise_id, deleted_at')
         .eq('user_id', userId)
-      if (!etErr && exTombstones) {
-        for (const row of exTombstones as { exercise_id: string; deleted_at: string }[]) {
-          await db.exerciseTombstones.put({ exerciseId: row.exercise_id, deletedAt: row.deleted_at })
-          const localEx = await db.exercises.get(row.exercise_id)
-          if (localEx) await db.exercises.delete(row.exercise_id)
-        }
+      if (etErr) throw etErr
+      for (const row of (exTombstones ?? []) as { exercise_id: string; deleted_at: string }[]) {
+        await db.exerciseTombstones.put({ exerciseId: row.exercise_id, deletedAt: row.deleted_at })
+        const localEx = await db.exercises.get(row.exercise_id)
+        if (localEx) await db.exercises.delete(row.exercise_id)
       }
     } catch (err) {
       tombstoneErrors++
       errors++
       trackSyncError('pull_exercise_tombstones', err)
     }
+    if (tombstoneErrors > 0) return { errors, tombstoneErrors }
 
     const { data: exercises, error: exErr } = await supabase
       .from('user_exercises')
       .select('*')
       .eq('user_id', userId)
     if (exErr) throw exErr
-
-    // Clean up stale tombstones BEFORE pulling: if a tombstoned exercise ID
-    // still exists in the cloud (user_exercises), the tombstone is stale —
-    // the exercise was resurrected or the tombstone was created in error
-    // (e.g. by dedup during migration 068). Remove the tombstone so the
-    // exercise can be pulled in the loop below.
-    // ALSO remove any pending sync queue delete for this exercise ID —
-    // otherwise the queue delete would kill the exercise in the cloud
-    // right after we pulled it, creating a pull→delete→pull loop.
-    {
-      const remoteExerciseIds = new Set((exercises ?? []).map((r) => (r as RemoteExercise).id))
-      const localTombstones = await db.exerciseTombstones.toArray()
-      for (const t of localTombstones) {
-        if (remoteExerciseIds.has(t.exerciseId)) {
-          await db.exerciseTombstones.delete(t.exerciseId)
-          await removePendingSyncQueueItems('user_exercises', t.exerciseId)
-        }
-      }
-    }
 
     for (const row of (exercises ?? []) as RemoteExercise[]) {
       const mapped = mapExercise(row)

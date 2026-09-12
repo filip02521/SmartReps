@@ -663,3 +663,60 @@ describe('Phase 4: Sync observability', () => {
     })
   })
 })
+
+describe('Sync queue deletion safety', () => {
+  it('keeps dead-letter items and reports them as sync errors', async () => {
+    const { flushSyncQueue } = await import('@/lib/sync')
+    mockDb.syncQueue.orderBy.mockReturnValue({
+      toArray: vi.fn().mockResolvedValue([{
+        id: 7,
+        table: 'workout_sessions',
+        action: 'update',
+        payload: JSON.stringify({ id: 's1' }),
+        attempts: 5,
+        createdAt: '2026-01-01',
+      }]),
+    })
+
+    const errors = await flushSyncQueue()
+
+    expect(errors).toBe(1)
+    expect(mockDb.syncQueue.delete).not.toHaveBeenCalledWith(7)
+  })
+
+  it('drops a queued session upsert instead of resurrecting a tombstoned session', async () => {
+    const { flushSyncQueue } = await import('@/lib/sync')
+    mockDb.sessionTombstones.get.mockResolvedValue({ sessionId: 's1' })
+    mockDb.syncQueue.orderBy.mockReturnValue({
+      toArray: vi.fn().mockResolvedValue([{
+        id: 8,
+        table: 'workout_sessions',
+        action: 'update',
+        payload: JSON.stringify({ id: 's1', status: 'completed', setResults: [] }),
+        attempts: 0,
+        createdAt: '2026-01-01',
+      }]),
+    })
+
+    const errors = await flushSyncQueue()
+
+    expect(errors).toBe(0)
+    expect(supabaseCallOrder).not.toContain('upsert:workout_sessions')
+    expect(mockDb.syncQueue.delete).toHaveBeenCalledWith(8)
+  })
+
+  it('does not flush queued writes when a tombstone pull fails', async () => {
+    const { syncWithRemote } = await import('@/lib/sync')
+    mockFrom.mockImplementation((table: string) =>
+      table === 'session_tombstones'
+        ? makeQueryBuilder(table, { selectError: { message: 'network error' } })
+        : makeQueryBuilder(table),
+    )
+
+    const result = await syncWithRemote()
+
+    expect(result.ok).toBe(false)
+    expect(supabaseCallOrder).not.toContain('select:workout_sessions')
+    expect(mockDb.syncQueue.orderBy).not.toHaveBeenCalled()
+  })
+})

@@ -145,4 +145,20 @@ describe('sync queue coalescing', () => {
     await enqueueSync('workout_sessions', 'update', { id: 's1' })
     expect(queueData.length).toBe(2)
   })
+
+  it('does not collapse or discard unique id-less operations above the queue threshold', async () => {
+    const { enqueueSync } = await import('@/lib/sync')
+    queueData = Array.from({ length: 500 }, (_, index) => ({
+      id: index + 1,
+      table: 'legacy_table',
+      action: 'update',
+      payload: JSON.stringify({ value: index }),
+      createdAt: `2026-01-01T00:00:${String(index % 60).padStart(2, '0')}.000Z`,
+    }))
+    nextId = 501
+
+    await enqueueSync('legacy_table', 'update', { value: 500 })
+
+    expect(queueData).toHaveLength(501)
+  })
 })
