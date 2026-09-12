@@ -507,8 +507,15 @@ export function ProgramHomeCard({
               disabled={busy}
               className="sr-pulse-cta"
               onClick={() => {
-                if (resume.stale && !resting) setShowStaleConfirm(true)
-                else navigate(`/workout/${program}?force=1`)
+                // Stale session data must always be confirmed before resuming —
+                // resting adds a rest-specific sheet (both abandon-only paths),
+                // otherwise the simpler continue/start-fresh confirm sheet.
+                if (resume.stale) {
+                  if (resting) setShowStaleRestSheet(true)
+                  else setShowStaleConfirm(true)
+                } else {
+                  navigate(`/workout/${program}?force=1`)
+                }
               }}
             >
               <span className="flex items-center justify-center gap-2">
@@ -540,16 +547,6 @@ export function ProgramHomeCard({
                 fullWidth
                 disabled={busy}
                 onClick={() => setShowTrainAnywayConfirm(true)}
-              >
-                {pl.trainAnywayNew}
-              </Button>
-            )}
-            {resume.stale && resting && (
-              <Button
-                variant="ghost"
-                fullWidth
-                disabled={busy}
-                onClick={() => setShowStaleRestSheet(true)}
               >
                 {pl.trainAnywayNew}
               </Button>
@@ -605,6 +602,7 @@ export function ProgramHomeCard({
             {program === 'pullups' &&
               bucket === 'resting' &&
               !trainDespiteRest &&
+              !allResting &&
               enabledPrograms.includes('pushups') && (
               <Button
                 variant="secondary"

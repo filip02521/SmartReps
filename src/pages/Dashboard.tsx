@@ -503,6 +503,21 @@ export default function Dashboard() {
               <SectionHeader icon={Dumbbell} title={pl.homeStartTraining} />
               <div className="flex flex-col gap-3">
                 <CustomPlansHomeSection embedded />
+                {home.cards.length > 0 && (
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="sr-text-body-sm font-semibold text-[var(--sr-text-secondary)]">
+                      {pl.programs}
+                    </h3>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => navigate('/plans?tab=programs')}
+                    >
+                      {pl.homeSeeAllCustom}
+                    </Button>
+                  </div>
+                )}
                 {home.cards.map((card) => (
                   <ProgramHomeCard
                     key={card.program}
