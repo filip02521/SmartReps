@@ -237,6 +237,19 @@ Deno.serve(async (req) => {
 
   const now = new Date()
 
+  // Hourly sweep: flip lapsed 'pro'/'trial' rows to 'expired' so the
+  // stored status tells the truth and subscription_events gets an audit
+  // row. Non-fatal — every pro gate already enforces expires_at, so a
+  // missed tick only delays the cosmetic flip.
+  const { data: expiredCount, error: sweepErr } = await supabase.rpc(
+    'expire_lapsed_subscriptions',
+  )
+  if (sweepErr) {
+    console.error('expire_lapsed_subscriptions failed:', sweepErr)
+  } else if (typeof expiredCount === 'number' && expiredCount > 0) {
+    console.log(`expired ${expiredCount} lapsed subscription(s)`)
+  }
+
   const { data: subs, error } = await supabase
     .from('push_subscriptions')
     .select('id, user_id, endpoint, p256dh, auth, reminder_hour, timezone, last_push_date')
