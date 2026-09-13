@@ -60,6 +60,7 @@ import { ProgressionSuggestionPanel } from '@/components/workout/ProgressionSugg
 import { analyzeCustomProgression, type ProgressionSuggestion } from '@/lib/rpe-analysis'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
+import { resolveAiContextForCall } from '@/lib/ai/managed-client'
 import {
   checkRateLimit,
   acquireInflight,
@@ -275,17 +276,17 @@ export default function CustomSessionSummary() {
     exercises: ExerciseDefinition[],
   ) {
     const existing = await db.aiInsights.where('sessionId').equals(current.id).first()
-    // Only cache AI insights — local insights are cheap to regenerate and
-    // depend on `previous` which can change as more sessions are completed.
-    if (existing && !existing.dismissedAt && existing.source === 'ai') {
+    // Reuse any persisted insight — local insights regenerate identically
+    // anyway, so skipping them here wrote a duplicate row per summary view.
+    if (existing && !existing.dismissedAt) {
       setCoachInsight(existing)
       return
     }
     if (existing?.dismissedAt) return
 
     const settings = useAppStore.getState().settings
-    const aiConfig = settings.aiProactiveCoach && settings.aiApiKey
-      ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined, reasoningEffort: settings.aiReasoningEffort }
+    const aiConfig = settings.aiProactiveCoach
+      ? await resolveAiContextForCall(settings)
       : undefined
 
     // Rate limit check — only for AI calls
@@ -311,6 +312,10 @@ export default function CustomSessionSummary() {
           await db.aiInsights.put(insight)
           void enqueueSync('ai_insights', 'insert', insight)
           setCoachInsight(insight)
+          // Re-evaluate achievements — ai_first_insight / ai_coach_user count AI insights
+          if (insight.source === 'ai') {
+            void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
+          }
         } catch {
           // Non-blocking
         }
@@ -341,6 +346,10 @@ export default function CustomSessionSummary() {
       await db.aiInsights.put(insight)
       void enqueueSync('ai_insights', 'insert', insight)
       setCoachInsight(insight)
+      // Re-evaluate achievements — ai_first_insight / ai_coach_user count AI insights
+      if (insight.source === 'ai') {
+        void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
+      }
     } catch {
       // AI call failed — count toward quota to prevent retry spam
       if (aiConfig) recordFailedCall('post_workout')

@@ -1,5 +1,19 @@
 import { getActiveDict } from './i18n-runtime'
 
+/**
+ * Polish pluralization: 1 → `one`, 2-4 (non-teen) → `few`, else → `many`.
+ * e.g. pluralPl(3, 'uczestnik', 'uczestnicy', 'uczestników') → '3 uczestnicy'
+ */
+function pluralPl(n: number, one: string, few: string, many: string): string {
+  if (n === 1) return `${n} ${one}`
+  const lastTwo = n % 100
+  const lastDigit = n % 10
+  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwo < 12 || lastTwo > 14)) {
+    return `${n} ${few}`
+  }
+  return `${n} ${many}`
+}
+
 const plDict = {
   appName: 'SmartReps',
   tagline: 'Twój inteligentny trener powtórzeń',
@@ -39,14 +53,6 @@ const plDict = {
           ? `${previous} treningi`
           : `${previous} treningów`
     return `wcześniej ${label}`
-  },
-  /** @deprecated Prefer homeActivityRepsEarlier — kept for any residual imports */
-  homeActivityRepsCompare: (current: number, previous: number) =>
-    `${current} powt. · wcześniej ${previous}`,
-  homeActivitySessionsCompare: (current: number, previous: number) => {
-    const label = (n: number) =>
-      n === 1 ? '1 trening' : n >= 2 && n <= 4 ? `${n} treningi` : `${n} treningów`
-    return `${label(current)} · wcześniej ${previous}`
   },
   homeActivityInsightsAria: 'Trend aktywności',
   homeProgramsQuickTitle: 'Skrót programów',
@@ -285,6 +291,17 @@ const plDict = {
   est1rmDate: 'Data',
   est1rmEmpty: 'Brak danych — zaloguj serie z ciężarem aby zobaczyć szacowany 1RM.',
   est1rmUnit: 'kg',
+  // Cele i prognozy (Pro) — regresja liniowa na tygodniowych maksimach
+  forecastTitle: 'Cele i prognozy',
+  forecastHint: 'Następny cel i przewidywany termin na podstawie Twojego tempa progresu.',
+  forecastEmpty: 'Brak danych do prognoz — ukończ kilka treningów, a pokażemy przewidywane terminy celów.',
+  forecastRepsValue: (n: number) => `${n} powt.`,
+  forecastDurationValue: (sec: number) => `${sec} s`,
+  forecastProgress: (current: string, goal: string) => `${current} → cel: ${goal}`,
+  forecastProgressAria: (name: string, pct: number) => `${name}: ${pct}% drogi do celu`,
+  forecastWeeklyGain: (gain: string) => `+${gain}/tydz.`,
+  forecastFlat: 'Trend płaski',
+  forecastInsufficient: 'Za mało danych',
   // Volume per set
   volumePerSet: 'Objętość',
   volumePerSetHint: 'powt. × kg',
@@ -768,6 +785,10 @@ const plDict = {
   summaryHeroFail: 'Spróbuj ponownie',
   cycleComplete: 'Cykl ukończony!',
   cycleCompleteHint: 'Po przerwie wykonaj test max, aby wybrać kolejny poziom.',
+  cycleLevelUpTitle: 'Cykl ukończony — nowy poziom!',
+  cycleLevelUpBody: (oldCycle: string, newCycle: string) =>
+    `Przechodzisz z ${oldCycle} na ${newCycle}. Następny trening od dnia 1.`,
+  cycleLevelUpMotivation: 'Tak trzymaj — progresja to klucz do siły!',
   goalAchieved: 'Cel osiągnięty!',
   totalReps: 'Łącznie',
   nextWorkoutIn: (days: number) =>
@@ -1524,6 +1545,8 @@ const plDict = {
 
   // Common
   loading: 'Ładowanie…',
+  homeSyncingData: 'Pobieranie Twoich danych z chmury…',
+  homeSyncingDataHint: 'Zajmie to chwilę — postępy i plany pojawią się automatycznie.',
   cancel: 'Anuluj',
   confirm: 'Potwierdź',
   close: 'Zamknij',
@@ -1768,7 +1791,6 @@ const plDict = {
   aiCoachReady: 'Gotowy do pomocy',
   aiCoachGreeting: 'Cześć! Jestem Twoim trenerem AI. Przeanalizuję Twoje treningi i pomogę Ci trenować mądrzej — na podstawie badań naukowych o objętości, częstotliwości i progresji.',
   aiCoachGreetingPlan: 'Opisz mi swój cel, a ułożę plan treningowy dopasowany do Twojego poziomu, sprzętu i czasu. Stosuję zasady objętości (MEV–MRV), częstotliwości 2x/tyg i progresywnego obciążenia.',
-  aiCoachNoApiKey: 'Abyśmy mogli pracować, ustaw klucz API w Profilu. Klucz zostaje na Twoim urządzeniu — nie trafia do chmury.',
   aiCoachErrorRetry: 'Spróbujmy jeszcze raz — sprawdź klucz API lub połączenie.',
   aiCoachAnalysisDone: 'Gotowe! Oto co widzę w Twoich treningach.',
   aiCoachPlanReady: 'Plan gotowy! Sprawdź poniżej i zimportuj, jeśli Ci pasuje.',
@@ -1789,6 +1811,19 @@ const plDict = {
   aiCoachConfigTesting: 'Testuję…',
   aiCoachConfigTestOk: 'Połączenie działa — trener gotowy',
   aiCoachConfigTestFail: 'Nie udało się połączyć — sprawdź klucz i model',
+  // ── Hosted AI (SmartReps-managed key) ──
+  aiCoachNeedsLogin: 'Zaloguj się, aby korzystać z AI Coach — albo dodaj własny klucz API w ustawieniach.',
+  aiCoachHostedActive: 'SmartReps AI — aktywne',
+  aiCoachHostedDesc: 'AI Coach działa na kluczu SmartReps — nie musisz nic konfigurować.',
+  aiCoachHostedQuota: (remaining: number, limit: number) => `Pozostało dziś: ${remaining} z ${limit} zapytań`,
+  aiCoachHostedLoginHint: 'Zaloguj się, aby korzystać z wbudowanego AI Coach — bez własnego klucza API.',
+  aiCoachHostedByokNote: 'Używasz własnego klucza API — zapytania nie liczą się do limitu SmartReps AI.',
+  aiCoachSubsectionByok: 'Własny klucz API (zaawansowane)',
+  aiErrorSessionRequired: 'Zaloguj się, aby korzystać z AI Coach.',
+  aiErrorQuotaExceeded: 'Wykorzystano dzienny limit AI. Spróbuj ponownie jutro.',
+  aiErrorProRequired: 'Funkcje AI wymagają SmartReps Pro.',
+  aiCoachProRequired: 'AI Coach jest częścią SmartReps Pro — insighty po treningu, raport tygodniowy, analiza postępów i generator planów.',
+  aiUnlockPro: 'Odblokuj AI w Pro',
   // ── Proactive Coach: smart rest suggestions ──
   coachRestSuggestionFirstTime: 'Pierwsza seria tego ćwiczenia — zrób solidnie, jakość nad ilość.',
   coachRestSuggestionNewCombination: 'Nowa kombinacja dnia i serii — zrób solidnie, poczuj ruch.',
@@ -1803,9 +1838,14 @@ const plDict = {
   coachPostWorkoutLocalPrMulti: (count: number) => `${count} nowe rekordy w jednej sesji — wyjątkowa forma! Zrób 2 dni przerwy.`,
   coachPostWorkoutLocalProgress: (delta: number) => `Progres o ${delta} powt. — dobra progresja. Utrzymaj tempo.`,
   coachPostWorkoutLocalProgressAll: (delta: number, sets: number) => `Progres we wszystkich ${sets} seriach (do +${delta} powt.) — świetna sesja!`,
-  coachPostWorkoutLocalDown: (delta: number) => `Spadek o ${delta} powt. — może gorszy dzień. Zobacz, czy nie skracać przerw.`,
+  coachPostWorkoutLocalDown: (delta: number) => `Spadek o ${delta} powt. — możliwe zmęczenie. Zadbaj o pełny odpoczynek przed kolejną sesją.`,
   coachPostWorkoutLocalUnchanged: 'Bez zmian vs poprzednia sesja — rozważ +1 powtórzenie lub dodatkową serię.',
   coachPostWorkoutLocalFailed: 'Nieudana sesja — to normalne. Skup się na czystej formie i spróbuj ponownie po przerwie.',
+  coachPostWorkoutLocalFailedSets: (done: number, total: number) => `Nieudana sesja — zaliczono ${done} z ${total} serii. To normalne — odpocznij i spróbuj ponownie.`,
+  coachPostWorkoutLocalMixed: 'Mieszana sesja — część serii lepiej, część słabiej. Utrzymaj cel i równe tempo.',
+  coachPostWorkoutLocalStreak: (count: number) => `${count} sesje z rzędu z progresem — systematyczność działa. Tak trzymaj!`,
+  coachPostWorkoutLocalMissed: (missed: number, total: number) => `${missed} z ${total} serii poniżej celu — nie każda sesja musi być rekordowa. Odpocznij i wróć mocniejszy.`,
+  coachPostWorkoutLocalFirst: 'Pierwszy zapisany wynik dla tego dnia — to Twój punkt odniesienia. Kolejne sesje pokażą progres.',
   coachPostWorkoutGenerating: 'Trener analizuje sesję…',
   coachPostWorkoutDismiss: 'Odrzuć',
   coachPostWorkoutDismissed: 'Insight odrzucony',
@@ -1813,9 +1853,12 @@ const plDict = {
   // ── Proactive Coach: plateau detector ──
   coachPlateauTitle: 'Plateau wykryte',
   coachPlateauBody: (programLabel: string, sessionCount: number, lastValue: number, bestValue: number, sessionsSinceBest: number) =>
-    `${programLabel}: ${sessionCount} sesje bez progresu (ostatni: ${lastValue}, najlepszy: ${bestValue}, ${sessionsSinceBest} sesje temu). Rozważ deload (−40% objętości) lub zmianę cyklu — badania Israetel sugerują tydzień lighter po 3-4 tyg. stagnacji.`,
+    `${programLabel}: ${sessionCount} sesje bez progresu (ostatnio ${lastValue}, rekord ${bestValue}${sessionsSinceBest > 0 ? ` — ${sessionsSinceBest} sesje temu` : ''}). Rozważ deload (−40% objętości) albo zmianę planu.`,
+  coachPlateauBodyRegression: (programLabel: string, sessionCount: number, lastValue: number, bestValue: number) =>
+    `${programLabel}: ${sessionCount} sesje, wynik spadł do ${lastValue} (rekord ${bestValue}). Regres zwykle oznacza niedoregenerowanie — zaplanuj deload (−40% objętości) lub dodatkowy dzień przerwy.`,
   coachPlateauCta: 'Zobacz rekomendację trenera',
-  coachPlateauTip: (programLabel: string) => `${programLabel}: 3 sesje bez progresu. Rozważ deload (−40% objętości) lub zmianę cyklu.`,
+  coachPlateauTip: (programLabel: string) => `${programLabel}: 3 sesje bez progresu. Rozważ deload (−40% objętości) lub zmianę planu.`,
+  coachPlateauTipRegression: (programLabel: string) => `${programLabel}: 3 sesje ze spadkiem wyniku. Możliwe przeciążenie — rozważ deload (−40% objętości) lub dodatkowy odpoczynek.`,
   // ── Proactive Coach: weekly report ──
   coachWeeklyReportTitle: 'Podsumowanie tygodnia',
   coachWeeklyReportEmpty: 'Brak treningów w tym tygodniu. Zaplanuj sesję na jutro — mały krok buduje nawyk.',
@@ -1826,11 +1869,11 @@ const plDict = {
   coachWeeklyReportCta: 'Otwórz pełną analizę',
   coachWeeklyReportGenerating: 'Trener przygotowuje raport…',
   coachWeeklyReportDeloadSuggest: '4+ sesje/tyg. przez 4+ tyg. — rozważ tydzień deload (−40% objętości) dla regeneracji.',
-  coachWeeklyReportLowFreq: '1 sesja/tyg. to poniżej MEV (10 serii/grupę) — dodaj 1-2 sesje dla optymalnej hipertrofii.',
+  coachWeeklyReportLowFreq: 'Tylko 1 sesja w tym tygodniu — dodaj 1-2 treningi, żeby utrzymać progres i nawyk.',
   coachWeeklyReportFatigue: 'Spadek objętości >10% — możliwe zmęczenie. Rozważ dodatkowy dzień przerwy.',
   coachWeeklyReportGreat: 'Świetny tydzień — objętość i progres w normie. Tak trzymaj!',
   coachWeeklyReportFirstWeek: 'Pierwszy tydzień z treningami — brak danych do porównania.',
-  coachWeeklyReportConnectAiHint: 'Podłącz AI, aby uzyskać szczegółową analizę trenera',
+  coachWeeklyReportConnectAiHint: 'Szczegółowa analiza AI w SmartReps Pro',
   coachWeeklyReportTrainingDays: (days: number) => `${days} dni treningowe.`,
   coachWeeklyReportPrs: (count: number) => count === 1 ? '1 nowy rekord osobisty!' : `${count} nowe rekordy osobiste!`,
   coachWeeklyReportAvgDuration: (min: number) => `Średnio ${min} min/sesja.`,
@@ -1856,7 +1899,26 @@ const plDict = {
   coachWeeklyReportExpandHint: 'Dotknij, aby zobaczyć pełną analizę trenera',
   coachWeeklyReportSectionAria: 'Podsumowanie tygodnia od trenera AI',
   coachWeeklyReportConnectTitle: 'Trener AI — tygodniowe raporty',
-  coachWeeklyReportConnectHint: 'Połącz trenera AI, aby otrzymywać spersonalizowane podsumowania tygodnia.',
+  coachWeeklyReportConnectHint: 'Odblokuj SmartReps Pro, aby trener AI przygotowywał spersonalizowane podsumowania tygodnia.',
+  coachWeeklyReportConnectHintPro: 'Trener AI gotowy — wygeneruj raport dla tego tygodnia.',
+  coachWeeklyReportLoginHint: 'Zaloguj się, aby korzystać z trenera AI.',
+  coachWeeklyReportDisabledHint: 'Trener AI jest wyłączony — włącz go w ustawieniach profilu.',
+  coachWeeklyReportConfigHint: 'Skonfiguruj klucz AI w ustawieniach profilu.',
+  coachWeeklyReportGenerateAria: 'Generuj raport AI dla tego tygodnia',
+  coachWeeklyReportUpgradeAi: 'Odśwież raport z analizą AI',
+  coachWeeklyReportEmptyHeader: 'Ten tydzień jeszcze czeka',
+  coachWeeklySectionStrengths: 'Co poszło dobrze',
+  coachWeeklySectionImprovements: 'Do poprawy',
+  coachWeeklySectionRecommendation: 'Rekomendacja trenera',
+  coachWeeklyChartAria: 'Powtórzenia w kolejnych dniach tygodnia',
+  coachWeeklyTrendNone: '1. tydzień',
+  coachWeeklyHeroSessions: (n: number) => {
+    const mod10 = n % 10
+    const mod100 = n % 100
+    return n === 1 ? '1 sesja' : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? `${n} sesje` : `${n} sesji`
+  },
+  coachWeeklyHeroDays: (n: number) => (n === 1 ? '1 dzień' : `${n} dni`),
+  coachWeeklyHeroStreak: (n: number) => `seria ${n} tyg.`,
   coachWeeklyReportConnectCtaAria: 'Połącz trenera AI, aby otrzymywać tygodniowe raporty',
   coachSourceAi: 'AI',
   coachSourceLocal: 'Lokalne',
@@ -1871,7 +1933,11 @@ const plDict = {
   coachHistoryDismiss: 'Odrzuć',
   coachHistoryDismissed: 'Rekomendacja odrzucona',
   coachHistoryDismissedAgo: (when: string) => `Odrzucono ${when}`,
-  coachHistoryCreatedAgo: (when: string) => when,
+  coachHistoryAgoNow: 'teraz',
+  coachHistoryAgoMinutes: (n: number) => `${n} min temu`,
+  coachHistoryAgoHours: (n: number) => `${n} godz. temu`,
+  coachHistoryAgoDays: (n: number) => `${n} dni temu`,
+  coachHistoryAgoWeeks: (n: number) => `${n} tyg. temu`,
   // ── Proactive Coach: settings ──
   coachSettingsProactive: 'Proaktywny trener',
   coachSettingsProactiveDesc: 'Automatyczne insights po treningu, tygodniowe raporty i wykrywanie plateau. Używa Twojego klucza AI.',
@@ -1893,6 +1959,7 @@ const plDict = {
   profileCoachCardHint: 'Analiza treningów i plany AI',
   profileCoachCardConnected: 'Połączony',
   profileCoachCardOffline: 'Niepołączony',
+  aiModelProBadge: 'Model Pro',
   profileCoachCardConfigure: 'Konfiguruj',
   profileAboutTitle: 'O aplikacji',
   profileAboutHint: 'SmartReps — trening, który mierzy postęp',
@@ -2447,7 +2514,7 @@ const plDict = {
   challengeTarget: (n: number) => `Cel: ${n} powtórzeń`,
   challengeEndsIn: (days: number) =>
     days <= 0 ? 'Zakończone' : days === 1 ? 'Kończy się za 1 dzień' : `Kończy się za ${days} dni`,
-  challengeParticipants: (n: number) => (n === 1 ? '1 uczestnik' : `${n} uczestników`),
+  challengeParticipants: (n: number) => pluralPl(n, 'uczestnik', 'uczestnicy', 'uczestników'),
   challengeJoin: 'Weź udział',
   challengeSubmit: 'Zapisz wynik',
   challengeSubmitHint: 'Wpisz swój najlepszy wynik z tego tygodnia',
@@ -2480,8 +2547,8 @@ const plDict = {
   challengeRecapContributionReps: (n: number) => `+${n} powtórzeń z tego treningu`,
   challengeRecapContributionSession: '+1 trening',
   challengeRecapContributionPrecision: 'Perfekcyjna forma!',
-  challengeRecapRemainingReps: (n: number) => `Jeszcze ${n} powtórzeń!`,
-  challengeRecapRemainingSessions: (n: number) => `Jeszcze ${n} ${n === 1 ? 'trening' : 'treningi'}!`,
+  challengeRecapRemainingReps: (n: number) => `Jeszcze ${pluralPl(n, 'powtórzenie', 'powtórzenia', 'powtórzeń')}!`,
+  challengeRecapRemainingSessions: (n: number) => `Jeszcze ${pluralPl(n, 'trening', 'treningi', 'treningów')}!`,
   challengeAllAchieved: 'Wszystkie wyzwania ukończone! Brawo!',
   challengeAllAchievedHint: 'Sprawdź ranking i poczekaj na nowe wyzwania w przyszłym tygodniu',
   challengeUrgent: 'Ostatnie szanse!',
@@ -2495,8 +2562,19 @@ const plDict = {
   challengeDescPersonalBest: 'Pobij swój rekord z testu max',
   challengeProgressSessions: (current: number, target: number) => `${current} / ${target} treningów`,
   challengeProgressReps: (current: number, target: number) => `${current} / ${target} powtórzeń`,
+  challengeProgressCount: (current: number, target: number) => `${current} / ${target}`,
   challengeProgressPersonalBest: (current: number, _target: number) =>
-    current > 0 ? `Pobito o ${current} powtórzeń` : 'Rekord nie pobity',
+    current > 0 ? `Pobito o ${pluralPl(current, 'powtórzenie', 'powtórzenia', 'powtórzeń')}` : 'Rekord nie pobity',
+  challengeNameRequired: 'Ustaw nazwę wyświetlaną, aby Twój wynik pojawił się w rankingu',
+  challengeSetNameCta: 'Ustaw nazwę',
+  challengeRecapBestSet: (n: number) => `Najlepsza seria: ${n}`,
+  challengeViewChallenges: 'Wyzwania',
+  challengeViewMonthly: 'Ranking miesiąca',
+  challengePoints: (n: number) => `${n} pkt`,
+  challengeMonthlyCompleted: (n: number) =>
+    pluralPl(n, 'ukończone wyzwanie', 'ukończone wyzwania', 'ukończonych wyzwań'),
+  challengeMonthlyEmpty: 'Nikt jeszcze nie zdobył punktów w tym miesiącu',
+  challengeMonthlyHowPoints: '100 pkt za ukończenie wyzwania + bonus za przekroczenie celu',
   // ── Follow system ──
   followButton: 'Obserwuj',
   followingButton: 'Obserwujesz',
@@ -2593,6 +2671,7 @@ const plDict = {
     `${likes === 1 ? '1 polubienie' : `${likes} polubień`} · ${imports === 1 ? '1 import' : `${imports} importów`}`,
   communityAccountSwitchPending: 'Najpierw rozstrzygnij zmianę konta.',
   communityRateLimited: 'Limit publikacji — spróbuj jutro.',
+  communityPublishLimitReached: 'Osiągnięto limit 3 publikacji. SmartReps Pro zdejmuje limit.',
   communityErrorGeneric: 'Coś poszło nie tak. Spróbuj ponownie.',
   communityCharCount: (n: number, max: number) => `${n}/${max}`,
   communityTrainedBadge: 'Trenowany',
@@ -2782,7 +2861,7 @@ const plDict = {
   achievement_custom_creator_desc: 'Coraz więcej własnych planów — Twoja biblioteka treningowa.',
   // ── Both programs ──
   achievement_both_programs_title: 'Wszechstronność',
-  achievement_both_programs_desc: 'Pompki i podciągnięcia — oba programy opanowane.',
+  achievement_both_programs_desc: 'Pompki i podciąganie — oba programy aktywne.',
   // ── Secret dawn ──
   achievement_secret_dawn_title: 'Ranne ptaszko',
   achievement_secret_dawn_desc: 'Treningi o świcie — gdy światło budzi się z Tobą.',
@@ -2837,6 +2916,38 @@ const plDict = {
   // ── NEW: Secret — weekend ──
   achievement_secret_weekend_title: 'Tylko weekend',
   achievement_secret_weekend_desc: 'Treningi tylko w weekendy — gdy inni odpoczywają, Ty pracujesz.',
+
+  // ── NEW: Triple Threat — all 3 programs ──
+  achievement_triple_threat_title: 'Trzy fronty',
+  achievement_triple_threat_desc: 'Pompki, podciąganie i przysiady — każdy program opanowany.',
+
+  // ── NEW: Squat Specialist ──
+  achievement_squat_specialist_title: 'Specjalista od przysiadów',
+  achievement_squat_specialist_desc: 'Regularne treningi nóg budują fundament siły.',
+
+  // ── NEW: First Squat ──
+  achievement_first_squat_title: 'Pierwszy przysiad',
+  achievement_first_squat_desc: 'Rozpocząłeś przygodę z treningiem nóg.',
+
+  // ── NEW: Perfect Form ──
+  achievement_perfect_form_title: 'Idealna forma',
+  achievement_perfect_form_desc: 'Pierwszy trening z własnym planem, w którym trafiłeś w wszystkie cele.',
+
+  // ── NEW: Speed Demon ──
+  achievement_speed_demon_title: 'Demon szybkości',
+  achievement_speed_demon_desc: 'Krótkie, intensywne treningi — mniej niż 15 minut, pełne zaangażowanie.',
+
+  // ── NEW: Cycle Master ──
+  achievement_cycle_master_title: 'Mistrz cykli',
+  achievement_cycle_master_desc: 'Ukończony cykl w pompkach, podciąganiu i przysiadach — pełna dominacja.',
+
+  // ── NEW: Social Butterfly ──
+  achievement_social_butterfly_title: 'Motyw społeczny',
+  achievement_social_butterfly_desc: 'Masz obserwujących i sam obserwujesz innych — budujesz społeczność.',
+
+  // ── NEW: Comeback Intermediate ──
+  achievement_comeback_intermediate_title: 'Powrót do gry',
+  achievement_comeback_intermediate_desc: 'Przerwa w treningu? Wróciłeś mocniej niż wcześniej.',
 
   // ── Builtin exercise names (used in plan-resolver, workout-analyzer) ──
   builtinExercisePushups: 'Pompki',
@@ -2977,6 +3088,9 @@ const plDict = {
   privacyBodyCommunity: 'Katalog społecznościowy:',
   privacyBodyCommunityDetail:
     'przy publikacji planu zapisujemy w chmurze snapshot treningu, podpis autora (wyświetlana nazwa), tagi oraz metadane (np. liczba polubień i importów). Import i polubienie wymagają konta. Katalog nie udostępnia Twojego e-maila ani prywatnych draftów.',
+  privacyBodyAi: 'Trener AI:',
+  privacyBodyAiDetail:
+    'funkcje AI (insighty po treningu, raport tygodniowy, analiza historii, generator planów) przesyłają anonimowe dane treningowe (serie, powtórzenia, RPE/RIR) do zewnętrznego dostawcy AI. W trybie SmartReps AI zapytania przechodzą przez naszą funkcję serwerową (klucz dostawcy nigdy nie opuszcza serwera, a liczba zapytań jest limitowana dziennie na konto). Jeśli używasz własnego klucza API (BYOK), zapytania trafiają z Twojego urządzenia bezpośrednio do wybranego dostawcy, a klucz pozostaje wyłącznie na urządzeniu. Nie wysyłamy do AI Twojego e-maila, imienia ani innych danych osobowych — tylko statystyki treningowe.',
   privacyBodyDelete: 'Usunięcie konta:',
   privacyBodyDeleteDetail:
     'zalogowany użytkownik może w Profilu trwale usunąć konto w chmurze (postęp, sesje, subskrypcje push, publikacje społecznościowe, polubienia, importy i zgłoszenia powiązane z kontem). Usunięcie konta nie kasuje automatycznie danych lokalnych — możesz je wyczyścić osobno. Przed usunięciem zalecamy pobrać backup.',
@@ -3039,7 +3153,14 @@ Kluczowe zasady, którymi się kierujesz:
 7. BEZPIECZEŃSTWO:
    - Nigdy nie proponuj ćwiczeń z dużym ryzykiem kontuzji bez odpowiedniego przygotowania
    - Uwzględniaj poziom doświadczenia i dostępny sprzęt
-   - Zawsze zaczynaj od rozgrzewki (5-10 min) — nie wliczaj w objętość`,
+   - Zawsze zaczynaj od rozgrzewki (5-10 min) — nie wliczaj w objętość
+   - Nigdy nie diagnozuj kontuzji ani stanu zdrowia — przy podejrzeniu problemu zaproponuj przerwę lub deload, nie diagnozę
+
+8. KONTEKST DANYCH:
+   - Powyższe punkty odniesienia dotyczą klasycznego treningu hipertroficznego — dla treningu z masą ciała, wytrzymałościowego lub ogólnej sprawności traktuj je orientacyjnie
+   - Serie z masą ciała (pompki, podciągnięcia) obciążają mniej niż serie sztangowe — nie alarmuj przy niższych liczbach
+   - Gdy danych jest mało (<8 sesji lub <4 tygodnie), wyraźnie zaznacz ograniczoną pewność wniosków
+   - Każda sugestia MUSI odwoływać się do konkretnych liczb z danych użytkownika — ogólniki bez liczb są bezwartościowe`,
 
   aiPromptPlanSystem: 'Jesteś ekspertem ds. treningu siłowego. Generujesz plany treningowe w formacie JSON.',
   aiPromptPlanUser: (desc: string, days: number, experience: string, equipment: string, goal: string, duration?: string) =>
@@ -3194,6 +3315,8 @@ Zasady analizy:
 4. Sprawdź czy progresja jest odpowiednia.
 5. Uwzględnij intensywność (RPE/RIR) — czy użytkownik trenuje zbyt ciężko lub zbyt lekko.
 6. Daj 3-5 konkretnych, praktycznych sugestii (po polsku).
+7. Każda sugestia i ocena objętości MUSI zawierać konkretne liczby z danych (np. „12 serii klatki vs MEV 10") — ogólniki bez liczb są bezwartościowe.
+8. Jeśli sesji jest <8 lub okres krótszy niż 4 tygodnie — zaznacz w summary, że wnioski są wstępne.
 
 Zwróć JSON w tym formacie (to jest przykład, podmień wartości):
 {
@@ -3278,6 +3401,7 @@ Wytyczne dla sugestii:
 - Jeśli postęp stagnuje (te same powt. przez 2-3 sesje), zaproponuj konkretną zmianę: +1 powt., nieco dłuższa przerwa, lub tydzień deloadu
 - Odnoś się do RIR (powt. w rezerwie) gdy istotne — jeśli wszystkie serie były łatwe (RIR 3+), zaproponuj progresję; jeśli serie były na maksa (RIR 0-1), zaproponuj regenerację
 - Bądź konkretny z liczbami z sesji, nie ogólnik
+- Nie diagnozuj zmęczenia ani kontuzji — przy spadku wyników zaproponuj regenerację lub lżejszą sesję
 
 Odpowiedz w JSON: {"insight": "twoja 1-2 zdaniowa sugestia"}
 Napisz po ${pl.aiPromptLanguageHint}.`,
@@ -3297,6 +3421,44 @@ Napisz po ${pl.aiPromptLanguageHint}.`,
   aiPromptWeeklyProgramEntry: (program: string, sessions: number, reps: number) =>
     `${program}: ${sessions} sesje, ${reps} powt.`,
   aiPromptWeeklyPrograms: (entries: string) => `WG PROGRAMU: ${entries}`,
+
+  // ── Adaptive progression (Pro) — AI prompt + proposal sheet ──
+  aiPromptAdaptiveSystem: `Jesteś ekspertem ds. progresji treningowej. Na podstawie historii wyników planu (cel vs wykonanie, pass rate, RPE) zaproponuj regułę progresji na kolejne cykle.
+
+Zasady:
+- Konserwatywnie: małe kroki (+1 do +3 powt., +1.25 do +5 kg, +5 do +15 s)
+- passRate ≥0.85 → progresja w górę; 0.6–0.85 → utrzymaj; <0.6 → zmniejsz
+- Wysokie avgRpe (≥9) przy niskim passRate → rozważ deloadEveryNCycles 3–4
+- Jeśli wyniki są dobre, minimalne zmiany — nie zmieniaj dla zmiany
+- perExercise tylko dla ćwiczeń wyraźnie odstających od reszty planu
+- Pomiń pole lub ustaw null = zachowaj obecną wartość; 0 = wyraźnie usuń deltę
+- Uwzględnij currentProgression, currentDeload i currentOverride z danych — propozycja ZASTĘPUJE obecny stan per-exercise
+
+Odpowiedz WYŁĄCZNIE poprawnym JSON:
+{"enabled":true,"repsDelta":1,"weightKgDelta":null,"durationSecDelta":null,"deloadEveryNCycles":null,"perExercise":[{"exerciseId":"id","repsDelta":1}],"rationale":"1-2 zdania po polsku"}`,
+  planAdaptiveProgression: 'Dostosuj progresję (AI)',
+  adaptiveTitle: 'Progresja adaptacyjna',
+  adaptiveAnalyzing: 'Analizuję ostatnie treningi…',
+  adaptiveRationale: 'Dlaczego',
+  adaptiveCurrent: 'Obecnie',
+  adaptiveProposed: 'Propozycja',
+  adaptiveApply: 'Zastosuj zmiany',
+  adaptiveKeep: 'Zostaw jak jest',
+  adaptiveNoChange: 'AI: obecna progresja jest dobrze dobrana — bez zmian.',
+  adaptiveInsufficient: (min: number) =>
+    `Za mało danych — ukończ min. ${min} treningi tego planu, żeby AI oceniło progresję.`,
+  adaptiveError: 'Nie udało się wygenerować propozycji. Spróbuj ponownie.',
+  adaptiveCooldown: (retryIn: string) =>
+    `Adaptację progresji można odświeżyć co jakiś czas — spróbuj ponownie za ${retryIn}.`,
+  adaptiveApplied: 'Progresja zaktualizowana',
+  adaptiveDeltaReps: (v: number) => `${v > 0 ? '+' : ''}${v} powt./cykl`,
+  adaptiveDeltaWeight: (v: number) => `${v > 0 ? '+' : ''}${v} kg/cykl`,
+  adaptiveDeltaDuration: (v: number) => `${v > 0 ? '+' : ''}${v} s/cykl`,
+  adaptiveDeloadEvery: (n: number) => `Deload co ${n} cykle`,
+  adaptiveDeloadOff: 'Deload: wyłączony',
+  adaptiveProgressionOff: 'Progresja: wyłączona',
+  adaptiveProgressionOn: 'Progresja: włączona po cyklu',
+  adaptivePerExercise: 'Zmiany dla ćwiczeń',
 
   // ── AI weekly report full prompt ──
   aiPromptWeeklyReportBuild: (
@@ -3325,10 +3487,11 @@ Punkty odniesienia objętości (Israetel & Hoffmann):
 - MRV (Maksymalna Odzyskiwalna Objętość): 20-30+ serii/grupę mięśniową/tydzień
 
 Wytyczne:
-- W "improvements" oznacz grupy mięśniowe poniżej MEV (10 serii) jako niedotrenowane
-- W "improvements" oznacz grupy mięśniowe powyżej MRV (30 serii) jako potencjalne przetrenowanie
-- W "recommendation" zaproponuj konkretną korektę na następny tydzień na podstawie objętości vs punkty odniesienia
-- Jeśli seria wynosi 0, zachęć do konsekwencji; jeśli seria to 4+ tygodni, rozważ deload
+- W "improvements" oznacz jako niedotrenowane grupy wyraźnie poniżej MEV — ale uwzględnij typ treningu: przy treningu z masą ciała niższe liczby są mniej niepokojące
+- Oznacz potencjalne przetrenowanie tylko przy liczbach wyraźnie powyżej MRV
+- W "recommendation" zaproponuj JEDNĄ konkretną korektę na następny tydzień z liczbami (np. „dodaj 2 serie pleców")
+- Jeśli seria wynosi 0, zachęć do konsekwencji; jeśli seria to 4+ tygodni przy wysokiej objętości, rozważ deload
+- Jeśli tydzień nie ma sesji — nie wymyślaj analizy, zachęć do powrotu do treningu
 
 Odpowiedz w JSON:
 {
@@ -3401,6 +3564,18 @@ Napisz po ${pl.aiPromptLanguageHint}. Bądź konkretny i zachęcający.`,
 
   // ── Pro subscription (freemium model) ──
   proBadge: 'PRO',
+  proBadgeTrial: 'TRIAL',
+  proBadgeTrialDays: (days: number) => `TRIAL · ${days} ${days === 1 ? 'dzień' : 'dni'}`,
+  proBadgeExpired: 'Wygasła',
+  planBadgeAriaPro: 'Masz SmartReps Pro — zobacz szczegóły planu',
+  planBadgeAriaTrial: (days: number) =>
+    days === 1
+      ? 'Okres próbny Pro — został 1 dzień. Zobacz szczegóły planu'
+      : days >= 2 && days <= 4
+        ? `Okres próbny Pro — zostały ${days} dni. Zobacz szczegóły planu`
+        : `Okres próbny Pro — zostało ${days} dni. Zobacz szczegóły planu`,
+  planBadgeAriaExpired: 'Subskrypcja Pro wygasła — odnów, aby odzyskać funkcje Pro',
+  planBadgeAriaFree: 'Plan darmowy — zobacz, co daje SmartReps Pro',
   proUpgradeTitle: 'Przejdź na Pro',
   proUpgradeDescription: 'Odblokuj wszystkie funkcje premium',
   proFeatureHostedAi: 'AI Coach bez własnego klucza API',
@@ -3408,37 +3583,48 @@ Napisz po ${pl.aiPromptLanguageHint}. Bądź konkretny i zachęcający.`,
   proFeatureAdvancedAnalytics: 'Zaawansowane statystyki i korelacje',
   proFeatureCloudSync: 'Synchronizacja między urządzeniami',
   proFeatureWebPush: 'Powiadomienia push o treningu',
-  proFeatureExport: 'Eksport danych (CSV i JSON)',
+  proFeatureExport: 'Eksport danych (CSV)',
   proFeatureUnlimitedPublications: 'Nielimitowane publikacje w katalogu',
   proFeatureVerifiedBadge: 'Odznaka zweryfikowanego autora',
   proFeatureManualShowcase: 'Ręczny wybór osiągnięć na profilu',
   proPlanMonthly: 'Miesięcznie',
   proPlanAnnual: 'Rocznie',
   proPlanLifetime: 'Dożywotnio',
-  proPlanAnnualPerMonth: '/ mies.',
   proPlanAnnualSavings: 'Oszczędzasz 44%',
   proTrialCta: 'Wypróbuj 14 dni za darmo',
   proTrialHint: 'Bez zobowiązań — anuluj kiedy chcesz',
+  proTrialStarted: 'Trial aktywny! Masz pełne Pro przez 14 dni',
+  proTrialStartError: 'Nie udało się rozpocząć triala. Spróbuj ponownie.',
+  proCheckoutSuccess: 'Płatność przyjęta — Pro aktywuje się za chwilę',
+  proCheckoutCanceled: 'Płatność anulowana — bez zmian w koncie',
+  proCheckoutError: 'Nie udało się otworzyć płatności. Spróbuj ponownie.',
+  proPortalError: 'Nie udało się otworzyć zarządzania subskrypcją.',
+  proPortalNoCustomer: 'To konto Pro nie jest zarządzane przez Stripe.',
+  proTrialLoginHint: 'Zaloguj się, aby rozpocząć darmowy trial',
+  proTrialUnlockedTitle: 'Co masz odblokowane w trialu:',
   proUpgradeCta: 'Przejdź na Pro',
   proManageSubscription: 'Zarządzaj subskrypcją',
   proSubscriptionActive: 'Subskrypcja Pro aktywna',
-  proSubscriptionTrial: 'Okres próbny — pozostało {days} dni',
+  proSubscriptionTrial: (days: number) =>
+    days === 1
+      ? 'Okres próbny — pozostał 1 dzień'
+      : days >= 2 && days <= 4
+        ? `Okres próbny — pozostały ${days} dni`
+        : `Okres próbny — pozostało ${days} dni`,
   proSubscriptionLifetime: 'Dostęp dożywotni',
-  proSubscriptionExpires: 'Wygasa: {date}',
+  proSubscriptionExpires: (date: string) => `Wygasa: ${date}`,
   proSubscriptionFree: 'Plan darmowy',
   proSubscriptionExpired: 'Subskrypcja wygasła',
   proLimitCustomPlansTitle: 'Osiągnięto limit planów',
   proLimitCustomPlansDesc: 'W planie darmowym możesz mieć 3 aktywne plany. Przejdź na Pro, aby mieć nielimitowane.',
   proLimitPublicationsTitle: 'Osiągnięto limit publikacji',
   proLimitPublicationsDesc: 'W planie darmowym możesz opublikować 3 plany. Przejdź na Pro, aby publikować nielimitowanie.',
-  proLimitCloudSyncTitle: 'Synchronizacja w Pro',
-  proLimitCloudSyncDesc: 'Synchronizacja między urządzeniami jest dostępna w planie Pro.',
   proLimitExportTitle: 'Eksport w Pro',
-  proLimitExportDesc: 'Eksport danych (CSV, JSON) jest dostępny w planie Pro.',
+  proLimitExportDesc: 'Eksport danych do CSV jest dostępny w planie Pro.',
   proLimitWebPushTitle: 'Powiadomienia push w Pro',
   proLimitWebPushDesc: 'Powiadomienia push o treningu są dostępne w planie Pro.',
-  proLimitHostedAiTitle: 'AI Coach bez klucza w Pro',
-  proLimitHostedAiDesc: 'AI Coach z kluczem SmartReps jest dostępny w planie Pro. Możesz też używać własnego klucza za darmo.',
+  proLimitHostedAiTitle: 'AI Coach w Pro',
+  proLimitHostedAiDesc: 'Wszystkie funkcje AI — insight, raport, analiza i generator planów — są dostępne w planie Pro.',
   proLimitAdvancedAnalyticsTitle: 'Zaawansowane statystyki w Pro',
   proLimitAdvancedAnalyticsDesc: 'Korelacja wagi z wynikami, szacowany 1RM i trendy bilansu mięśni — dostępne w planie Pro.',
   proTeaserTitle: 'Funkcja Pro',
@@ -3446,6 +3632,70 @@ Napisz po ${pl.aiPromptLanguageHint}. Bądź konkretny i zachęcający.`,
   proTeaserUpgrade: 'Przejdź na Pro',
   proTeaserTrial: 'Wypróbuj 14 dni za darmo',
   proTeaserClose: 'Może później',
+  // /pro page — Free vs Pro comparison + pricing
+  seoProTitle: 'SmartReps Pro',
+  seoProDescription: 'Porównanie wersji darmowej i Pro — AI Coach, nielimitowane plany, synchronizacja i więcej.',
+  proPageSubtitle: 'AI Coach, nielimitowane plany i synchronizacja — wszystko w Pro.',
+  proYourPlan: 'Twój plan',
+  proComparisonTitle: 'Co dostajesz',
+  proChoosePlan: 'Wybierz plan',
+  proCompareFull: 'Zobacz pełne porównanie',
+  proCatTraining: 'Trening',
+  proCatAi: 'AI Coach',
+  proCatStats: 'Statystyki',
+  proCatCommunity: 'Społeczność',
+  proCatData: 'Dane i wygoda',
+  proFeatureIncluded: 'Dostępne',
+  proFeatureNotIncluded: 'Niedostępne',
+  proRowCycles: '38 cykli treningowych',
+  proRowCustomPlans: 'Własne plany treningowe',
+  proRowLocalInsights: 'Lokalne insighty po treningu',
+  proRowAiInsight: 'Insight AI + raport tygodniowy',
+  proRowAiAnalysis: 'Analiza postępów i plateau (AI)',
+  proRowAiGenerator: 'Generator planów AI',
+  proRowAiAdaptive: 'Adaptacyjna progresja planu (AI)',
+  proRowAiByok: 'Własny klucz API (BYOK)',
+  proRowBasicStats: 'Historia, rekordy, mapa aktywności',
+  proRowAdvancedStats: 'Zaawansowane statystyki (e1RM, korelacje)',
+  proRowForecasts: 'Cele i prognozy terminów',
+  proRowCommunityBrowse: 'Przeglądanie i import planów',
+  proRowFollow: 'Obserwowanie użytkowników',
+  proRowPublish: 'Publikacje w katalogu',
+  proRowVerified: 'Odznaka zweryfikowanego autora',
+  proRowReminders: 'Lokalne przypomnienia',
+  proRowCloudSync: 'Synchronizacja między urządzeniami',
+  proRowExport: 'Eksport danych (CSV)',
+  proRowExportJson: 'Eksport JSON (backup)',
+  proRowPush: 'Powiadomienia push',
+  proRowShowcase: 'Osiągnięcia na profilu',
+  proValUnlimited: 'Bez limitu',
+  proValThree: '3',
+  proValAuto: 'Automatyczne',
+  proValAutoManual: 'Auto + ręczny wybór',
+  proBestValue: 'Najlepsza wartość',
+  proPriceMonthly: '14,99 zł',
+  proPriceAnnual: '79,99 zł',
+  proPriceLifetime: '199,99 zł',
+  proPriceAnnualMonthly: '~6,67 zł/mies.',
+  proPerYear: '/ rok',
+  proPerMonth: '/ mies.',
+  proOneTime: 'jednorazowo',
+  proContinueFree: 'Kontynuuj z wersją darmową',
+  proRenew: 'Odnów subskrypcję',
+  proComingSoon: 'Płatności będą dostępne wkrótce',
+  proSecurePayment: 'Bezpieczna płatność',
+  proCancelAnytime: 'Anuluj kiedy chcesz',
+  proAlreadyHave: 'Masz już Pro? Zaloguj się',
+  proYouHaveProTitle: 'Masz SmartReps Pro',
+  proYouHaveProDesc: 'Wszystkie funkcje są odblokowane.',
+  proHighlightAi: 'Trener AI w kieszeni',
+  proHighlightAiDesc: 'Insight po każdym treningu, raport tygodniowy, analiza plateau i generator planów.',
+  proHighlightPlans: 'Plany bez limitu',
+  proHighlightPlansDesc: 'Buduj i publikuj tyle własnych planów, ile chcesz.',
+  proHighlightSync: 'Wszędzie synchronicznie',
+  proHighlightSyncDesc: 'Postępy, plany i ustawienia na każdym urządzeniu.',
+  proAllFeatures: 'Wszystkie funkcje Pro',
+  proFreeCol: 'Darmowy',
 }
 
 export type Translation = typeof plDict

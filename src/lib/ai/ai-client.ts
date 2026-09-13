@@ -71,6 +71,16 @@ export function isGemini3Model(model: string): boolean {
 }
 
 /**
+ * Check if the model is an OpenAI reasoning model (o-series, gpt-5.x, gpt-6.x).
+ * These reject `temperature` (only default 1 is allowed) and require
+ * `max_completion_tokens` instead of `max_tokens` — sending either wrong
+ * parameter returns HTTP 400.
+ */
+export function isOpenAiReasoningModel(model: string): boolean {
+  return /^(o\d|gpt-[56])/i.test(model.trim())
+}
+
+/**
  * Resolve reasoning effort for a given model and user preference.
  * - 'auto': disable reasoning when possible (fastest, cheapest)
  * - 'low'/'medium'/'high': explicitly set reasoning level (works for all Gemini models that support reasoning)
@@ -83,8 +93,10 @@ export function resolveReasoningEffort(
   if (!preference || preference === 'auto') {
     return canDisableReasoning(model) ? 'none' : undefined
   }
-  // For non-Gemini models, reasoning_effort is not a standard OpenAI parameter — skip
-  if (!model.toLowerCase().includes('gemini')) return undefined
+  // reasoning_effort is valid for Gemini models and OpenAI reasoning models
+  // (o-series, gpt-5.x); other providers don't support it — skip.
+  const m = model.toLowerCase()
+  if (!m.includes('gemini') && !isOpenAiReasoningModel(model)) return undefined
   return preference
 }
 
@@ -94,7 +106,15 @@ export class AiApiError extends Error {
   constructor(
     message: string,
     readonly status?: number,
-    readonly kind: 'auth' | 'rate_limit' | 'network' | 'server' | 'parse' | 'offline' = 'server',
+    readonly kind:
+      | 'auth'
+      | 'rate_limit'
+      | 'quota'
+      | 'pro_required'
+      | 'network'
+      | 'server'
+      | 'parse'
+      | 'offline' = 'server',
   ) {
     super(message)
     this.name = 'AiApiError'
@@ -135,6 +155,8 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
       opts.reasoningEffort &&
       (opts.reasoningEffort !== 'none' || canDisableReasoning(opts.model))
 
+    const isReasoning = isOpenAiReasoningModel(opts.model)
+
     resp = await fetch(url, {
       method: 'POST',
       headers: {
@@ -145,9 +167,19 @@ export async function chatCompletion(opts: ChatCompletionOptions): Promise<ChatC
         model: opts.model,
         messages: opts.messages,
         // Gemini 3.x deprecates temperature in favor of thinking_level (reasoning_effort).
-        // Sending temperature with Gemini 3.x can cause HTTP 508 errors.
-        ...(!isGemini3Model(opts.model) ? { temperature: opts.temperature ?? 0.7 } : {}),
-        ...(opts.maxTokens ? { max_tokens: opts.maxTokens } : {}),
+        // OpenAI reasoning models (o-series, gpt-5.x+) only allow the default
+        // temperature — sending one returns HTTP 400.
+        ...(!isGemini3Model(opts.model) && !isReasoning
+          ? { temperature: opts.temperature ?? 0.7 }
+          : {}),
+        // OpenAI reasoning models require max_completion_tokens; max_tokens is
+        // rejected. Hidden reasoning tokens count against the budget — add
+        // headroom so thinking can't starve the visible answer.
+        ...(opts.maxTokens
+          ? isReasoning
+            ? { max_completion_tokens: opts.maxTokens + 1024 }
+            : { max_tokens: opts.maxTokens }
+          : {}),
         ...(opts.jsonMode ? { response_format: { type: 'json_object' } } : {}),
         ...(shouldSendReasoning ? { reasoning_effort: opts.reasoningEffort } : {}),
       }),

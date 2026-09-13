@@ -65,6 +65,28 @@ export function isProfileSyncRunning(): boolean {
   return profileSyncLock !== null
 }
 
+/**
+ * Lightweight pull of only the subscription fields — used by paywall
+ * surfaces (/pro page, ProTeaser) so a server-side grant (Stripe webhook
+ * or manual admin change) takes effect without waiting for a full sync.
+ * Non-blocking: any failure leaves the cached local status untouched.
+ */
+export async function refreshSubscriptionStatus(): Promise<void> {
+  try {
+    const userId = await getUserId()
+    if (!userId) return
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('subscription_status, subscription_expires_at, trial_started_at')
+      .eq('id', userId)
+      .maybeSingle()
+    if (error) throw error
+    mergeSubscriptionFromProfile(data)
+  } catch {
+    // Non-blocking — keep the cached status
+  }
+}
+
 export async function enqueueSync(table: string, action: SyncAction, payload: unknown) {
   let payloadJson: string
   try {
@@ -338,7 +360,21 @@ export async function pushProfileSettingsOnly(): Promise<SyncResult> {
   })
 }
 
+/** Dedupe rapid identical pulls — the sign-in path needs the profile +
+ *  progress for routing (pullNavigationHints), then the full sync pulls them
+ *  again moments later. Merges are idempotent LWW, so a short window only
+ *  removes redundant round-trips. */
+const NAV_PULL_DEDUPE_MS = 15_000
+let lastProfilePull: { userId: string; at: number } | null = null
+let lastProgressPull: { userId: string; at: number } | null = null
+
 async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
+  if (
+    lastProfilePull?.userId === userId &&
+    Date.now() - lastProfilePull.at < NAV_PULL_DEDUPE_MS
+  ) {
+    return { ok: true, errors: 0 }
+  }
   try {
     const { data, error } = await supabase
       .from('profiles')
@@ -361,6 +397,7 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
         useAppStore.getState().setSettings({ displayName: name })
       }
     }
+    lastProfilePull = { userId, at: Date.now() }
     return { ok: true, errors: 0 }
   } catch (err) {
     trackSyncError('pull_profile_enabled_programs', err)
@@ -720,7 +757,16 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
           read_at: insight.readAt ?? null,
           metrics_json: insight.metricsJson ?? null,
         })
-        if (error) throw error
+        if (error) {
+          // Unique (user_id, week_key) on weekly_report: the canonical
+          // server-side report already exists — drop the local duplicate
+          // instead of dead-lettering; it arrives via pull anyway.
+          if ((error as { code?: string }).code === '23505' && insight.type === 'weekly_report') {
+            await db.aiInsights.delete(insight.id)
+            break
+          }
+          throw error
+        }
       }
       break
     }
@@ -1194,6 +1240,11 @@ export async function mergeAiInsightRemote(remote: RemoteAiInsightRow) {
       .filter((i) => i.type === 'weekly_report' && i.id !== remote.id && i.source !== 'ai')
       .toArray()
     await Promise.all(sameWeekLocals.map((r) => db.aiInsights.delete(r.id)))
+    // Propagate deletes — the replaced local reports may exist in the cloud
+    // (local insights sync too) and would be pulled back on other devices.
+    for (const r of sameWeekLocals) {
+      if (r.id) void enqueueSync('ai_insights', 'delete', r)
+    }
   }
   if (existing) {
     // LWW: remote wins if created later, OR if remote has state updates
@@ -1250,23 +1301,13 @@ async function mergeEnabledProgramsLegacyFallback(remoteProgress: RemoteProgress
   if (programs.length) mergeEnabledProgramsFromProgress(programs)
 }
 
-export async function pullRemoteData(): Promise<SyncResult> {
-  const userId = await getUserId()
-  if (!userId) return { ok: true, errors: 0 }
-
-  let errors = 0
-  let tombstoneErrors = 0
-
-  // Profile — failure here must NOT abort the rest of the pull.
-  try {
-    const profilePull = await pullProfileEnabledPrograms(userId)
-    errors += profilePull.errors
-  } catch (err) {
-    errors++
-    trackSyncError('pull_profile', err)
+async function pullProgramProgressRemote(userId: string): Promise<SyncResult> {
+  if (
+    lastProgressPull?.userId === userId &&
+    Date.now() - lastProgressPull.at < NAV_PULL_DEDUPE_MS
+  ) {
+    return { ok: true, errors: 0 }
   }
-
-  // Progress
   try {
     const { data: remoteProgress, error: progressError } = await supabase
       .from('program_progress')
@@ -1283,220 +1324,300 @@ export async function pullRemoteData(): Promise<SyncResult> {
     for (const remote of remoteProgress ?? []) {
       await mergeProgressRemote(userId, remote as RemoteProgressRow)
     }
+    lastProgressPull = { userId, at: Date.now() }
+    return { ok: true, errors: 0 }
   } catch (err) {
-    errors++
     trackSyncError('pull_progress', err)
+    return { ok: false, errors: 1 }
   }
+}
 
-  // Session tombstones — must be pulled BEFORE workout_sessions to prevent
-  // temporarily resurrecting a deleted session that another device removed.
-  // Do NOT delete the remote session here — the sync queue delete from the
-  // originating device handles that. Deleting here is dangerous because a
-  // stale tombstone would delete an active session from the cloud.
-  try {
-    const { data: remoteTombstones, error: tombstoneError } = await supabase
-      .from('session_tombstones')
-      .select('session_id, deleted_at')
-      .eq('user_id', userId)
-    if (tombstoneError) throw tombstoneError
-    for (const row of remoteTombstones ?? []) {
-      const r = row as { session_id: string; deleted_at: string }
-      await db.sessionTombstones.put({ sessionId: r.session_id, deletedAt: r.deleted_at })
-      // Delete local session if it still exists (resurrected by earlier sync)
-      const localSession = await db.workoutSessions.get(r.session_id)
-      if (localSession) {
-        await db.workoutSessions.delete(r.session_id)
-      }
-    }
-  } catch (err) {
-    tombstoneErrors++
-    errors++
-    trackSyncError('pull_session_tombstones', err)
-  }
-  if (tombstoneErrors > 0) return { ok: false, errors, tombstoneErrors }
+/** Minimal pull for post-auth routing: profile (display name, UI settings,
+ *  enabled programs) + program_progress (completeOnboardingIfSynced derives
+ *  onboardingComplete from it). Runs in parallel and dedupes with the full
+ *  sync, so navigation never has to wait for every entity. */
+export async function pullNavigationHints(userId: string): Promise<void> {
+  if (!isSupabaseConfigured) return
+  await Promise.all([
+    pullProfileEnabledPrograms(userId),
+    pullProgramProgressRemote(userId),
+  ])
+}
 
-  // Sessions
-  try {
-    const { data: remoteSessions, error: sessionsError } = await supabase
-      .from('workout_sessions')
-      .select('*, set_results(*)')
-      .eq('user_id', userId)
-    if (sessionsError) throw sessionsError
+export async function pullRemoteData(): Promise<SyncResult> {
+  const userId = await getUserId()
+  if (!userId) return { ok: true, errors: 0 }
 
-    for (const remote of remoteSessions ?? []) {
-      // Don't pull abandoned sessions from cloud — they're local-only noise
-      if (remote.status === 'abandoned') continue
-      await mergeSessionRemote(userId, remote as RemoteSessionRow)
-    }
-  } catch (err) {
-    errors++
-    trackSyncError('pull_sessions', err)
-  }
+  // ── Phase 1: independent sections in parallel ───────────────────────────
+  // Order-sensitive chains stay sequential INSIDE a section; the dependent
+  // entity merges in phase 2 are gated on their tombstone section results.
+  // This keeps the resurrection guards while replacing ~15 sequential
+  // round-trips with the latency of the slowest single section.
 
-  // Active workouts
-  try {
-    const { data: remoteActive, error: activeError } = await supabase
-      .from('active_workout_state')
-      .select('*')
-      .eq('user_id', userId)
-    if (activeError) throw activeError
-
-    for (const remote of remoteActive ?? []) {
-      await mergeActiveRemote(userId, remote as RemoteActiveRow)
-    }
-    await reconcileActiveWorkoutsAfterPull(
-      new Set((remoteActive ?? []).map((r) => (r as RemoteActiveRow).program)),
-    )
-  } catch (err) {
-    errors++
-    trackSyncError('pull_active_workouts', err)
-  }
-
-  // Max tests
-  try {
-    const { data: remoteTests, error: testsError } = await supabase
-      .from('max_tests')
-      .select('*')
-      .eq('user_id', userId)
-      .order('tested_at', { ascending: true })
-    if (testsError) throw testsError
-
-    for (const remote of remoteTests ?? []) {
-      await mergeMaxTestRemote(remote as RemoteMaxTestRow)
-    }
-  } catch (err) {
-    errors++
-    trackSyncError('pull_max_tests', err)
-  }
-
-  // Body-weight tombstones — must be pushed AND pulled BEFORE body_weight_entries
-  // to prevent temporarily resurrecting a deleted entry that another device removed.
-  // Push local tombstones to cloud first.
-  try {
-    const localBwTombstones = await db.bodyWeightTombstones.toArray()
-    for (const tombstone of localBwTombstones) {
-      try {
-        const { error } = await supabase
-          .from('body_weight_tombstones')
-          .upsert({
-            user_id: userId,
-            entry_id: tombstone.entryId,
-            deleted_at: tombstone.deletedAt,
-          }, { onConflict: 'user_id,entry_id' })
-        if (error) throw error
-      } catch (err) {
-        tombstoneErrors++
-        errors++
-        trackSyncError('push_body_weight_tombstone', err)
-      }
-    }
-  } catch (err) {
-    tombstoneErrors++
-    errors++
-    trackSyncError('push_body_weight_tombstones', err)
-  }
-  if (tombstoneErrors > 0) return { ok: false, errors, tombstoneErrors }
-
-  // Pull body-weight tombstones from cloud — delete local entries deleted on another device
-  // Do NOT delete the remote entry here — the sync queue delete from the
-  // originating device handles that.
-  try {
-    const { data: remoteBwTombstones, error: rbtErr } = await supabase
-      .from('body_weight_tombstones')
-      .select('entry_id, deleted_at')
-      .eq('user_id', userId)
-    if (rbtErr) throw rbtErr
-    for (const row of (remoteBwTombstones ?? []) as { entry_id: string; deleted_at: string }[]) {
-      await db.bodyWeightTombstones.put({ entryId: row.entry_id, deletedAt: row.deleted_at })
-      const localEntry = await db.bodyWeight.get(row.entry_id)
-      if (localEntry) await db.bodyWeight.delete(row.entry_id)
-    }
-  } catch (err) {
-    tombstoneErrors++
-    errors++
-    trackSyncError('pull_body_weight_tombstones', err)
-  }
-  if (tombstoneErrors > 0) return { ok: false, errors, tombstoneErrors }
-
-  // Body weight entries
-  try {
-    const { data: remoteBodyWeight, error: bodyWeightError } = await supabase
-      .from('body_weight_entries')
-      .select('*')
-      .eq('user_id', userId)
-      .order('measured_at', { ascending: true })
-    if (bodyWeightError) throw bodyWeightError
-
-    for (const remote of remoteBodyWeight ?? []) {
-      await mergeBodyWeightRemote(remote as RemoteBodyWeightRow)
-    }
-  } catch (err) {
-    errors++
-    trackSyncError('pull_body_weight', err)
-  }
-
-  // AI insights
-  try {
-    const { data: remoteInsights, error: insightsError } = await supabase
-      .from('ai_insights')
-      .select('*')
-      .eq('user_id', userId)
-    if (insightsError) throw insightsError
-    for (const remote of remoteInsights ?? []) {
-      await mergeAiInsightRemote(remote as RemoteAiInsightRow)
-    }
-
-    // Prune old AI insights to prevent unbounded local storage growth
+  // Session tombstones — must resolve BEFORE workout_sessions (phase 2) to
+  // prevent resurrecting a session another device deleted. Do NOT delete the
+  // remote session here — the sync queue delete from the originating device
+  // handles that; a stale tombstone would delete an active cloud session.
+  const sessionTombstonesPull: Promise<SyncResult> = (async () => {
     try {
-      const { pruneOldAiInsights } = await import('@/lib/ai/proactive-coach')
-      await pruneOldAiInsights()
-    } catch (err) {
-      trackSyncError('prune_ai_insights', err)
-    }
-  } catch (err) {
-    errors++
-    trackSyncError('pull_ai_insights', err)
-  }
-
-  // Push local tombstones to cloud (that haven't been pushed yet)
-  try {
-    const localTombstones = await db.sessionTombstones.toArray()
-    for (const tombstone of localTombstones) {
-      try {
-        const { error } = await supabase
-          .from('session_tombstones')
-          .upsert({
-            user_id: userId,
-            session_id: tombstone.sessionId,
-            deleted_at: tombstone.deletedAt,
-          }, { onConflict: 'user_id,session_id' })
-        if (error) throw error
-      } catch (err) {
-        tombstoneErrors++
-        errors++
-        trackSyncError('push_session_tombstone', err)
+      const { data: remoteTombstones, error: tombstoneError } = await supabase
+        .from('session_tombstones')
+        .select('session_id, deleted_at')
+        .eq('user_id', userId)
+      if (tombstoneError) throw tombstoneError
+      for (const row of remoteTombstones ?? []) {
+        const r = row as { session_id: string; deleted_at: string }
+        await db.sessionTombstones.put({ sessionId: r.session_id, deletedAt: r.deleted_at })
+        // Delete local session if it still exists (resurrected by earlier sync)
+        const localSession = await db.workoutSessions.get(r.session_id)
+        if (localSession) await db.workoutSessions.delete(r.session_id)
       }
+      return { ok: true, errors: 0 }
+    } catch (err) {
+      trackSyncError('pull_session_tombstones', err)
+      return { ok: false, errors: 1, tombstoneErrors: 1 }
     }
-  } catch (err) {
-    tombstoneErrors++
-    errors++
-    trackSyncError('push_session_tombstones', err)
+  })()
+
+  // Body-weight tombstones — push local first, then pull remote; both must
+  // succeed before body_weight_entries merges (phase 2). Same "never delete
+  // remote here" rule as session tombstones.
+  const bodyWeightTombstonesSync: Promise<SyncResult> = (async () => {
+    let errs = 0
+    try {
+      const localBwTombstones = await db.bodyWeightTombstones.toArray()
+      for (const tombstone of localBwTombstones) {
+        try {
+          const { error } = await supabase
+            .from('body_weight_tombstones')
+            .upsert(
+              {
+                user_id: userId,
+                entry_id: tombstone.entryId,
+                deleted_at: tombstone.deletedAt,
+              },
+              { onConflict: 'user_id,entry_id' },
+            )
+          if (error) throw error
+        } catch (err) {
+          errs++
+          trackSyncError('push_body_weight_tombstone', err)
+        }
+      }
+    } catch (err) {
+      errs++
+      trackSyncError('push_body_weight_tombstones', err)
+    }
+    if (errs > 0) return { ok: false, errors: errs, tombstoneErrors: errs }
+    try {
+      const { data: remoteBwTombstones, error: rbtErr } = await supabase
+        .from('body_weight_tombstones')
+        .select('entry_id, deleted_at')
+        .eq('user_id', userId)
+      if (rbtErr) throw rbtErr
+      for (const row of (remoteBwTombstones ?? []) as { entry_id: string; deleted_at: string }[]) {
+        await db.bodyWeightTombstones.put({ entryId: row.entry_id, deletedAt: row.deleted_at })
+        const localEntry = await db.bodyWeight.get(row.entry_id)
+        if (localEntry) await db.bodyWeight.delete(row.entry_id)
+      }
+      return { ok: true, errors: 0 }
+    } catch (err) {
+      trackSyncError('pull_body_weight_tombstones', err)
+      return { ok: false, errors: 1, tombstoneErrors: 1 }
+    }
+  })()
+
+  // Push local session tombstones to cloud (not yet pushed). Independent of
+  // the sessions pull — mergeSessionRemote checks the LOCAL tombstone table.
+  const sessionTombstonesPush: Promise<SyncResult> = (async () => {
+    let errs = 0
+    try {
+      const localTombstones = await db.sessionTombstones.toArray()
+      for (const tombstone of localTombstones) {
+        try {
+          const { error } = await supabase
+            .from('session_tombstones')
+            .upsert(
+              {
+                user_id: userId,
+                session_id: tombstone.sessionId,
+                deleted_at: tombstone.deletedAt,
+              },
+              { onConflict: 'user_id,session_id' },
+            )
+          if (error) throw error
+        } catch (err) {
+          errs++
+          trackSyncError('push_session_tombstone', err)
+        }
+      }
+    } catch (err) {
+      errs++
+      trackSyncError('push_session_tombstones', err)
+    }
+    return errs > 0
+      ? { ok: false, errors: errs, tombstoneErrors: errs }
+      : { ok: true, errors: 0 }
+  })()
+
+  const activeWorkoutsPull: Promise<SyncResult> = (async () => {
+    try {
+      const { data: remoteActive, error: activeError } = await supabase
+        .from('active_workout_state')
+        .select('*')
+        .eq('user_id', userId)
+      if (activeError) throw activeError
+
+      for (const remote of remoteActive ?? []) {
+        await mergeActiveRemote(userId, remote as RemoteActiveRow)
+      }
+      await reconcileActiveWorkoutsAfterPull(
+        new Set((remoteActive ?? []).map((r) => (r as RemoteActiveRow).program)),
+      )
+      return { ok: true, errors: 0 }
+    } catch (err) {
+      trackSyncError('pull_active_workouts', err)
+      return { ok: false, errors: 1 }
+    }
+  })()
+
+  const maxTestsPull: Promise<SyncResult> = (async () => {
+    try {
+      const { data: remoteTests, error: testsError } = await supabase
+        .from('max_tests')
+        .select('*')
+        .eq('user_id', userId)
+        .order('tested_at', { ascending: true })
+      if (testsError) throw testsError
+
+      for (const remote of remoteTests ?? []) {
+        await mergeMaxTestRemote(remote as RemoteMaxTestRow)
+      }
+      return { ok: true, errors: 0 }
+    } catch (err) {
+      trackSyncError('pull_max_tests', err)
+      return { ok: false, errors: 1 }
+    }
+  })()
+
+  const aiInsightsPull: Promise<SyncResult> = (async () => {
+    try {
+      const { data: remoteInsights, error: insightsError } = await supabase
+        .from('ai_insights')
+        .select('*')
+        .eq('user_id', userId)
+      if (insightsError) throw insightsError
+      for (const remote of remoteInsights ?? []) {
+        await mergeAiInsightRemote(remote as RemoteAiInsightRow)
+      }
+
+      // Prune old AI insights to prevent unbounded local storage growth
+      try {
+        const { pruneOldAiInsights } = await import('@/lib/ai/proactive-coach')
+        await pruneOldAiInsights()
+      } catch (err) {
+        trackSyncError('prune_ai_insights', err)
+      }
+      return { ok: true, errors: 0 }
+    } catch (err) {
+      trackSyncError('pull_ai_insights', err)
+      return { ok: false, errors: 1 }
+    }
+  })()
+
+  // Custom entities (plans, exercises, progress, active custom workouts).
+  // Deferred to phase 2 — mergeActiveCustomRemote inspects the just-pulled
+  // workout_sessions rows to clean up stale active states, so it must run
+  // after the sessions pull, exactly like the original sequential order.
+  const pullCustom = async (): Promise<SyncResult> => {
+    try {
+      const { pullCustomEntities } = await import('@/lib/custom-sync')
+      const r = await pullCustomEntities(userId)
+      return { ok: r.errors === 0, errors: r.errors, tombstoneErrors: r.tombstoneErrors }
+    } catch (err) {
+      trackSyncError('pull_custom_entities_wrapper', err)
+      return { ok: false, errors: 1, tombstoneErrors: 1 }
+    }
   }
 
-  // Custom entities (plans, exercises, progress, active custom workouts)
-  // Tombstones are pulled first inside pullCustomEntities — only actual
-  // tombstone errors block push to prevent resurrection. Non-tombstone errors
-  // (e.g. RPC failure, RLS issue) should NOT block the push phase, otherwise
-  // the sync queue grows unboundedly and never gets flushed.
-  try {
-    const { pullCustomEntities } = await import('@/lib/custom-sync')
-    const customResult = await pullCustomEntities(userId)
-    errors += customResult.errors
-    tombstoneErrors += customResult.tombstoneErrors
-  } catch (err) {
-    errors++
-    tombstoneErrors++
-    trackSyncError('pull_custom_entities_wrapper', err)
+  const phase1 = await Promise.all([
+    pullProfileEnabledPrograms(userId),
+    pullProgramProgressRemote(userId),
+    sessionTombstonesPull,
+    bodyWeightTombstonesSync,
+    sessionTombstonesPush,
+    activeWorkoutsPull,
+    maxTestsPull,
+    aiInsightsPull,
+  ])
+  const sessionTombstonesResult = phase1[2]
+  const bodyWeightTombstonesResult = phase1[3]
+
+  let errors = 0
+  let tombstoneErrors = 0
+  const collect = (r: SyncResult) => {
+    errors += r.errors
+    tombstoneErrors += r.tombstoneErrors ?? 0
+  }
+  phase1.forEach(collect)
+
+  // ── Phase 2: entity pulls gated on their tombstone sections ────────────
+  const gated: Promise<SyncResult>[] = []
+
+  if ((sessionTombstonesResult.tombstoneErrors ?? 0) === 0) {
+    gated.push(
+      (async () => {
+        try {
+          const { data: remoteSessions, error: sessionsError } = await supabase
+            .from('workout_sessions')
+            .select('*, set_results(*)')
+            .eq('user_id', userId)
+          if (sessionsError) throw sessionsError
+
+          for (const remote of remoteSessions ?? []) {
+            // Don't pull abandoned sessions from cloud — they're local-only noise
+            if (remote.status === 'abandoned') continue
+            await mergeSessionRemote(userId, remote as RemoteSessionRow)
+          }
+          return { ok: true, errors: 0 }
+        } catch (err) {
+          trackSyncError('pull_sessions', err)
+          return { ok: false, errors: 1 }
+        }
+      })(),
+    )
+  }
+
+  if ((bodyWeightTombstonesResult.tombstoneErrors ?? 0) === 0) {
+    gated.push(
+      (async () => {
+        try {
+          const { data: remoteBodyWeight, error: bodyWeightError } = await supabase
+            .from('body_weight_entries')
+            .select('*')
+            .eq('user_id', userId)
+            .order('measured_at', { ascending: true })
+          if (bodyWeightError) throw bodyWeightError
+
+          for (const remote of remoteBodyWeight ?? []) {
+            await mergeBodyWeightRemote(remote as RemoteBodyWeightRow)
+          }
+          return { ok: true, errors: 0 }
+        } catch (err) {
+          trackSyncError('pull_body_weight', err)
+          return { ok: false, errors: 1 }
+        }
+      })(),
+    )
+  }
+
+  ;(await Promise.all(gated)).forEach(collect)
+
+  // Custom entities pull — after workout_sessions (mergeActiveCustomRemote
+  // consults session status) and only when no tombstone section failed,
+  // matching the original early-return semantics.
+  if (tombstoneErrors === 0) {
+    collect(await pullCustom())
   }
 
   // Prune old tombstones (30+ days) — by this point, all devices have had

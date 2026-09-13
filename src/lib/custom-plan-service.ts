@@ -254,6 +254,11 @@ export async function saveExercise(
   if (issues.length) throw new Error(issues[0]?.message ?? 'validation_error')
   await db.exercises.put(ex)
   await enqueueSync('user_exercises', existing ? 'update' : 'insert', ex)
+  // Re-evaluate achievements — exercise_creator counts custom exercises (source !== ai/starter/builtin)
+  // Only trigger for new exercises (not updates) to avoid redundant evaluations
+  if (!existing) {
+    void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
+  }
   return ex
 }
 

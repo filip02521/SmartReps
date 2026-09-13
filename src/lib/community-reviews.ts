@@ -45,6 +45,8 @@ export async function upsertCommunityReview(args: {
   }
   const raw = safeJsonParse<CommunityReview>(data)
   if (!raw) throw new Error('parse_error')
+  // Re-evaluate achievements — first_review and reviewer_10 count reviewCount
+  void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
   return raw
 }
 
@@ -60,6 +62,8 @@ export async function deleteCommunityReview(publicationId: string): Promise<void
     if (msg.includes('not_authenticated')) throw new Error('not_authenticated')
     throw error
   }
+  // Re-evaluate achievements — reviewCount may have dropped below tier threshold
+  void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
 }
 
 /**

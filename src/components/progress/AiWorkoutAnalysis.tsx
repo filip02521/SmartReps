@@ -9,6 +9,10 @@ import { pl } from '@/i18n/pl'
 import { useAppStore } from '@/stores/app-store'
 import { listExercises } from '@/lib/custom-plan-service'
 import { analyzeWorkouts, type AnalysisResult } from '@/lib/ai/workout-analyzer'
+import { resolveAiContext } from '@/lib/ai/managed-client'
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'
+import { useProFeatures } from '@/lib/subscription'
+import { ProTeaser } from '@/components/ux/ProTeaser'
 import { AiApiError } from '@/lib/ai/ai-client'
 import {
   checkRateLimit,
@@ -50,12 +54,15 @@ const STATUS_LABELS = {
 
 export function AiWorkoutAnalysis() {
   const { settings } = useAppStore()
+  const { loggedIn } = useSupabaseAuth()
+  const pro = useProFeatures()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [hasSessions, setHasSessions] = useState<boolean | null>(null)
   const [cacheAge, setCacheAge] = useState<string | null>(null)
+  const [showProTeaser, setShowProTeaser] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
   // Abort any in-flight AI request on unmount
@@ -65,9 +72,10 @@ export function AiWorkoutAnalysis() {
     }
   }, [])
 
-  const apiKey = settings.aiApiKey ?? ''
-  const model = settings.aiModel ?? 'gpt-4o-mini'
-  const baseURL = settings.aiBaseUrl ?? ''
+  // AI is Pro-only: hosted SmartReps AI for logged-in Pro users, BYOK for
+  // Pro users with their own key. `null` loggedIn = session check pending.
+  const aiCtx = resolveAiContext(settings, loggedIn === true, pro)
+  const aiAvailable = !!aiCtx
 
   function formatAge(ms: number): string {
     const hours = Math.floor(ms / (60 * 60 * 1000))
@@ -116,8 +124,8 @@ export function AiWorkoutAnalysis() {
   }, [])
 
   function handleAnalyze() {
-    if (!apiKey) {
-      setError(pl.aiCoachNoApiKey)
+    if (!aiCtx) {
+      setError(pl.aiCoachNeedsLogin)
       return
     }
     // Rate limit check
@@ -145,7 +153,7 @@ export function AiWorkoutAnalysis() {
       try {
         const exercises = await listExercises()
         if (controller.signal.aborted) return
-        const res = await analyzeWorkouts({ apiKey, model, exercises, baseURL: baseURL || undefined, reasoningEffort: settings.aiReasoningEffort, signal: controller.signal })
+        const res = await analyzeWorkouts({ ...aiCtx, exercises, signal: controller.signal })
         if (controller.signal.aborted) return
         recordCall('workout_analysis')
         setResult(res)
@@ -167,7 +175,11 @@ export function AiWorkoutAnalysis() {
                 ? pl.aiErrorAuth
                 : e.kind === 'rate_limit'
                   ? pl.aiErrorRateLimit
-                  : e.message,
+                  : e.kind === 'quota'
+                    ? pl.aiErrorQuotaExceeded
+                    : e.kind === 'pro_required'
+                      ? pl.aiErrorProRequired
+                      : e.message,
           )
         } else {
           console.error('[AI Workout Analysis] Unexpected error:', e)
@@ -197,7 +209,7 @@ export function AiWorkoutAnalysis() {
               ? pl.aiCoachAnalysisDone
               : error
                 ? pl.aiCoachErrorRetry
-                : !apiKey
+                : !aiAvailable
                   ? pl.aiCoachConfigDisconnected
                   : pl.aiCoachReady
         }
@@ -236,10 +248,13 @@ export function AiWorkoutAnalysis() {
         </div>
       )}
 
-      {/* No API key — explain why the CTA below is disabled */}
-      {!apiKey && !loading && !result && hasSessions && (
+      {/* No AI access — Pro required (hard paywall) or login for Pro users */}
+      {!aiAvailable && !loading && !result && hasSessions && (
         <div className="mt-3">
-          <FeedbackBanner variant="warning" message={pl.aiCoachNoApiKey} />
+          <FeedbackBanner
+            variant="warning"
+            message={!pro ? pl.aiCoachProRequired : pl.aiCoachNeedsLogin}
+          />
         </div>
       )}
 
@@ -247,17 +262,23 @@ export function AiWorkoutAnalysis() {
       {!result && !loading && hasSessions && (
         <Button
           type="button"
-          variant="secondary"
+          variant={!pro ? 'primary' : 'secondary'}
           size="touch"
           fullWidth
-          disabled={!apiKey}
-          onClick={handleAnalyze}
+          disabled={pro && !aiAvailable}
+          onClick={!pro ? () => setShowProTeaser(true) : handleAnalyze}
           className="mt-3 gap-2"
         >
           <Sparkles size={18} aria-hidden />
-          {pl.aiAnalyze}
+          {!pro ? pl.aiUnlockPro : pl.aiAnalyze}
         </Button>
       )}
+
+      <ProTeaser
+        open={showProTeaser}
+        onClose={() => setShowProTeaser(false)}
+        feature="hostedAi"
+      />
 
       {/* Loading — coach thinking state */}
       {loading && (

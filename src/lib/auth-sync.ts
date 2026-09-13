@@ -3,6 +3,7 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { clearAllLocalData } from '@/lib/local-data'
 import { db } from '@/lib/db'
 import {
+  pullNavigationHints,
   pullRemoteData,
   syncAllLocalData,
   syncWithRemote,
@@ -225,6 +226,13 @@ async function raceSyncWithTimeout(
  *  so a timed-out sync can't leave a zombie writing into a cleared DB. */
 let activeSyncPromise: Promise<SyncResult> | null = null
 
+/** True only while ensureAccountForSession runs inside the sync body. Its
+ *  clearAllLocalData → waitForSyncToFinish would otherwise await the very
+ *  sync that's running it — a self-deadlock burning up to 10 s on every
+ *  account switch. Scoped narrowly so legitimate waits (e.g. a UI-triggered
+ *  clear racing a live sync) still block as designed. */
+let insideAccountEnsure = false
+
 /** Check if an authenticated sync is currently running. Used by clearAllLocalData
  *  to avoid racing with an active sync (which could write data back to a cleared DB). */
 export function isSyncRunning(): boolean {
@@ -235,7 +243,7 @@ export function isSyncRunning(): boolean {
  *  Waits on the actual sync promise, not the lock — even if the timeout
  *  race cleared the lock, the underlying sync is still tracked here. */
 export async function waitForSyncToFinish(timeoutMs = 10_000): Promise<void> {
-  if (!activeSyncPromise) return
+  if (insideAccountEnsure || !activeSyncPromise) return
   try {
     await Promise.race([
       activeSyncPromise,
@@ -359,6 +367,97 @@ function scheduleSyncResultToast(
   }, 400)
 }
 
+/** The body of an authenticated sync — runs under syncBodyRunning so nested
+ *  calls (e.g. clearAllLocalData → waitForSyncToFinish) never self-deadlock. */
+async function runSyncBody(userId: string): Promise<SyncResult> {
+  insideAccountEnsure = true
+  let accountResult: AccountEnsureResult
+  try {
+    accountResult = await ensureAccountForSession(userId)
+  } finally {
+    insideAccountEnsure = false
+  }
+  if (accountResult === 'needs_confirm') {
+    return { ok: false, errors: 0, reason: 'unknown' as SyncFailureReason }
+  }
+  const result = await syncForAccount(accountResult)
+  let reason = result.reason
+  if (!result.ok && !reason) {
+    reason = await inferFailureReason(result.errors)
+  }
+
+  const finalResult: SyncResult = reason ? { ...result, reason } : result
+
+  const toastOpts = { ...pendingSyncToasts }
+  pendingSyncToasts = {}
+
+  scheduleSyncResultToast(finalResult.ok, toastOpts, reason)
+
+  if (finalResult.ok) {
+    useAppStore.getState().setLastSyncedAt(new Date().toISOString())
+    useAppStore.getState().setLastSyncFailureReason(null)
+    // Clear in-memory sync error log — sync succeeded, old errors are stale
+    try {
+      const { clearRecentSyncErrors } = await import('@/lib/analytics')
+      clearRecentSyncErrors()
+    } catch {
+      /* best-effort */
+    }
+    await completeOnboardingIfSynced()
+    track(AnalyticsEvents.syncOk)
+  } else {
+    if (reason) useAppStore.getState().setLastSyncFailureReason(reason)
+    track(AnalyticsEvents.syncFailed, { errors: finalResult.errors, reason: reason ?? 'unknown' })
+  }
+
+  // Achievement reconciliation runs independently of data sync result.
+  // Even if the queue has failing items, achievements should still reconcile
+  // with the cloud (e.g. remove erroneously-unlocked badges).
+  try {
+    const { pullAchievementsFromCloud } = await import('@/lib/achievements/sync')
+    const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
+    const { listUnseenUnlocks, markUnlockSeen, hasBackfillFlag, setBackfillFlag } =
+      await import('@/lib/achievements/store')
+    const { useAchievementUiStore } = await import('@/stores/achievement-ui-store')
+
+    // Capture local unseen BEFORE pull — these are genuinely new unlocks
+    // earned on THIS device (offline) that deserve a celebration sheet.
+    const localUnseenBefore = await listUnseenUnlocks()
+    const localUnseenIds = new Set(localUnseenBefore.map((u) => u.id))
+
+    await pullAchievementsFromCloud()
+
+    // After pull, unseen may include: (a) local-earned (still unseen, deserve
+    // celebration) and (b) remote-pulled with seen_at=null (historical unlocks
+    // from other devices that were never dismissed — would flood the user).
+    const unseen = await listUnseenUnlocks()
+    if (unseen.length > 0) {
+      const remoteUnseen = unseen.filter((u) => !localUnseenIds.has(u.id))
+      const localEarned = unseen.filter((u) => localUnseenIds.has(u.id))
+
+      // On a fresh device, remote unseen are historical — backfill (mark seen)
+      // instead of showing N individual celebration sheets.
+      if (!hasBackfillFlag() && remoteUnseen.length > 0) {
+        await Promise.all(remoteUnseen.map((u) => markUnlockSeen(u.id)))
+        setBackfillFlag()
+      } else if (hasBackfillFlag()) {
+        // Not a fresh device — remote unseen are genuinely new from other devices.
+        useAchievementUiStore.getState().enqueueUnlocks(remoteUnseen, false)
+      }
+
+      // Always celebrate locally-earned unlocks (these are THIS device's wins).
+      if (localEarned.length > 0) {
+        useAchievementUiStore.getState().enqueueUnlocks(localEarned, false)
+      }
+    }
+    scheduleAchievementCheck()
+  } catch {
+    /* best-effort */
+  }
+
+  return finalResult
+}
+
 export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncResult> {
   if (!isSupabaseConfigured) return { ok: true, errors: 0 }
 
@@ -389,88 +488,7 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
 
   // Timeout guard: if sync hangs (slow network, unresponsive server), return
   // a failure while keeping the underlying sync single-flight until it settles.
-  authenticatedSyncLock = (async () => {
-    const accountResult = await ensureAccountForSession(session.user.id)
-    if (accountResult === 'needs_confirm') {
-      return { ok: false, errors: 0, reason: 'unknown' as SyncFailureReason }
-    }
-    const result = await syncForAccount(accountResult)
-    let reason = result.reason
-    if (!result.ok && !reason) {
-      reason = await inferFailureReason(result.errors)
-    }
-
-    const finalResult: SyncResult = reason ? { ...result, reason } : result
-
-    const toastOpts = { ...pendingSyncToasts }
-    pendingSyncToasts = {}
-
-    scheduleSyncResultToast(finalResult.ok, toastOpts, reason)
-
-    if (finalResult.ok) {
-      useAppStore.getState().setLastSyncedAt(new Date().toISOString())
-      useAppStore.getState().setLastSyncFailureReason(null)
-      // Clear in-memory sync error log — sync succeeded, old errors are stale
-      try {
-        const { clearRecentSyncErrors } = await import('@/lib/analytics')
-        clearRecentSyncErrors()
-      } catch {
-        /* best-effort */
-      }
-      await completeOnboardingIfSynced()
-      track(AnalyticsEvents.syncOk)
-    } else {
-      if (reason) useAppStore.getState().setLastSyncFailureReason(reason)
-      track(AnalyticsEvents.syncFailed, { errors: finalResult.errors, reason: reason ?? 'unknown' })
-    }
-
-    // Achievement reconciliation runs independently of data sync result.
-    // Even if the queue has failing items, achievements should still reconcile
-    // with the cloud (e.g. remove erroneously-unlocked badges).
-    try {
-      const { pullAchievementsFromCloud } = await import('@/lib/achievements/sync')
-      const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
-      const { listUnseenUnlocks, markUnlockSeen, hasBackfillFlag, setBackfillFlag } =
-        await import('@/lib/achievements/store')
-      const { useAchievementUiStore } = await import('@/stores/achievement-ui-store')
-
-      // Capture local unseen BEFORE pull — these are genuinely new unlocks
-      // earned on THIS device (offline) that deserve a celebration sheet.
-      const localUnseenBefore = await listUnseenUnlocks()
-      const localUnseenIds = new Set(localUnseenBefore.map((u) => u.id))
-
-      await pullAchievementsFromCloud()
-
-      // After pull, unseen may include: (a) local-earned (still unseen, deserve
-      // celebration) and (b) remote-pulled with seen_at=null (historical unlocks
-      // from other devices that were never dismissed — would flood the user).
-      const unseen = await listUnseenUnlocks()
-      if (unseen.length > 0) {
-        const remoteUnseen = unseen.filter((u) => !localUnseenIds.has(u.id))
-        const localEarned = unseen.filter((u) => localUnseenIds.has(u.id))
-
-        // On a fresh device, remote unseen are historical — backfill (mark seen)
-        // instead of showing N individual celebration sheets.
-        if (!hasBackfillFlag() && remoteUnseen.length > 0) {
-          await Promise.all(remoteUnseen.map((u) => markUnlockSeen(u.id)))
-          setBackfillFlag()
-        } else if (hasBackfillFlag()) {
-          // Not a fresh device — remote unseen are genuinely new from other devices.
-          useAchievementUiStore.getState().enqueueUnlocks(remoteUnseen, false)
-        }
-
-        // Always celebrate locally-earned unlocks (these are THIS device's wins).
-        if (localEarned.length > 0) {
-          useAchievementUiStore.getState().enqueueUnlocks(localEarned, false)
-        }
-      }
-      scheduleAchievementCheck()
-    } catch {
-      /* best-effort */
-    }
-
-    return finalResult
-  })().catch((err) => {
+  authenticatedSyncLock = runSyncBody(session.user.id).catch((err) => {
     trackSyncError('authenticated_sync', err)
     const reason: SyncFailureReason = 'remote_error'
     const toastOpts = { ...pendingSyncToasts }
@@ -488,10 +506,12 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
   // completion — preventing zombie syncs from writing into a cleared DB.
   const syncPromise = authenticatedSyncLock
   activeSyncPromise = syncPromise
+  useAppStore.getState().setSyncInFlight(true)
   // Clear activeSyncPromise when the ACTUAL sync finishes (not the race).
   void syncPromise.finally(() => {
     if (activeSyncPromise === syncPromise) {
       activeSyncPromise = null
+      useAppStore.getState().setSyncInFlight(false)
     }
     if (authenticatedSyncLock === syncPromise) {
       authenticatedSyncLock = null
@@ -517,14 +537,43 @@ export async function completeSignInFlow(
   signInFlowLock = (async () => {
     await waitForStoreHydration()
     clearSignedOutPreference()
-    await runAuthenticatedSync({
+
+    const { data: { session } } = isSupabaseConfigured
+      ? await supabase.auth.getSession()
+      : { data: { session: null } }
+
+    // Resolve account ownership up-front — local Dexie checks only.
+    // 'needs_confirm' must NOT navigate: the account-switch gate decides.
+    // ensureAccountForSession is idempotent, so the background sync's own
+    // call simply observes 'same' afterwards.
+    const accountResult = session?.user
+      ? await ensureAccountForSession(session.user.id)
+      : 'same'
+
+    // Full sync runs in the background — every screen reads local Dexie and
+    // reloads when lastSyncedAt flips, so pulled data lands without ever
+    // blocking post-login navigation.
+    const syncPromise = runAuthenticatedSync({
       showSuccessToast: opts?.showSuccessToast ?? false,
       showFailureToast: opts?.showFailureToast ?? false,
     })
 
-    const { getAccountSwitchPending } = await import('@/lib/account-switch-gate')
-    if (getAccountSwitchPending()) {
+    if (accountResult === 'needs_confirm') {
+      await syncPromise // settles fast — sync exits early on needs_confirm
       return
+    }
+
+    // Routing needs onboarding state. On a fresh device / cleared account it
+    // is false until the cloud profile + progress arrive — pull just those
+    // two (parallel, deduped with the background sync) instead of waiting
+    // for the entire sync before showing the dashboard.
+    if (session?.user && !useAppStore.getState().settings.onboardingComplete) {
+      try {
+        await pullNavigationHints(session.user.id)
+        await completeOnboardingIfSynced()
+      } catch {
+        /* route with local state — RequireOnboarding re-checks anyway */
+      }
     }
 
     const fromOnboarding = consumeAuthFromOnboarding()

@@ -4,7 +4,8 @@ import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { PageLoader } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
-import { runAuthenticatedSync } from '@/lib/auth-sync'
+import { completeOnboardingIfSynced } from '@/lib/onboarding-from-sync'
+import { pullNavigationHints } from '@/lib/sync'
 import { isProgram } from '@/lib/setup-flow'
 
 /** Redirects to onboarding when the user has not finished first-run setup. */
@@ -23,7 +24,10 @@ export function RequireOnboarding() {
       try {
         const { data } = await supabase.auth.getSession()
         if (!data.session || cancelled) return
-        await runAuthenticatedSync({ showSuccessToast: false, showFailureToast: false })
+        // Only profile + progress decide onboarding — a fast parallel pull
+        // instead of the full sync (which continues in the background).
+        await pullNavigationHints(data.session.user.id)
+        await completeOnboardingIfSynced()
       } finally {
         if (!cancelled) setCheckingAccount(false)
       }

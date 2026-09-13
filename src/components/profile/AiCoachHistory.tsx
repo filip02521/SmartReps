@@ -19,18 +19,17 @@ const FILTERS: { key: FilterType; label: string }[] = [
   { key: 'plateau_warning', label: pl.coachHistoryFilterPlateau },
 ]
 
-/** Relative time formatter — "2 dni temu", "3 godz. temu", "teraz". */
+/** Relative time formatter — "2 dni temu" / "3 h ago". */
 function relativeTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime()
-  if (ms < 60_000) return pl.coachHistoryCreatedAgo('teraz')
+  if (ms < 60_000) return pl.coachHistoryAgoNow
   const min = Math.floor(ms / 60_000)
-  if (min < 60) return pl.coachHistoryCreatedAgo(`${min} min temu`)
+  if (min < 60) return pl.coachHistoryAgoMinutes(min)
   const hrs = Math.floor(min / 60)
-  if (hrs < 24) return pl.coachHistoryCreatedAgo(`${hrs} godz. temu`)
+  if (hrs < 24) return pl.coachHistoryAgoHours(hrs)
   const days = Math.floor(hrs / 24)
-  if (days < 7) return pl.coachHistoryCreatedAgo(`${days} dni temu`)
-  const weeks = Math.floor(days / 7)
-  return pl.coachHistoryCreatedAgo(`${weeks} tyg. temu`)
+  if (days < 7) return pl.coachHistoryAgoDays(days)
+  return pl.coachHistoryAgoWeeks(Math.floor(days / 7))
 }
 
 const TYPE_TONE: Record<AiInsightType, 'insight' | 'warning' | 'success'> = {
@@ -47,12 +46,12 @@ export function AiCoachHistory() {
 
   const load = useCallback(async () => {
     try {
-      // Load only AI-source insights, sorted by createdAt desc — most recent first.
-      // Local insights are cheap, ephemeral, and not worth showing in history.
+      // Load AI insights + local plateau warnings (persistent, high-signal).
+      // Other local insights are cheap and ephemeral — not worth listing.
       const all = await db.aiInsights
         .orderBy('createdAt')
         .reverse()
-        .filter((i) => i.source === 'ai')
+        .filter((i) => i.source === 'ai' || i.type === 'plateau_warning')
         .toArray()
       setInsights(all)
     } catch {

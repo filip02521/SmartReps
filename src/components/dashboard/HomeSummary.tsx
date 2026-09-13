@@ -1,9 +1,11 @@
-import { Play, ChevronDown } from 'lucide-react'
+import { Play, ChevronDown, Activity } from 'lucide-react'
 import type { HomeLoadResult, QuickCta } from '@/lib/home-summary'
 import { getGreetingKey } from '@/lib/home-summary'
 import { Button } from '@/components/ui/Button'
 import { MetricStrip } from '@/components/ui/MetricStrip'
 import { SectionHeader } from '@/components/ui/SectionHeader'
+import { UserPlanBadge } from '@/components/pro/UserPlanBadge'
+import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 
@@ -24,8 +26,8 @@ export function HomeStatusHeader({
   const isScroll = cta?.kind === 'scroll'
   return (
     <header className="mb-5">
-      {/* Date + greeting — compact eyebrow */}
-      <div className="flex items-baseline gap-2">
+      {/* Date + greeting — compact eyebrow; plan chip mirrors Profile */}
+      <div className="flex items-center gap-2">
         <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
           {summary.dateLabel}
         </p>
@@ -37,6 +39,7 @@ export function HomeStatusHeader({
             </p>
           </>
         )}
+        <UserPlanBadge />
       </div>
       {/* Headline — dominant, immediate answer to "what should I do?" */}
       <h2 className="mt-1.5 sr-text-h2 leading-snug text-[var(--sr-text-primary)]">
@@ -76,7 +79,7 @@ export function HomeActivitySection({
 }) {
   return (
     <section aria-label={pl.homeActivityTitle}>
-      <SectionHeader title={pl.homeActivityTitle} />
+      <SectionHeader icon={Activity} title={pl.homeActivityTitle} />
       <MetricStrip
         metrics={[
           {
@@ -100,6 +103,11 @@ export function HomeActivitySection({
           current: summary.sessions14d,
           max: summary.goalTarget,
         }}
+      />
+      <ActivityInsightsPanel
+        insights={summary.activity}
+        compact
+        customLastWorkout={summary.customLastWorkout}
       />
     </section>
   )

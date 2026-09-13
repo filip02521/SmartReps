@@ -11,6 +11,10 @@ import { useAppStore } from '@/stores/app-store'
 import { showToast } from '@/stores/toast-store'
 import { listExercises } from '@/lib/custom-plan-service'
 import { generatePlan, commitGeneratedPlan, type PlanGenerationResult } from '@/lib/ai/plan-generator'
+import { resolveAiContext } from '@/lib/ai/managed-client'
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'
+import { useProFeatures } from '@/lib/subscription'
+import { ProTeaser } from '@/components/ux/ProTeaser'
 import {
   checkRateLimit,
   acquireInflight,
@@ -69,6 +73,8 @@ export function AiPlanGenerator({
   onGenerated: () => void
 }) {
   const { settings } = useAppStore()
+  const { loggedIn } = useSupabaseAuth()
+  const pro = useProFeatures()
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>('form')
   const [error, setError] = useState('')
@@ -83,6 +89,7 @@ export function AiPlanGenerator({
     return m
   }, [result])
   const [importing, setImporting] = useState(false)
+  const [showProTeaser, setShowProTeaser] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
   // Abort any in-flight AI request on unmount — safety net beyond handleClose
@@ -124,13 +131,14 @@ export function AiPlanGenerator({
   const [goal, setGoal] = useState<PlanGenerationInput['goal']>('hypertrophy')
   const [durationMin, setDurationMin] = useState('')
 
-  const apiKey = settings.aiApiKey ?? ''
-  const model = settings.aiModel ?? 'gpt-4o-mini'
-  const baseURL = settings.aiBaseUrl ?? ''
+  // AI is Pro-only: hosted SmartReps AI for logged-in Pro users, BYOK for
+  // Pro users with their own key.
+  const aiCtx = resolveAiContext(settings, loggedIn === true, pro)
+  const aiAvailable = !!aiCtx
 
   function handleGenerate() {
-    if (!apiKey) {
-      setError(pl.aiCoachNoApiKey)
+    if (!aiCtx) {
+      setError(pl.aiCoachNeedsLogin)
       setStep('error')
       return
     }
@@ -185,7 +193,7 @@ export function AiPlanGenerator({
           goal,
           sessionDurationMin: durNum,
         }
-        const res = await generatePlan(input, { apiKey, model, library, baseURL: baseURL || undefined, reasoningEffort: settings.aiReasoningEffort, signal: controller.signal })
+        const res = await generatePlan(input, { ...aiCtx, library, signal: controller.signal })
         if (controller.signal.aborted) return
         clearTimeout(timeout)
         recordCall('plan_generation')
@@ -215,7 +223,11 @@ export function AiPlanGenerator({
                 ? pl.aiErrorAuth
                 : e.kind === 'rate_limit'
                   ? pl.aiErrorRateLimit
-                  : e.message,
+                  : e.kind === 'quota'
+                    ? pl.aiErrorQuotaExceeded
+                    : e.kind === 'pro_required'
+                      ? pl.aiErrorProRequired
+                      : e.message,
           )
         } else {
           console.error('[AI Plan Generator] Unexpected error:', e)
@@ -300,7 +312,7 @@ export function AiPlanGenerator({
               ? pl.aiCoachPlanReady
               : step === 'error'
                 ? pl.aiCoachErrorRetry
-                : !apiKey
+                : !aiAvailable
                   ? pl.aiCoachConfigDisconnected
                   : pl.aiCoachReady
         }
@@ -398,21 +410,37 @@ export function AiPlanGenerator({
             onChange={(e) => setDurationMin(e.target.value)}
           />
 
-          {!apiKey && (
-            <FeedbackBanner variant="warning" message={pl.aiCoachNoApiKey} />
+          {!aiAvailable && (
+            <FeedbackBanner
+              variant="warning"
+              message={!pro ? pl.aiCoachProRequired : pl.aiCoachNeedsLogin}
+            />
           )}
 
-          <Button
-            type="button"
-            size="touch"
-            fullWidth
-            disabled={!apiKey || !description.trim()}
-            onClick={handleGenerate}
-            className="gap-2"
-          >
-            <Sparkles size={18} aria-hidden />
-            {pl.aiGenerate}
-          </Button>
+          {!pro ? (
+            <Button
+              type="button"
+              size="touch"
+              fullWidth
+              onClick={() => setShowProTeaser(true)}
+              className="gap-2"
+            >
+              <Sparkles size={18} aria-hidden />
+              {pl.aiUnlockPro}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="touch"
+              fullWidth
+              disabled={!aiAvailable || !description.trim()}
+              onClick={handleGenerate}
+              className="gap-2"
+            >
+              <Sparkles size={18} aria-hidden />
+              {pl.aiGenerate}
+            </Button>
+          )}
         </div>
       )}
 
@@ -583,6 +611,12 @@ export function AiPlanGenerator({
           </Button>
         </div>
       )}
+
+      <ProTeaser
+        open={showProTeaser}
+        onClose={() => setShowProTeaser(false)}
+        feature="hostedAi"
+      />
     </Sheet>
   )
 }

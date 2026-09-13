@@ -27,6 +27,7 @@ const TYPE_LABEL: Record<ChallengeType, string> = {
 function progressLabel(type: ChallengeType, current: number, target: number): string {
   if (type === 'consistency') return pl.challengeProgressSessions(current, target)
   if (type === 'personal_best') return pl.challengeProgressPersonalBest(current, target)
+  if (type === 'precision') return pl.challengeProgressCount(current, target)
   return pl.challengeProgressReps(current, target)
 }
 
@@ -47,8 +48,10 @@ function sessionContribution(
       return passed ? { value: 1, label: pl.challengeRecapContributionPrecision } : null
     }
     case 'personal_best': {
+      // The metric is the best single set, not reps contributed — a "+N
+      // reps" label would wrongly imply volume.
       const maxSet = session.setResults.reduce((max, r) => Math.max(max, r.actual ?? 0), 0)
-      return maxSet > 0 ? { value: maxSet, label: pl.challengeRecapContributionReps(maxSet) } : null
+      return maxSet > 0 ? { value: maxSet, label: pl.challengeRecapBestSet(maxSet) } : null
     }
   }
 }

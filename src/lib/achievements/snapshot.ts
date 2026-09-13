@@ -35,13 +35,37 @@ function isWeekendSession(s: LocalWorkoutSession): boolean {
   return day === 0 || day === 6 // Sunday or Saturday
 }
 
+function isSpeedSession(s: LocalWorkoutSession): boolean {
+  if (!s.completedAt) return false
+  if (isCustomWorkoutSession(s)) return false // builtin only
+  if (!s.passed) return false
+  const durMs = new Date(s.completedAt).getTime() - new Date(s.startedAt).getTime()
+  if (durMs >= 15 * 60 * 1000 || durMs <= 0) return false // <15 min, >0 min
+  const passedSets = s.setResults.filter((r) => r.passed).length
+  return passedSets >= 3
+}
+
 function detectComeback(sortedAsc: LocalWorkoutSession[], now: Date): boolean {
-  if (sortedAsc.length < 5) return false
+  return detectComebackInfo(sortedAsc, now).gapDays >= 28
+}
+
+/** Detect the largest gap (days) between consecutive sessions that was followed
+ *  by a rebound (≥2 streak weeks within 21 days after the gap). Returns 0 if none. */
+function detectComebackMaxGap(sortedAsc: LocalWorkoutSession[], now: Date): number {
+  return detectComebackInfo(sortedAsc, now).gapDays
+}
+
+function detectComebackInfo(
+  sortedAsc: LocalWorkoutSession[],
+  now: Date,
+): { gapDays: number; rebound: boolean } {
+  if (sortedAsc.length < 5) return { gapDays: 0, rebound: false }
+  let maxGap = 0
   for (let i = 1; i < sortedAsc.length; i++) {
     const prev = new Date(sortedAsc[i - 1]!.completedAt ?? sortedAsc[i - 1]!.startedAt).getTime()
     const cur = new Date(sortedAsc[i]!.completedAt ?? sortedAsc[i]!.startedAt).getTime()
     const gapDays = (cur - prev) / MS_DAY
-    if (gapDays < 28) continue
+    if (gapDays < 14) continue
     const windowEnd = cur + 21 * MS_DAY
     const rebound = sortedAsc.filter((s) => {
       const t = new Date(s.completedAt ?? s.startedAt).getTime()
@@ -49,14 +73,15 @@ function detectComeback(sortedAsc: LocalWorkoutSession[], now: Date): boolean {
     })
     if (rebound.length < 4) continue
     const streakAfter = computeStreakWeeks(rebound, new Date(Math.min(windowEnd, now.getTime())))
-    // Also check current streak if rebound reaches "now"
     const streakNow = computeStreakWeeks(
       sortedAsc.filter((s) => new Date(s.startedAt).getTime() >= cur),
       now,
     )
-    if (streakAfter >= 2 || streakNow >= 2) return true
+    if (streakAfter >= 2 || streakNow >= 2) {
+      maxGap = Math.max(maxGap, Math.round(gapDays))
+    }
   }
-  return false
+  return { gapDays: maxGap, rebound: maxGap > 0 }
 }
 
 /** Count sessions where a same-day / same-set PR occurred vs prior history (builtin).
@@ -199,6 +224,7 @@ export async function buildAchievementSnapshot(opts?: {
 
   // Count distinct (cycleId, cycleAttempt) pairs that reached the last day — for cycles_5/10/25
   const closedCycleKeys = new Set<string>()
+  const closedCycleIdsByProgram = { pushups: new Set<string>(), pullups: new Set<string>(), squats: new Set<string>() }
   for (const s of completed) {
     if (isCustomWorkoutSession(s) || !s.passed) continue
     const cycle = getCycleById(s.cycleId)
@@ -206,9 +232,17 @@ export async function buildAchievementSnapshot(opts?: {
     const lastDay = Math.max(...cycle.days.map((d) => d.dayNumber))
     if (s.dayNumber === lastDay) {
       closedCycleKeys.add(`${s.cycleId}:${s.cycleAttempt}`)
+      if (s.program === 'pushups' || s.program === 'pullups' || s.program === 'squats') {
+        closedCycleIdsByProgram[s.program].add(s.cycleId)
+      }
     }
   }
   const cyclesClosedCount = closedCycleKeys.size
+  const cyclesClosedByProgram = {
+    pushups: closedCycleIdsByProgram.pushups.size,
+    pullups: closedCycleIdsByProgram.pullups.size,
+    squats: closedCycleIdsByProgram.squats.size,
+  }
 
   // All-time total reps across all completed sessions
   let totalRepsAllTime = 0
@@ -273,6 +307,9 @@ export async function buildAchievementSnapshot(opts?: {
     dawnSessionCount: completed.filter(isDawnSession).length,
     longSessionCount: completed.filter(isLongSession).length,
     weekendSessionCount: completed.filter(isWeekendSession).length,
+    speedSessionCount: completed.filter(isSpeedSession).length,
+    comebackMaxGapDays: detectComebackMaxGap(completedAsc, now),
+    cyclesClosedByProgram,
     pushupsSessions,
     pullupsSessions,
     squatsSessions,

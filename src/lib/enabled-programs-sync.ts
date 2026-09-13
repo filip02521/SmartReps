@@ -16,8 +16,10 @@ export function parseEnabledCustomPlanIds(raw: unknown): string[] {
 
 export type RemoteProfileSettings = {
   display_name?: string | null
-  enabled_programs: string[] | null
-  enabled_programs_updated_at: string | null
+  /** Optional — the light subscription-only pull (refreshSubscriptionStatus)
+   *  doesn't fetch program/ui columns. */
+  enabled_programs?: string[] | null
+  enabled_programs_updated_at?: string | null
   enabled_workouts_json?: string[] | null
   enabled_workouts_updated_at?: string | null
   custom_plans_filter_explicit?: boolean | null

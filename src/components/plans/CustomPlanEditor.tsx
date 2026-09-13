@@ -222,16 +222,20 @@ export function CustomPlanEditor({
   async function flushSave(next: CustomPlan, force = false) {
     if (!force && !shouldPersistDraft(next) && !persistedRef.current) {
       setPlan(next)
+      planRef.current = next
       return
     }
     const gen = ++saveGenRef.current
     const session = editorSessionRef.current
     setPlan(next)
+    planRef.current = next
     try {
       const saved = await saveCustomPlan(next, { skipValidation: true })
       if (gen !== saveGenRef.current || session !== editorSessionRef.current) return
       setPlan(saved)
+      planRef.current = saved
       setPersisted(true)
+      persistedRef.current = true
     } catch {
       // ignore incomplete autosave races
     }
@@ -239,6 +243,9 @@ export function CustomPlanEditor({
 
   function updatePlan(next: CustomPlan) {
     setPlan(next)
+    // Sync ref eagerly — handleClose reads planRef before the useEffect
+    // flush, so a fast "type name → close" would otherwise lose the draft.
+    planRef.current = next
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
     saveTimer.current = window.setTimeout(() => {
       void flushSave(next)

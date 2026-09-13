@@ -9,7 +9,6 @@ import {
 import { getProgramStats, type ProgramStats } from '@/lib/stats-engine'
 import { isStaleActiveWorkout, enqueueSync } from '@/lib/sync'
 import { reconcileActiveWorkout } from '@/lib/program-service'
-import { getProgramLabel } from '@/lib/plan-resolver'
 import { pl } from '@/i18n/pl'
 import { currentLang } from '@/i18n'
 import { buildActivityInsights, daysSinceLastPassedSession, type ActivityInsights } from '@/lib/weekly-recap'
@@ -82,8 +81,9 @@ export type PickTipOpts = {
   showLoginBackup?: boolean
   dismissedHabitMetTip?: boolean
   unseenAchievements?: number
-  /** When set, a plateau warning tip is shown for this program. */
-  plateauProgram?: Program | null
+  /** When set, a plateau warning tip is shown. `key` dedupes dismissal
+   *  (program id or `custom-{planId}`); `regression` switches copy. */
+  plateau?: { key: string; label: string; regression: boolean } | null
   /** True gdy użytkownik ukończył pierwszy trening — ukrywa kartę powitalną. */
   hasCompletedFirstWorkout?: boolean
   /** True gdy istnieją ukończone sesje (np. przywrócone z chmury po
@@ -596,16 +596,17 @@ export function pickTip(
   }
 
   // Plateau warning — 3 sessions without progress (higher priority than achievements)
-  if (opts?.plateauProgram && !dismissed.has(`plateau-${opts.plateauProgram}`)) {
-    const programLabel = getProgramLabel(opts.plateauProgram)
+  if (opts?.plateau && !dismissed.has(`plateau-${opts.plateau.key}`)) {
     return {
-      id: `plateau-${opts.plateauProgram}`,
+      id: `plateau-${opts.plateau.key}`,
       kind: 'plateau',
       title: pl.coachPlateauTitle,
-      message: pl.coachPlateauTip(programLabel),
+      message: opts.plateau.regression
+        ? pl.coachPlateauTipRegression(opts.plateau.label)
+        : pl.coachPlateauTip(opts.plateau.label),
       dismissible: true,
       actionLabel: pl.coachPlateauCta,
-      navigateTo: '/progress?tab=analysis',
+      navigateTo: '/progress?tab=history',
     }
   }
 
@@ -844,16 +845,38 @@ export async function loadHomeDashboard(
     })
   }
 
-  // Plateau detection — check each enabled program for 3-session stagnation
-  let plateauProgram: Program | null = null
+  // Plateau detection — 3-session stagnation per training day, builtin
+  // programs first, then active custom plans (grouped per plan+day).
+  let plateauTip: { key: string; label: string; regression: boolean } | null = null
   for (const prog of enabledPrograms) {
-    const plateau = await detectPlateau(prog, allSessions)
-    if (plateau) {
-      plateauProgram = prog
+    const detected = await detectPlateau(prog, allSessions)
+    if (detected) {
+      plateauTip = { key: prog, label: detected.label, regression: detected.regression }
       // Persist the plateau insight so it syncs and isn't re-detected for 7 days
-      await db.aiInsights.put(plateau)
-      void enqueueSync('ai_insights', 'insert', plateau)
+      await db.aiInsights.put(detected.insight)
+      void enqueueSync('ai_insights', 'insert', detected.insight)
       break
+    }
+  }
+  if (!plateauTip) {
+    const activeCustomPlans = await db.customPlans
+      .filter((p) => p.status === 'active')
+      .toArray()
+    for (const plan of activeCustomPlans) {
+      const detected = await detectPlateau('custom', allSessions, {
+        customPlanId: plan.id,
+        programLabel: plan.name?.trim() || pl.planDash,
+      })
+      if (detected) {
+        plateauTip = {
+          key: `custom-${plan.id}`,
+          label: detected.label,
+          regression: detected.regression,
+        }
+        await db.aiInsights.put(detected.insight)
+        void enqueueSync('ai_insights', 'insert', detected.insight)
+        break
+      }
     }
   }
 
@@ -867,7 +890,7 @@ export async function loadHomeDashboard(
       enabledProgramCount: enabledPrograms.length,
       showLoginBackup: opts?.showLoginBackup,
       dismissedHabitMetTip: opts?.dismissedHabitMetTip,
-      plateauProgram,
+      plateau: plateauTip,
       hasCompletedFirstWorkout: opts?.hasCompletedFirstWorkout,
       hasAnyCompletedSession: completedAll.length > 0,
       welcomeCardDismissed: opts?.welcomeCardDismissed,

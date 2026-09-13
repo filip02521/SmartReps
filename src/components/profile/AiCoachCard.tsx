@@ -12,9 +12,15 @@ import { FOCUS_RING } from '@/lib/ui-chrome'
  */
 export function AiCoachCard({
   connected,
+  hosted,
+  requiresPro,
   onOpenSettings,
 }: {
   connected: boolean
+  /** Connected through hosted SmartReps AI (Pro model server-side). */
+  hosted?: boolean
+  /** AI is Pro-only — show the PRO badge instead of "not connected". */
+  requiresPro?: boolean
   onOpenSettings: () => void
 }) {
   return (
@@ -41,7 +47,13 @@ export function AiCoachCard({
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <Badge variant={connected ? 'success' : 'info'}>
-          {connected ? pl.profileCoachCardConnected : pl.profileCoachCardOffline}
+          {connected
+            ? hosted
+              ? pl.aiModelProBadge
+              : pl.profileCoachCardConnected
+            : requiresPro
+              ? pl.proBadge
+              : pl.profileCoachCardOffline}
         </Badge>
         <ChevronRight size={18} className="text-[var(--sr-text-muted)]" aria-hidden />
       </div>

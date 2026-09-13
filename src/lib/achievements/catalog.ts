@@ -410,6 +410,72 @@ export const ACHIEVEMENT_CATALOG: AchievementDef[] = [
       { threshold: 50, rarity: 'legendary', glyph: 'umbrella' },
     ],
   },
+
+  // ══ NEW: Triple Threat — all 3 programs ══
+  // Compound: ≥10 sessions in each of pushups, pullups, and squats.
+  // Uses squatsSessions which was previously tracked but unused.
+  { id: 'triple_threat', track: 'training', rarity: 'legendary', glyph: 'dumbbell' },
+
+  // ══ NEW: Squat Specialist — dedicated squat sessions ══
+  // Pushups and pullups have goal_pushups_100/goal_pullups_50 (max test reps),
+  // but squats only had goal_squats_300. This adds a session-count achievement.
+  {
+    id: 'squat_specialist',
+    track: 'training',
+    rarity: 'rare',
+    glyph: 'squat',
+    tiers: [
+      { threshold: 10, rarity: 'common' },
+      { threshold: 25, rarity: 'rare' },
+      { threshold: 50, rarity: 'legendary', glyph: 'squat-gold' },
+    ],
+  },
+
+  // ══ NEW: First Squat — first completed squat session ══
+  // first_session is generic; this gives a quick win for squats specifically.
+  { id: 'first_squat', track: 'training', rarity: 'common', glyph: 'squat' },
+
+  // ══ NEW: Perfect Form — first custom session hitting all targets ══
+  // Quick win: secret_precision requires 20, this rewards the first perfect session.
+  { id: 'perfect_form', track: 'training', rarity: 'common', glyph: 'target' },
+
+  // ══ NEW: Speed Demon — efficient session (<15 min, passed, ≥3 sets) ══
+  // Counterpart to secret_marathon (>60 min). Rewards focused, efficient training.
+  {
+    id: 'speed_demon',
+    track: 'training',
+    rarity: 'rare',
+    glyph: 'flame',
+    tiers: [
+      { threshold: 10, rarity: 'common' },
+      { threshold: 25, rarity: 'rare' },
+      { threshold: 50, rarity: 'legendary', glyph: 'flame' },
+    ],
+  },
+
+  // ══ NEW: Cycle Master — closed a cycle in all 3 programs ══
+  // cycle_closed_strong (1 cycle) and cycles_5 (5/10/25) are generic.
+  // This rewards breadth: completing a cycle in pushups + pullups + squats.
+  { id: 'cycle_master', track: 'legend', rarity: 'legendary', glyph: 'flag' },
+
+  // ══ NEW: Social Butterfly — both follower and following ══
+  // first_follower and first_follow exist separately; this rewards having both.
+  { id: 'social_butterfly', track: 'catalog', rarity: 'common', glyph: 'users' },
+
+  // ══ NEW: Comeback Intermediate — 14-day gap + rebound ══
+  // comeback_stronger requires 28-day gap (legendary). This is an intermediate step.
+  // Tier 3 (35 days) exceeds comeback_stronger's threshold to avoid duplication.
+  {
+    id: 'comeback_intermediate',
+    track: 'habit',
+    rarity: 'rare',
+    glyph: 'refresh',
+    tiers: [
+      { threshold: 14, rarity: 'common' },
+      { threshold: 21, rarity: 'rare' },
+      { threshold: 35, rarity: 'legendary', glyph: 'refresh' },
+    ],
+  },
 ]
 
 export const ACHIEVEMENT_BY_ID = Object.fromEntries(
@@ -535,6 +601,26 @@ function achievementMetricValue(id: AchievementId, snap: AchievementSnapshot): n
         : 0
     case 'secret_weekend':
       return snap.weekendSessionCount
+    case 'triple_threat':
+      return snap.pushupsSessions >= 10 && snap.pullupsSessions >= 10 && snap.squatsSessions >= 10 ? 1 : 0
+    case 'squat_specialist':
+      return snap.squatsSessions
+    case 'first_squat':
+      return snap.squatsSessions
+    case 'perfect_form':
+      return snap.customHitTargetCount
+    case 'speed_demon':
+      return snap.speedSessionCount
+    case 'cycle_master':
+      return snap.cyclesClosedByProgram.pushups >= 1 &&
+        snap.cyclesClosedByProgram.pullups >= 1 &&
+        snap.cyclesClosedByProgram.squats >= 1
+        ? 1
+        : 0
+    case 'social_butterfly':
+      return snap.impact.followerCount >= 1 && snap.impact.followingCount >= 1 ? 1 : 0
+    case 'comeback_intermediate':
+      return snap.comebackMaxGapDays
     default:
       return 0
   }
@@ -582,6 +668,12 @@ function achievementBaseThreshold(id: AchievementId): number {
     case 'challenge_first':
     case 'challenge_winner':
       return 3
+    case 'triple_threat':
+    case 'first_squat':
+    case 'perfect_form':
+    case 'cycle_master':
+    case 'social_butterfly':
+      return 1
     default:
       return Infinity
   }

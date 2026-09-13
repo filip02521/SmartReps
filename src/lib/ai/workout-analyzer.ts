@@ -5,10 +5,9 @@
 import { db } from '@/lib/db'
 import type { ExerciseDefinition, MuscleGroup } from '@/lib/exercise-model'
 import { pl } from '@/i18n/pl'
-import { chatCompletion, parseJsonResponse, AiApiError, resolveReasoningEffort } from './ai-client'
+import { parseJsonResponse, AiApiError, isGeminiEndpoint } from './ai-client'
+import { aiChat, type AiContext } from './managed-client'
 import { buildWorkoutAnalysisPrompt, type AiAnalysisResponse, type WorkoutHistorySummary } from './prompts'
-
-const DEFAULT_MODEL = 'gpt-4o-mini'
 
 const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
   chest: pl.muscleGroupFull_chest,
@@ -27,29 +26,23 @@ export type AnalysisResult = AiAnalysisResponse['analysis'] & {
 }
 
 export async function analyzeWorkouts(
-  context: {
-    apiKey: string
-    model?: string
+  context: AiContext & {
     exercises: ExerciseDefinition[]
-    baseURL?: string
-    reasoningEffort?: 'auto' | 'low' | 'medium' | 'high'
     signal?: AbortSignal
   },
 ): Promise<AnalysisResult> {
   const summary = await gatherWorkoutHistory(context.exercises)
   const { system, user } = buildWorkoutAnalysisPrompt(summary)
 
-  const isGemini = context.baseURL?.includes('gemini') || context.baseURL?.includes('googleapis')
+  // Managed (hosted) mode: server picks the model — use the larger budget.
+  const isGemini = !context.managed && isGeminiEndpoint(context.baseURL)
 
-  const result = await chatCompletion({
-    apiKey: context.apiKey,
-    model: context.model || DEFAULT_MODEL,
+  const result = await aiChat(context, {
+    feature: 'workout_analysis',
     messages: [system, user],
     jsonMode: true,
     temperature: 0.5,
     maxTokens: isGemini ? 12000 : 6000,
-    reasoningEffort: resolveReasoningEffort(context.model || DEFAULT_MODEL, context.reasoningEffort),
-    baseURL: context.baseURL,
     signal: context.signal,
   })
 

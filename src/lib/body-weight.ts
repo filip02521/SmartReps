@@ -28,6 +28,8 @@ export async function addBodyWeightEntry(weightKg: number, note?: string): Promi
   }
   await db.bodyWeight.add(entry)
   await enqueueSync('body_weight_entries', 'insert', entry)
+  // Re-evaluate achievements — weight_tracker counts distinct ISO weeks of entries
+  void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
   return entry
 }
 
@@ -39,6 +41,8 @@ export async function deleteBodyWeightEntry(id: string): Promise<void> {
   if (entry) {
     await enqueueSync('body_weight_entries', 'delete', entry)
   }
+  // Re-evaluate achievements — deleting entries may drop below tier threshold
+  void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
 }
 
 export async function getLatestBodyWeight(): Promise<BodyWeightEntry | undefined> {

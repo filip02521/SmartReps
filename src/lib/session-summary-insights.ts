@@ -1,4 +1,5 @@
 import type { LocalWorkoutSession } from '@/lib/db'
+import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import type { ExerciseDefinition, ExerciseLog, PrimaryMetric, SetLog } from '@/lib/exercise-model'
 import { pl } from '@/i18n/pl'
 import { formatExerciseSetSummary } from '@/lib/custom-exercise-stats'
@@ -32,12 +33,23 @@ export type CustomSessionInsights = SessionInsightsSummary & {
   setInsights: Map<string, SetInsight>
 }
 
-function primarySetValue(set: SetLog, metric: PrimaryMetric): number {
+export function primarySetValue(set: SetLog, metric: PrimaryMetric): number {
   if (metric === 'duration_sec') return set.actual.durationSec ?? 0
   if (metric === 'reps_weight') {
     return (set.actual.reps ?? 0) * (set.actual.weightKg ?? 0)
   }
   return set.actual.reps ?? 0
+}
+
+/** True when two sessions are the same training day of the same cycle/plan —
+ *  only then is a per-set rep/volume comparison meaningful. A "previous"
+ *  session from a different day or cycle has different targets, so delta
+ *  values derived from it would be garbage. */
+export function sameTrainingDay(a: LocalWorkoutSession, b: LocalWorkoutSession): boolean {
+  const aCustom = isCustomWorkoutSession(a)
+  if (aCustom !== isCustomWorkoutSession(b)) return false
+  if (aCustom) return a.customPlanId === b.customPlanId && a.dayNumber === b.dayNumber
+  return a.program === b.program && a.cycleId === b.cycleId && a.dayNumber === b.dayNumber
 }
 
 function logVolumeKg(log: ExerciseLog): number {
@@ -65,12 +77,24 @@ export function computeBuiltinSessionInsights(params: {
   previous?: LocalWorkoutSession
   historicalSessions: LocalWorkoutSession[]
 }): BuiltinSessionInsights {
-  const { current, previous, historicalSessions } = params
+  const { current, historicalSessions } = params
+  // `previous` may be a different day/cycle (getSessionComparison falls back
+  // to "most recent session of this program") — per-set deltas are only
+  // meaningful against the same training day.
+  const previous = params.previous && sameTrainingDay(params.previous, current)
+    ? params.previous
+    : undefined
   const rows = current.setResults
   const totalReps = current.totalReps ?? rows.reduce((sum, row) => sum + row.actual, 0)
   const prior = historicalSessions.filter((s) => s.id !== current.id)
 
-  const sameDayPrior = prior.filter((s) => s.dayNumber === current.dayNumber)
+  const sameDayPrior = prior.filter(
+    (s) =>
+      s.dayNumber === current.dayNumber &&
+      !isCustomWorkoutSession(s) &&
+      s.program === current.program &&
+      s.cycleId === current.cycleId,
+  )
   const priorTotals = sameDayPrior.map(
     (s) => s.totalReps ?? s.setResults.reduce((sum, row) => sum + row.actual, 0),
   )
@@ -144,7 +168,12 @@ export function computeCustomSessionInsights(params: {
   exerciseMap: Map<string, ExerciseDefinition>
   historicalSessions: LocalWorkoutSession[]
 }): CustomSessionInsights {
-  const { current, previous, exerciseMap, historicalSessions } = params
+  const { current, exerciseMap, historicalSessions } = params
+  // Same guard as builtin — a cross-day/plan `previous` would produce
+  // meaningless per-set deltas.
+  const previous = params.previous && sameTrainingDay(params.previous, current)
+    ? params.previous
+    : undefined
   const prior = historicalSessions.filter((s) => s.id !== current.id)
   const logs = current.exerciseLogs ?? []
 

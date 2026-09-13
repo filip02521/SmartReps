@@ -1,6 +1,8 @@
 name: Push workout reminders
 
-# Calls Supabase Edge Function hourly so Web Push reminders fire at the user's local hour.
+# Calls Supabase Edge Functions hourly — each function self-filters to the
+# users whose local hour is due (workout reminders daily; weekly report on
+# Sundays at 18:00 local).
 on:
   schedule:
     - cron: '5 * * * *'
@@ -26,4 +28,29 @@ jobs:
             "$URL")
           echo "HTTP $code"
           cat /tmp/push-out.json || true
+          test "$code" = "200"
+
+      - name: Trigger send-weekly-report
+        env:
+          # Dedicated secret preferred; falls back to deriving from the
+          # reminders function URL (same functions host, different slug).
+          URL: ${{ secrets.SUPABASE_WEEKLY_REPORT_FUNCTION_URL }}
+          FALLBACK_URL: ${{ secrets.SUPABASE_PUSH_FUNCTION_URL }}
+          CRON_SECRET: ${{ secrets.PUSH_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          url="${URL:-}"
+          if [ -z "$url" ] && [ -n "${FALLBACK_URL:-}" ]; then
+            url="${FALLBACK_URL/send-workout-reminders/send-weekly-report}"
+          fi
+          if [ -z "$url" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "Missing weekly-report URL or PUSH_CRON_SECRET — skip."
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/report-out.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            "$url")
+          echo "HTTP $code"
+          cat /tmp/report-out.json || true
           test "$code" = "200"

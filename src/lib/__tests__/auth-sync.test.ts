@@ -180,6 +180,7 @@ describe('handleAuthSession', () => {
       settings: { onboardingComplete: true },
       setLastSyncedAt: vi.fn(),
       setLastSyncFailureReason: vi.fn(),
+      setSyncInFlight: vi.fn(),
     })
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-a' } } },
@@ -215,16 +216,19 @@ describe('handleAuthSession', () => {
 
 describe('runAuthenticatedSync', () => {
   const setLastSyncFailureReason = vi.fn()
+  const setSyncInFlight = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
     clearAccountSwitchPending()
     setLastSyncFailureReason.mockReset()
+    setSyncInFlight.mockReset()
     __resetSessionExpiredCooldownForTests()
     mockGetState.mockReturnValue({
       lastAuthUserId: 'user-a',
       setLastSyncedAt: vi.fn(),
       setLastSyncFailureReason,
+      setSyncInFlight,
     })
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-a' } } },
@@ -256,6 +260,31 @@ describe('runAuthenticatedSync', () => {
     await new Promise((r) => setTimeout(r, 500))
     expect(showToast).toHaveBeenCalledWith(expect.any(String), 'success')
     expect(showToast).not.toHaveBeenCalledWith(expect.any(String), 'error')
+  })
+
+  it('sets syncInFlight while syncing and clears it when the sync settles', async () => {
+    let resolveSync!: (v: SyncResult) => void
+    vi.mocked(syncWithRemote).mockReturnValue(
+      new Promise((resolve) => {
+        resolveSync = resolve
+      }),
+    )
+
+    const p = runAuthenticatedSync({ showSuccessToast: false, showFailureToast: false })
+    await vi.waitFor(() => expect(setSyncInFlight).toHaveBeenCalledWith(true))
+    expect(setSyncInFlight).not.toHaveBeenCalledWith(false)
+
+    resolveSync({ ok: true, errors: 0 })
+    await p
+    await vi.waitFor(() => expect(setSyncInFlight).toHaveBeenCalledWith(false))
+  })
+
+  it('clears syncInFlight even when the sync fails', async () => {
+    vi.mocked(syncWithRemote).mockResolvedValue({ ok: false, errors: 1, reason: 'remote_error' })
+
+    await runAuthenticatedSync({ showSuccessToast: false, showFailureToast: false })
+
+    await vi.waitFor(() => expect(setSyncInFlight).toHaveBeenCalledWith(false))
   })
 
   it('returns offline reason when navigator is offline', async () => {
@@ -367,6 +396,7 @@ describe('completeSignInFlow', () => {
       settings: { onboardingComplete: true },
       setLastSyncedAt: vi.fn(),
       setLastSyncFailureReason: vi.fn(),
+      setSyncInFlight: vi.fn(),
     })
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'user-a' } } },
@@ -406,6 +436,7 @@ describe('completeSignInFlow', () => {
       settings: { onboardingComplete: true },
       setLastSyncedAt: vi.fn(),
       setLastSyncFailureReason: vi.fn(),
+      setSyncInFlight: vi.fn(),
     })
     vi.mocked(db.programProgress.count).mockResolvedValue(1)
 

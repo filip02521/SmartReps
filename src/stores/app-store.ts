@@ -120,6 +120,11 @@ type AppStore = {
   welcomeCardDismissed: boolean
   /** Last sync failure reason for SyncStatusPanel (A1/A2). */
   lastSyncFailureReason: string | null
+  /** Runtime-only: an authenticated sync is currently in flight.
+   *  NOT persisted — false after reload. Lets the dashboard show a
+   *  "downloading your data" state instead of the empty/new-user UI while
+   *  the first post-login pull is still running. */
+  syncInFlight: boolean
   setSettings: (partial: Partial<UserSettings>) => void
   setPendingTest: (test: PendingTest | null) => void
   clearPendingTest: () => void
@@ -141,6 +146,7 @@ type AppStore = {
   setDismissedHabitMetTip: (v: boolean) => void
   setWelcomeCardDismissed: (v: boolean) => void
   setLastSyncFailureReason: (reason: string | null) => void
+  setSyncInFlight: (v: boolean) => void
   /** Update subscription status from cloud sync or Stripe webhook. NOT user-editable. */
   setSubscriptionStatus: (status: UserSettings['subscriptionStatus'], expiresAt: string | null, trialStartedAt: string | null) => void
 }
@@ -211,6 +217,7 @@ export const useAppStore = create<AppStore>()(
       dismissedHabitMetTip: false,
       welcomeCardDismissed: false,
       lastSyncFailureReason: null,
+      syncInFlight: false,
       setSettings: (partial) =>
         set((s) => {
           const nextSettings = { ...s.settings, ...partial }
@@ -257,6 +264,7 @@ export const useAppStore = create<AppStore>()(
       setDismissedHabitMetTip: (dismissedHabitMetTip) => set({ dismissedHabitMetTip }),
       setWelcomeCardDismissed: (welcomeCardDismissed) => set({ welcomeCardDismissed }),
       setLastSyncFailureReason: (lastSyncFailureReason) => set({ lastSyncFailureReason }),
+      setSyncInFlight: (syncInFlight) => set({ syncInFlight }),
       setSubscriptionStatus: (subscriptionStatus, subscriptionExpiresAt, trialStartedAt) =>
         set((s) => ({
           settings: {

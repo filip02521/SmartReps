@@ -166,4 +166,26 @@ test.describe('iPhone SE smoke', () => {
     )
     expect(hitTarget).toBe(true)
   })
+
+  test('/pro fits 375px — no horizontal overflow, sticky CTA in viewport', async ({
+    page,
+  }) => {
+    await page.goto('/pro')
+    await expect(
+      page.getByRole('heading', { name: 'SmartReps Pro', level: 1 }),
+    ).toBeVisible({ timeout: 15_000 })
+
+    // No horizontal scroll — comparison table + pricing must fit 375px
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(1)
+
+    // Sticky CTA is inside the viewport
+    const cta = page.getByRole('button', { name: 'Wypróbuj 14 dni za darmo' })
+    await expect(cta).toBeVisible()
+    const box = await cta.boundingBox()
+    const viewport = page.viewportSize()
+    expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height + 1)
+  })
 })

@@ -55,6 +55,7 @@ const PAGES: Array<{ name: string; path: string; onboarding?: boolean }> = [
   { name: 'Progress', path: '/progress' },
   { name: 'Plans', path: '/plans' },
   { name: 'Profile', path: '/profile' },
+  { name: 'Pro', path: '/pro' },
 ]
 
 test.describe('Accessibility (axe-core) — Light mode', () => {

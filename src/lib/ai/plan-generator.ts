@@ -21,10 +21,9 @@ import { saveCustomPlan } from '@/lib/custom-plan-service'
 import { generateId } from '@/lib/utils'
 import { db } from '@/lib/db'
 import { pl } from '@/i18n/pl'
-import { chatCompletion, parseJsonResponse, AiApiError, resolveReasoningEffort } from './ai-client'
+import { parseJsonResponse, AiApiError, isGeminiEndpoint } from './ai-client'
+import { aiChat, type AiContext } from './managed-client'
 import { buildPlanGenerationPrompt, type AiPlanResponse, type PlanGenerationInput } from './prompts'
-
-const DEFAULT_MODEL = 'gpt-4o-mini'
 
 const VALID_METRICS = ['reps', 'reps_weight', 'duration_sec'] as const
 const VALID_MUSCLE_GROUPS = [
@@ -105,28 +104,22 @@ export type PlanGenerationResult = {
 
 export async function generatePlan(
   input: PlanGenerationInput,
-  context: {
-    apiKey: string
-    model?: string
+  context: AiContext & {
     library: ExerciseDefinition[]
-    baseURL?: string
-    reasoningEffort?: 'auto' | 'low' | 'medium' | 'high'
     signal?: AbortSignal
   },
 ): Promise<PlanGenerationResult> {
   const { system, user } = buildPlanGenerationPrompt(input, context.library)
 
-  const isGemini = context.baseURL?.includes('gemini') || context.baseURL?.includes('googleapis')
+  // Managed (hosted) mode: server picks the model — use the larger budget.
+  const isGemini = !context.managed && isGeminiEndpoint(context.baseURL)
 
-  const result = await chatCompletion({
-    apiKey: context.apiKey,
-    model: context.model || DEFAULT_MODEL,
+  const result = await aiChat(context, {
+    feature: 'plan_generation',
     messages: [system, user],
     jsonMode: true,
     temperature: 0.7,
     maxTokens: isGemini ? 16000 : 8000,
-    reasoningEffort: resolveReasoningEffort(context.model || DEFAULT_MODEL, context.reasoningEffort),
-    baseURL: context.baseURL,
     signal: context.signal,
   })
 

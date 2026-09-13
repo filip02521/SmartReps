@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
-import { ChevronRight, Copy, Dumbbell, Download, MoreHorizontal, Pause, Pencil, Play, Plus, Share2, Trash2, Upload } from 'lucide-react'
+import { ChevronRight, Copy, Dumbbell, Download, MoreHorizontal, Pause, Pencil, Play, Plus, Share2, Sparkles, Trash2, Upload } from 'lucide-react'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { allCycles } from '@/data/plans'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -13,6 +13,7 @@ import { Sheet } from '@/components/ui/Sheet'
 import { EmptyState, SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
 import { LogoMark } from '@/components/brand/Logo'
 import { ExerciseLibraryPanel } from '@/components/plans/ExerciseLibraryPanel'
+import { AdaptiveProgressionSheet } from '@/components/plans/AdaptiveProgressionSheet'
 import { CustomPlanEditor } from '@/components/plans/CustomPlanEditor'
 import { AiPlanGenerator } from '@/components/plans/AiPlanGenerator'
 import { StarterTemplateSheet } from '@/components/plans/StarterTemplateSheet'
@@ -27,6 +28,11 @@ import { db } from '@/lib/db'
 import { pl } from '@/i18n/pl'
 import { TAB_PAGE_SHELL, FOCUS_RING } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
+import { isPro, useProFeatures } from '@/lib/subscription'
+import { canCreateCustomPlan, canPublishPlan, canUseHostedAi, type ProFeature } from '@/lib/feature-gating'
+import { ProTeaser } from '@/components/ux/ProTeaser'
+import { ProBadge } from '@/components/ui/ProBadge'
+import { fetchMyPublicationForPlan, listMyCommunityPublications } from '@/lib/community-api'
 import { getProgramProgress, reconcileActiveWorkout, setProgramPaused } from '@/lib/program-service'
 import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import type { Program } from '@/data/plans/types'
@@ -87,6 +93,7 @@ export default function PlansPage() {
   const navigate = useNavigate()
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const { settings, setSettings } = useAppStore()
+  const pro = useProFeatures()
   const [searchParams, setSearchParams] = useSearchParams()
   useSeo({ title: pl.seoPlansTitle, description: pl.seoPlansDescription, path: '/plans' })
   const highlightId = searchParams.get('highlight')
@@ -120,6 +127,8 @@ export default function PlansPage() {
   const [editorActiveDay, setEditorActiveDay] = useState<number | null>(null)
   const [morePlan, setMorePlan] = useState<CustomPlan | null>(null)
   const [publishPlan, setPublishPlan] = useState<CustomPlan | null>(null)
+  const [proTeaserFeature, setProTeaserFeature] = useState<ProFeature | null>(null)
+  const [adaptivePlan, setAdaptivePlan] = useState<CustomPlan | null>(null)
   const [previewPlan, setPreviewPlan] = useState<{
     plan: CustomPlan
     day: CustomPlan['days'][0]
@@ -191,6 +200,52 @@ export default function PlansPage() {
     }
   }
 
+  /** Own plans counting toward the free-tier limit — community imports and
+   *  starter templates are excluded (import is free by design). */
+  function ownPlanCount(): number {
+    return customPlans.filter(
+      (p) => p.source !== 'community' && p.source !== 'starter',
+    ).length
+  }
+
+  /** New-plan gate: free users are capped at FREE_CUSTOM_PLAN_LIMIT. */
+  function openNewPlanEditor() {
+    if (!canCreateCustomPlan(ownPlanCount())) {
+      setProTeaserFeature('unlimitedCustomPlans')
+      return
+    }
+    void openEditor(null)
+  }
+
+  /**
+   * Publish gate: updating an existing publication is always allowed;
+   * creating a NEW publication is capped at FREE_PUBLICATION_LIMIT for free.
+   * Fail-open on counting errors — the sheet surfaces its own errors.
+   */
+  async function openPublishSheet(plan: CustomPlan) {
+    setMorePlan(null)
+    if (isPro()) {
+      setPublishPlan(plan)
+      return
+    }
+    try {
+      const existing = await fetchMyPublicationForPlan(plan.id)
+      if (existing) {
+        setPublishPlan(plan)
+        return
+      }
+      const pubs = await listMyCommunityPublications()
+      const liveCount = pubs.filter((p) => p.status === 'published').length
+      if (!canPublishPlan(liveCount)) {
+        setProTeaserFeature('unlimitedPublications')
+        return
+      }
+      setPublishPlan(plan)
+    } catch {
+      setPublishPlan(plan)
+    }
+  }
+
   async function openEditor(planId: string | null, opts?: { dayNumber?: number }) {
     if (planId) {
       const activeDay = await getActiveCustomWorkoutDay(planId)
@@ -208,6 +263,11 @@ export default function PlansPage() {
   }
 
   async function handleImportPlanFile(file: File) {
+    // JSON import creates a user-owned plan — same free-tier cap applies.
+    if (!canCreateCustomPlan(ownPlanCount())) {
+      setProTeaserFeature('unlimitedCustomPlans')
+      return
+    }
     try {
       const plan = await importCustomPlanFromJson(await file.text())
       showToast(pl.planImportDone, 'success')
@@ -428,7 +488,7 @@ export default function PlansPage() {
             <ErrorBanner message={customLoadError} onRetry={() => void reloadCustom()} />
           )}
           <div className="mb-4 flex flex-col gap-2">
-            <Button type="button" size="touch" fullWidth onClick={() => void openEditor(null)}>
+            <Button type="button" size="touch" fullWidth onClick={openNewPlanEditor}>
               <Plus size={20} aria-hidden />
               {pl.newCustomPlan}
             </Button>
@@ -446,8 +506,9 @@ export default function PlansPage() {
             >
               <AiCoachMark size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-[var(--sr-text-primary)]">
+                <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[var(--sr-text-primary)]">
                   {pl.aiCoachName}
+                  {!pro && <ProBadge />}
                 </p>
                 <p className="truncate text-xs text-[var(--sr-text-secondary)]">
                   {pl.aiGeneratePlanHint}
@@ -491,7 +552,7 @@ export default function PlansPage() {
                 description={pl.myPlansHint}
                 action={{
                   label: pl.myPlansEmptyCta,
-                  onClick: () => void openEditor(null),
+                  onClick: openNewPlanEditor,
                 }}
                 secondaryAction={{
                   label: pl.plansTabLibrary,
@@ -897,12 +958,18 @@ export default function PlansPage() {
               type="button"
               variant="secondary"
               fullWidth
-              onClick={() =>
+              onClick={() => {
+                // Duplicating creates a new user-owned plan — same cap.
+                if (!canCreateCustomPlan(ownPlanCount())) {
+                  setMorePlan(null)
+                  setProTeaserFeature('unlimitedCustomPlans')
+                  return
+                }
                 void duplicateCustomPlan(morePlan.id).then(() => {
                   setMorePlan(null)
                   return reloadCustom()
                 })
-              }
+              }}
             >
               <Copy size={16} aria-hidden />
               {pl.planDuplicate}
@@ -919,6 +986,23 @@ export default function PlansPage() {
               <Upload size={16} aria-hidden />
               {pl.planExportJson}
             </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              onClick={() => {
+                if (!canUseHostedAi()) {
+                  setMorePlan(null)
+                  setProTeaserFeature('hostedAi')
+                  return
+                }
+                setAdaptivePlan(morePlan)
+                setMorePlan(null)
+              }}
+            >
+              <Sparkles size={16} aria-hidden />
+              {pl.planAdaptiveProgression}
+            </Button>
             {morePlan.status === 'active' ? (
               <Button
                 type="button"
@@ -930,8 +1014,7 @@ export default function PlansPage() {
                     showToast(pl.communityPublishOfflineHint, 'info')
                     return
                   }
-                  setPublishPlan(morePlan)
-                  setMorePlan(null)
+                  void openPublishSheet(morePlan)
                 }}
               >
                 <Share2 size={16} aria-hidden />
@@ -1046,6 +1129,21 @@ export default function PlansPage() {
         open={publishPlan != null}
         onClose={() => setPublishPlan(null)}
       />
+
+      <ProTeaser
+        open={proTeaserFeature != null}
+        onClose={() => setProTeaserFeature(null)}
+        feature={proTeaserFeature ?? undefined}
+      />
+
+      {adaptivePlan && (
+        <AdaptiveProgressionSheet
+          plan={adaptivePlan}
+          open
+          onClose={() => setAdaptivePlan(null)}
+          onApplied={() => void reloadCustom()}
+        />
+      )}
 
       {previewPlan && (
         <CustomWorkoutPreviewSheet

@@ -247,7 +247,7 @@ Deno.serve(async (req) => {
     })
   }
 
-  const due = (subs ?? []).filter((sub) => {
+  let due = (subs ?? []).filter((sub) => {
     const tz = (sub.timezone as string | null) || 'UTC'
     return localHourInTz(now, tz) === sub.reminder_hour
   })
@@ -255,6 +255,33 @@ Deno.serve(async (req) => {
   let sent = 0
   let failed = 0
   let skipped = 0
+
+  // Web Push is a Pro feature — the client gates subscribing, but without a
+  // server-side check a lapsed Pro user would keep receiving reminders
+  // forever. Filter to currently-Pro accounts; keep their push_subscriptions
+  // row so re-upgrade resumes delivery without re-subscribing.
+  if (due.length > 0) {
+    const dueUserIds = [...new Set(due.map((s) => s.user_id as string))]
+    const { data: proProfiles } = await supabase
+      .from('profiles')
+      .select('id, subscription_status, subscription_expires_at')
+      .in('id', dueUserIds)
+
+    const proUserIds = new Set<string>()
+    for (const p of proProfiles ?? []) {
+      const st = p.subscription_status as string | null
+      const exp = p.subscription_expires_at as string | null
+      if (
+        st === 'lifetime' ||
+        ((st === 'pro' || st === 'trial') && (!exp || new Date(exp) > now))
+      ) {
+        proUserIds.add(p.id as string)
+      }
+    }
+    const before = due.length
+    due = due.filter((s) => proUserIds.has(s.user_id as string))
+    skipped += before - due.length
+  }
 
   for (const sub of due) {
     const tz = (sub.timezone as string | null) || 'UTC'

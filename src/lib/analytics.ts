@@ -66,6 +66,13 @@ export const AnalyticsEvents = {
   challengeSubmit: 'challenge_submit',
   challengeSubmitError: 'challenge_submit_error',
   challengeLeaderboardToggle: 'challenge_leaderboard_toggle',
+  // Pro / paywall
+  proPageView: 'pro_page_view',
+  proPlanSelect: 'pro_plan_select',
+  proCtaClick: 'pro_cta_click',
+  proTeaserShown: 'pro_teaser_shown',
+  proTrialStart: 'pro_trial_start',
+  proTrialExpired: 'pro_trial_expired',
 } as const
 
 export type AnalyticsEventName =

@@ -30,6 +30,7 @@ import { ResumeWorkoutPrompt } from '@/components/workout/ResumeWorkoutPrompt'
 import { RouteErrorBoundary } from '@/components/ux/RouteErrorBoundary'
 
 const ProgressPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Progress')))
+const ProPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Pro')))
 const PlansPage = lazy(lazyWithChunkRecovery(() => import('@/pages/Plans')))
 const ProfilePage = lazy(lazyWithChunkRecovery(() => import('@/pages/Profile')))
 const CommunityPublicationPage = lazy(
@@ -88,6 +89,9 @@ export default function App() {
         <Routes>
         <Route path="/privacy" element={<EagerPage><PrivacyPage /></EagerPage>} />
         <Route path="/terms" element={<EagerPage><TermsPage /></EagerPage>} />
+        {/* Free vs Pro comparison — outside RequireOnboarding so it is
+            deep-linkable from notifications, emails and the store listing. */}
+        <Route path="/pro" element={<LazyPage><ProPage /></LazyPage>} />
         <Route
           path="/community/:slug"
           element={

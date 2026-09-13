@@ -12,6 +12,7 @@ import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
+import { db } from '@/lib/db'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { useOnline } from '@/hooks/useOnline'
 import { track, AnalyticsEvents, trackError } from '@/lib/analytics'
@@ -21,6 +22,8 @@ import {
   getActiveWeeklyChallenges,
   getWeeklyChallengeLeaderboard,
   getWeeklyChallengeParticipantCount,
+  getActiveWeekParticipantCount,
+  getMonthlyChallengeLeaderboard,
   calculateAllChallengeProgress,
   autoSubmitChallengeProgress,
   ensureWeeklyChallenge,
@@ -28,6 +31,7 @@ import {
   type WeeklyChallenge,
   type ChallengeProgress,
   type LeaderboardEntry,
+  type MonthlyLeaderboardEntry,
   type ChallengeType,
   type ScoredChallenge,
   type ChallengeContext,
@@ -85,6 +89,7 @@ function typeDescription(type: ChallengeType): string {
 function progressLabel(type: ChallengeType, current: number, target: number): string {
   if (type === 'consistency') return pl.challengeProgressSessions(current, target)
   if (type === 'personal_best') return pl.challengeProgressPersonalBest(current, target)
+  if (type === 'precision') return pl.challengeProgressCount(current, target)
   return pl.challengeProgressReps(current, target)
 }
 
@@ -144,6 +149,69 @@ function Leaderboard({
             </span>
             <span className="shrink-0 tabular-nums font-semibold text-[var(--sr-text-primary)]">
               {entry.total_reps}
+            </span>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+// ── Monthly leaderboard (cross-week points ranking) ──
+
+function MonthlyLeaderboard({
+  entries,
+  currentUserId,
+  followingIds,
+}: {
+  entries: MonthlyLeaderboardEntry[]
+  currentUserId: string | null
+  followingIds: Set<string>
+}) {
+  if (entries.length === 0) {
+    return <EmptyState title={pl.challengeMonthlyEmpty} />
+  }
+  return (
+    <ol className="space-y-1.5" aria-label={pl.challengeViewMonthly}>
+      {entries.map((entry) => {
+        const isMe = entry.user_id === currentUserId
+        const isFollowed = followingIds.has(entry.user_id)
+        const medalClass = MEDAL_CLASS[entry.rank] ?? 'text-[var(--sr-text-muted)]'
+        return (
+          <li
+            key={entry.user_id}
+            className={cn(
+              'flex items-start gap-3 rounded-[var(--sr-radius-sm)] px-3 py-2',
+              isMe
+                ? 'border-2 border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)]'
+                : 'bg-[var(--sr-bg-elevated)]',
+            )}
+          >
+            <span
+              className={cn(
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums',
+                medalClass,
+              )}
+              aria-label={pl.challengeRankPosition(entry.rank)}
+            >
+              {entry.rank <= 3 ? <Medal size={16} aria-hidden /> : entry.rank}
+            </span>
+            <span className="min-w-0 flex-1 break-words">
+              <span className="block sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+                {entry.display_name || pl.challengeAnonymous}
+                {isMe && (
+                  <span className="ml-1.5 text-[var(--sr-brand-primary)]">({pl.challengeYouLabel})</span>
+                )}
+                {!isMe && isFollowed && (
+                  <span className="ml-1.5 sr-text-caption text-[var(--sr-text-muted)]">· {pl.followingButton}</span>
+                )}
+              </span>
+              <span className="block sr-text-caption text-[var(--sr-text-muted)]">
+                {pl.challengeMonthlyCompleted(entry.completed)}
+              </span>
+            </span>
+            <span className="shrink-0 tabular-nums font-semibold text-[var(--sr-brand-primary)]">
+              {pl.challengePoints(entry.points)}
             </span>
           </li>
         )
@@ -355,8 +423,16 @@ export function WeeklyChallengeCard() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
   const [boardFilter, setBoardFilter] = useState<'global' | 'following'>('global')
+  const [distinctParticipants, setDistinctParticipants] = useState<number | null>(null)
+  const [view, setView] = useState<'challenges' | 'monthly'>('challenges')
+  /** null = RPC unavailable or load failed; [] = deployed, no entries yet. */
+  const [monthlyBoard, setMonthlyBoard] = useState<MonthlyLeaderboardEntry[] | null>(null)
   const mountedRef = useRef(true)
   const requestIdRef = useRef(0)
+  /** Last submitted progress value per challenge — avoids re-submitting an
+   *  unchanged value on every window focus (server upsert is a no-op, but
+   *  the RPC call itself costs a round-trip × up to 12 challenges). */
+  const submittedRef = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
     mountedRef.current = true
@@ -400,22 +476,48 @@ export function WeeklyChallengeCard() {
         const userId = authData.user?.id ?? null
         setCurrentUserId(userId)
 
-        // Calculate progress from local session data (anti-cheat)
+        // Calculate progress from local session data (anti-cheat).
+        // One shared session snapshot — previously every challenge did its
+        // own full-table scan (~24 scans for 12 challenges).
         try {
-          const prog = await calculateAllChallengeProgress(relevant)
+          const allSessions = await db.workoutSessions
+            .where('status')
+            .equals('completed')
+            .toArray()
+          const prog = await calculateAllChallengeProgress(relevant, allSessions)
           if (!mountedRef.current || reqId !== requestIdRef.current) return
           setProgress(prog)
 
           // Select top 3 most relevant challenges for this user
-          const scored = await selectRelevantChallenges(relevant, prog, 3)
+          const scored = await selectRelevantChallenges(relevant, prog, 3, allSessions)
           if (!mountedRef.current || reqId !== requestIdRef.current) return
           setScoredChallenges(scored)
 
-          // Auto-submit progress to server for leaderboard
+          // Auto-submit progress to server for leaderboard — only challenges
+          // whose progress increased since the last successful submit.
           if (userId && displayName) {
-            void autoSubmitChallengeProgress(relevant, prog, displayName).then(() => {
-              scheduleAchievementCheck()
-            }).catch(() => {})
+            const pairs = relevant
+              .map((ch, i) => ({ ch, p: prog[i] }))
+              .filter(
+                (x): x is { ch: WeeklyChallenge; p: ChallengeProgress } =>
+                  !!x.p &&
+                  x.p.current > 0 &&
+                  x.p.current > (submittedRef.current.get(x.ch.id) ?? -1),
+              )
+            if (pairs.length > 0) {
+              void autoSubmitChallengeProgress(
+                pairs.map((x) => x.ch),
+                pairs.map((x) => x.p),
+                displayName,
+              )
+                .then((done) => {
+                  for (const { ch, p } of pairs) {
+                    if (done.has(ch.id)) submittedRef.current.set(ch.id, p.current)
+                  }
+                  scheduleAchievementCheck()
+                })
+                .catch(() => {})
+            }
           }
         } catch (err) {
           trackError(err, 'challenge.progress')
@@ -432,12 +534,18 @@ export function WeeklyChallengeCard() {
           }
         }
 
-        // Load leaderboards and counts for all challenges
-        const [boards, counts] = await Promise.all([
+        // Load leaderboards, per-challenge counts and the distinct
+        // participant count for the whole week (migration 065; null →
+        // the card falls back to summing per-challenge counts).
+        const [boards, counts, distinctCount, monthly] = await Promise.all([
           Promise.all(relevant.map((ch) => getWeeklyChallengeLeaderboard(ch.id).catch(() => []))),
           Promise.all(relevant.map((ch) => getWeeklyChallengeParticipantCount(ch.id).catch(() => 0))),
+          getActiveWeekParticipantCount().catch(() => null),
+          getMonthlyChallengeLeaderboard().catch(() => null),
         ])
         if (!mountedRef.current || reqId !== requestIdRef.current) return
+        setDistinctParticipants(distinctCount)
+        setMonthlyBoard(monthly)
 
         const boardMap = new Map<string, LeaderboardEntry[]>()
         const countMap = new Map<string, number>()
@@ -473,6 +581,11 @@ export function WeeklyChallengeCard() {
   }, [reload, online])
 
   const hasFollowing = followingIds.size > 0
+  // Sticky 'following' filter without any follows would show an empty
+  // board with no way back (the segmented control is hidden) — coerce.
+  const effectiveBoardFilter = hasFollowing ? boardFilter : 'global'
+  // Same coercion for the view toggle when the monthly RPC is unavailable.
+  const effectiveView = monthlyBoard !== null ? view : 'challenges'
 
   if (!isSupabaseConfigured || !online) return null
   if (loading) {
@@ -485,7 +598,9 @@ export function WeeklyChallengeCard() {
   if (loadError && challenges.length === 0) return null
   if (challenges.length === 0) return null
 
-  const totalParticipants = Array.from(participantCounts.values()).reduce((a, b) => a + b, 0)
+  // Distinct users beat the per-challenge sum (same user counted N times).
+  const totalParticipants =
+    distinctParticipants ?? Array.from(participantCounts.values()).reduce((a, b) => a + b, 0)
   const daysLeft = challenges[0] ? daysUntil(challenges[0].ends_at) : 0
   const hasEnded = daysLeft <= 0
   const isUrgent = !hasEnded && daysLeft <= 2
@@ -547,7 +662,56 @@ export function WeeklyChallengeCard() {
         </div>
       )}
 
+      {/* Logged in but no display name → progress is tracked locally but
+          never reaches the leaderboard. Tell the user why. */}
+      {onboardingComplete && currentUserId && !displayName.trim() && (
+        <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2.5">
+          <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+            {pl.challengeNameRequired}
+          </p>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="mt-1"
+            onClick={() => navigate('/profile')}
+          >
+            {pl.challengeSetNameCta}
+          </Button>
+        </div>
+      )}
+
+      {/* View toggle — weekly challenges vs monthly points ranking.
+          Hidden when the monthly RPC isn't deployed (null). */}
+      {monthlyBoard !== null && (
+        <SegmentedControl
+          aria-label={pl.challengeTitle}
+          className="mt-3"
+          stretch
+          value={view}
+          onChange={setView}
+          options={[
+            { label: pl.challengeViewChallenges, value: 'challenges' },
+            { label: pl.challengeViewMonthly, value: 'monthly' },
+          ]}
+        />
+      )}
+
+      {/* Monthly points ranking */}
+      {effectiveView === 'monthly' && monthlyBoard !== null && (
+        <div className="mt-2.5">
+          <MonthlyLeaderboard
+            entries={monthlyBoard}
+            currentUserId={currentUserId}
+            followingIds={followingIds}
+          />
+          <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
+            {pl.challengeMonthlyHowPoints}
+          </p>
+        </div>
+      )}
+
       {/* Challenge list */}
+      {effectiveView === 'challenges' && (
       <div className="mt-2.5 flex flex-col gap-2">
         {(showAll ? challenges : scoredChallenges.map((s) => s.challenge)).map((ch) => {
           const idx = challenges.indexOf(ch)
@@ -577,7 +741,7 @@ export function WeeklyChallengeCard() {
               leaderboard={leaderboards.get(ch.id) ?? []}
               currentUserId={currentUserId}
               followingIds={followingIds}
-              boardFilter={boardFilter}
+              boardFilter={effectiveBoardFilter}
               hasFollowing={hasFollowing}
               onBoardFilterChange={setBoardFilter}
               recommended={scored?.recommended ?? false}
@@ -586,9 +750,10 @@ export function WeeklyChallengeCard() {
           )
         })}
       </div>
+      )}
 
       {/* All achieved celebration */}
-      {allAchieved && !hasEnded && (
+      {effectiveView === 'challenges' && allAchieved && !hasEnded && (
         <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)] px-3 py-2.5">
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="shrink-0 text-[var(--sr-success)]" aria-hidden />
@@ -605,7 +770,7 @@ export function WeeklyChallengeCard() {
       )}
 
       {/* Show all / show top toggle */}
-      {scoredChallenges.length > 0 && challenges.length > scoredChallenges.length && (
+      {effectiveView === 'challenges' && scoredChallenges.length > 0 && challenges.length > scoredChallenges.length && (
         <button
           type="button"
           className={cn(
@@ -619,7 +784,7 @@ export function WeeklyChallengeCard() {
       )}
 
       {/* Ended banner */}
-      {hasEnded && (
+      {effectiveView === 'challenges' && hasEnded && (
         <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
           {pl.challengeEndedHint}
         </div>

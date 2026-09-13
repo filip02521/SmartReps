@@ -407,6 +407,17 @@ describe('calculateChallengeProgress — consistency', () => {
     const result = await calculateChallengeProgress(ch)
     expect(result.current).toBe(0)
   })
+
+  it('does not count sessions with empty setResults', async () => {
+    const ch = makeChallenge({ challenge_type: 'consistency', target_reps: 3 })
+    setupSessions([
+      makeSession({ id: 's-empty', startedAt: '2025-01-15T10:00:00Z', setResults: [] }),
+      makeSession({ id: 's-real', startedAt: '2025-01-16T10:00:00Z' }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    // Only the session with recorded sets counts
+    expect(result.current).toBe(1)
+  })
 })
 
 describe('calculateChallengeProgress — precision', () => {
@@ -527,7 +538,7 @@ describe('calculateChallengeProgress — personal_best', () => {
     expect(result.achieved).toBe(false)
   })
 
-  it('returns max as current when no previous sessions exist (new user)', async () => {
+  it('returns 0 when no previous sessions exist (new user establishes the record)', async () => {
     const ch = makeChallenge({ challenge_type: 'personal_best', target_reps: 1 })
     setupSessions([
       makeSession({
@@ -539,9 +550,10 @@ describe('calculateChallengeProgress — personal_best', () => {
       }),
     ])
     const result = await calculateChallengeProgress(ch)
-    // No previous max → prevMax = 0 → 20 > 0 → current = 20
-    expect(result.current).toBe(20)
-    expect(result.achieved).toBe(true)
+    // No baseline record → nothing to beat; the first week establishes
+    // the record instead of submitting a raw max as "progress".
+    expect(result.current).toBe(0)
+    expect(result.achieved).toBe(false)
   })
 })
 
@@ -579,6 +591,26 @@ describe('getChallengeContext', () => {
   })
 
   it('calculates recentAverage for volume from last 4 weeks', async () => {
+    // One session in each of the 4 active weeks before the challenge week
+    // (weeks of Dec 16, Dec 23, Dec 30, Jan 6 — all within the 4-week window)
+    setupSessions([
+      makeSession({ id: 's-1', startedAt: '2024-12-17T10:00:00Z' }),
+      makeSession({ id: 's-2', startedAt: '2024-12-24T10:00:00Z' }),
+      makeSession({ id: 's-3', startedAt: '2024-12-31T10:00:00Z' }),
+      makeSession({ id: 's-4', startedAt: '2025-01-08T10:00:00Z' }),
+    ])
+    const ch = makeChallenge({ challenge_type: 'volume', target_reps: 100 })
+    const ctx = await getChallengeContext(ch)
+    // 4 sessions × 38 reps = 152 total / 4 active weeks = 38
+    expect(ctx.recentAverage).toBe(38)
+    // target 100 / avg 38 = 2.63 → hard
+    expect(ctx.difficulty).toBe('hard')
+  })
+
+  it('averages per active week, not per session', async () => {
+    // 4 sessions in the SAME week → 1 active week → average is the full
+    // week total, not total/4 (prevents understating typical volume for
+    // users who train multiple times in one week)
     setupSessions([
       makeSession({ id: 's-1', startedAt: '2025-01-08T10:00:00Z' }),
       makeSession({ id: 's-2', startedAt: '2025-01-09T10:00:00Z' }),
@@ -587,18 +619,16 @@ describe('getChallengeContext', () => {
     ])
     const ch = makeChallenge({ challenge_type: 'volume', target_reps: 100 })
     const ctx = await getChallengeContext(ch)
-    // 4 sessions × 38 reps = 152 total / 4 weeks = 38
-    expect(ctx.recentAverage).toBe(38)
-    // target 100 / avg 38 = 2.63 → hard
-    expect(ctx.difficulty).toBe('hard')
+    // 152 total reps / 1 active week = 152
+    expect(ctx.recentAverage).toBe(152)
   })
 
   it('rates easy when target is well below average', async () => {
     setupSessions([
-      makeSession({ id: 's-1', startedAt: '2025-01-08T10:00:00Z' }),
-      makeSession({ id: 's-2', startedAt: '2025-01-09T10:00:00Z' }),
-      makeSession({ id: 's-3', startedAt: '2025-01-10T10:00:00Z' }),
-      makeSession({ id: 's-4', startedAt: '2025-01-11T10:00:00Z' }),
+      makeSession({ id: 's-1', startedAt: '2024-12-17T10:00:00Z' }),
+      makeSession({ id: 's-2', startedAt: '2024-12-24T10:00:00Z' }),
+      makeSession({ id: 's-3', startedAt: '2024-12-31T10:00:00Z' }),
+      makeSession({ id: 's-4', startedAt: '2025-01-08T10:00:00Z' }),
     ])
     const ch = makeChallenge({ challenge_type: 'volume', target_reps: 20 })
     const ctx = await getChallengeContext(ch)
@@ -607,10 +637,10 @@ describe('getChallengeContext', () => {
 
   it('rates challenging when target is close to average', async () => {
     setupSessions([
-      makeSession({ id: 's-1', startedAt: '2025-01-08T10:00:00Z' }),
-      makeSession({ id: 's-2', startedAt: '2025-01-09T10:00:00Z' }),
-      makeSession({ id: 's-3', startedAt: '2025-01-10T10:00:00Z' }),
-      makeSession({ id: 's-4', startedAt: '2025-01-11T10:00:00Z' }),
+      makeSession({ id: 's-1', startedAt: '2024-12-17T10:00:00Z' }),
+      makeSession({ id: 's-2', startedAt: '2024-12-24T10:00:00Z' }),
+      makeSession({ id: 's-3', startedAt: '2024-12-31T10:00:00Z' }),
+      makeSession({ id: 's-4', startedAt: '2025-01-08T10:00:00Z' }),
     ])
     const ch = makeChallenge({ challenge_type: 'volume', target_reps: 40 })
     const ctx = await getChallengeContext(ch)
@@ -708,5 +738,22 @@ describe('selectRelevantChallenges', () => {
     const progress = await calculateAllChallengeProgress(challenges)
     const selected = await selectRelevantChallenges(challenges, progress, 3)
     expect(selected).toHaveLength(1)
+  })
+
+  it('diversifies challenge types instead of stacking the same type across programs', async () => {
+    setupSessions([])
+    // Two volume challenges + one consistency + one precision — the top-3
+    // should not be volume×3 across programs.
+    const challenges = [
+      makeChallenge({ id: 'ch-vol-pu', program: 'pushups', challenge_type: 'volume' }),
+      makeChallenge({ id: 'ch-vol-pl', program: 'pullups', challenge_type: 'volume' }),
+      makeChallenge({ id: 'ch-vol-sq', program: 'squats', challenge_type: 'volume' }),
+      makeChallenge({ id: 'ch-con', program: 'pushups', challenge_type: 'consistency' }),
+      makeChallenge({ id: 'ch-pre', program: 'pushups', challenge_type: 'precision' }),
+    ]
+    const progress = await calculateAllChallengeProgress(challenges)
+    const selected = await selectRelevantChallenges(challenges, progress, 3)
+    const types = selected.map((s) => s.challenge.challenge_type)
+    expect(new Set(types).size).toBe(types.length)
   })
 })

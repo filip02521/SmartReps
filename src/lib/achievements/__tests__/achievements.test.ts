@@ -52,6 +52,9 @@ function baseSnap(over: Partial<AchievementSnapshot> = {}): AchievementSnapshot 
     customExercisesCount: 0,
     aiInsightCount: 0,
     weekendSessionCount: 0,
+    speedSessionCount: 0,
+    comebackMaxGapDays: 0,
+    cyclesClosedByProgram: { pushups: 0, pullups: 0, squats: 0 },
     impact: emptyImpact(),
     unlockAtHints: {},
     ...over,
@@ -183,5 +186,110 @@ describe('customSessionHasBelowTarget', () => {
       ],
     })
     expect(customSessionHasBelowTarget(hit)).toBe(false)
+  })
+})
+
+describe('new achievements — triple_threat, squat, perfect_form, speed_demon, cycle_master, social, comeback', () => {
+  it('triple_threat requires ≥10 sessions in each builtin program', () => {
+    expect(
+      isAchievementMet(
+        'triple_threat',
+        baseSnap({ pushupsSessions: 10, pullupsSessions: 10, squatsSessions: 10 }),
+      ),
+    ).toBe(true)
+    expect(
+      isAchievementMet(
+        'triple_threat',
+        baseSnap({ pushupsSessions: 10, pullupsSessions: 9, squatsSessions: 10 }),
+      ),
+    ).toBe(false)
+    expect(
+      isAchievementMet(
+        'triple_threat',
+        baseSnap({ pushupsSessions: 50, pullupsSessions: 50, squatsSessions: 0 }),
+      ),
+    ).toBe(false)
+  })
+
+  it('squat_specialist uses squatsSessions with tiers', () => {
+    expect(isAchievementMet('squat_specialist', baseSnap({ squatsSessions: 10 }))).toBe(true)
+    expect(isAchievementMet('squat_specialist', baseSnap({ squatsSessions: 9 }))).toBe(false)
+    expect(achievementProgress('squat_specialist', baseSnap({ squatsSessions: 5 }))).toEqual({
+      current: 5,
+      target: 10,
+    })
+  })
+
+  it('first_squat unlocks on first squat session', () => {
+    expect(isAchievementMet('first_squat', baseSnap({ squatsSessions: 1 }))).toBe(true)
+    expect(isAchievementMet('first_squat', baseSnap({ squatsSessions: 0 }))).toBe(false)
+  })
+
+  it('perfect_form unlocks on first customHitTargetCount', () => {
+    expect(isAchievementMet('perfect_form', baseSnap({ customHitTargetCount: 1 }))).toBe(true)
+    expect(isAchievementMet('perfect_form', baseSnap({ customHitTargetCount: 0 }))).toBe(false)
+  })
+
+  it('speed_demon uses speedSessionCount with tiers', () => {
+    expect(isAchievementMet('speed_demon', baseSnap({ speedSessionCount: 10 }))).toBe(true)
+    expect(isAchievementMet('speed_demon', baseSnap({ speedSessionCount: 9 }))).toBe(false)
+    expect(achievementProgress('speed_demon', baseSnap({ speedSessionCount: 15 }))).toEqual({
+      current: 15,
+      target: 25,
+    })
+  })
+
+  it('cycle_master requires ≥1 cycle closed in each builtin program', () => {
+    expect(
+      isAchievementMet(
+        'cycle_master',
+        baseSnap({
+          cyclesClosedByProgram: { pushups: 1, pullups: 1, squats: 1 },
+        }),
+      ),
+    ).toBe(true)
+    expect(
+      isAchievementMet(
+        'cycle_master',
+        baseSnap({
+          cyclesClosedByProgram: { pushups: 2, pullups: 1, squats: 0 },
+        }),
+      ),
+    ).toBe(false)
+  })
+
+  it('social_butterfly requires both follower and following', () => {
+    expect(
+      isAchievementMet(
+        'social_butterfly',
+        baseSnap({ impact: { ...emptyImpact(), followerCount: 1, followingCount: 1 } }),
+      ),
+    ).toBe(true)
+    expect(
+      isAchievementMet(
+        'social_butterfly',
+        baseSnap({ impact: { ...emptyImpact(), followerCount: 5, followingCount: 0 } }),
+      ),
+    ).toBe(false)
+    expect(
+      isAchievementMet(
+        'social_butterfly',
+        baseSnap({ impact: { ...emptyImpact(), followerCount: 0, followingCount: 5 } }),
+      ),
+    ).toBe(false)
+  })
+
+  it('comeback_intermediate uses comebackMaxGapDays with tiers', () => {
+    expect(isAchievementMet('comeback_intermediate', baseSnap({ comebackMaxGapDays: 14 }))).toBe(true)
+    expect(isAchievementMet('comeback_intermediate', baseSnap({ comebackMaxGapDays: 13 }))).toBe(false)
+    expect(achievementProgress('comeback_intermediate', baseSnap({ comebackMaxGapDays: 18 }))).toEqual({
+      current: 18,
+      target: 21,
+    })
+    // Tier 3 (35 days) exceeds comeback_stronger's 28-day threshold
+    expect(achievementProgress('comeback_intermediate', baseSnap({ comebackMaxGapDays: 28 }))).toEqual({
+      current: 28,
+      target: 35,
+    })
   })
 })

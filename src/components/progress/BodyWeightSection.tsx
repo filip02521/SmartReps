@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from 'recharts'
 import { format } from 'date-fns'
 import { dateFnsLocale } from '@/lib/date-locale'
@@ -22,6 +22,8 @@ import {
   formatCorrelationLabel,
   type BodyWeightCorrelation,
 } from '@/lib/body-weight-correlation'
+import { ProLockedCard } from '@/components/pro/ProLockedCard'
+import { useProFeatures } from '@/lib/subscription'
 import { useAppStore } from '@/stores/app-store'
 import { kgToDisplay, displayToKg, weightUnitLabel } from '@/lib/weight-units'
 
@@ -33,24 +35,31 @@ export function BodyWeightSection() {
   const [weightInput, setWeightInput] = useState('')
   const [noteInput, setNoteInput] = useState('')
   const weightUnit = useAppStore((s) => s.settings.weightUnit)
+  const pro = useProFeatures()
 
-  useEffect(() => {
-    void load()
-  }, [])
-
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const data = await listBodyWeightEntries()
       setEntries(data)
-      const corr = await getBodyWeightPerformanceCorrelation()
-      setCorrelation(corr)
+      // Correlation is Pro-gated advanced analytics — skip the compute for
+      // free users (they see a locked teaser row instead of the chart).
+      if (pro) {
+        const corr = await getBodyWeightPerformanceCorrelation()
+        setCorrelation(corr)
+      } else {
+        setCorrelation(null)
+      }
     } catch {
       setEntries([])
       setCorrelation(null)
     } finally {
       setLoading(false)
     }
-  }
+  }, [pro])
+
+  useEffect(() => {
+    void load()
+  }, [load])
 
   async function handleAdd() {
     const value = Number(weightInput)
@@ -237,8 +246,17 @@ export function BodyWeightSection() {
         </div>
       </Sheet>
 
-      {/* Body weight × performance correlation */}
-      {correlation && !correlation.insufficientData && correlation.points.length >= 3 && (
+      {/* Body weight × performance correlation — Pro advanced analytics.
+          Free users see a locked teaser instead (feature stays visible). */}
+      {!pro && entries.length >= 3 && (
+        <div className="mt-6">
+          <ProLockedCard
+            title={pl.bodyWeightCorrelationTitle}
+            feature="advancedAnalytics"
+          />
+        </div>
+      )}
+      {pro && correlation && !correlation.insufficientData && correlation.points.length >= 3 && (
         <div className="mt-6">
           <div className="flex items-center gap-2">
             <TrendingUp

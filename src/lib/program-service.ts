@@ -1,6 +1,6 @@
 import { db, type ActiveWorkoutState, type LocalProgramProgress } from '@/lib/db'
-import { getCycleById } from '@/data/plans'
-import type { Program } from '@/data/plans/types'
+import { getCycleById, getCyclesByProgram } from '@/data/plans'
+import type { Cycle, Program } from '@/data/plans/types'
 import { enqueueSync, enqueueActiveWorkoutSync } from '@/lib/sync'
 import { cleanupEmptyInProgressSessions } from '@/lib/session-service'
 import { pl } from '@/i18n/pl'
@@ -14,6 +14,18 @@ import {
 
 /** Prevents double day-advance for the same session id. */
 const advancedBySession = new Set<string>()
+
+/**
+ * Zwraca następny wyższy cykl dla programu (level + 1) lub null gdy
+ * bieżący cykl jest ostatnim (najwyższym) poziomem.
+ */
+export function getNextHigherCycle(program: Program, currentCycleId: string): Cycle | null {
+  const current = getCycleById(currentCycleId)
+  if (!current) return null
+  const cycles = getCyclesByProgram(program).sort((a, b) => a.level - b.level)
+  const next = cycles.find((c) => c.level === current.level + 1)
+  return next ?? null
+}
 
 export async function getProgramProgress(program: Program): Promise<LocalProgramProgress | undefined> {
   return db.programProgress.where('program').equals(program).first()
@@ -124,6 +136,23 @@ export async function completeWorkoutDay(
   )
 
   if (cycleComplete) {
+    // Automatyczne przejście na wyższy cykl (level + 1) bez testu maksymalnego.
+    // Gdy bieżący cykl jest ostatnim poziomem, zostaw test_pending (retest).
+    const nextCycle = getNextHigherCycle(program, progress.cycleId)
+    if (nextCycle) {
+      // Rest po ostatnim dniu ukończonego cyklu, potem nowy cykl od dnia 1.
+      const restDate = getNextWorkoutDate(new Date(), restDays)
+      await updateProgramProgress(program, {
+        cycleId: nextCycle.id,
+        status: 'rest',
+        currentDay: 1,
+        cycleAttempt: 1,
+        lastWorkoutAt: new Date().toISOString(),
+        nextWorkoutAfter: restDate.toISOString(),
+      })
+      return
+    }
+    // Ostatni poziom — zachowaj test_pending (retest dla utrzymania / weryfikacji).
     const testDate = getNextWorkoutDate(new Date(), getTestBlockDays())
     await updateProgramProgress(program, {
       status: 'test_pending',

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Trophy, AlertTriangle, Flame, Dumbbell, BarChart3, StickyNote, Award } from 'lucide-react'
+import { Trophy, AlertTriangle, Flame, Dumbbell, BarChart3, StickyNote, Award, TrendingUp } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { getProgramLabel } from '@/lib/plan-resolver'
 import { Button } from '@/components/ui/Button'
@@ -43,6 +43,7 @@ import { ProgressionSuggestionPanel } from '@/components/workout/ProgressionSugg
 import { analyzeBuiltinProgression, type ProgressionSuggestion } from '@/lib/rpe-analysis'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { generatePostWorkoutInsight } from '@/lib/ai/proactive-coach'
+import { resolveAiContextForCall } from '@/lib/ai/managed-client'
 import {
   checkRateLimit,
   acquireInflight,
@@ -171,9 +172,14 @@ export default function SessionSummary() {
         }
         // Trigger celebration overlay on successful completion:
         // - Always for first 3 workouts (onboarding honeymoon)
-        // - After that: only when PR or new achievement makes it special
+        // - After that: only when PR, new achievement, or cycle level-up makes it special
         if (!failed) {
-          const isSpecial = records.length > 0 || achievementQueue.length > 0
+          const cycleLevelUp =
+            !!comparison.current &&
+            !!prog &&
+            comparison.current.cycleId !== prog.cycleId
+          const isSpecial =
+            records.length > 0 || achievementQueue.length > 0 || cycleLevelUp
           const isEarlyWorkout = totalCompletedCount <= 3
           setShowCelebration(isSpecial || isEarlyWorkout)
         }
@@ -211,19 +217,19 @@ export default function SessionSummary() {
     historicalSessions: LocalWorkoutSession[],
   ) {
     if (!currentSession) return
-    // Check if insight already exists for this session
-    // Only cache AI insights — local insights are cheap to regenerate and
-    // depend on `previous` which can change as more sessions are completed.
+    // Reuse any persisted insight — local insights regenerate identically
+    // anyway (`previous` for a completed session never changes), so skipping
+    // them here prevented a duplicate row per summary view.
     const existing = await db.aiInsights.where('sessionId').equals(currentSession.id).first()
-    if (existing && !existing.dismissedAt && existing.source === 'ai') {
+    if (existing && !existing.dismissedAt) {
       setCoachInsight(existing)
       return
     }
     if (existing?.dismissedAt) return // user dismissed it
 
     const settings = useAppStore.getState().settings
-    const aiConfig = settings.aiProactiveCoach && settings.aiApiKey
-      ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined, reasoningEffort: settings.aiReasoningEffort }
+    const aiConfig = settings.aiProactiveCoach
+      ? await resolveAiContextForCall(settings)
       : undefined
 
     // Rate limit check — only for AI calls
@@ -250,6 +256,10 @@ export default function SessionSummary() {
           await db.aiInsights.put(insight)
           void enqueueSync('ai_insights', 'insert', insight)
           setCoachInsight(insight)
+          // Re-evaluate achievements — ai_first_insight / ai_coach_user count AI insights
+          if (insight.source === 'ai') {
+            void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
+          }
         } catch {
           // Non-blocking
         }
@@ -281,6 +291,10 @@ export default function SessionSummary() {
       await db.aiInsights.put(insight)
       void enqueueSync('ai_insights', 'insert', insight)
       setCoachInsight(insight)
+      // Re-evaluate achievements — ai_first_insight / ai_coach_user count AI insights
+      if (insight.source === 'ai') {
+        void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
+      }
     } catch {
       // AI call failed — count toward quota to prevent retry spam
       if (aiConfig) recordFailedCall('post_workout')
@@ -377,12 +391,24 @@ export default function SessionSummary() {
 
   const rows = current?.setResults ?? setResults
   const totalReps = current?.totalReps ?? rows.reduce((s, r) => s + r.actual, 0)
-  const cycle = progress ? getCycleById(progress.cycleId) : undefined
+  // Ukończony cykl — z sesji (current.cycleId), NIE z progress (który po
+  // level-up wskazuje już na nowy cykl). Używany w celebration i result card.
+  const cycle = current ? getCycleById(current.cycleId) : undefined
   const daysLeft = daysUntilWorkout(
     progress?.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
   )
   const summaryActions = getSummaryActions({ failed, progress, program })
   const dismissLoginPrompt = () => setHasSeenLoginCloudPrompt(true)
+
+  // Detekcja przejścia na wyższy cykl: sesja zaliczona, cycleId w progress
+  // różni się od cycleId w sesji (completeWorkoutDay ustawił nowy cykl).
+  const newCycle = progress ? getCycleById(progress.cycleId) : undefined
+  const cycleLevelUp =
+    !failed &&
+    !!current &&
+    !!cycle &&
+    !!newCycle &&
+    current.cycleId !== progress?.cycleId
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
@@ -519,6 +545,36 @@ export default function SessionSummary() {
           <SectionHeader icon={Award} title={pl.summarySectionAchievements} />
           <AchievementSummaryList unlocks={newAchievements} />
         </div>
+      )}
+
+      {/* Cycle level-up card — motywacyjny komunikat przejścia na wyższy poziom */}
+      {cycleLevelUp && cycle && newCycle && (
+        <Card className="mb-6 overflow-hidden border-0 p-0">
+          <div
+            className="p-5"
+            style={{
+              backgroundImage: 'linear-gradient(135deg, var(--sr-brand-primary) 0%, var(--sr-brand-secondary) 100%)',
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-white/20 text-white"
+                aria-hidden
+              >
+                <TrendingUp size={24} strokeWidth={2.5} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-white">{pl.cycleLevelUpTitle}</p>
+                <p className="mt-1 sr-text-body-sm text-white/90">
+                  {pl.cycleLevelUpBody(cycle.nameShort, newCycle.nameShort)}
+                </p>
+                <p className="mt-1.5 sr-text-caption text-white/75">
+                  {pl.cycleLevelUpMotivation}
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
       )}
 
       {/* Cycle complete card with icon */}

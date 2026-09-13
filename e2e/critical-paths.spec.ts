@@ -491,4 +491,21 @@ test.describe('SmartReps routing critical paths', () => {
     await page.goto('/')
     await expect(page).toHaveURL(/\/setup\/onboarding/)
   })
+
+  test('6) /pro renders Free vs Pro comparison without onboarding', async ({ page }) => {
+    await page.goto('/pro')
+    await expect(
+      page.getByRole('heading', { name: 'SmartReps Pro', level: 1 }),
+    ).toBeVisible()
+    // Comparison table + pricing are the core of the page
+    await expect(page.getByRole('table')).toBeVisible()
+    await expect(
+      page.getByRole('radio', { name: /Rocznie/ }),
+    ).toHaveAttribute('aria-checked', 'true')
+    // Free status chip visible, CTA present (disabled until billing lands)
+    await expect(page.getByText('Plan darmowy')).toBeVisible()
+    // Deep-link param highlights a category without crashing
+    await page.goto('/pro?feature=hostedAi&source=test')
+    await expect(page.getByRole('table')).toBeVisible()
+  })
 })

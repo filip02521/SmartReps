@@ -1,6 +1,7 @@
 import { Settings, RefreshCw, LogIn, Pencil, Users, UserCheck, Globe, Lock, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Card'
+import { UserPlanBadge } from '@/components/pro/UserPlanBadge'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
@@ -83,9 +84,12 @@ export function ProfileHero({
         </div>
 
         <div className="min-w-0 flex-1">
-          <h1 className="break-words text-lg font-bold leading-tight text-[var(--sr-text-primary)]">
-            {title}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="min-w-0 break-words text-lg font-bold leading-tight text-[var(--sr-text-primary)]">
+              {title}
+            </h1>
+            <UserPlanBadge />
+          </div>
           {email && displayName && (
             <p className="mt-0.5 break-words text-sm text-[var(--sr-text-secondary)]">
               {email}

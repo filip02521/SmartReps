@@ -16,22 +16,25 @@ import { CommunityHomeTeaser } from '@/components/dashboard/CommunityHomeTeaser'
 import { WeeklyChallengeCard } from '@/components/dashboard/WeeklyChallengeCard'
 import { StreakChainCard } from '@/components/dashboard/StreakChainCard'
 import { InstallCoach } from '@/components/ux/InstallCoach'
-import { WeeklyReportCard } from '@/components/dashboard/WeeklyReportCard'
+import { WeeklyReportCard, WeeklyReportSkeleton } from '@/components/dashboard/WeeklyReportCard'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { pl } from '@/i18n/pl'
 import { showToast } from '@/stores/toast-store'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
-import { Dumbbell, ChevronRight } from 'lucide-react'
+import { Dumbbell, ChevronRight, Loader2 } from 'lucide-react'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { db, type LocalAiInsight, type LocalWorkoutSession } from '@/lib/db'
-import { enqueueSync } from '@/lib/sync'
+import { enqueueSync, refreshSubscriptionStatus } from '@/lib/sync'
 import { track, AnalyticsEvents } from '@/lib/analytics'
 import { generateWeeklyReport } from '@/lib/ai/proactive-coach'
+import { canUseManagedAi, resolveAiContextForCall } from '@/lib/ai/managed-client'
+import { trackTrialExpiryIfNeeded, useProFeatures } from '@/lib/subscription'
+import { ProTeaser } from '@/components/ux/ProTeaser'
 import {
   checkRateLimit,
   acquireInflight,
@@ -66,6 +69,7 @@ export default function Dashboard() {
   const welcomeCardDismissed = useAppStore((s) => s.welcomeCardDismissed)
   const hasSeenLoginCloudPrompt = useAppStore((s) => s.hasSeenLoginCloudPrompt)
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
+  const syncInFlight = useAppStore((s) => s.syncInFlight)
   const dismissHomeTip = useAppStore((s) => s.dismissHomeTip)
   const setWelcomeCardDismissed = useAppStore((s) => s.setWelcomeCardDismissed)
   const setDismissedLoginBackupTip = useAppStore((s) => s.setDismissedLoginBackupTip)
@@ -81,6 +85,48 @@ export default function Dashboard() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [hasSession, setHasSession] = useState<boolean | null>(null)
   const [heatmapSessions, setHeatmapSessions] = useState<LocalWorkoutSession[]>([])
+  const pro = useProFeatures()
+  const [showProTeaser, setShowProTeaser] = useState(false)
+  // Pro user can generate AI reports when hosted AI is reachable (logged-in
+  // session) or a BYOK key is configured. Mirrors resolveAiContext() — kept
+  // as a render-time check so the empty-state CTA can act directly.
+  const weeklyAiReady =
+    pro && (!!(settings.aiApiKey ?? '').trim() || canUseManagedAi(hasSession === true, pro))
+
+  // Weekly-report CTA is state-aware — a Pro user must never land on a
+  // dead-end "unlock Pro" card: coach off → settings, logged out → login,
+  // AI ready → generate the report right now (force regenerates with AI).
+  const handleWeeklyReportCta = () => {
+    if (!pro) {
+      setShowProTeaser(true)
+      return
+    }
+    if (!settings.aiProactiveCoach) {
+      navigate('/profile')
+      return
+    }
+    if (!weeklyAiReady) {
+      navigate(hasSession === false ? '/setup/login' : '/profile')
+      return
+    }
+    setSearchParams({ weekly_report: 'force' }, { replace: true })
+  }
+
+  const weeklyReportHint = !pro
+    ? pl.aiCoachProRequired
+    : !settings.aiProactiveCoach
+      ? pl.coachWeeklyReportDisabledHint
+      : !weeklyAiReady
+        ? hasSession === false
+          ? pl.coachWeeklyReportLoginHint
+          : pl.coachWeeklyReportConfigHint
+        : pl.coachWeeklyReportConnectHintPro
+
+  const weeklyReportCtaAria = !pro
+    ? pl.aiUnlockPro
+    : weeklyAiReady && settings.aiProactiveCoach
+      ? pl.coachWeeklyReportGenerateAria
+      : pl.coachWeeklyReportConnectCtaAria
   /** null = InstallCoach not yet reported — tip withheld to avoid dual attention. */
   const [installVisible, setInstallVisible] = useState<boolean | null>(null)
 
@@ -90,11 +136,21 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!hydrated) return
+    // Funnel: observe a lapsed trial (status stays 'trial' server-side until
+    // flipped — the client-side check is the measurement point). Local-only,
+    // so it also fires for offline/no-session usage.
+    trackTrialExpiryIfNeeded()
     if (!isSupabaseConfigured) {
       setHasSession(false)
       return
     }
-    void supabase.auth.getSession().then(({ data }) => setHasSession(!!data.session))
+    void supabase.auth.getSession().then(({ data }) => {
+      setHasSession(!!data.session)
+      // Heal a stale cached plan: a server-side grant (Stripe webhook, admin
+      // change) since the last sync would otherwise leave the plan badge and
+      // feature gating stuck on 'free' until the next full sync.
+      if (data.session) void refreshSubscriptionStatus()
+    })
   }, [hydrated, reloadEpoch])
 
   useEffect(() => {
@@ -259,8 +315,8 @@ export default function Dashboard() {
       setWeeklyReportGenerating(true)
 
       const settings = useAppStore.getState().settings
-      const aiConfig = settings.aiProactiveCoach && settings.aiApiKey
-        ? { apiKey: settings.aiApiKey, model: settings.aiModel ?? 'gpt-4o-mini', baseURL: settings.aiBaseUrl || undefined, reasoningEffort: settings.aiReasoningEffort }
+      const aiConfig = settings.aiProactiveCoach
+        ? await resolveAiContextForCall(settings)
         : undefined
 
       // Rate limit check — only for AI calls (local fallback is free)
@@ -287,6 +343,10 @@ export default function Dashboard() {
             }
             await db.aiInsights.put(report)
             void enqueueSync('ai_insights', 'insert', report)
+            // Re-evaluate achievements — ai_first_insight / ai_coach_user count AI insights
+            if (report.source === 'ai') {
+              void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
+            }
             // For catch-up: only show if current week has no report of its own.
             // If current week already has a report, the catch-up runs silently
             // in the background (the current week's report stays displayed).
@@ -352,6 +412,10 @@ export default function Dashboard() {
         }
         await db.aiInsights.put(report)
         void enqueueSync('ai_insights', 'insert', report)
+        // Re-evaluate achievements — ai_first_insight / ai_coach_user count AI insights
+        if (report.source === 'ai') {
+          void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
+        }
         // For catch-up: only show if current week has no report of its own.
         // If current week already has a report, the catch-up runs silently
         // in the background (the current week's report stays displayed).
@@ -373,7 +437,10 @@ export default function Dashboard() {
       }
     })()
     return () => { cancelled = true; controller.abort() }
-  }, [hydrated, hasCompletedFirstWorkout, reloadEpoch, searchParams, setSearchParams])
+  // `pro` in deps: a mid-session upgrade (status pulled during this app
+  // run) must re-resolve the AI context instead of staying on the cached
+  // free-tier path until the next mount.
+  }, [hydrated, hasCompletedFirstWorkout, reloadEpoch, searchParams, setSearchParams, pro])
 
   const handleQuickCta = useCallback((cta: QuickCta) => {
     switch (cta.kind) {
@@ -407,6 +474,11 @@ export default function Dashboard() {
   }
 
   const reload = () => setReloadEpoch((n) => n + 1)
+  // Fresh-device login: local Dexie is empty and the first cloud pull is still
+  // running — show a "restoring" state instead of the new-user UI so the user
+  // doesn't see a wrong "no data / choose program" screen before sync lands.
+  const waitingForFirstSync =
+    hasSession === true && lastSyncedAt === null && syncInFlight
   const showTip = installVisible === false && !!home?.tip
   const tipSuppression = home?.tip
     ? home.tipSuppression
@@ -449,6 +521,30 @@ export default function Dashboard() {
           <SkeletonCard className="min-h-[8rem]" />
           {/* Community skeleton */}
           <SkeletonCard className="min-h-[8rem]" />
+        </div>
+      ) : waitingForFirstSync ? (
+        <div className="space-y-6" aria-busy aria-label={pl.homeSyncingData}>
+          <div
+            role="status"
+            className="flex items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-4 py-3 shadow-[var(--sr-shadow-card)]"
+          >
+            <Loader2
+              size={18}
+              className="shrink-0 animate-spin text-[var(--sr-brand-primary)]"
+              aria-hidden
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[var(--sr-text-primary)]">
+                {pl.homeSyncingData}
+              </p>
+              <p className="text-xs leading-snug text-[var(--sr-text-secondary)]">
+                {pl.homeSyncingDataHint}
+              </p>
+            </div>
+          </div>
+          <SkeletonCard className="min-h-[8rem]" />
+          <SkeletonCard className="min-h-[14rem]" />
+          <SkeletonCard className="min-h-[10rem]" />
         </div>
       ) : home ? (
         <>
@@ -569,40 +665,17 @@ export default function Dashboard() {
           {/* 6. Proactive coach: weekly report card + CTA gdy AI brak */}
           <section aria-label={pl.coachWeeklyReportSectionAria} className="mt-6">
             <SectionHeader title={pl.coachWeeklyReportTitle} />
-            {weeklyReportGenerating && !weeklyReport && (
-              <div
-                aria-busy
-                aria-live="polite"
-                className="sr-coach-msg-in overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] shadow-[var(--sr-shadow-card)]"
-              >
-                <div className="flex items-center gap-3 border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)] p-4">
-                  <AiCoachMark size="sm" pulse />
-                  <div className="min-w-0 flex-1">
-                    <p className="animate-pulse text-xs text-[var(--sr-text-muted)]">
-                      {pl.coachWeeklyReportGenerating}
-                    </p>
-                  </div>
-                </div>
-                {/* Skeleton metrics grid — mirrors the real 4-tile layout */}
-                <div className="grid grid-cols-4 gap-2 p-4">
-                  {[0, 1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="flex h-14 animate-pulse flex-col items-center justify-center gap-1 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]"
-                    >
-                      <div className="h-3 w-8 rounded bg-[var(--sr-border-subtle)]" />
-                      <div className="h-2 w-10 rounded bg-[var(--sr-border-subtle)]" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {weeklyReportGenerating && !weeklyReport && <WeeklyReportSkeleton />}
             {weeklyReport && !weeklyReport.dismissedAt && (
               <WeeklyReportCard
-                key={weeklyReport.id}
+                // Keyed by week (not insight.id) — regenerating produces a new
+                // id every time, which would otherwise remount the card and
+                // silently collapse it right after the user asked to refresh it.
+                key={weeklyReport.weekKey ?? weeklyReport.id}
                 insight={weeklyReport}
                 onDismissed={() => setWeeklyReport(null)}
-                onConnectAi={() => navigate('/profile')}
+                onConnectAi={handleWeeklyReportCta}
+                connectLabel={pro ? pl.coachWeeklyReportUpgradeAi : undefined}
                 onRegenerate={() => setSearchParams({ weekly_report: 'force' }, { replace: true })}
                 regenerating={weeklyReportGenerating}
               />
@@ -610,12 +683,12 @@ export default function Dashboard() {
             {!weeklyReportGenerating && !weeklyReport && (
               <button
                 type="button"
-                onClick={() => navigate('/profile')}
+                onClick={handleWeeklyReportCta}
                 className={cn(
                   FOCUS_RING,
                   'flex w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-4 text-left transition-colors hover:bg-[var(--sr-bg-surface)]',
                 )}
-                aria-label={pl.coachWeeklyReportConnectCtaAria}
+                aria-label={weeklyReportCtaAria}
               >
                 <div
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[color-mix(in_srgb,var(--sr-brand-primary)_12%,transparent)] text-[var(--sr-brand-primary)]"
@@ -628,7 +701,7 @@ export default function Dashboard() {
                     {pl.coachWeeklyReportConnectTitle}
                   </p>
                   <p className="mt-0.5 sr-text-caption text-[var(--sr-text-muted)]">
-                    {pl.coachWeeklyReportConnectHint}
+                    {weeklyReportHint}
                   </p>
                 </div>
                 <ChevronRight
@@ -638,6 +711,12 @@ export default function Dashboard() {
                 />
               </button>
             )}
+
+            <ProTeaser
+              open={showProTeaser}
+              onClose={() => setShowProTeaser(false)}
+              feature="hostedAi"
+            />
           </section>
 
           {/* 7. Community — kompaktowe (1 karta + CTA) */}

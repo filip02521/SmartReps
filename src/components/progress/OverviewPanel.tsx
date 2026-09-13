@@ -1,11 +1,14 @@
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { BarChart3, Calendar, Dumbbell, Trophy, Activity } from 'lucide-react'
+import { BarChart3, Calendar, Dumbbell, Target, Trophy, Activity } from 'lucide-react'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
 import { ActivityCalendar } from '@/components/progress/ActivityCalendar'
 import { MuscleBalanceHeatmap } from '@/components/progress/MuscleBalanceHeatmap'
 import { UnifiedRecordsSection } from '@/components/progress/UnifiedRecordsSection'
 import { Estimated1rmSection } from '@/components/progress/Estimated1rmSection'
+import { ForecastSection } from '@/components/progress/ForecastSection'
+import { ProLockedCard } from '@/components/pro/ProLockedCard'
+import { useProFeatures } from '@/lib/subscription'
 import { AccessibleChart } from '@/components/ui/AccessibleChart'
 import { LogoMark } from '@/components/brand/Logo'
 import { EmptyState } from '@/components/ux/Feedback'
@@ -370,6 +373,7 @@ export function OverviewPanel({
   weightUnit?: 'kg' | 'lb'
 }) {
   const [scope, setScope] = useState<Scope>('activity')
+  const pro = useProFeatures()
 
   // Dostępne zakładki — Aktywność zawsze + programy które są włączone
   const scopeOptions = useMemo(() => {
@@ -609,10 +613,14 @@ export function OverviewPanel({
             </ProgressSection>
           )}
 
-          {/* Balans mięśniowy — wszystkie sesje */}
+          {/* Balans mięśniowy — wszystkie sesje (Pro advanced analytics) */}
           {allSessions.length > 0 && (
-            <ProgressSection icon={Activity} title={pl.muscleBalanceTitle} hint={pl.muscleBalanceHint}>
-              <MuscleBalanceHeatmap sessions={allSessions} />
+            <ProgressSection icon={Activity} title={pl.muscleBalanceTitle} hint={pro ? pl.muscleBalanceHint : undefined}>
+              {pro ? (
+                <MuscleBalanceHeatmap sessions={allSessions} />
+              ) : (
+                <ProLockedCard title={pl.muscleBalanceTitle} feature="advancedAnalytics" />
+              )}
             </ProgressSection>
           )}
 
@@ -635,14 +643,33 @@ export function OverviewPanel({
             />
           )}
 
-          {/* Szacowany 1RM — na podstawie serii z ciężarem */}
+          {/* Szacowany 1RM — na podstawie serii z ciężarem (Pro) */}
           {allSessions.length > 0 && (
-            <ProgressSection icon={Dumbbell} title={pl.est1rmTitle} hint={pl.est1rmHint}>
-              <Estimated1rmSection
-                sessions={allSessions}
-                exerciseMap={exerciseMap ?? new Map()}
-                weightUnit={weightUnit}
-              />
+            <ProgressSection icon={Dumbbell} title={pl.est1rmTitle} hint={pro ? pl.est1rmHint : undefined}>
+              {pro ? (
+                <Estimated1rmSection
+                  sessions={allSessions}
+                  exerciseMap={exerciseMap ?? new Map()}
+                  weightUnit={weightUnit}
+                />
+              ) : (
+                <ProLockedCard title={pl.est1rmTitle} feature="advancedAnalytics" />
+              )}
+            </ProgressSection>
+          )}
+
+          {/* Cele i prognozy — regresja na historii (Pro) */}
+          {allSessions.length > 0 && (
+            <ProgressSection icon={Target} title={pl.forecastTitle}>
+              {pro ? (
+                <ForecastSection
+                  sessions={allSessions}
+                  exerciseMap={exerciseMap ?? new Map()}
+                  weightUnit={weightUnit}
+                />
+              ) : (
+                <ProLockedCard title={pl.forecastTitle} feature="advancedAnalytics" />
+              )}
             </ProgressSection>
           )}
         </>

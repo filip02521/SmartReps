@@ -25,6 +25,7 @@ export type AiFeature =
   | 'post_workout'
   | 'workout_analysis'
   | 'plan_generation'
+  | 'progression_adaptation'
 
 type UsageRecord = {
   /** ISO date string (YYYY-MM-DD) — used to reset quota daily. */
@@ -55,6 +56,8 @@ const COOLDOWNS: Record<AiFeature, number> = {
   post_workout: 2 * 60 * 1000,
   workout_analysis: 30 * 60 * 1000,
   plan_generation: 3 * 60 * 1000,
+  // 6h — adaptive review is occasional; long cooldown bounds cost.
+  progression_adaptation: 6 * 60 * 60 * 1000,
 }
 
 /**

@@ -76,6 +76,8 @@ export async function toggleFollow(
   }
   const raw = safeJsonParse<ToggleFollowResult>(data)
   if (!raw) throw new Error('parse_error')
+  // Re-evaluate achievements — first_follower, followed_by_25, first_follow
+  void import('@/lib/achievements/schedule').then((m) => m.scheduleAchievementCheck())
   return raw
 }
 

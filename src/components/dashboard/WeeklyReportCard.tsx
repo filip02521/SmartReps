@@ -3,15 +3,18 @@ import { pl } from '@/i18n/pl'
 import { db } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
 import { showToast } from '@/stores/toast-store'
+import { cn } from '@/lib/utils'
 import type { LocalAiInsight } from '@/lib/db'
 import {
   X,
   Calendar,
+  CalendarX,
+  Check,
   Flame,
   TrendingUp,
   TrendingDown,
+  ArrowUpRight,
   Minus,
-  Dumbbell,
   Sparkles,
   ChevronDown,
   RefreshCw,
@@ -32,6 +35,9 @@ type WeeklyMetrics = {
   prCount?: number
   streakWeeks: number
   repsWeekChangePct: number | null
+  /** Rep buckets per weekday, Monday-first (7 entries). Added with the
+   *  activity chart — absent in reports generated before this field. */
+  dailyReps?: number[]
   weekStart: string
   weekEnd: string
 }
@@ -45,6 +51,40 @@ function parseMetrics(insight: LocalAiInsight): WeeklyMetrics | null {
   }
 }
 
+/**
+ * Parse the coach body into structured sections. AI-generated reports mark
+ * strengths with "✓", improvements with "→" and the recommendation with "💡"
+ * (see generateWeeklyReport). Local fallback bodies are plain sentences and
+ * land entirely in `summary`.
+ */
+function parseCoachBody(body: string): {
+  summary: string
+  strengths: string[]
+  improvements: string[]
+  recommendation: string | null
+} {
+  const summaryParts: string[] = []
+  let strengths: string[] = []
+  let improvements: string[] = []
+  let recommendation: string | null = null
+  for (const line of body.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    // 💡 is a surrogate pair — strip markers code-point-aware, not slice(1).
+    const content = trimmed.replace(/^[✓→💡]+\s*/u, '')
+    if (trimmed.startsWith('✓')) {
+      strengths = content.split(';').map((s) => s.trim()).filter(Boolean)
+    } else if (trimmed.startsWith('→')) {
+      improvements = content.split(';').map((s) => s.trim()).filter(Boolean)
+    } else if (trimmed.startsWith('💡')) {
+      recommendation = content || null
+    } else {
+      summaryParts.push(trimmed)
+    }
+  }
+  return { summary: summaryParts.join('\n'), strengths, improvements, recommendation }
+}
+
 function formatWeekRange(weekStart: string, weekEnd: string): string {
   const start = new Date(weekStart)
   const end = new Date(weekEnd)
@@ -56,41 +96,86 @@ function formatWeekRange(weekStart: string, weekEnd: string): string {
   return `${format(start, 'd MMM', { locale: dateFnsLocale() })} – ${format(end, 'd MMM', { locale: dateFnsLocale() })}`
 }
 
-/** Truncate body to a single-line teaser for the collapsed state. */
+/** Fallback teaser for legacy rows without structured metrics (pre-metricsJson). */
 function teaser(body: string, maxLen = 120): string {
   const single = body.replace(/\s+/g, ' ').trim()
   if (single.length <= maxLen) return single
   return `${single.slice(0, maxLen).trimEnd()}…`
 }
 
-/** Compact number formatting for volume (e.g. 12 400 → 12.4k). */
+/** Compact number formatting (e.g. 12 400 → 12.4k). */
 function formatCompact(value: number): string {
   if (value >= 10000) return `${(value / 1000).toFixed(1)}k`
   return value.toLocaleString()
 }
 
-function MetricTile({
-  icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  accent: string
-}) {
+/** Mon-first 7-day activity chart. Pure visual — meaning carried by the
+ *  surrounding text; the region gets a single aria-label. */
+function WeekChart({ dailyReps }: { dailyReps: number[] }) {
+  const max = Math.max(...dailyReps, 1)
+  const labels = pl.progressWeekdayLabels
   return (
-    <div className="flex flex-col items-center gap-1.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-1.5 py-2.5 text-center transition-colors hover:border-[var(--sr-border-strong)]">
-      <div className="flex items-center gap-1" style={{ color: accent }}>
-        {icon}
-        <span className="text-base font-bold tabular-nums leading-none text-[var(--sr-text-primary)]">
-          {value}
-        </span>
+    <div aria-label={pl.coachWeeklyChartAria} role="img" className="mt-3">
+      <div className="flex h-12 items-end gap-1.5">
+        {dailyReps.map((reps, i) => (
+          <div key={i} className="flex h-full flex-1 items-end">
+            <div
+              className={cn(
+                'w-full rounded-[var(--sr-radius-sm)]',
+                reps > 0
+                  ? 'bg-[image:var(--sr-brand-gradient)]'
+                  : 'bg-[var(--sr-border-subtle)]',
+              )}
+              style={{ height: reps > 0 ? `${Math.max(14, (reps / max) * 100)}%` : '4px' }}
+            />
+          </div>
+        ))}
       </div>
-      <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
-        {label}
-      </span>
+      <div className="mt-1 flex gap-1.5">
+        {labels.map((day, i) => (
+          <span
+            key={day + i}
+            className={cn(
+              'flex-1 text-center text-[9px] font-medium uppercase tracking-wide',
+              dailyReps[i] > 0 ? 'text-[var(--sr-text-secondary)]' : 'text-[var(--sr-text-muted)]/60',
+            )}
+          >
+            {day}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Shown before any report exists yet, while the first one is being generated.
+ *  Owned by the card module so the loading chrome always matches the real card. */
+export function WeeklyReportSkeleton() {
+  return (
+    <div
+      aria-busy
+      aria-live="polite"
+      aria-label={pl.coachWeeklyReportGenerating}
+      className="sr-coach-msg-in overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] shadow-[var(--sr-shadow-card)]"
+    >
+      <div className="flex items-center gap-3 border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)] p-4">
+        <AiCoachMark size="sm" pulse />
+        <p className="animate-pulse text-xs text-[var(--sr-text-muted)]">
+          {pl.coachWeeklyReportGenerating}
+        </p>
+      </div>
+      <div className="flex items-end gap-1.5 p-4">
+        {[40, 65, 90, 55, 30, 8, 8].map((h, i) => (
+          <div key={i} className="flex h-12 flex-1 items-end">
+            <div
+              className="relative w-full overflow-hidden rounded-[var(--sr-radius-sm)] bg-[var(--sr-bg-surface)]"
+              style={{ height: `${h}%` }}
+            >
+              <div className="absolute inset-0 sr-skeleton-shimmer" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -99,12 +184,16 @@ export function WeeklyReportCard({
   insight,
   onDismissed,
   onConnectAi,
+  connectLabel,
   onRegenerate,
   regenerating = false,
 }: {
   insight: LocalAiInsight
   onDismissed?: () => void
   onConnectAi?: () => void
+  /** Override for the connect button label — e.g. "upgrade to AI" copy for
+   *  Pro users who already have access (default: unlock-Pro hint). */
+  connectLabel?: string
   onRegenerate?: () => void
   regenerating?: boolean
 }) {
@@ -143,41 +232,59 @@ export function WeeklyReportCard({
 
   const metrics = parseMetrics(insight)
   const weekRange = metrics ? formatWeekRange(metrics.weekStart, metrics.weekEnd) : null
+  // A week with zero sessions gets a materially different, much simpler card —
+  // no point showing a grid of zero-value tiles. `tone` is a fallback for
+  // legacy rows saved before metricsJson existed.
+  const isEmptyWeek = metrics ? metrics.sessions === 0 : insight.tone === 'warning'
   const changePct = metrics?.repsWeekChangePct
-  const trendIcon = changePct == null
-    ? <Minus size={14} aria-hidden />
-    : changePct > 0
-      ? <TrendingUp size={14} aria-hidden />
-      : changePct < 0
-        ? <TrendingDown size={14} aria-hidden />
-        : <Minus size={14} aria-hidden />
-  const trendColor = changePct == null
-    ? 'var(--sr-text-muted)'
-    : changePct > 0
-      ? 'var(--sr-success)'
-      : changePct < 0
-        ? 'var(--sr-error)'
-        : 'var(--sr-text-muted)'
-  const trendLabel = changePct == null
-    ? '—'
-    : changePct > 0
-      ? `+${Math.round(changePct)}%`
-      : changePct < 0
-        ? `${Math.round(changePct)}%`
-        : '0%'
+  const trendUp = changePct != null && changePct > 0
+  const trendDown = changePct != null && changePct < 0
+  const trendIcon = trendUp
+    ? <TrendingUp size={15} aria-hidden />
+    : trendDown
+      ? <TrendingDown size={15} aria-hidden />
+      : <Minus size={15} aria-hidden />
+  const trendLabel = trendUp
+    ? `+${Math.round(changePct)}%`
+    : trendDown
+      ? `${Math.round(changePct)}%`
+      : changePct === 0
+        ? '0%'
+        : pl.coachWeeklyTrendNone
+  const trendAria =
+    changePct == null
+      ? pl.coachWeeklyReportFirstWeek
+      : trendUp
+        ? pl.coachWeeklyReportUp(Math.round(changePct))
+        : trendDown
+          ? pl.coachWeeklyReportDown(Math.abs(Math.round(changePct)))
+          : pl.coachWeeklyMetricChange
 
   const updatedLabel = formatDistanceToNow(new Date(insight.createdAt), {
     addSuffix: true,
     locale: dateFnsLocale(),
   })
 
-  // Detail metrics (expanded only) — secondary stats from the week
-  const hasDetailMetrics = metrics && (
-    metrics.trainingDays != null ||
-    metrics.avgDurationMin != null ||
-    metrics.prCount != null ||
-    metrics.totalVolume != null
-  )
+  const parsed = parseCoachBody(insight.body)
+
+  // Header subtitle: deterministic for metric-bearing reports, body teaser
+  // only for legacy rows saved before metricsJson existed.
+  const headerSubtitle = isEmptyWeek
+    ? pl.coachWeeklyReportEmpty
+    : metrics
+      ? pl.coachWeeklyReportSessions(metrics.sessions, metrics.totalReps)
+      : teaser(insight.body)
+
+  const headerTitle = weekRange ?? insight.title
+  const toggleAriaLabel = isNew
+    ? pl.coachWeeklyReportNewAria
+    : expanded
+      ? pl.coachWeeklyReportCollapse
+      : pl.coachWeeklyReportExpand
+
+  // Detail strip — secondary stats, compact inline list. Volume only shown
+  // when it differs from reps (calisthenics without weights logs equal values).
+  const showVolume = metrics != null && metrics.totalVolume != null && metrics.totalVolume !== metrics.totalReps
 
   return (
     <section
@@ -185,115 +292,124 @@ export function WeeklyReportCard({
       aria-label={pl.coachWeeklyReportSectionAria}
       className="sr-coach-msg-in overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] shadow-[var(--sr-shadow-card)]"
     >
-      {/* Header — clickable to toggle expand/collapse */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={toggleExpand}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            toggleExpand()
-          }
-        }}
-        aria-expanded={expanded}
-        aria-controls={`weekly-report-body-${panelId}`}
-        aria-label={isNew ? pl.coachWeeklyReportNewAria : expanded ? pl.coachWeeklyReportCollapse : pl.coachWeeklyReportExpand}
-        className="flex w-full items-start gap-3 border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)] p-4 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_40%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--sr-brand-primary)]"
-      >
-        <AiCoachMark size="sm" pulse={regenerating} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold leading-tight text-[var(--sr-text-primary)]">
-              {insight.title}
-            </h3>
-            {isNew && (
-              <span
-                className="sr-new-badge inline-flex items-center gap-1 rounded-full bg-[var(--sr-brand-primary)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white"
-                aria-label={pl.coachWeeklyReportNew}
-              >
-                <span className="sr-new-badge-dot inline-block h-1.5 w-1.5 rounded-full bg-white" aria-hidden />
-                {pl.coachWeeklyReportNew}
-              </span>
-            )}
-          </div>
-          {weekRange && (
-            <p className="mt-1 flex items-center gap-1 text-xs text-[var(--sr-text-muted)]">
-              <Calendar size={11} aria-hidden />
-              {weekRange}
+      {/* Header — toggle button + sibling dismiss (no nested buttons). */}
+      <div className="flex items-stretch border-b border-[var(--sr-border-subtle)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_30%,transparent)]">
+        <button
+          type="button"
+          onClick={toggleExpand}
+          aria-expanded={expanded}
+          aria-controls={`weekly-report-body-${panelId}`}
+          aria-label={toggleAriaLabel}
+          className="flex min-w-0 flex-1 items-start gap-3 p-4 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_20%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--sr-brand-primary)]"
+        >
+          <AiCoachMark size="sm" pulse={regenerating} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="min-w-0 break-words text-base font-bold leading-tight text-[var(--sr-text-primary)]">
+                {headerTitle}
+              </h3>
+              {isNew && (
+                <span
+                  className="sr-new-badge inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--sr-brand-primary)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white"
+                  aria-hidden
+                >
+                  <span className="sr-new-badge-dot inline-block h-1.5 w-1.5 rounded-full bg-white" />
+                  {pl.coachWeeklyReportNew}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-sm leading-snug text-[var(--sr-text-secondary)]">
+              {headerSubtitle}
             </p>
-          )}
-        </div>
-        {/* Dismiss — stopPropagation so it doesn't toggle */}
+          </div>
+          <ChevronDown
+            size={18}
+            aria-hidden
+            className={cn(
+              'mt-1 shrink-0 text-[var(--sr-text-muted)] transition-transform duration-200',
+              expanded && 'rotate-180',
+            )}
+          />
+        </button>
         <button
           type="button"
           aria-label={pl.coachPostWorkoutDismiss}
-          onClick={async (e) => {
-            e.stopPropagation()
+          onClick={async () => {
             const dismissed = { ...insight, dismissedAt: new Date().toISOString() }
             await db.aiInsights.put(dismissed)
             void enqueueSync('ai_insights', 'update', dismissed)
             showToast(pl.coachPostWorkoutDismissed, 'info')
             onDismissed?.()
           }}
-          className="shrink-0 flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
+          className="my-2 mr-2 flex min-h-12 min-w-12 shrink-0 items-center justify-center self-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
         >
           <X size={16} aria-hidden />
         </button>
-        <ChevronDown
-          size={18}
-          aria-hidden
-          className={`shrink-0 text-[var(--sr-text-muted)] transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-        />
       </div>
 
-      {/* Primary metrics grid — always visible (key at-a-glance data) */}
-      {metrics && (
-        <div className="grid grid-cols-4 gap-2 p-4 pb-2">
-          <MetricTile
-            icon={<Dumbbell size={14} aria-hidden />}
-            label={pl.coachWeeklyMetricSessions}
-            value={String(metrics.sessions)}
-            accent="var(--sr-brand-primary)"
-          />
-          <MetricTile
-            icon={<span className="text-xs font-bold" aria-hidden>Σ</span>}
-            label={pl.coachWeeklyMetricReps}
-            value={formatCompact(metrics.totalReps)}
-            accent="var(--sr-brand-primary)"
-          />
-          <MetricTile
-            icon={<Flame size={14} aria-hidden />}
-            label={pl.coachWeeklyMetricStreak}
-            value={String(metrics.streakWeeks)}
-            accent={metrics.streakWeeks > 0 ? 'var(--sr-warning)' : 'var(--sr-text-muted)'}
-          />
-          <MetricTile
-            icon={trendIcon}
-            label={pl.coachWeeklyMetricChange}
-            value={trendLabel}
-            accent={trendColor}
-          />
+      {/* Glance hero — the answer to "how was my week": verdict pill +
+          summary line + per-day activity chart. Skipped for an empty week. */}
+      {metrics && !isEmptyWeek && (
+        <div className="px-4 pt-3.5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-2xl font-bold leading-none tabular-nums text-[var(--sr-text-primary)]">
+                {formatCompact(metrics.totalReps)}
+                <span className="ml-1.5 align-baseline text-sm font-semibold text-[var(--sr-text-muted)]">
+                  {pl.coachWeeklyMetricReps.toLowerCase()}
+                </span>
+              </p>
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--sr-text-secondary)]">
+                <span className="inline-flex items-center gap-1">
+                  <Calendar size={12} aria-hidden className="text-[var(--sr-text-muted)]" />
+                  {pl.coachWeeklyHeroSessions(metrics.sessions)} · {pl.coachWeeklyHeroDays(metrics.trainingDays ?? 0)}
+                </span>
+                {metrics.streakWeeks > 0 && (
+                  <span className="inline-flex items-center gap-1 font-medium text-[var(--sr-warning)]">
+                    <Flame size={12} aria-hidden />
+                    {pl.coachWeeklyHeroStreak(metrics.streakWeeks)}
+                  </span>
+                )}
+              </p>
+            </div>
+            <span
+              aria-label={trendAria}
+              className={cn(
+                'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-sm font-bold tabular-nums',
+                trendUp && 'bg-[var(--sr-success-muted)] text-[var(--sr-success)]',
+                trendDown && 'bg-[var(--sr-error-muted)] text-[var(--sr-error)]',
+                !trendUp && !trendDown && 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
+              )}
+            >
+              {trendIcon}
+              {trendLabel}
+            </span>
+          </div>
+          {metrics.dailyReps && <WeekChart dailyReps={metrics.dailyReps} />}
         </div>
       )}
 
-      {/* Collapsed teaser — preview of the coach insight + expand hint */}
-      {!expanded && (
-        <div className="px-4 pb-4 pt-1">
+      {/* Empty-week state — icon + encouragement, no numbers to show */}
+      {isEmptyWeek && (
+        <div className="flex items-center gap-2.5 px-4 pb-1 pt-3.5">
+          <CalendarX size={16} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
           <p className="text-sm leading-relaxed text-[var(--sr-text-secondary)]">
-            {teaser(insight.body)}
-          </p>
-          <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[var(--sr-brand-primary)]">
-            <ChevronDown size={12} aria-hidden />
-            {pl.coachWeeklyReportExpandHint}
+            {pl.coachWeeklyReportEmptyHeader}
           </p>
         </div>
       )}
 
-      {/* Expanded body — full coach insight + detail metrics + actions */}
+      {/* Collapsed expand hint — points at the coach analysis below */}
+      {!expanded && (
+        <p className="mt-2 flex items-center gap-1 px-4 pb-4 text-[11px] font-medium text-[var(--sr-brand-primary)]">
+          <ChevronDown size={12} aria-hidden />
+          {pl.coachWeeklyReportExpandHint}
+        </p>
+      )}
+
+      {/* Expanded body — structured coach analysis + detail stats + actions */}
       {expanded && (
         <div id={`weekly-report-body-${panelId}`} className="px-4 pb-4 pt-1">
-          {/* Coach message — left accent border for visual distinction */}
           {regenerating ? (
             <div className="mt-2 rounded-[var(--sr-radius-sm)] border-l-2 border-[var(--sr-brand-primary)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_40%,var(--sr-bg-surface))] px-3 py-2.5">
               <p className="animate-pulse text-sm text-[var(--sr-text-muted)]">
@@ -301,45 +417,78 @@ export function WeeklyReportCard({
               </p>
             </div>
           ) : (
-            <div className="mt-2 rounded-[var(--sr-radius-sm)] border-l-2 border-[var(--sr-brand-primary)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_40%,var(--sr-bg-surface))] px-3 py-2.5">
-              <p className="whitespace-pre-line text-sm leading-relaxed text-[var(--sr-text-secondary)]">
-                {insight.body}
-              </p>
-            </div>
+            <>
+              {parsed.summary && (
+                <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-[var(--sr-text-secondary)]">
+                  {parsed.summary}
+                </p>
+              )}
+
+              {parsed.strengths.length > 0 && (
+                <div className="mt-3">
+                  <p className="sr-text-overline mb-1.5 font-semibold uppercase tracking-wide text-[var(--sr-success)]">
+                    {pl.coachWeeklySectionStrengths}
+                  </p>
+                  <ul className="flex flex-col gap-1">
+                    {parsed.strengths.map((s, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm leading-snug text-[var(--sr-text-secondary)]">
+                        <Check size={15} className="mt-0.5 shrink-0 text-[var(--sr-success)]" aria-hidden />
+                        <span className="min-w-0">{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {parsed.improvements.length > 0 && (
+                <div className="mt-3">
+                  <p className="sr-text-overline mb-1.5 font-semibold uppercase tracking-wide text-[var(--sr-warning)]">
+                    {pl.coachWeeklySectionImprovements}
+                  </p>
+                  <ul className="flex flex-col gap-1">
+                    {parsed.improvements.map((s, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm leading-snug text-[var(--sr-text-secondary)]">
+                        <ArrowUpRight size={15} className="mt-0.5 shrink-0 text-[var(--sr-warning)]" aria-hidden />
+                        <span className="min-w-0">{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {parsed.recommendation && (
+                <div className="mt-3 flex items-start gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary-muted)] bg-[color-mix(in_srgb,var(--sr-brand-primary-muted)_40%,var(--sr-bg-surface))] px-3 py-2.5">
+                  <Sparkles size={15} className="mt-0.5 shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
+                  <div className="min-w-0">
+                    <p className="sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-brand-primary)]">
+                      {pl.coachWeeklySectionRecommendation}
+                    </p>
+                    <p className="mt-0.5 text-sm leading-relaxed text-[var(--sr-text-primary)]">
+                      {parsed.recommendation}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
-          {/* Detail metrics — secondary stats, expanded only */}
-          {hasDetailMetrics && !regenerating && (
-            <div className="mt-4">
-              <p className="mb-2 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
-                {pl.coachWeeklyDetailLabel}
-              </p>
-              <div className="grid grid-cols-4 gap-2">
-                <MetricTile
-                  icon={<Calendar size={14} aria-hidden />}
-                  label={pl.coachWeeklyMetricDays}
-                  value={String(metrics.trainingDays ?? 0)}
-                  accent="var(--sr-brand-primary)"
-                />
-                <MetricTile
-                  icon={<Clock size={14} aria-hidden />}
-                  label={pl.coachWeeklyMetricDuration}
-                  value={pl.coachWeeklyMetricDurationValue(metrics.avgDurationMin ?? 0)}
-                  accent="var(--sr-brand-primary)"
-                />
-                <MetricTile
-                  icon={<Trophy size={14} aria-hidden />}
-                  label={pl.coachWeeklyMetricPrs}
-                  value={String(metrics.prCount ?? 0)}
-                  accent={(metrics.prCount ?? 0) > 0 ? 'var(--sr-warning)' : 'var(--sr-text-muted)'}
-                />
-                <MetricTile
-                  icon={<Layers size={14} aria-hidden />}
-                  label={pl.coachWeeklyMetricVolume}
-                  value={formatCompact(metrics.totalVolume ?? 0)}
-                  accent="var(--sr-brand-primary)"
-                />
-              </div>
+          {/* Detail stat strip — secondary metrics, compact inline */}
+          {metrics && !isEmptyWeek && !regenerating && (
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-[var(--sr-text-secondary)]">
+              <span className="inline-flex items-center gap-1">
+                <Clock size={12} aria-hidden className="text-[var(--sr-text-muted)]" />
+                {pl.coachWeeklyMetricDurationValue(metrics.avgDurationMin ?? 0)}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Trophy size={12} aria-hidden className="text-[var(--sr-text-muted)]" />
+                {(metrics.prCount ?? 0)} {pl.coachWeeklyMetricPrs.toLowerCase()}
+              </span>
+              {showVolume && (
+                <span className="inline-flex items-center gap-1">
+                  <Layers size={12} aria-hidden className="text-[var(--sr-text-muted)]" />
+                  {formatCompact(metrics.totalVolume ?? 0)} {pl.coachWeeklyMetricVolume.toLowerCase()}
+                </span>
+              )}
             </div>
           )}
 
@@ -362,7 +511,7 @@ export function WeeklyReportCard({
                 className="flex w-full items-center justify-center gap-1.5 rounded-[var(--sr-radius-sm)] border border-[var(--sr-brand-primary-muted)] bg-[color-mix(in_srgb,var(--sr-brand-primary)_8%,transparent)] px-3 py-2 text-xs font-semibold text-[var(--sr-brand-primary)] transition-colors hover:bg-[color-mix(in_srgb,var(--sr-brand-primary)_16%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
               >
                 <Sparkles size={13} aria-hidden />
-                {pl.coachWeeklyReportConnectAiHint}
+                {connectLabel ?? pl.coachWeeklyReportConnectAiHint}
               </button>
             )}
             {onRegenerate && (

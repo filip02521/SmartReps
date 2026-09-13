@@ -9,6 +9,14 @@ import { AiCoachHeader } from '@/components/brand/AiCoachHeader'
 import { pl } from '@/i18n/pl'
 import type { UserSettings } from '@/stores/app-store'
 import { showToast } from '@/stores/toast-store'
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'
+import { useProFeatures } from '@/lib/subscription'
+import { ProTeaser } from '@/components/ux/ProTeaser'
+import {
+  canUseManagedAi,
+  fetchManagedAiStatus,
+  type ManagedAiStatus,
+} from '@/lib/ai/managed-client'
 
 type Theme = UserSettings['theme']
 
@@ -264,7 +272,25 @@ export function AiCoachSection({
     setBaseUrlDraft(aiBaseUrl)
   }, [aiBaseUrl])
 
-  const connected = apiKeyDraft.trim().length > 0
+  const { loggedIn } = useSupabaseAuth()
+  const pro = useProFeatures()
+  const [showProTeaser, setShowProTeaser] = useState(false)
+  const byokConnected = apiKeyDraft.trim().length > 0
+  const managedAvailable = canUseManagedAi(loggedIn === true, pro)
+  // BYOK key wins when configured — the user explicitly chose their provider.
+  const hostedInUse = managedAvailable && !byokConnected
+  const aiAvailable = pro && (byokConnected || managedAvailable)
+
+  // Quota meter — only when hosted mode is the one in use.
+  const [managedStatus, setManagedStatus] = useState<ManagedAiStatus | null>(null)
+  useEffect(() => {
+    if (!hostedInUse) return
+    let cancelled = false
+    void fetchManagedAiStatus()
+      .then((s) => { if (!cancelled) setManagedStatus(s) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [hostedInUse])
 
   function handleSave() {
     const trimmedUrl = baseUrlDraft.trim()
@@ -297,47 +323,141 @@ export function AiCoachSection({
       <AiCoachHeader
         size="sm"
         subtitle={pl.aiCoachTagline}
-        status={connected ? pl.aiCoachConfigConnected : pl.aiCoachConfigDisconnected}
+        status={
+          !pro
+            ? pl.proBadge
+            : hostedInUse
+              ? pl.aiCoachHostedActive
+              : byokConnected
+                ? pl.aiCoachConfigConnected
+                : pl.aiCoachConfigDisconnected
+        }
       />
 
-      {/* Provider — choose OpenAI / Gemini / Groq / custom */}
+      {/* Hosted AI — SmartReps-managed key, no configuration needed */}
       <div className="mt-4">
-        <p className="sr-text-overline text-[var(--sr-text-muted)]">
-          {pl.aiCoachSubsectionProvider}
-          <InfoHint text={providerHint} className="ml-1.5" />
-        </p>
-        <div className="mt-2">
-          <SegmentedControl
-            stretch
-            value={(() => {
-              if (!baseUrlDraft || baseUrlDraft === AI_PRESETS.openai.baseUrl) return 'openai'
-              if (baseUrlDraft === AI_PRESETS.gemini.baseUrl) return 'gemini'
-              if (baseUrlDraft === AI_PRESETS.groq.baseUrl) return 'groq'
-              return 'custom'
-            })()}
-            onChange={(v) => {
-              const preset = AI_PRESETS[v as keyof typeof AI_PRESETS]
-              if (preset) {
-                setBaseUrlDraft(preset.baseUrl)
-                setModelDraft(preset.model)
-              }
-            }}
-            options={[
-              { value: 'openai', label: pl.aiProviderOpenai },
-              { value: 'gemini', label: pl.aiProviderGemini },
-              { value: 'groq', label: pl.aiProviderGroq },
-              { value: 'custom', label: pl.aiProviderCustom },
-            ]}
+        {!pro && (
+          <>
+            <p className="text-sm text-[var(--sr-text-secondary)]">
+              {pl.aiCoachProRequired}
+            </p>
+            <Button
+              type="button"
+              variant="primary"
+              size="touch"
+              fullWidth
+              className="mt-3"
+              onClick={() => setShowProTeaser(true)}
+            >
+              {pl.aiUnlockPro}
+            </Button>
+          </>
+        )}
+        {pro && hostedInUse && (
+          <>
+            <p className="text-sm text-[var(--sr-text-secondary)]">
+              {pl.aiCoachHostedDesc}
+            </p>
+            {managedStatus?.remaining != null && managedStatus.dailyLimit != null && (
+              <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
+                {pl.aiCoachHostedQuota(managedStatus.remaining, managedStatus.dailyLimit)}
+              </p>
+            )}
+          </>
+        )}
+        {pro && byokConnected && managedAvailable && (
+          <p className="text-xs text-[var(--sr-text-muted)]">
+            {pl.aiCoachHostedByokNote}
+          </p>
+        )}
+        {pro && !managedAvailable && !byokConnected && loggedIn === false && (
+          <p className="text-sm text-[var(--sr-text-secondary)]">
+            {pl.aiCoachHostedLoginHint}
+          </p>
+        )}
+      </div>
+
+      {/* Options — proactive coach + Gemini reasoning (BYOK only) */}
+      {aiAvailable && (
+        <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-4">
+          <p className="sr-text-overline text-[var(--sr-text-muted)]">
+            {pl.aiCoachSubsectionOptions}
+          </p>
+
+          {byokConnected && baseUrlDraft.includes('googleapis') && (
+            <div className="mt-3">
+              <p className="text-sm font-medium text-[var(--sr-text-secondary)]">
+                {pl.aiReasoningEffortLabel}
+                <InfoHint text={pl.aiReasoningEffortHint} className="ml-1.5" />
+              </p>
+              <SegmentedControl
+                className="mt-2"
+                value={aiReasoningEffort}
+                onChange={(v) => onAiReasoningEffortChange(v as 'auto' | 'low' | 'medium' | 'high')}
+                options={[
+                  { value: 'auto', label: pl.aiReasoningEffortAuto },
+                  { value: 'low', label: pl.aiReasoningEffortLow },
+                  { value: 'medium', label: pl.aiReasoningEffortMedium },
+                  { value: 'high', label: pl.aiReasoningEffortHigh },
+                ]}
+              />
+            </div>
+          )}
+
+          <SwitchRow
+            id="ai-proactive-coach"
+            className="mt-4"
+            checked={aiProactiveCoach}
+            onChange={onAiProactiveCoachChange}
+            label={pl.coachSettingsProactive}
+            description={pl.coachSettingsProactiveDesc}
           />
+        </div>
+      )}
+
+      {/* BYOK — advanced: own provider key, overrides hosted AI (Pro only) */}
+      {pro && (
+      <>
+      <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-4">
+        <p className="sr-text-overline text-[var(--sr-text-muted)]">
+          {pl.aiCoachSubsectionByok}
+          <InfoHint text={pl.aiCoachConnectionHint} className="ml-1.5" />
+        </p>
+
+        <div className="mt-3">
+          <p className="sr-text-overline text-[var(--sr-text-muted)]">
+            {pl.aiCoachSubsectionProvider}
+            <InfoHint text={providerHint} className="ml-1.5" />
+          </p>
+          <div className="mt-2">
+            <SegmentedControl
+              stretch
+              value={(() => {
+                if (!baseUrlDraft || baseUrlDraft === AI_PRESETS.openai.baseUrl) return 'openai'
+                if (baseUrlDraft === AI_PRESETS.gemini.baseUrl) return 'gemini'
+                if (baseUrlDraft === AI_PRESETS.groq.baseUrl) return 'groq'
+                return 'custom'
+              })()}
+              onChange={(v) => {
+                const preset = AI_PRESETS[v as keyof typeof AI_PRESETS]
+                if (preset) {
+                  setBaseUrlDraft(preset.baseUrl)
+                  setModelDraft(preset.model)
+                }
+              }}
+              options={[
+                { value: 'openai', label: pl.aiProviderOpenai },
+                { value: 'gemini', label: pl.aiProviderGemini },
+                { value: 'groq', label: pl.aiProviderGroq },
+                { value: 'custom', label: pl.aiProviderCustom },
+              ]}
+            />
+          </div>
         </div>
       </div>
 
       {/* Connection — API key, model, base URL (only for custom provider) */}
-      <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-4">
-        <p className="sr-text-overline text-[var(--sr-text-muted)]">
-          {pl.aiCoachSubsectionConnection}
-          <InfoHint text={pl.aiCoachConnectionHint} className="ml-1.5" />
-        </p>
+      <div className="mt-4">
         <TextField
           id="ai-api-key"
           className="mt-3"
@@ -384,44 +504,6 @@ export function AiCoachSection({
         )}
       </div>
 
-      {/* Options — reasoning effort (Gemini only) + proactive coach */}
-      {connected && (
-        <div className="mt-5 border-t border-[var(--sr-border-subtle)] pt-4">
-          <p className="sr-text-overline text-[var(--sr-text-muted)]">
-            {pl.aiCoachSubsectionOptions}
-          </p>
-
-          {baseUrlDraft.includes('googleapis') && (
-            <div className="mt-3">
-              <p className="text-sm font-medium text-[var(--sr-text-secondary)]">
-                {pl.aiReasoningEffortLabel}
-                <InfoHint text={pl.aiReasoningEffortHint} className="ml-1.5" />
-              </p>
-              <SegmentedControl
-                className="mt-2"
-                value={aiReasoningEffort}
-                onChange={(v) => onAiReasoningEffortChange(v as 'auto' | 'low' | 'medium' | 'high')}
-                options={[
-                  { value: 'auto', label: pl.aiReasoningEffortAuto },
-                  { value: 'low', label: pl.aiReasoningEffortLow },
-                  { value: 'medium', label: pl.aiReasoningEffortMedium },
-                  { value: 'high', label: pl.aiReasoningEffortHigh },
-                ]}
-              />
-            </div>
-          )}
-
-          <SwitchRow
-            id="ai-proactive-coach"
-            className="mt-4"
-            checked={aiProactiveCoach}
-            onChange={onAiProactiveCoachChange}
-            label={pl.coachSettingsProactive}
-            description={pl.coachSettingsProactiveDesc}
-          />
-        </div>
-      )}
-
       {/* Save */}
       <div className="mt-5">
         <Button
@@ -433,6 +515,14 @@ export function AiCoachSection({
           {pl.aiCoachConfigSave}
         </Button>
       </div>
+      </>
+      )}
+
+      <ProTeaser
+        open={showProTeaser}
+        onClose={() => setShowProTeaser(false)}
+        feature="hostedAi"
+      />
     </>
   )
 }

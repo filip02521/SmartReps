@@ -7,6 +7,12 @@ import { PageSection } from '@/components/ui/PageSection'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { Sheet } from '@/components/ui/Sheet'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'
+import { usePlanBadgeState, useProFeatures } from '@/lib/subscription'
+import { canExport, canWebPush, type ProFeature } from '@/lib/feature-gating'
+import { ProTeaser } from '@/components/ux/ProTeaser'
+import { canUseManagedAi } from '@/lib/ai/managed-client'
+import { PlanStatusCard } from '@/components/pro/PlanStatusCard'
 import { ProfileAchievementsSection } from '@/components/achievements/ProfileAchievementsSection'
 import { ImportBackupSheet } from '@/components/profile/ImportBackupSheet'
 import { SettingsSheet } from '@/components/profile/SettingsSheet'
@@ -54,6 +60,9 @@ function applyHighContrast(on: boolean) {
 
 export default function ProfilePage() {
   const { settings, setSettings } = useAppStore()
+  const { loggedIn } = useSupabaseAuth()
+  const pro = useProFeatures()
+  const planState = usePlanBadgeState()
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const navigate = useNavigate()
   const [email, setEmail] = useState<string | null>(null)
@@ -68,6 +77,7 @@ export default function ProfilePage() {
   const [showImportSheet, setShowImportSheet] = useState(false)
   const [clearingLocal, setClearingLocal] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [proTeaserFeature, setProTeaserFeature] = useState<ProFeature | null>(null)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [showFollowersSheet, setShowFollowersSheet] = useState(false)
   const [showFollowingSheet, setShowFollowingSheet] = useState(false)
@@ -295,16 +305,38 @@ export default function ProfilePage() {
         <ProfileStats />
       </div>
 
-      {/* AI Coach — promoted from settings to profile */}
+      {/* Current plan — free sees "Zobacz Pro", pro sees manage. Details on /pro. */}
+      <div className="mt-6">
+        <PlanStatusCard
+          action={
+            <Button
+              variant={pro ? 'secondary' : 'primary'}
+              size="sm"
+              onClick={() => navigate('/pro?source=profile')}
+            >
+              {pro
+                ? pl.proManageSubscription
+                : planState === 'expired'
+                  ? pl.proRenew
+                  : pl.proUpgradeCta}
+            </Button>
+          }
+        />
+      </div>
+
+      {/* AI Coach — promoted from settings to profile. Connected = BYOK key
+          configured OR hosted SmartReps AI available (logged-in session). */}
       <div className="mt-6">
         <AiCoachCard
-          connected={!!(settings.aiApiKey ?? '').trim()}
+          connected={pro && (!!(settings.aiApiKey ?? '').trim() || canUseManagedAi(loggedIn === true, pro))}
+          hosted={!(settings.aiApiKey ?? '').trim() && canUseManagedAi(loggedIn === true, pro)}
+          requiresPro={!pro}
           onOpenSettings={() => setShowSettings(true)}
         />
       </div>
 
-      {/* AI Coach history — only when AI is actually connected */}
-      {(settings.aiApiKey ?? '').trim() && (
+      {/* AI Coach history — only when AI is actually connected (Pro) */}
+      {(pro && (!!(settings.aiApiKey ?? '').trim() || canUseManagedAi(loggedIn === true, pro))) && (
         <div className="mt-3">
           <AiCoachHistory />
         </div>
@@ -402,6 +434,11 @@ export default function ProfilePage() {
         onPushChange={(on) => {
           void (async () => {
             if (on) {
+              // Web Push is Pro-only — show the paywall instead of subscribing.
+              if (!canWebPush()) {
+                setProTeaserFeature('webPush')
+                return
+              }
               const ok = await subscribeWebPush(settings.reminderHour)
               if (!ok) {
                 if (typeof Notification !== 'undefined') {
@@ -445,8 +482,11 @@ export default function ProfilePage() {
         }}
         showDeleteAccount={isSupabaseConfigured && !!email}
         onImport={() => setShowImportSheet(true)}
+        // JSON backup is free (data portability); CSV stays Pro.
         onExportJson={() => void exportJsonBackup()}
-        onExportCsv={() => void exportCsvBackup()}
+        onExportCsv={() =>
+          canExport() ? void exportCsvBackup() : setProTeaserFeature('export')
+        }
         onClearLocal={() => setShowClearConfirm(true)}
         onDeleteAccount={() => {
           setDeleteConfirmText('')
@@ -454,6 +494,12 @@ export default function ProfilePage() {
         }}
       />
       )}
+
+      <ProTeaser
+        open={proTeaserFeature != null}
+        onClose={() => setProTeaserFeature(null)}
+        feature={proTeaserFeature ?? undefined}
+      />
 
       {showLogoutConfirm && (
         <ConfirmSheet

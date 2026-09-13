@@ -14,7 +14,14 @@ vi.mock('@/i18n/pl', () => ({
   },
 }))
 
-import { parseJsonResponse, AiApiError } from '../ai/ai-client'
+import {
+  parseJsonResponse,
+  AiApiError,
+  isOpenAiReasoningModel,
+  isGemini3Model,
+  canDisableReasoning,
+  resolveReasoningEffort,
+} from '../ai/ai-client'
 
 describe('parseJsonResponse', () => {
   it('parses clean JSON', () => {
@@ -93,5 +100,44 @@ describe('parseJsonResponse', () => {
       '{"items": [1, [2, 3], 4]}',
     )
     expect(result.items).toEqual([1, [2, 3], 4])
+  })
+})
+
+describe('isOpenAiReasoningModel', () => {
+  it('detects o-series and gpt-5/6 models', () => {
+    expect(isOpenAiReasoningModel('o1')).toBe(true)
+    expect(isOpenAiReasoningModel('o3-mini')).toBe(true)
+    expect(isOpenAiReasoningModel('o4-mini')).toBe(true)
+    expect(isOpenAiReasoningModel('gpt-5-mini')).toBe(true)
+    expect(isOpenAiReasoningModel('gpt-5.4-nano')).toBe(true)
+    expect(isOpenAiReasoningModel('gpt-6-astra')).toBe(true)
+  })
+
+  it('rejects classic chat models and other providers', () => {
+    expect(isOpenAiReasoningModel('gpt-4o-mini')).toBe(false)
+    expect(isOpenAiReasoningModel('gpt-4.1-mini')).toBe(false)
+    expect(isOpenAiReasoningModel('gemini-2.5-flash-lite')).toBe(false)
+    expect(isOpenAiReasoningModel('llama-3.3-70b-versatile')).toBe(false)
+  })
+})
+
+describe('resolveReasoningEffort — model coverage', () => {
+  it('auto disables reasoning only on Gemini 2.5 Flash', () => {
+    expect(resolveReasoningEffort('gemini-2.5-flash-lite', 'auto')).toBe('none')
+    expect(resolveReasoningEffort('gemini-2.5-flash', 'auto')).toBe('none')
+    expect(resolveReasoningEffort('gpt-5-mini', 'auto')).toBeUndefined()
+    expect(resolveReasoningEffort('gpt-4o-mini', 'auto')).toBeUndefined()
+  })
+
+  it('explicit preference reaches Gemini and OpenAI reasoning models', () => {
+    expect(resolveReasoningEffort('gpt-5-mini', 'low')).toBe('low')
+    expect(resolveReasoningEffort('gemini-2.5-pro', 'high')).toBe('high')
+    expect(resolveReasoningEffort('gpt-4o-mini', 'low')).toBeUndefined()
+  })
+
+  it('never sends none to models that cannot disable reasoning', () => {
+    expect(canDisableReasoning('gpt-5-mini')).toBe(false)
+    expect(canDisableReasoning('gemini-3-flash')).toBe(false)
+    expect(isGemini3Model('gemini-3-flash')).toBe(true)
   })
 })

@@ -181,6 +181,48 @@ export async function getWeeklyChallengeParticipantCount(
 }
 
 /**
+ * Number of DISTINCT users participating in any active challenge this week.
+ * Returns null when the RPC isn't deployed yet (migration 065) so callers
+ * can fall back to summing per-challenge counts.
+ */
+export async function getActiveWeekParticipantCount(): Promise<number | null> {
+  const { data, error } = await supabase.rpc('get_active_weekly_participant_count')
+  if (error) return null
+  const n = Number(data)
+  return Number.isFinite(n) ? n : null
+}
+
+/** Monthly leaderboard row — matches get_monthly_challenge_leaderboard RPC. */
+export type MonthlyLeaderboardEntry = {
+  user_id: string
+  display_name: string
+  /** Points: 100 per completed challenge + overage bonus; partial = % of target. */
+  points: number
+  /** How many challenges this user completed in the month. */
+  completed: number
+  rank: number
+}
+
+/**
+ * Monthly cross-week leaderboard (migration 066).
+ * Returns null when the RPC isn't deployed yet so callers can hide the view.
+ * @param monthFirstDay optional first-of-month date (YYYY-MM-DD); defaults to current month.
+ */
+export async function getMonthlyChallengeLeaderboard(
+  monthFirstDay?: string,
+  limit = 50,
+): Promise<MonthlyLeaderboardEntry[] | null> {
+  const { data, error } = await supabase.rpc('get_monthly_challenge_leaderboard', {
+    p_month: monthFirstDay ?? null,
+    p_limit: limit,
+  })
+  if (error) return null
+  const raw = safeJsonParse(data)
+  if (!Array.isArray(raw)) return []
+  return raw as MonthlyLeaderboardEntry[]
+}
+
+/**
  * Ensure challenges exist for the current week.
  * Calls the Supabase RPC which creates them if none exist (idempotent).
  */
@@ -192,22 +234,23 @@ export async function ensureWeeklyChallenge(): Promise<boolean> {
 
 // ── Progress calculation (client-side, anti-cheat) ──
 
-/**
- * Get completed sessions for a program within a date range.
- * Uses the Dexie compound index [program+status] for fast lookup.
- */
-async function getCompletedSessionsInRange(
+/** All completed sessions across programs — fetched once per card load and
+ *  shared across per-challenge calculations (previously each challenge did
+ *  its own full-table scan → ~24 scans for 12 challenges). */
+async function getAllCompletedSessions(): Promise<LocalWorkoutSession[]> {
+  return db.workoutSessions.where('status').equals('completed').toArray()
+}
+
+function sessionsInRange(
+  sessions: LocalWorkoutSession[],
   program: Program,
   startsAt: string,
   endsAt: string,
-): Promise<LocalWorkoutSession[]> {
+): LocalWorkoutSession[] {
   const startMs = new Date(startsAt).getTime()
   const endMs = new Date(endsAt).getTime()
-  const all = await db.workoutSessions
-    .where('[program+status]')
-    .equals([program, 'completed'])
-    .toArray()
-  return all.filter((s) => {
+  return sessions.filter((s) => {
+    if (s.program !== program) return false
     const t = new Date(s.startedAt).getTime()
     return t >= startMs && t < endMs
   })
@@ -220,13 +263,11 @@ async function getCompletedSessionsInRange(
  */
 export async function calculateChallengeProgress(
   challenge: WeeklyChallenge,
+  allSessions?: LocalWorkoutSession[],
 ): Promise<ChallengeProgress> {
   const program = challenge.program as Program
-  const sessions = await getCompletedSessionsInRange(
-    program,
-    challenge.starts_at,
-    challenge.ends_at,
-  )
+  const all = allSessions ?? (await getAllCompletedSessions())
+  const sessions = sessionsInRange(all, program, challenge.starts_at, challenge.ends_at)
   const target = challenge.target_reps
 
   let current = 0
@@ -243,8 +284,9 @@ export async function calculateChallengeProgress(
     }
 
     case 'consistency': {
-      // Count completed sessions this week
-      current = sessions.length
+      // Count completed sessions this week — a session with no recorded
+      // sets carries no training signal and must not count.
+      current = sessions.filter((s) => s.setResults.length > 0).length
       break
     }
 
@@ -257,9 +299,7 @@ export async function calculateChallengeProgress(
     }
 
     case 'personal_best': {
-      // Check if any session this week has a higher max than previous sessions
-      // (excluding this week's sessions). The "current" is the highest single-set
-      // actual from this week's sessions.
+      // Progress = how many reps above the pre-week single-set record.
       let maxThisWeek = 0
       for (const s of sessions) {
         for (const r of s.setResults) {
@@ -267,22 +307,20 @@ export async function calculateChallengeProgress(
           if (actual > maxThisWeek) maxThisWeek = actual
         }
       }
-      // Get previous max (from sessions before this week)
-      const prevSessions = await db.workoutSessions
-        .where('[program+status]')
-        .equals([program, 'completed'])
-        .toArray()
       const weekStartMs = new Date(challenge.starts_at).getTime()
       let prevMax = 0
-      for (const s of prevSessions) {
+      for (const s of all) {
+        if (s.program !== program) continue
         if (new Date(s.startedAt).getTime() >= weekStartMs) continue
         for (const r of s.setResults) {
           const actual = r.actual ?? 0
           if (actual > prevMax) prevMax = actual
         }
       }
-      // Progress = how many reps above previous max (0 if not beaten)
-      current = maxThisWeek > prevMax ? maxThisWeek - prevMax : 0
+      // No baseline record → nothing to beat. The first week establishes
+      // the record instead of auto-completing the challenge (a raw max
+      // value on the leaderboard would be incomparable to others' deltas).
+      current = prevMax > 0 && maxThisWeek > prevMax ? maxThisWeek - prevMax : 0
       break
     }
   }
@@ -306,20 +344,25 @@ export async function calculateChallengeProgress(
  */
 export async function calculateAllChallengeProgress(
   challenges: WeeklyChallenge[],
+  allSessions?: LocalWorkoutSession[],
 ): Promise<ChallengeProgress[]> {
-  return Promise.all(challenges.map((c) => calculateChallengeProgress(c)))
+  const all = allSessions ?? (await getAllCompletedSessions())
+  return Promise.all(challenges.map((c) => calculateChallengeProgress(c, all)))
 }
 
 /**
  * Auto-submit progress for all challenges where the user has made progress.
  * Called when the challenge card loads or after a session is completed.
  * Only submits if progress > 0 to avoid creating empty entries.
+ * Returns the ids of challenges whose progress was successfully submitted,
+ * so callers can skip re-submitting unchanged values.
  */
 export async function autoSubmitChallengeProgress(
   challenges: WeeklyChallenge[],
   progress: ChallengeProgress[],
   displayName: string,
-): Promise<void> {
+): Promise<Set<string>> {
+  const submitted = new Set<string>()
   const submissions = challenges.map((ch, i) => {
     const p = progress[i]
     if (!p || p.current <= 0) return null
@@ -327,12 +370,15 @@ export async function autoSubmitChallengeProgress(
       challengeId: ch.id,
       progressValue: p.current,
       displayName,
-    }).catch(() => {
-      // Non-critical — leaderboard just won't update
     })
+      .then(() => submitted.add(ch.id))
+      .catch(() => {
+        // Non-critical — leaderboard just won't update
+      })
   }).filter(Boolean)
 
   await Promise.all(submissions)
+  return submitted
 }
 
 // ── Personalized challenge selection ──
@@ -356,15 +402,14 @@ export type ChallengeContext = {
  */
 export async function getChallengeContext(
   challenge: WeeklyChallenge,
+  allSessionsInput?: LocalWorkoutSession[],
 ): Promise<ChallengeContext> {
   const program = challenge.program as Program
   const weekStartMs = new Date(challenge.starts_at).getTime()
   const fourWeeksAgoMs = weekStartMs - 4 * 7 * 86400000
 
-  const allSessions = await db.workoutSessions
-    .where('[program+status]')
-    .equals([program, 'completed'])
-    .toArray()
+  const allSessions = (allSessionsInput ?? (await getAllCompletedSessions()))
+    .filter((s) => s.program === program)
 
   // Sessions in the last 4 weeks (before this week)
   const recentSessions = allSessions.filter((s) => {
@@ -372,33 +417,47 @@ export async function getChallengeContext(
     return t >= fourWeeksAgoMs && t < weekStartMs
   })
 
+  // Average is per ACTIVE week — dividing by 4 flat would understate the
+  // typical week for users who started training recently (e.g. 1 week of
+  // data → total/4 → difficulty mislabeled "hard").
+  const activeWeeks = new Set(
+    recentSessions.map((s) => {
+      const d = new Date(s.startedAt)
+      const day = d.getDay() === 0 ? 7 : d.getDay() // Monday-start week
+      const monday = new Date(d)
+      monday.setDate(d.getDate() - day + 1)
+      return `${monday.getFullYear()}-${monday.getMonth()}-${monday.getDate()}`
+    }),
+  )
+  const divisor = Math.max(1, activeWeeks.size)
+
   let recentAverage = 0
   let previousMax = 0
 
   switch (challenge.challenge_type) {
     case 'volume': {
-      // Average weekly reps over last 4 weeks
+      // Average weekly reps over the last 4 weeks with activity
       let totalReps = 0
       for (const s of recentSessions) {
         for (const r of s.setResults) {
           totalReps += Math.max(0, r.actual ?? 0)
         }
       }
-      recentAverage = recentSessions.length > 0 ? Math.round(totalReps / 4) : 0
+      recentAverage = recentSessions.length > 0 ? Math.round(totalReps / divisor) : 0
       break
     }
     case 'consistency': {
-      // Average weekly sessions over last 4 weeks
-      recentAverage = Math.round(recentSessions.length / 4)
+      // Average weekly sessions over the last 4 weeks with activity
+      recentAverage = recentSessions.length > 0 ? Math.round(recentSessions.length / divisor) : 0
       break
     }
     case 'precision': {
-      // Average weekly perfect sessions over last 4 weeks
+      // Average weekly perfect sessions over the last 4 weeks with activity
       let perfectCount = 0
       for (const s of recentSessions) {
         if (s.setResults.length > 0 && allSetsPassed(s.setResults)) perfectCount++
       }
-      recentAverage = Math.round(perfectCount / 4)
+      recentAverage = perfectCount > 0 ? Math.round(perfectCount / divisor) : 0
       break
     }
     case 'personal_best': {
@@ -448,24 +507,16 @@ export type ScoredChallenge = {
 export async function scoreChallenges(
   challenges: WeeklyChallenge[],
   progress: ChallengeProgress[],
+  allSessions?: LocalWorkoutSession[],
 ): Promise<ScoredChallenge[]> {
   // Get recent sessions for activity scoring (last 2 weeks)
   const twoWeeksAgoMs = Date.now() - 14 * 86400000
-  const allRecentSessions = await db.workoutSessions
-    .where('status')
-    .equals('completed')
-    .toArray()
+  const all = allSessions ?? (await getAllCompletedSessions())
   const recentByProgram = new Map<Program, number>()
-  for (const s of allRecentSessions) {
+  for (const s of all) {
     if (new Date(s.startedAt).getTime() < twoWeeksAgoMs) continue
     const prog = s.program as Program
     recentByProgram.set(prog, (recentByProgram.get(prog) ?? 0) + 1)
-  }
-
-  // Track type counts for diversity penalty
-  const typeCounts = new Map<ChallengeType, number>()
-  for (const ch of challenges) {
-    typeCounts.set(ch.challenge_type, (typeCounts.get(ch.challenge_type) ?? 0) + 1)
   }
 
   const scored: ScoredChallenge[] = []
@@ -473,7 +524,7 @@ export async function scoreChallenges(
   for (let i = 0; i < challenges.length; i++) {
     const ch = challenges[i]
     const p = progress[i]
-    const context = await getChallengeContext(ch)
+    const context = await getChallengeContext(ch, all)
     const prog = ch.program as Program
 
     let score = 0
@@ -494,10 +545,6 @@ export async function scoreChallenges(
       case 'hard': score += 0.5; break
     }
 
-    // Type diversity penalty (if multiple challenges have same type, penalize duplicates)
-    const typeCount = typeCounts.get(ch.challenge_type) ?? 1
-    if (typeCount > 1) score -= 1
-
     scored.push({ challenge: ch, score, context, recommended: false })
   }
 
@@ -515,12 +562,35 @@ export async function scoreChallenges(
 /**
  * Select the top N most relevant challenges for the user.
  * Limits to 3 to keep the dashboard focused.
+ * Greedy type diversity: pass 1 takes the best-scored challenge of each
+ * type (so the top list isn't 3× "volume" across programs); pass 2 fills
+ * any remaining slots by score.
  */
 export async function selectRelevantChallenges(
   challenges: WeeklyChallenge[],
   progress: ChallengeProgress[],
   limit = 3,
+  allSessions?: LocalWorkoutSession[],
 ): Promise<ScoredChallenge[]> {
-  const scored = await scoreChallenges(challenges, progress)
-  return scored.slice(0, limit)
+  const scored = await scoreChallenges(challenges, progress, allSessions)
+
+  const picked: ScoredChallenge[] = []
+  const seenTypes = new Set<ChallengeType>()
+  for (const s of scored) {
+    if (picked.length >= limit) break
+    if (seenTypes.has(s.challenge.challenge_type)) continue
+    seenTypes.add(s.challenge.challenge_type)
+    picked.push(s)
+  }
+  for (const s of scored) {
+    if (picked.length >= limit) break
+    if (!picked.includes(s)) picked.push(s)
+  }
+
+  // Recompute `recommended` — the top-scored challenge may not be picked
+  // first in the diversified list.
+  for (const s of scored) s.recommended = false
+  if (picked.length > 0) picked[0].recommended = true
+
+  return picked
 }

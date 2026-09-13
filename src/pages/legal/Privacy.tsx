@@ -23,6 +23,9 @@ export default function PrivacyPage() {
           <strong>{pl.privacyBodyCommunity}</strong> {pl.privacyBodyCommunityDetail}
         </p>
         <p>
+          <strong>{pl.privacyBodyAi}</strong> {pl.privacyBodyAiDetail}
+        </p>
+        <p>
           <strong>{pl.privacyBodyDelete}</strong> {pl.privacyBodyDeleteDetail}
         </p>
         <p>{pl.privacyBodyLocal}</p>

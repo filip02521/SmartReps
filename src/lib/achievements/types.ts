@@ -67,6 +67,18 @@ export type AchievementId =
   | 'legend_community'
   // ── New: Secret ──
   | 'secret_weekend'
+  // ── New: Squats + triple threat ──
+  | 'triple_threat'
+  | 'squat_specialist'
+  | 'first_squat'
+  // ── New: Perfect form + speed ──
+  | 'perfect_form'
+  | 'speed_demon'
+  // ── New: Cycle master + social ──
+  | 'cycle_master'
+  | 'social_butterfly'
+  // ── New: Comeback intermediate ──
+  | 'comeback_intermediate'
 
 /** Tier definition for progressive achievements. */
 export type AchievementTier = {
@@ -173,6 +185,16 @@ export type AchievementSnapshot = {
   aiInsightCount: number
   /** Number of completed sessions on Saturday or Sunday. */
   weekendSessionCount: number
+  /** Number of completed builtin sessions that were short (<15 min) and passed with ≥3 sets. */
+  speedSessionCount: number
+  /** Max gap (days) between consecutive sessions that was followed by a rebound (≥2 sessions in 21d). */
+  comebackMaxGapDays: number
+  /** Distinct cycles closed per builtin program (pushups/pullups/squats). */
+  cyclesClosedByProgram: {
+    pushups: number
+    pullups: number
+    squats: number
+  }
   impact: AuthorImpactStats
   /** Earliest unlock hint timestamps by achievement id (ISO) */
   unlockAtHints: Partial<Record<AchievementId, string>>

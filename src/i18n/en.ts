@@ -35,13 +35,6 @@ export const en: Translation = {
     const label = previous === 1 ? '1 workout' : `${previous} workouts`
     return `previously ${label}`
   },
-  /** @deprecated Prefer homeActivityRepsEarlier — kept for any residual imports */
-  homeActivityRepsCompare: (current: number, previous: number) =>
-    `${current} reps · previously ${previous}`,
-  homeActivitySessionsCompare: (current: number, previous: number) => {
-    const label = (n: number) => (n === 1 ? '1 workout' : `${n} workouts`)
-    return `${label(current)} · previously ${previous}`
-  },
   homeActivityInsightsAria: 'Activity trend',
   homeProgramsQuickTitle: 'Programs overview',
   homeProgramsQuickHint: 'Tap to jump to the full program card.',
@@ -275,6 +268,17 @@ export const en: Translation = {
   est1rmDate: 'Date',
   est1rmEmpty: 'No data — log sets with weight to see estimated 1RM.',
   est1rmUnit: 'kg',
+  // Goals & forecasts (Pro) — linear regression on weekly bests
+  forecastTitle: 'Goals & forecasts',
+  forecastHint: 'Your next goal and predicted date based on your rate of progress.',
+  forecastEmpty: 'Not enough data for forecasts — finish a few workouts and we’ll show predicted goal dates.',
+  forecastRepsValue: (n: number) => `${n} reps`,
+  forecastDurationValue: (sec: number) => `${sec} s`,
+  forecastProgress: (current: string, goal: string) => `${current} → goal: ${goal}`,
+  forecastProgressAria: (name: string, pct: number) => `${name}: ${pct}% of the way to goal`,
+  forecastWeeklyGain: (gain: string) => `+${gain}/wk`,
+  forecastFlat: 'Flat trend',
+  forecastInsufficient: 'Not enough data',
   // Volume per set
   volumePerSet: 'Volume',
   volumePerSetHint: 'reps × kg',
@@ -750,6 +754,10 @@ export const en: Translation = {
   summaryHeroFail: 'Try again',
   cycleComplete: 'Cycle complete!',
   cycleCompleteHint: 'After rest, take a max test to pick the next level.',
+  cycleLevelUpTitle: 'Cycle complete — new level!',
+  cycleLevelUpBody: (oldCycle: string, newCycle: string) =>
+    `Moving from ${oldCycle} to ${newCycle}. Next workout starts at day 1.`,
+  cycleLevelUpMotivation: 'Keep it up — progression is the key to strength!',
   goalAchieved: 'Goal achieved!',
   totalReps: 'Total',
   nextWorkoutIn: (days: number) =>
@@ -1495,6 +1503,8 @@ export const en: Translation = {
 
   // Common
   loading: 'Loading\u2026',
+  homeSyncingData: 'Downloading your data from the cloud\u2026',
+  homeSyncingDataHint: 'This will take a moment — your progress and plans will appear automatically.',
   cancel: 'Cancel',
   confirm: 'Confirm',
   close: 'Close',
@@ -1739,7 +1749,6 @@ export const en: Translation = {
   aiCoachReady: 'Ready to help',
   aiCoachGreeting: 'Hi! I\'m your AI coach. I\'ll analyze your workouts and help you train smarter — based on research into volume, frequency, and progressive overload.',
   aiCoachGreetingPlan: 'Describe your goal and I\'ll build a training plan tailored to your level, equipment, and schedule. I apply volume landmarks (MEV–MRV), 2x/week frequency, and progressive overload.',
-  aiCoachNoApiKey: 'To get started, set your API key in Profile. The key stays on your device — it never goes to the cloud.',
   aiCoachErrorRetry: 'Let\'s try again — check your API key or connection.',
   aiCoachAnalysisDone: 'Done! Here\'s what I see in your workouts.',
   aiCoachPlanReady: 'Plan ready! Review it below and import if it fits.',
@@ -1760,6 +1769,19 @@ export const en: Translation = {
   aiCoachConfigTesting: 'Testing…',
   aiCoachConfigTestOk: 'Connection works — coach ready',
   aiCoachConfigTestFail: 'Failed to connect — check key and model',
+  // ── Hosted AI (SmartReps-managed key) ──
+  aiCoachNeedsLogin: 'Sign in to use the AI Coach — or add your own API key in settings.',
+  aiCoachHostedActive: 'SmartReps AI — active',
+  aiCoachHostedDesc: 'AI Coach runs on the SmartReps key — nothing to configure.',
+  aiCoachHostedQuota: (remaining: number, limit: number) => `Remaining today: ${remaining} of ${limit} requests`,
+  aiCoachHostedLoginHint: 'Sign in to use the built-in AI Coach — no API key required.',
+  aiCoachHostedByokNote: 'You are using your own API key — requests do not count against the SmartReps AI limit.',
+  aiCoachSubsectionByok: 'Your own API key (advanced)',
+  aiErrorSessionRequired: 'Sign in to use the AI Coach.',
+  aiErrorQuotaExceeded: 'Daily AI limit reached. Try again tomorrow.',
+  aiErrorProRequired: 'AI features require SmartReps Pro.',
+  aiCoachProRequired: 'AI Coach is part of SmartReps Pro — post-workout insights, weekly report, progress analysis and the plan generator.',
+  aiUnlockPro: 'Unlock AI with Pro',
   // ── Proactive Coach: smart rest suggestions ──
   coachRestSuggestionFirstTime: 'First set of this exercise — do it solidly, quality over quantity.',
   coachRestSuggestionNewCombination: 'New day and set combination — do it solidly, feel the movement.',
@@ -1774,9 +1796,14 @@ export const en: Translation = {
   coachPostWorkoutLocalPrMulti: (count: number) => `${count} new records in one session — exceptional form! Take 2 days off.`,
   coachPostWorkoutLocalProgress: (delta: number) => `Progress by ${delta} reps — solid progression. Keep the pace.`,
   coachPostWorkoutLocalProgressAll: (delta: number, sets: number) => `Progress across all ${sets} sets (up to +${delta} reps) — excellent session!`,
-  coachPostWorkoutLocalDown: (delta: number) => `Down by ${delta} reps — maybe an off day. Check if you're cutting rest short.`,
+  coachPostWorkoutLocalDown: (delta: number) => `Down by ${delta} reps — possible fatigue. Take a full rest before your next session.`,
   coachPostWorkoutLocalUnchanged: 'No change vs last session — consider +1 rep or an extra set.',
   coachPostWorkoutLocalFailed: 'Failed session — it happens. Focus on clean form and try again after rest.',
+  coachPostWorkoutLocalFailedSets: (done: number, total: number) => `Failed session — ${done} of ${total} sets completed. It happens — rest up and go again.`,
+  coachPostWorkoutLocalMixed: 'Mixed session — some sets up, some down. Keep the target and a steady pace.',
+  coachPostWorkoutLocalStreak: (count: number) => `${count} sessions in a row with progress — consistency pays off. Keep it up!`,
+  coachPostWorkoutLocalMissed: (missed: number, total: number) => `${missed} of ${total} sets below target — not every session needs to be a record. Rest and come back stronger.`,
+  coachPostWorkoutLocalFirst: 'First logged result for this day — your baseline. The next sessions will show progress.',
   coachPostWorkoutGenerating: 'Coach is analyzing your session…',
   coachPostWorkoutDismiss: 'Dismiss',
   coachPostWorkoutDismissed: 'Insight dismissed',
@@ -1784,9 +1811,12 @@ export const en: Translation = {
   // ── Proactive Coach: plateau detector ──
   coachPlateauTitle: 'Plateau detected',
   coachPlateauBody: (programLabel: string, sessionCount: number, lastValue: number, bestValue: number, sessionsSinceBest: number) =>
-    `${programLabel}: ${sessionCount} sessions without progress (last: ${lastValue}, best: ${bestValue}, ${sessionsSinceBest} sessions ago). Consider a deload (−40% volume) or cycle change — Israetel's research suggests a lighter week after 3-4 weeks of stagnation.`,
+    `${programLabel}: ${sessionCount} sessions without progress (last ${lastValue}, best ${bestValue}${sessionsSinceBest > 0 ? ` — ${sessionsSinceBest} sessions ago` : ''}). Consider a deload (−40% volume) or a plan change.`,
+  coachPlateauBodyRegression: (programLabel: string, sessionCount: number, lastValue: number, bestValue: number) =>
+    `${programLabel}: ${sessionCount} sessions, result dropped to ${lastValue} (best ${bestValue}). Regression usually means under-recovery — plan a deload (−40% volume) or an extra rest day.`,
   coachPlateauCta: 'See coach recommendation',
-  coachPlateauTip: (programLabel: string) => `${programLabel}: 3 sessions without progress. Consider a deload (−40% volume) or cycle change.`,
+  coachPlateauTip: (programLabel: string) => `${programLabel}: 3 sessions without progress. Consider a deload (−40% volume) or a plan change.`,
+  coachPlateauTipRegression: (programLabel: string) => `${programLabel}: 3 sessions with declining results. Possible overreaching — consider a deload (−40% volume) or extra rest.`,
   // ── Proactive Coach: weekly report ──
   coachWeeklyReportTitle: 'Weekly summary',
   coachWeeklyReportEmpty: 'No workouts this week. Schedule a session for tomorrow — small steps build habits.',
@@ -1797,11 +1827,11 @@ export const en: Translation = {
   coachWeeklyReportCta: 'Open full analysis',
   coachWeeklyReportGenerating: 'Coach is preparing the report…',
   coachWeeklyReportDeloadSuggest: '4+ sessions/week for 4+ weeks — consider a deload week (−40% volume) for recovery.',
-  coachWeeklyReportLowFreq: '1 session/week is below MEV (10 sets/muscle group) — add 1-2 sessions for optimal hypertrophy.',
+  coachWeeklyReportLowFreq: 'Only 1 session this week — add 1-2 workouts to keep progressing and hold the habit.',
   coachWeeklyReportFatigue: 'Volume drop >10% — possible fatigue. Consider an extra rest day.',
   coachWeeklyReportGreat: 'Great week — volume and progress on track. Keep it up!',
   coachWeeklyReportFirstWeek: 'First week with workouts — no data to compare yet.',
-  coachWeeklyReportConnectAiHint: 'Connect AI for a detailed coach analysis',
+  coachWeeklyReportConnectAiHint: 'Detailed AI analysis with SmartReps Pro',
   coachWeeklyReportTrainingDays: (days: number) => `${days} training days.`,
   coachWeeklyReportPrs: (count: number) => count === 1 ? '1 new personal record!' : `${count} new personal records!`,
   coachWeeklyReportAvgDuration: (min: number) => `Avg ${min} min/session.`,
@@ -1827,7 +1857,22 @@ export const en: Translation = {
   coachWeeklyReportExpandHint: 'Tap to see the full coach analysis',
   coachWeeklyReportSectionAria: 'Weekly summary from AI coach',
   coachWeeklyReportConnectTitle: 'AI Coach — weekly reports',
-  coachWeeklyReportConnectHint: 'Connect your AI coach to receive personalized weekly summaries.',
+  coachWeeklyReportConnectHint: 'Unlock SmartReps Pro so your AI coach can prepare personalized weekly summaries.',
+  coachWeeklyReportConnectHintPro: 'AI Coach is ready — generate this week\'s report.',
+  coachWeeklyReportLoginHint: 'Sign in to use AI Coach.',
+  coachWeeklyReportDisabledHint: 'AI Coach is off — enable it in profile settings.',
+  coachWeeklyReportConfigHint: 'Configure your AI key in profile settings.',
+  coachWeeklyReportGenerateAria: 'Generate AI report for this week',
+  coachWeeklyReportUpgradeAi: 'Refresh report with AI analysis',
+  coachWeeklyReportEmptyHeader: 'This week is still open',
+  coachWeeklySectionStrengths: 'What went well',
+  coachWeeklySectionImprovements: 'To improve',
+  coachWeeklySectionRecommendation: 'Coach recommendation',
+  coachWeeklyChartAria: 'Reps per day of the week',
+  coachWeeklyTrendNone: '1st week',
+  coachWeeklyHeroSessions: (n: number) => (n === 1 ? '1 session' : `${n} sessions`),
+  coachWeeklyHeroDays: (n: number) => (n === 1 ? '1 day' : `${n} days`),
+  coachWeeklyHeroStreak: (n: number) => (n === 1 ? '1 wk streak' : `${n} wk streak`),
   coachWeeklyReportConnectCtaAria: 'Connect AI coach to receive weekly reports',
   coachSourceAi: 'AI',
   coachSourceLocal: 'Local',
@@ -1842,7 +1887,11 @@ export const en: Translation = {
   coachHistoryDismiss: 'Dismiss',
   coachHistoryDismissed: 'Recommendation dismissed',
   coachHistoryDismissedAgo: (when: string) => `Dismissed ${when}`,
-  coachHistoryCreatedAgo: (when: string) => when,
+  coachHistoryAgoNow: 'just now',
+  coachHistoryAgoMinutes: (n: number) => `${n} min ago`,
+  coachHistoryAgoHours: (n: number) => `${n} h ago`,
+  coachHistoryAgoDays: (n: number) => `${n} d ago`,
+  coachHistoryAgoWeeks: (n: number) => `${n} wk ago`,
   // ── Proactive Coach: settings ──
   coachSettingsProactive: 'Proactive coach',
   coachSettingsProactiveDesc: 'Automatic post-workout insights, weekly reports, and plateau detection. Uses your AI key.',
@@ -1864,6 +1913,7 @@ export const en: Translation = {
   profileCoachCardHint: 'Workout analysis and AI plans',
   profileCoachCardConnected: 'Connected',
   profileCoachCardOffline: 'Not connected',
+  aiModelProBadge: 'Pro model',
   profileCoachCardConfigure: 'Configure',
   profileAboutTitle: 'About',
   profileAboutHint: 'SmartReps — training that tracks progress',
@@ -2460,8 +2510,19 @@ export const en: Translation = {
   challengeDescPersonalBest: 'Beat your max test record',
   challengeProgressSessions: (current: number, target: number) => `${current} / ${target} workouts`,
   challengeProgressReps: (current: number, target: number) => `${current} / ${target} reps`,
+  challengeProgressCount: (current: number, target: number) => `${current} / ${target}`,
   challengeProgressPersonalBest: (current: number, _target: number) =>
-    current > 0 ? `Beat by ${current} reps` : 'Record not beaten',
+    current > 0 ? `Beat by ${current} ${current === 1 ? 'rep' : 'reps'}` : 'Record not beaten',
+  challengeNameRequired: 'Set a display name so your score appears on the leaderboard',
+  challengeSetNameCta: 'Set name',
+  challengeRecapBestSet: (n: number) => `Best set: ${n}`,
+  challengeViewChallenges: 'Challenges',
+  challengeViewMonthly: 'Monthly ranking',
+  challengePoints: (n: number) => `${n} pts`,
+  challengeMonthlyCompleted: (n: number) =>
+    `${n} completed challenge${n === 1 ? '' : 's'}`,
+  challengeMonthlyEmpty: 'Nobody has earned points this month yet',
+  challengeMonthlyHowPoints: '100 pts per completed challenge + bonus for exceeding the target',
   // ── Follow system ──
   followButton: 'Follow',
   followingButton: 'Following',
@@ -2558,6 +2619,7 @@ export const en: Translation = {
     `${likes === 1 ? '1 like' : `${likes} likes`} \u00B7 ${imports === 1 ? '1 import' : `${imports} imports`}`,
   communityAccountSwitchPending: 'Resolve the account switch first.',
   communityRateLimited: 'Publish limit reached — try tomorrow.',
+  communityPublishLimitReached: 'You reached the 3-publication limit. SmartReps Pro removes it.',
   communityErrorGeneric: 'Something went wrong. Try again.',
   communityCharCount: (n: number, max: number) => `${n}/${max}`,
   communityTrainedBadge: 'Trained',
@@ -2747,7 +2809,7 @@ export const en: Translation = {
   achievement_custom_creator_desc: 'More and more custom plans — your training library.',
   // \u2500\u2500 Both programs \u2500\u2500
   achievement_both_programs_title: 'All-around',
-  achievement_both_programs_desc: 'Pushups and pullups — both programs mastered.',
+  achievement_both_programs_desc: 'Pushups and pull-ups — both programs active.',
   // \u2500\u2500 Secret dawn \u2500\u2500
   achievement_secret_dawn_title: 'Early bird',
   achievement_secret_dawn_desc: 'Workouts at dawn — when the light wakes up with you.',
@@ -2802,6 +2864,38 @@ export const en: Translation = {
   // ── NEW: Secret — weekend ──
   achievement_secret_weekend_title: 'Weekends only',
   achievement_secret_weekend_desc: 'Workouts only on weekends — while others rest, you work.',
+
+  // ── NEW: Triple Threat — all 3 programs ──
+  achievement_triple_threat_title: 'Triple threat',
+  achievement_triple_threat_desc: 'Pushups, pull-ups, and squats — every program mastered.',
+
+  // ── NEW: Squat Specialist ──
+  achievement_squat_specialist_title: 'Squat specialist',
+  achievement_squat_specialist_desc: 'Consistent leg training builds the foundation of strength.',
+
+  // ── NEW: First Squat ──
+  achievement_first_squat_title: 'First squat',
+  achievement_first_squat_desc: 'You started your leg training journey.',
+
+  // ── NEW: Perfect Form ──
+  achievement_perfect_form_title: 'Perfect form',
+  achievement_perfect_form_desc: 'First custom plan workout where you hit every target.',
+
+  // ── NEW: Speed Demon ──
+  achievement_speed_demon_title: 'Speed demon',
+  achievement_speed_demon_desc: 'Short, intense workouts — under 15 minutes, full commitment.',
+
+  // ── NEW: Cycle Master ──
+  achievement_cycle_master_title: 'Cycle master',
+  achievement_cycle_master_desc: 'Completed a cycle in pushups, pull-ups, and squats — full dominance.',
+
+  // ── NEW: Social Butterfly ──
+  achievement_social_butterfly_title: 'Social butterfly',
+  achievement_social_butterfly_desc: 'You have followers and follow others — building the community.',
+
+  // ── NEW: Comeback Intermediate ──
+  achievement_comeback_intermediate_title: 'Back in the game',
+  achievement_comeback_intermediate_desc: 'A break from training? You came back stronger than before.',
 
   // ── Builtin exercise names (used in plan-resolver, workout-analyzer) ──
   builtinExercisePushups: 'Pushups',
@@ -2942,6 +3036,9 @@ export const en: Translation = {
   privacyBodyCommunity: 'Community catalog:',
   privacyBodyCommunityDetail:
     'when publishing a plan, we store a workout snapshot, author display name, tags, and metadata (e.g. likes and imports count) in the cloud. Importing and liking require an account. The catalog does not expose your email or private drafts.',
+  privacyBodyAi: 'AI Coach:',
+  privacyBodyAiDetail:
+    'AI features (post-workout insights, weekly report, history analysis, plan generator) send anonymized workout data (sets, reps, RPE/RIR) to an external AI provider. In SmartReps AI mode, requests go through our server-side function (the provider key never leaves the server, and daily requests are capped per account). If you use your own API key (BYOK), requests go directly from your device to your chosen provider and the key stays on your device only. We never send your email, name, or other personal data to the AI provider — only training statistics.',
   privacyBodyDelete: 'Account deletion:',
   privacyBodyDeleteDetail:
     'a logged-in user can permanently delete their cloud account in Profile (progress, sessions, push subscriptions, community publications, likes, imports, and reports linked to the account). Account deletion does not automatically delete local data — you can clear it separately. We recommend downloading a backup before deletion.',
@@ -3004,7 +3101,14 @@ Key principles you follow:
 7. SAFETY:
    - Never suggest high-injury-risk exercises without proper preparation
    - Consider experience level and available equipment
-   - Always start with a warm-up (5-10 min) — do not count toward volume`,
+   - Always start with a warm-up (5-10 min) — do not count toward volume
+   - Never diagnose injuries or health conditions — when you suspect a problem, suggest rest or a deload, not a diagnosis
+
+8. DATA CONTEXT:
+   - The landmarks above assume classic hypertrophy training — treat them as directional for bodyweight, endurance, or general-fitness work
+   - Bodyweight sets (push-ups, pull-ups) are less taxing than barbell sets — don't alarm users over lower numbers
+   - When data is scarce (<8 sessions or <4 weeks), explicitly state the conclusions are preliminary
+   - Every suggestion MUST reference concrete numbers from the user's data — generic advice without numbers is worthless`,
 
   aiPromptPlanSystem: 'You are a strength training expert. You generate workout plans in JSON format.',
   aiPromptPlanUser: (desc: string, days: number, experience: string, equipment: string, goal: string, duration?: string) =>
@@ -3159,6 +3263,8 @@ Analysis rules:
 4. Check if progression is appropriate.
 5. Consider intensity (RPE/RIR) — whether the user is training too hard or too light.
 6. Give 3-5 specific, practical suggestions (in English).
+7. Every suggestion and volume assessment MUST include concrete numbers from the data (e.g. "12 chest sets vs MEV 10") — generic advice without numbers is worthless.
+8. If there are fewer than 8 sessions or the period is under 4 weeks — note in the summary that conclusions are preliminary.
 
 Return JSON in this format (this is an example, replace values):
 {
@@ -3243,6 +3349,7 @@ Guidelines for the insight:
 - If progress is stalling (same reps across 2-3 sessions), suggest a concrete change: +1 rep, slightly longer rest, or a deload week
 - Reference RIR (reps in reserve) when relevant — if all sets felt easy (RIR 3+), suggest progression; if sets were grinded (RIR 0-1), suggest recovery
 - Be specific with numbers from the session, not generic advice
+- Never diagnose fatigue or injuries — when results drop, suggest recovery or a lighter session
 
 Respond in JSON: {"insight": "your 1-2 sentence insight here"}
 Write in English.`,
@@ -3262,6 +3369,44 @@ Write in English.`,
   aiPromptWeeklyProgramEntry: (program: string, sessions: number, reps: number) =>
     `${program}: ${sessions} sessions, ${reps} reps`,
   aiPromptWeeklyPrograms: (entries: string) => `BY PROGRAM: ${entries}`,
+
+  // ── Adaptive progression (Pro) — AI prompt + proposal sheet ──
+  aiPromptAdaptiveSystem: `You are a training-progression expert. Based on the plan's performance history (target vs actual, pass rate, RPE), propose a progression rule for the upcoming cycles.
+
+Rules:
+- Conservative: small steps (+1 to +3 reps, +1.25 to +5 kg, +5 to +15 s)
+- passRate ≥0.85 → progress up; 0.6–0.85 → maintain; <0.6 → reduce
+- High avgRpe (≥9) with low passRate → consider deloadEveryNCycles 3–4
+- If results are good, propose minimal changes — don't change for its own sake
+- perExercise only for exercises clearly deviating from the rest of the plan
+- Omit a field or set null = keep the current value; 0 = explicitly remove the delta
+- Account for currentProgression, currentDeload and currentOverride in the input — the proposal REPLACES the current per-exercise state
+
+Reply ONLY with valid JSON:
+{"enabled":true,"repsDelta":1,"weightKgDelta":null,"durationSecDelta":null,"deloadEveryNCycles":null,"perExercise":[{"exerciseId":"id","repsDelta":1}],"rationale":"1-2 sentences in English"}`,
+  planAdaptiveProgression: 'Adapt progression (AI)',
+  adaptiveTitle: 'Adaptive progression',
+  adaptiveAnalyzing: 'Analyzing recent workouts…',
+  adaptiveRationale: 'Why',
+  adaptiveCurrent: 'Current',
+  adaptiveProposed: 'Proposed',
+  adaptiveApply: 'Apply changes',
+  adaptiveKeep: 'Keep as is',
+  adaptiveNoChange: 'AI: current progression is well tuned — no changes.',
+  adaptiveInsufficient: (min: number) =>
+    `Not enough data — complete at least ${min} workouts of this plan so AI can evaluate progression.`,
+  adaptiveError: 'Could not generate a proposal. Please try again.',
+  adaptiveCooldown: (retryIn: string) =>
+    `Adaptive progression can be refreshed periodically — try again in ${retryIn}.`,
+  adaptiveApplied: 'Progression updated',
+  adaptiveDeltaReps: (v: number) => `${v > 0 ? '+' : ''}${v} reps/cycle`,
+  adaptiveDeltaWeight: (v: number) => `${v > 0 ? '+' : ''}${v} kg/cycle`,
+  adaptiveDeltaDuration: (v: number) => `${v > 0 ? '+' : ''}${v} s/cycle`,
+  adaptiveDeloadEvery: (n: number) => `Deload every ${n} cycles`,
+  adaptiveDeloadOff: 'Deload: off',
+  adaptiveProgressionOff: 'Progression: off',
+  adaptiveProgressionOn: 'Progression: on after each cycle',
+  adaptivePerExercise: 'Per-exercise changes',
 
   // ── AI weekly report full prompt ──
   aiPromptWeeklyReportBuild: (
@@ -3290,10 +3435,11 @@ Volume landmarks for reference (Israetel & Hoffmann):
 - MRV (Maximum Recoverable Volume): 20-30+ sets/muscle group/week
 
 Guidelines:
-- In "improvements", flag any muscle group below MEV (10 sets) as undertrained
-- In "improvements", flag any muscle group above MRV (30 sets) as potential overtraining
-- In "recommendation", suggest a concrete next-week adjustment based on volume vs landmarks
-- If streak is 0, encourage consistency; if streak is 4+ weeks, consider a deload
+- In "improvements", flag muscle groups clearly below MEV as undertrained — but account for training type: with bodyweight work, lower numbers are less alarming
+- Flag potential overtraining only when numbers are clearly above MRV
+- In "recommendation", suggest ONE concrete next-week adjustment with numbers (e.g. "add 2 back sets")
+- If streak is 0, encourage consistency; if the streak is 4+ weeks with high volume, consider a deload
+- If the week has no sessions — don't invent analysis, encourage getting back to training
 
 Respond in JSON:
 {
@@ -3365,6 +3511,14 @@ Write in English. Be specific and encouraging.`,
 
   // ── Pro subscription (freemium model) ──
   proBadge: 'PRO',
+  proBadgeTrial: 'TRIAL',
+  proBadgeTrialDays: (days: number) => `TRIAL · ${days} ${days === 1 ? 'day' : 'days'}`,
+  proBadgeExpired: 'Expired',
+  planBadgeAriaPro: 'You have SmartReps Pro — view plan details',
+  planBadgeAriaTrial: (days: number) =>
+    `Pro trial — ${days} ${days === 1 ? 'day' : 'days'} left. View plan details`,
+  planBadgeAriaExpired: 'Pro subscription expired — renew to restore Pro features',
+  planBadgeAriaFree: 'Free plan — see what SmartReps Pro offers',
   proUpgradeTitle: 'Upgrade to Pro',
   proUpgradeDescription: 'Unlock all premium features',
   proFeatureHostedAi: 'AI Coach without your own API key',
@@ -3372,37 +3526,44 @@ Write in English. Be specific and encouraging.`,
   proFeatureAdvancedAnalytics: 'Advanced stats and correlations',
   proFeatureCloudSync: 'Sync across devices',
   proFeatureWebPush: 'Workout push notifications',
-  proFeatureExport: 'Data export (CSV and JSON)',
+  proFeatureExport: 'Data export (CSV)',
   proFeatureUnlimitedPublications: 'Unlimited catalog publications',
   proFeatureVerifiedBadge: 'Verified author badge',
   proFeatureManualShowcase: 'Manual achievement showcase selection',
   proPlanMonthly: 'Monthly',
   proPlanAnnual: 'Annual',
   proPlanLifetime: 'Lifetime',
-  proPlanAnnualPerMonth: '/ mo',
   proPlanAnnualSavings: 'Save 44%',
   proTrialCta: 'Try 14 days free',
   proTrialHint: 'No commitment — cancel anytime',
+  proTrialStarted: 'Trial active! You have full Pro for 14 days',
+  proTrialStartError: 'Could not start the trial. Please try again.',
+  proCheckoutSuccess: 'Payment received — Pro will activate in a moment',
+  proCheckoutCanceled: 'Payment canceled — nothing changed',
+  proCheckoutError: 'Could not open checkout. Please try again.',
+  proPortalError: 'Could not open subscription management.',
+  proPortalNoCustomer: 'This Pro account is not managed via Stripe.',
+  proTrialLoginHint: 'Log in to start your free trial',
+  proTrialUnlockedTitle: 'Unlocked in your trial:',
   proUpgradeCta: 'Upgrade to Pro',
   proManageSubscription: 'Manage subscription',
   proSubscriptionActive: 'Pro subscription active',
-  proSubscriptionTrial: 'Trial — {days} days left',
+  proSubscriptionTrial: (days: number) =>
+    `Trial — ${days} ${days === 1 ? 'day' : 'days'} left`,
   proSubscriptionLifetime: 'Lifetime access',
-  proSubscriptionExpires: 'Expires: {date}',
+  proSubscriptionExpires: (date: string) => `Expires: ${date}`,
   proSubscriptionFree: 'Free plan',
   proSubscriptionExpired: 'Subscription expired',
   proLimitCustomPlansTitle: 'Plan limit reached',
   proLimitCustomPlansDesc: 'Free plan allows 3 active plans. Upgrade to Pro for unlimited.',
   proLimitPublicationsTitle: 'Publication limit reached',
   proLimitPublicationsDesc: 'Free plan allows 3 published plans. Upgrade to Pro for unlimited.',
-  proLimitCloudSyncTitle: 'Sync in Pro',
-  proLimitCloudSyncDesc: 'Cross-device sync is available with Pro.',
   proLimitExportTitle: 'Export in Pro',
-  proLimitExportDesc: 'Data export (CSV, JSON) is available with Pro.',
+  proLimitExportDesc: 'Data export to CSV is available with Pro.',
   proLimitWebPushTitle: 'Push notifications in Pro',
   proLimitWebPushDesc: 'Workout push notifications are available with Pro.',
-  proLimitHostedAiTitle: 'AI Coach without a key in Pro',
-  proLimitHostedAiDesc: 'AI Coach with SmartReps key is available with Pro. You can also use your own key for free.',
+  proLimitHostedAiTitle: 'AI Coach in Pro',
+  proLimitHostedAiDesc: 'All AI features — insight, weekly report, analysis and plan generator — are available with Pro.',
   proLimitAdvancedAnalyticsTitle: 'Advanced analytics in Pro',
   proLimitAdvancedAnalyticsDesc: 'Body-weight correlation, estimated 1RM and muscle balance trends — available with Pro.',
   proTeaserTitle: 'Pro feature',
@@ -3410,4 +3571,68 @@ Write in English. Be specific and encouraging.`,
   proTeaserUpgrade: 'Upgrade to Pro',
   proTeaserTrial: 'Try 14 days free',
   proTeaserClose: 'Maybe later',
+  // /pro page — Free vs Pro comparison + pricing
+  seoProTitle: 'SmartReps Pro',
+  seoProDescription: 'Compare the free and Pro versions — AI Coach, unlimited plans, sync and more.',
+  proPageSubtitle: 'AI Coach, unlimited plans and sync — all in Pro.',
+  proYourPlan: 'Your plan',
+  proComparisonTitle: 'What you get',
+  proChoosePlan: 'Choose a plan',
+  proCompareFull: 'See full comparison',
+  proCatTraining: 'Training',
+  proCatAi: 'AI Coach',
+  proCatStats: 'Statistics',
+  proCatCommunity: 'Community',
+  proCatData: 'Data & convenience',
+  proFeatureIncluded: 'Included',
+  proFeatureNotIncluded: 'Not included',
+  proRowCycles: '38 training cycles',
+  proRowCustomPlans: 'Custom workout plans',
+  proRowLocalInsights: 'Local post-workout insights',
+  proRowAiInsight: 'AI insight + weekly report',
+  proRowAiAnalysis: 'Progress & plateau analysis (AI)',
+  proRowAiGenerator: 'AI plan generator',
+  proRowAiAdaptive: 'Adaptive plan progression (AI)',
+  proRowAiByok: 'Your own API key (BYOK)',
+  proRowBasicStats: 'History, records, activity map',
+  proRowAdvancedStats: 'Advanced stats (e1RM, correlations)',
+  proRowForecasts: 'Goals & goal-date forecasts',
+  proRowCommunityBrowse: 'Browse & import plans',
+  proRowFollow: 'Follow users',
+  proRowPublish: 'Catalog publications',
+  proRowVerified: 'Verified author badge',
+  proRowReminders: 'Local reminders',
+  proRowCloudSync: 'Cross-device sync',
+  proRowExport: 'Data export (CSV)',
+  proRowExportJson: 'JSON export (backup)',
+  proRowPush: 'Push notifications',
+  proRowShowcase: 'Profile achievements',
+  proValUnlimited: 'Unlimited',
+  proValThree: '3',
+  proValAuto: 'Automatic',
+  proValAutoManual: 'Auto + manual pick',
+  proBestValue: 'Best value',
+  proPriceMonthly: '14,99 zł',
+  proPriceAnnual: '79,99 zł',
+  proPriceLifetime: '199,99 zł',
+  proPriceAnnualMonthly: '~6,67 zł/mo',
+  proPerYear: '/ year',
+  proPerMonth: '/ month',
+  proOneTime: 'one-time',
+  proContinueFree: 'Continue with free version',
+  proRenew: 'Renew subscription',
+  proComingSoon: 'Payments coming soon',
+  proSecurePayment: 'Secure payment',
+  proCancelAnytime: 'Cancel anytime',
+  proAlreadyHave: 'Already have Pro? Log in',
+  proYouHaveProTitle: 'You have SmartReps Pro',
+  proYouHaveProDesc: 'All features are unlocked.',
+  proHighlightAi: 'AI coach in your pocket',
+  proHighlightAiDesc: 'Post-workout insight, weekly report, plateau analysis and plan generator.',
+  proHighlightPlans: 'Unlimited plans',
+  proHighlightPlansDesc: 'Build and publish as many custom plans as you want.',
+  proHighlightSync: 'In sync everywhere',
+  proHighlightSyncDesc: 'Progress, plans and settings on every device.',
+  proAllFeatures: 'All Pro features',
+  proFreeCol: 'Free',
 }

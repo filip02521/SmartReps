@@ -5,8 +5,7 @@ import { pl } from '@/i18n/pl'
  * "PRO" badge — marks Pro-only features in the UI.
  * Uses brand gradient to stand out from regular badges.
  *
- * Etap 0: display only (no gating enforced).
- * Etap 1: shown next to Pro-only features; clicking opens ProTeaser.
+ * Shown next to Pro-gated features; the surrounding control opens ProTeaser.
  */
 export function ProBadge({
   className,

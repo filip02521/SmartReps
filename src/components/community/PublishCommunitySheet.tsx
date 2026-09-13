@@ -165,6 +165,11 @@ export function PublishCommunitySheet({ plan, open, onClose, onPublished }: Prop
     } catch (err) {
       const msg = err instanceof Error ? err.message : ''
       if (msg.includes('rate_limited')) showToast(pl.communityRateLimited, 'warning')
+      else if (msg.includes('publication_limit')) {
+        // Server-side free-tier cap (migration 079) — UI gates earlier, this
+        // is the backstop for stale counts / direct RPC calls.
+        showToast(pl.communityPublishLimitReached, 'warning')
+      }
       else if (msg.includes('public_profile_required')) {
         showToast(pl.communityPublishNeedPublicProfile, 'warning')
         setHasPublicProfile(false)
