@@ -209,6 +209,7 @@ test.describe('custom plans smoke', () => {
     })
 
     await page.goto('/plans?tab=mine')
+    await dismissAchievementUi(page)
     await expect(page.getByText('E2E trening')).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: 'Trenuj' }).click()
     // Preview sheet opens first — click "Rozpocznij trening" to start.
