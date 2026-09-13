@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { LogoMark } from '@/components/brand/Logo'
-import { Shield, FileText, HeartPulse } from 'lucide-react'
+import { Shield, FileText, HeartPulse, ChevronDown } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 
@@ -47,12 +47,18 @@ export function ProfileAbout({ className }: { className?: string }) {
         </Link>
       </div>
 
-      {/* Licenses — exercise media attribution */}
-      <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-4 py-3">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
+      {/* Licenses — exercise media attribution, collapsed by default:
+          legal attribution most users never open shouldn't cost scroll. */}
+      <details className="group rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]">
+        <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 text-xs font-medium uppercase tracking-wide text-[var(--sr-text-muted)] [&::-webkit-details-marker]:hidden">
           {pl.profileAboutLicenses}
-        </p>
-        <div className="flex flex-col gap-2 text-xs leading-relaxed text-[var(--sr-text-secondary)]">
+          <ChevronDown
+            size={14}
+            aria-hidden
+            className="ml-auto shrink-0 transition-transform group-open:rotate-180"
+          />
+        </summary>
+        <div className="flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] px-4 py-3 text-xs leading-relaxed text-[var(--sr-text-secondary)]">
           <p>
             {pl.licenseExerciseVideos}{' '}
             <a
@@ -103,7 +109,7 @@ export function ProfileAbout({ className }: { className?: string }) {
             </a>
           </p>
         </div>
-      </div>
+      </details>
 
       {/* Health disclaimer — notice card style */}
       <div className="flex items-start gap-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-warning)]/30 bg-[var(--sr-warning-muted)]/40 p-3">

@@ -23,6 +23,7 @@ const baseProps = {
   onEditProfile: vi.fn(),
   onViewFollowers: vi.fn(),
   onViewFollowing: vi.fn(),
+  canPickTitle: true,
 }
 
 describe('ProfileHero — title chip', () => {
@@ -48,5 +49,17 @@ describe('ProfileHero — title chip', () => {
   it('falls back to the ghost CTA for a stale/invalid title id', () => {
     render(<ProfileHero {...baseProps} profileTitleId="not_a_title" onEditTitle={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'Ustaw tytuł' })).toBeTruthy()
+  })
+
+  it('hides the ghost CTA when picking is pointless (no titles, not Pro)', () => {
+    render(
+      <ProfileHero
+        {...baseProps}
+        canPickTitle={false}
+        profileTitleId={null}
+        onEditTitle={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Ustaw tytuł' })).toBeNull()
   })
 })

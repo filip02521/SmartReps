@@ -30,6 +30,9 @@ export function ProfileHero({
   onViewFollowing,
   profileTitleId,
   onEditTitle,
+  /** Ghost "Ustaw tytuł" CTA — hidden when picking is pointless (no unlocked
+   *  titles and not Pro), so the hero stays quiet for those users. */
+  canPickTitle,
 }: {
   displayName: string
   email: string | null
@@ -49,6 +52,7 @@ export function ProfileHero({
    *  name so the pick has an immediate visual echo on the user's own profile. */
   profileTitleId: string | null
   onEditTitle: () => void
+  canPickTitle: boolean
 }) {
   // Avatar initials from display name or email
   const initials = (displayName || email || '?')
@@ -117,7 +121,7 @@ export function ProfileHero({
                 className="shrink-0 text-[var(--sr-text-muted)] opacity-60 transition-opacity group-hover/title:opacity-100 group-focus-visible/title:opacity-100"
               />
             </button>
-          ) : (
+          ) : canPickTitle ? (
             <button
               type="button"
               onClick={onEditTitle}
@@ -129,7 +133,7 @@ export function ProfileHero({
               <Crown size={11} aria-hidden className="shrink-0" />
               {pl.profileTitleSetCta}
             </button>
-          )}
+          ) : null}
           {email && displayName && (
             <p className="mt-0.5 break-words text-sm text-[var(--sr-text-secondary)]">
               {email}
@@ -175,21 +179,12 @@ export function ProfileHero({
         </p>
       )}
 
-      {/* Follow stats — tappable pills opening followers/following sheets */}
+      {/* Follow stats — one compact inline row; each segment opens the
+          followers/following sheet. Replaces the former big stat pills. */}
       {showFollowPills && (
-        <div className="mt-3 grid grid-cols-2 gap-2.5">
+        <div className="mt-3 flex items-center gap-4">
           {followLoading ? (
-            <>
-              {/* Skeleton pills during initial load — prevents layout shift */}
-              <div className="h-[4.25rem] rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]/60 px-3 py-2.5">
-                <div className="h-3 w-20 rounded sr-skeleton-shimmer" />
-                <div className="mt-2 h-5 w-8 rounded sr-skeleton-shimmer" />
-              </div>
-              <div className="h-[4.25rem] rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]/60 px-3 py-2.5">
-                <div className="h-3 w-20 rounded sr-skeleton-shimmer" />
-                <div className="mt-2 h-5 w-8 rounded sr-skeleton-shimmer" />
-              </div>
-            </>
+            <div className="h-4 w-44 rounded sr-skeleton-shimmer" aria-hidden />
           ) : (
             <>
               <button
@@ -198,23 +193,19 @@ export function ProfileHero({
                 aria-label={pl.profileHeroFollowersAria(followCounts.followers)}
                 className={cn(
                   FOCUS_RING,
-                  'group flex flex-col items-start gap-0.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]/60 px-3 py-2.5 text-left transition-colors hover:border-[var(--sr-brand-primary)] hover:bg-[var(--sr-brand-primary-muted)]',
+                  'group flex min-h-9 items-center gap-1.5 rounded-[var(--sr-radius-sm)] sr-text-body-sm text-[var(--sr-text-secondary)] transition-colors hover:text-[var(--sr-brand-primary)]',
                 )}
               >
-                <span className="flex w-full items-center justify-between">
-                  <span className="flex items-center gap-1.5 sr-text-caption text-[var(--sr-text-muted)]">
-                    <Users size={13} aria-hidden />
-                    {pl.profileHeroFollowers}
-                  </span>
-                  <ChevronRight
-                    size={14}
-                    className="text-[var(--sr-text-muted)] transition-transform group-hover:translate-x-0.5"
-                    aria-hidden
-                  />
-                </span>
-                <span className="tabular-nums text-xl font-bold leading-tight text-[var(--sr-text-primary)]">
+                <Users size={13} aria-hidden className="text-[var(--sr-text-muted)]" />
+                <span className="tabular-nums font-semibold text-[var(--sr-text-primary)]">
                   {followCounts.followers}
                 </span>
+                {pl.profileHeroFollowers}
+                <ChevronRight
+                  size={13}
+                  className="text-[var(--sr-text-muted)] transition-transform group-hover:translate-x-0.5"
+                  aria-hidden
+                />
               </button>
               <button
                 type="button"
@@ -222,23 +213,19 @@ export function ProfileHero({
                 aria-label={pl.profileHeroFollowingAria(followCounts.following)}
                 className={cn(
                   FOCUS_RING,
-                  'group flex flex-col items-start gap-0.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]/60 px-3 py-2.5 text-left transition-colors hover:border-[var(--sr-brand-primary)] hover:bg-[var(--sr-brand-primary-muted)]',
+                  'group flex min-h-9 items-center gap-1.5 rounded-[var(--sr-radius-sm)] sr-text-body-sm text-[var(--sr-text-secondary)] transition-colors hover:text-[var(--sr-brand-primary)]',
                 )}
               >
-                <span className="flex w-full items-center justify-between">
-                  <span className="flex items-center gap-1.5 sr-text-caption text-[var(--sr-text-muted)]">
-                    <UserCheck size={13} aria-hidden />
-                    {pl.profileHeroFollowing}
-                  </span>
-                  <ChevronRight
-                    size={14}
-                    className="text-[var(--sr-text-muted)] transition-transform group-hover:translate-x-0.5"
-                    aria-hidden
-                  />
-                </span>
-                <span className="tabular-nums text-xl font-bold leading-tight text-[var(--sr-text-primary)]">
+                <UserCheck size={13} aria-hidden className="text-[var(--sr-text-muted)]" />
+                <span className="tabular-nums font-semibold text-[var(--sr-text-primary)]">
                   {followCounts.following}
                 </span>
+                {pl.profileHeroFollowing}
+                <ChevronRight
+                  size={13}
+                  className="text-[var(--sr-text-muted)] transition-transform group-hover:translate-x-0.5"
+                  aria-hidden
+                />
               </button>
             </>
           )}
@@ -252,15 +239,15 @@ export function ProfileHero({
         </p>
       )}
 
-      {/* CTAs — edit profile + sync/login. Stack vertically on narrow
-          viewports to avoid label overflow inside fixed-height buttons. */}
-      <div className="mt-3.5 flex flex-col gap-2.5 sm:flex-row">
+      {/* CTAs — edit profile + sync/login, side by side on all widths
+          (short labels fit a split row on 375px). */}
+      <div className="mt-3.5 flex gap-2.5">
         {/* Edit profile — only when connected + online */}
         {connected && online && (
           <Button
             variant="secondary"
             size="md"
-            className="w-full gap-2 sm:w-auto sm:flex-1"
+            className="min-w-0 flex-1 gap-2"
             onClick={onEditProfile}
           >
             <Pencil size={16} aria-hidden />
@@ -273,7 +260,7 @@ export function ProfileHero({
           <Button
             variant="secondary"
             size="md"
-            className="w-full gap-2 sm:w-auto sm:flex-1"
+            className="min-w-0 flex-1 gap-2"
             disabled={!online || syncing}
             onClick={onSyncNow}
           >
@@ -284,7 +271,7 @@ export function ProfileHero({
           <Button
             variant="secondary"
             size="md"
-            className="w-full gap-2 sm:w-auto sm:flex-1"
+            className="min-w-0 flex-1 gap-2"
             onClick={onLogin}
           >
             <LogIn size={16} aria-hidden />

@@ -15,6 +15,7 @@ import { canUseManagedAi } from '@/lib/ai/managed-client'
 import { ProfileAchievementsSection } from '@/components/achievements/ProfileAchievementsSection'
 import { TitlePickerSheet } from '@/components/achievements/TitlePickerSheet'
 import { getAllUnlocks } from '@/lib/achievements/store'
+import { isTitleId } from '@/lib/achievements/titles'
 import type { LocalAchievementUnlock } from '@/lib/achievements/types'
 import { ImportBackupSheet } from '@/components/profile/ImportBackupSheet'
 import { SettingsSheet } from '@/components/profile/SettingsSheet'
@@ -103,6 +104,12 @@ export default function ProfilePage() {
       window.removeEventListener('online', onOnline)
       window.removeEventListener('offline', onOffline)
     }
+  }, [])
+
+  // Title unlocks also gate the hero's ghost "Ustaw tytuł" CTA — load eagerly
+  // (cheap Dexie read) so the CTA only shows when picking is possible.
+  useEffect(() => {
+    void getAllUnlocks().then(setTitleUnlocks).catch(() => undefined)
   }, [])
 
   useEffect(() => {
@@ -304,6 +311,7 @@ export default function ProfilePage() {
         onViewFollowers={() => setShowFollowersSheet(true)}
         onViewFollowing={() => setShowFollowingSheet(true)}
         profileTitleId={settings.selectedTitle}
+        canPickTitle={pro || titleUnlocks.some((u) => isTitleId(u.id))}
         onEditTitle={() => {
           setShowTitlePicker(true)
           // Refresh unlocks lazily on each open — local Dexie read, cheap,
