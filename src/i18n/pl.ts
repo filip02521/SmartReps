@@ -2646,6 +2646,7 @@ export const plDict = {
     pluralPl(n, 'ukończone wyzwanie', 'ukończone wyzwania', 'ukończonych wyzwań'),
   challengeMonthlyEmpty: 'Nikt jeszcze nie zdobył punktów w tym miesiącu',
   challengeMonthlyHowPoints: '100 pkt za ukończenie wyzwania + bonus za przekroczenie celu',
+  challengeViewUser: (name: string) => `Zobacz profil: ${name}`,
   // ── Follow system ──
   followButton: 'Obserwuj',
   followingButton: 'Obserwujesz',

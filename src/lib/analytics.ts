@@ -66,6 +66,7 @@ export const AnalyticsEvents = {
   challengeSubmit: 'challenge_submit',
   challengeSubmitError: 'challenge_submit_error',
   challengeLeaderboardToggle: 'challenge_leaderboard_toggle',
+  challengeUserOpen: 'challenge_user_open',
   // Pro / paywall
   proPageView: 'pro_page_view',
   proPlanSelect: 'pro_plan_select',

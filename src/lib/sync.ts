@@ -30,6 +30,8 @@ import {
   hasPendingCustomProgressDelete,
   hasPendingInsightDelete,
   hasPendingSessionDelete,
+  upsertTombstoneBatch,
+  TOMBSTONE_TTL_MS,
 } from '@/lib/sync-queue-utils'
 import { useAppStore } from '@/stores/app-store'
 import { isPro } from '@/lib/subscription'
@@ -1452,6 +1454,15 @@ export async function pullRemoteData(): Promise<SyncResult> {
         const localSession = await db.workoutSessions.get(r.session_id)
         if (localSession) await db.workoutSessions.delete(r.session_id)
       }
+      // Self-cleaning: remote markers older than the TTL are dropped so the
+      // table stays bounded (same window the local prune already accepts).
+      const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString()
+      const { error: cleanErr } = await supabase
+        .from('session_tombstones')
+        .delete()
+        .eq('user_id', userId)
+        .lt('deleted_at', cutoff)
+      if (cleanErr) trackSyncError('clean_session_tombstones', cleanErr)
       return { ok: true, errors: 0 }
     } catch (err) {
       trackSyncError('pull_session_tombstones', err)
@@ -1466,23 +1477,16 @@ export async function pullRemoteData(): Promise<SyncResult> {
     let errs = 0
     try {
       const localBwTombstones = await db.bodyWeightTombstones.toArray()
-      for (const tombstone of localBwTombstones) {
-        try {
-          const { error } = await supabase
-            .from('body_weight_tombstones')
-            .upsert(
-              {
-                user_id: userId,
-                entry_id: tombstone.entryId,
-                deleted_at: tombstone.deletedAt,
-              },
-              { onConflict: 'user_id,entry_id' },
-            )
-          if (error) throw error
-        } catch (err) {
-          errs++
-          trackSyncError('push_body_weight_tombstone', err)
-        }
+      if (localBwTombstones.length) {
+        await upsertTombstoneBatch(
+          'body_weight_tombstones',
+          localBwTombstones.map((t) => ({
+            user_id: userId,
+            entry_id: t.entryId,
+            deleted_at: t.deletedAt,
+          })),
+          'user_id,entry_id',
+        )
       }
     } catch (err) {
       errs++
@@ -1500,6 +1504,13 @@ export async function pullRemoteData(): Promise<SyncResult> {
         const localEntry = await db.bodyWeight.get(row.entry_id)
         if (localEntry) await db.bodyWeight.delete(row.entry_id)
       }
+      const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString()
+      const { error: cleanErr } = await supabase
+        .from('body_weight_tombstones')
+        .delete()
+        .eq('user_id', userId)
+        .lt('deleted_at', cutoff)
+      if (cleanErr) trackSyncError('clean_body_weight_tombstones', cleanErr)
       return { ok: true, errors: 0 }
     } catch (err) {
       trackSyncError('pull_body_weight_tombstones', err)
@@ -1513,23 +1524,18 @@ export async function pullRemoteData(): Promise<SyncResult> {
     let errs = 0
     try {
       const localTombstones = await db.sessionTombstones.toArray()
-      for (const tombstone of localTombstones) {
-        try {
-          const { error } = await supabase
-            .from('session_tombstones')
-            .upsert(
-              {
-                user_id: userId,
-                session_id: tombstone.sessionId,
-                deleted_at: tombstone.deletedAt,
-              },
-              { onConflict: 'user_id,session_id' },
-            )
-          if (error) throw error
-        } catch (err) {
-          errs++
-          trackSyncError('push_session_tombstone', err)
-        }
+      // One batched upsert — hundreds of markers as separate requests die on
+      // mobile networks (TypeError "Load failed").
+      if (localTombstones.length) {
+        await upsertTombstoneBatch(
+          'session_tombstones',
+          localTombstones.map((t) => ({
+            user_id: userId,
+            session_id: t.sessionId,
+            deleted_at: t.deletedAt,
+          })),
+          'user_id,session_id',
+        )
       }
     } catch (err) {
       errs++
@@ -1597,6 +1603,13 @@ export async function pullRemoteData(): Promise<SyncResult> {
         const localInsight = await db.aiInsights.get(r.insight_id)
         if (localInsight) await db.aiInsights.delete(r.insight_id)
       }
+      const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString()
+      const { error: cleanErr } = await supabase
+        .from('ai_insight_tombstones')
+        .delete()
+        .eq('user_id', userId)
+        .lt('deleted_at', cutoff)
+      if (cleanErr) trackSyncError('clean_ai_insight_tombstones', cleanErr)
       return { ok: true, errors: 0 }
     } catch (err) {
       trackSyncError('pull_ai_insight_tombstones', err)
@@ -1608,23 +1621,16 @@ export async function pullRemoteData(): Promise<SyncResult> {
     let errs = 0
     try {
       const localTombstones = await db.aiInsightTombstones.toArray()
-      for (const tombstone of localTombstones) {
-        try {
-          const { error } = await supabase
-            .from('ai_insight_tombstones')
-            .upsert(
-              {
-                user_id: userId,
-                insight_id: tombstone.insightId,
-                deleted_at: tombstone.deletedAt,
-              },
-              { onConflict: 'user_id,insight_id' },
-            )
-          if (error) throw error
-        } catch (err) {
-          errs++
-          trackSyncError('push_ai_insight_tombstone', err)
-        }
+      if (localTombstones.length) {
+        await upsertTombstoneBatch(
+          'ai_insight_tombstones',
+          localTombstones.map((t) => ({
+            user_id: userId,
+            insight_id: t.insightId,
+            deleted_at: t.deletedAt,
+          })),
+          'user_id,insight_id',
+        )
       }
     } catch (err) {
       errs++
@@ -1810,8 +1816,9 @@ export async function pullRemoteData(): Promise<SyncResult> {
 }
 
 /** Prune local tombstones older than 30 days. Safe because all devices have
- *  had sufficient time to pull tombstones and apply deletions by then. */
-const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000
+ *  had sufficient time to pull tombstones and apply deletions by then.
+ *  (TOMBSTONE_TTL_MS lives in sync-queue-utils — shared with the remote
+ *  self-cleaning deletes in the pull sections.) */
 async function pruneOldTombstones(): Promise<void> {
   const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString()
   await db.sessionTombstones.where('deletedAt').below(cutoff).delete()

@@ -126,3 +126,31 @@ export async function removePendingSyncQueueItems(
 export async function hasPendingInsightDelete(insightId: string): Promise<boolean> {
   return hasPendingSyncQueue('ai_insights', 'delete', (p) => (p as { id?: string }).id === insightId)
 }
+
+/** Tombstone retention — matches pruneOldTombstones in sync.ts. Remote rows
+ *  older than this are self-cleaned during pull so the tables stay bounded. */
+export const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000
+
+/**
+ * Push tombstones in chunked batch upserts instead of N sequential requests.
+ * A device holding hundreds of markers (e.g. after a mass exercise cleanup)
+ * would otherwise fire hundreds of fetches — on mobile that reliably dies
+ * with TypeError "Load failed" (background suspension / connection churn).
+ */
+export async function upsertTombstoneBatch(
+  table:
+    | 'session_tombstones'
+    | 'custom_plan_tombstones'
+    | 'exercise_tombstones'
+    | 'body_weight_tombstones'
+    | 'ai_insight_tombstones',
+  rows: Record<string, unknown>[],
+  onConflict: string,
+): Promise<void> {
+  const { supabase } = await import('@/lib/supabase/client')
+  const CHUNK = 200
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const { error } = await supabase.from(table).upsert(rows.slice(i, i + CHUNK), { onConflict })
+    if (error) throw error
+  }
+}

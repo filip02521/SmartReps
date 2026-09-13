@@ -85,6 +85,15 @@ vi.mock('@/lib/sync-queue-utils', () => ({
   hasPendingSessionDelete: vi.fn().mockResolvedValue(false),
   hasPendingActiveWorkoutDelete: vi.fn().mockResolvedValue(false),
   hasPendingActiveWorkoutUpdate: vi.fn().mockResolvedValue(false),
+  TOMBSTONE_TTL_MS: 30 * 24 * 60 * 60 * 1000,
+  // Mirror the real helper: chunked supabase upsert (error propagates).
+  upsertTombstoneBatch: vi.fn(
+    async (table: string, rows: unknown[], onConflict: string) => {
+      const { supabase } = await import('@/lib/supabase/client')
+      const { error } = await supabase.from(table).upsert(rows, { onConflict })
+      if (error) throw error
+    },
+  ),
 }))
 
 vi.mock('@/lib/rest-timer-sync', () => ({
@@ -105,6 +114,7 @@ function makeQueryBuilder(table: string, opts: { selectData?: unknown[]; selectE
     order: vi.fn(() => builder),
     upsert: vi.fn().mockResolvedValue({ error: upsertError }),
     delete: vi.fn(() => builder),
+    lt: vi.fn(() => builder),
     in: vi.fn().mockResolvedValue({ error: null }),
     then: vi.fn((resolve: (v: unknown) => void) => {
       resolve({ data: resolveData, error: resolveError })
@@ -508,7 +518,7 @@ describe('pushCustomEntities — trackSyncError on failures', () => {
 
     expect(errors).toBeGreaterThan(0)
     expect(trackSyncError).toHaveBeenCalledWith(
-      'push_custom_plan_tombstone',
+      'push_custom_plan_tombstones',
       expect.anything(),
     )
   })

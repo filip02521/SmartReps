@@ -10,10 +10,12 @@ import { allSetsPassed } from '@/lib/progress-engine'
 import {
   getActiveWeeklyChallenges,
   calculateAllChallengeProgress,
+  autoSubmitChallengeProgress,
   type WeeklyChallenge,
   type ChallengeProgress,
   type ChallengeType,
 } from '@/lib/weekly-challenge'
+import { useAppStore } from '@/stores/app-store'
 import type { Program } from '@/data/plans/types'
 import type { LocalWorkoutSession } from '@/lib/db'
 
@@ -127,6 +129,14 @@ export function ChallengeProgressRecap({
         if (cancelled || !mountedRef.current) return
         setProgress(prog)
         setLoaded(true)
+
+        // Submit now — points land at workout end instead of waiting for the
+        // next dashboard card load. Fire-and-forget: display doesn't depend
+        // on the submit, and the card re-submits on its next load anyway.
+        const displayName = useAppStore.getState().settings.displayName ?? ''
+        if (displayName.trim()) {
+          void autoSubmitChallengeProgress(relevant, prog, displayName).catch(() => {})
+        }
       } catch {
         if (!cancelled && mountedRef.current) setLoaded(true)
       }

@@ -118,6 +118,7 @@ function makeQueryBuilder(table: string, rows: unknown[] = []) {
       return { error: null }
     }),
     delete: vi.fn(() => builder),
+    lt: vi.fn(() => builder),
     in: vi.fn().mockResolvedValue({ error: null }),
   }
   return builder

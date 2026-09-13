@@ -244,7 +244,7 @@ function avatarColor(name: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
-function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
   const initial = (name || '?').charAt(0).toUpperCase()
   const color = avatarColor(name || '?')
   const sizeClass = size === 'sm' ? 'h-8 w-8 text-sm' : 'h-10 w-10 text-base'

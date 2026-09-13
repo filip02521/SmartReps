@@ -2594,6 +2594,7 @@ export const en: Translation = {
     `${n} completed challenge${n === 1 ? '' : 's'}`,
   challengeMonthlyEmpty: 'Nobody has earned points this month yet',
   challengeMonthlyHowPoints: '100 pts per completed challenge + bonus for exceeding the target',
+  challengeViewUser: (name: string) => `View profile: ${name}`,
   // ── Follow system ──
   followButton: 'Follow',
   followingButton: 'Following',

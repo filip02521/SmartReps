@@ -18,6 +18,7 @@ import { useOnline } from '@/hooks/useOnline'
 import { track, AnalyticsEvents, trackError } from '@/lib/analytics'
 import { scheduleAchievementCheck } from '@/lib/achievements/schedule'
 import { getFollowing } from '@/lib/follow-system'
+import { ChallengeUserSheet } from '@/components/dashboard/ChallengeUserSheet'
 import {
   getActiveWeeklyChallenges,
   getWeeklyChallengeLeaderboard,
@@ -105,10 +106,12 @@ function Leaderboard({
   entries,
   currentUserId,
   followingIds,
+  onSelectUser,
 }: {
   entries: LeaderboardEntry[]
   currentUserId: string | null
   followingIds: Set<string>
+  onSelectUser: (userId: string, name: string) => void
 }) {
   if (entries.length === 0) {
     return <EmptyState title={pl.challengeLeaderboardEmpty} />
@@ -119,16 +122,9 @@ function Leaderboard({
         const isMe = entry.user_id === currentUserId
         const isFollowed = followingIds.has(entry.user_id)
         const medalClass = MEDAL_CLASS[entry.rank] ?? 'text-[var(--sr-text-muted)]'
-        return (
-          <li
-            key={entry.id}
-            className={cn(
-              'flex items-start gap-3 rounded-[var(--sr-radius-sm)] px-3 py-2',
-              isMe
-                ? 'border-2 border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)]'
-                : 'bg-[var(--sr-bg-elevated)]',
-            )}
-          >
+        const name = entry.display_name || pl.challengeAnonymous
+        const content = (
+          <>
             <span
               className={cn(
                 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums',
@@ -139,7 +135,7 @@ function Leaderboard({
               {entry.rank <= 3 ? <Medal size={16} aria-hidden /> : entry.rank}
             </span>
             <span className="min-w-0 flex-1 break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
-              {entry.display_name || pl.challengeAnonymous}
+              {name}
               {isMe && (
                 <span className="ml-1.5 text-[var(--sr-brand-primary)]">({pl.challengeYouLabel})</span>
               )}
@@ -150,6 +146,33 @@ function Leaderboard({
             <span className="shrink-0 tabular-nums font-semibold text-[var(--sr-text-primary)]">
               {entry.total_reps}
             </span>
+          </>
+        )
+        return (
+          <li
+            key={entry.id}
+            className={cn(
+              'rounded-[var(--sr-radius-sm)]',
+              isMe
+                ? 'border-2 border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)]'
+                : 'bg-[var(--sr-bg-elevated)]',
+            )}
+          >
+            {isMe ? (
+              <div className="flex items-start gap-3 px-3 py-2">{content}</div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onSelectUser(entry.user_id, name)}
+                aria-label={pl.challengeViewUser(name)}
+                className={cn(
+                  'flex w-full items-start gap-3 rounded-[var(--sr-radius-sm)] px-3 py-2 text-left transition-colors hover:bg-[var(--sr-bg-surface)] active:bg-[var(--sr-bg-surface)]',
+                  FOCUS_RING,
+                )}
+              >
+                {content}
+              </button>
+            )}
           </li>
         )
       })}
@@ -163,10 +186,12 @@ function MonthlyLeaderboard({
   entries,
   currentUserId,
   followingIds,
+  onSelectUser,
 }: {
   entries: MonthlyLeaderboardEntry[]
   currentUserId: string | null
   followingIds: Set<string>
+  onSelectUser: (userId: string, name: string) => void
 }) {
   if (entries.length === 0) {
     return <EmptyState title={pl.challengeMonthlyEmpty} />
@@ -177,16 +202,9 @@ function MonthlyLeaderboard({
         const isMe = entry.user_id === currentUserId
         const isFollowed = followingIds.has(entry.user_id)
         const medalClass = MEDAL_CLASS[entry.rank] ?? 'text-[var(--sr-text-muted)]'
-        return (
-          <li
-            key={entry.user_id}
-            className={cn(
-              'flex items-start gap-3 rounded-[var(--sr-radius-sm)] px-3 py-2',
-              isMe
-                ? 'border-2 border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)]'
-                : 'bg-[var(--sr-bg-elevated)]',
-            )}
-          >
+        const name = entry.display_name || pl.challengeAnonymous
+        const content = (
+          <>
             <span
               className={cn(
                 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums',
@@ -198,7 +216,7 @@ function MonthlyLeaderboard({
             </span>
             <span className="min-w-0 flex-1 break-words">
               <span className="block sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
-                {entry.display_name || pl.challengeAnonymous}
+                {name}
                 {isMe && (
                   <span className="ml-1.5 text-[var(--sr-brand-primary)]">({pl.challengeYouLabel})</span>
                 )}
@@ -213,6 +231,33 @@ function MonthlyLeaderboard({
             <span className="shrink-0 tabular-nums font-semibold text-[var(--sr-brand-primary)]">
               {pl.challengePoints(entry.points)}
             </span>
+          </>
+        )
+        return (
+          <li
+            key={entry.user_id}
+            className={cn(
+              'rounded-[var(--sr-radius-sm)]',
+              isMe
+                ? 'border-2 border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)]'
+                : 'bg-[var(--sr-bg-elevated)]',
+            )}
+          >
+            {isMe ? (
+              <div className="flex items-start gap-3 px-3 py-2">{content}</div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onSelectUser(entry.user_id, name)}
+                aria-label={pl.challengeViewUser(name)}
+                className={cn(
+                  'flex w-full items-start gap-3 rounded-[var(--sr-radius-sm)] px-3 py-2 text-left transition-colors hover:bg-[var(--sr-bg-surface)] active:bg-[var(--sr-bg-surface)]',
+                  FOCUS_RING,
+                )}
+              >
+                {content}
+              </button>
+            )}
           </li>
         )
       })}
@@ -233,6 +278,7 @@ function ChallengeItem({
   boardFilter,
   hasFollowing,
   onBoardFilterChange,
+  onSelectUser,
   recommended,
   context,
 }: {
@@ -246,6 +292,7 @@ function ChallengeItem({
   boardFilter: 'global' | 'following'
   hasFollowing: boolean
   onBoardFilterChange: (v: 'global' | 'following') => void
+  onSelectUser: (userId: string, name: string) => void
   recommended: boolean
   context: ChallengeContext | null
 }) {
@@ -395,6 +442,7 @@ function ChallengeItem({
               entries={filteredBoard}
               currentUserId={currentUserId}
               followingIds={followingIds}
+              onSelectUser={onSelectUser}
             />
           )}
         </div>
@@ -425,6 +473,7 @@ export function WeeklyChallengeCard() {
   const [boardFilter, setBoardFilter] = useState<'global' | 'following'>('global')
   const [distinctParticipants, setDistinctParticipants] = useState<number | null>(null)
   const [view, setView] = useState<'challenges' | 'monthly'>('challenges')
+  const [selectedUser, setSelectedUser] = useState<{ userId: string; name: string } | null>(null)
   /** null = RPC unavailable or load failed; [] = deployed, no entries yet. */
   const [monthlyBoard, setMonthlyBoard] = useState<MonthlyLeaderboardEntry[] | null>(null)
   const mountedRef = useRef(true)
@@ -495,6 +544,8 @@ export function WeeklyChallengeCard() {
 
           // Auto-submit progress to server for leaderboard — only challenges
           // whose progress increased since the last successful submit.
+          // Awaited before the leaderboard fetch below: otherwise the monthly
+          // board renders pre-submit points (stale) right after a workout.
           if (userId && displayName) {
             const pairs = relevant
               .map((ch, i) => ({ ch, p: prog[i] }))
@@ -505,18 +556,19 @@ export function WeeklyChallengeCard() {
                   x.p.current > (submittedRef.current.get(x.ch.id) ?? -1),
               )
             if (pairs.length > 0) {
-              void autoSubmitChallengeProgress(
-                pairs.map((x) => x.ch),
-                pairs.map((x) => x.p),
-                displayName,
-              )
-                .then((done) => {
-                  for (const { ch, p } of pairs) {
-                    if (done.has(ch.id)) submittedRef.current.set(ch.id, p.current)
-                  }
-                  scheduleAchievementCheck()
-                })
-                .catch(() => {})
+              try {
+                const done = await autoSubmitChallengeProgress(
+                  pairs.map((x) => x.ch),
+                  pairs.map((x) => x.p),
+                  displayName,
+                )
+                for (const { ch, p } of pairs) {
+                  if (done.has(ch.id)) submittedRef.current.set(ch.id, p.current)
+                }
+                scheduleAchievementCheck()
+              } catch {
+                // Non-critical — leaderboard just won't update this pass
+              }
             }
           }
         } catch (err) {
@@ -579,6 +631,22 @@ export function WeeklyChallengeCard() {
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [reload, online])
+
+  const handleSelectUser = useCallback((userId: string, name: string) => {
+    setSelectedUser({ userId, name })
+    track(AnalyticsEvents.challengeUserOpen)
+  }, [])
+
+  // Keep the leaderboard's "following" markers + filter in sync with
+  // follow/unfollow actions taken inside the user sheet.
+  const handleFollowToggled = useCallback((userId: string, following: boolean) => {
+    setFollowingIds((prev) => {
+      const next = new Set(prev)
+      if (following) next.add(userId)
+      else next.delete(userId)
+      return next
+    })
+  }, [])
 
   const hasFollowing = followingIds.size > 0
   // Sticky 'following' filter without any follows would show an empty
@@ -703,6 +771,7 @@ export function WeeklyChallengeCard() {
             entries={monthlyBoard}
             currentUserId={currentUserId}
             followingIds={followingIds}
+            onSelectUser={handleSelectUser}
           />
           <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
             {pl.challengeMonthlyHowPoints}
@@ -744,6 +813,7 @@ export function WeeklyChallengeCard() {
               boardFilter={effectiveBoardFilter}
               hasFollowing={hasFollowing}
               onBoardFilterChange={setBoardFilter}
+              onSelectUser={handleSelectUser}
               recommended={scored?.recommended ?? false}
               context={scored?.context ?? null}
             />
@@ -789,6 +859,15 @@ export function WeeklyChallengeCard() {
           {pl.challengeEndedHint}
         </div>
       )}
+
+      {/* User sheet — tap a leaderboard row to view profile + follow */}
+      <ChallengeUserSheet
+        userId={selectedUser?.userId ?? null}
+        displayName={selectedUser?.name ?? ''}
+        isFollowing={selectedUser ? followingIds.has(selectedUser.userId) : false}
+        onToggled={handleFollowToggled}
+        onClose={() => setSelectedUser(null)}
+      />
     </section>
   )
 }

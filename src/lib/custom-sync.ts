@@ -17,6 +17,8 @@ import {
   hasPendingCustomPlanDelete,
   hasPendingCustomPlanUpsert,
   hasPendingCustomProgressUpsert,
+  upsertTombstoneBatch,
+  TOMBSTONE_TTL_MS,
 } from '@/lib/sync-queue-utils'
 import { supabase } from '@/lib/supabase/client'
 import { trackSyncError } from '@/lib/analytics'
@@ -434,37 +436,42 @@ export async function pushCustomEntities(userId: string): Promise<number> {
     }
   }
 
-  // Push local custom plan tombstones to cloud
-  for (const tombstone of await db.customPlanTombstones.toArray()) {
+  // Push local tombstones to cloud — batched upserts, not N sequential
+  // requests. Hundreds of markers (mass exercise cleanup) as separate fetches
+  // die on mobile with TypeError "Load failed".
+  const planTombstones = await db.customPlanTombstones.toArray()
+  if (planTombstones.length) {
     try {
-      const { error } = await supabase
-        .from('custom_plan_tombstones')
-        .upsert({
+      await upsertTombstoneBatch(
+        'custom_plan_tombstones',
+        planTombstones.map((t) => ({
           user_id: userId,
-          plan_id: tombstone.planId,
-          deleted_at: tombstone.deletedAt,
-        }, { onConflict: 'user_id,plan_id' })
-      if (error) throw error
+          plan_id: t.planId,
+          deleted_at: t.deletedAt,
+        })),
+        'user_id,plan_id',
+      )
     } catch (err) {
       errors++
-      trackSyncError('push_custom_plan_tombstone', err)
+      trackSyncError('push_custom_plan_tombstones', err)
     }
   }
 
-  // Push local exercise tombstones to cloud
-  for (const tombstone of await db.exerciseTombstones.toArray()) {
+  const exerciseTombstones = await db.exerciseTombstones.toArray()
+  if (exerciseTombstones.length) {
     try {
-      const { error } = await supabase
-        .from('exercise_tombstones')
-        .upsert({
+      await upsertTombstoneBatch(
+        'exercise_tombstones',
+        exerciseTombstones.map((t) => ({
           user_id: userId,
-          exercise_id: tombstone.exerciseId,
-          deleted_at: tombstone.deletedAt,
-        }, { onConflict: 'user_id,exercise_id' })
-      if (error) throw error
+          exercise_id: t.exerciseId,
+          deleted_at: t.deletedAt,
+        })),
+        'user_id,exercise_id',
+      )
     } catch (err) {
       errors++
-      trackSyncError('push_exercise_tombstone', err)
+      trackSyncError('push_exercise_tombstones', err)
     }
   }
 
@@ -501,6 +508,14 @@ export async function pullCustomEntities(userId: string): Promise<PullCustomEnti
           if (localProg?.id != null) await db.customProgramProgress.delete(localProg.id)
           await db.activeCustomWorkout.delete(row.plan_id)
         }
+        // Self-cleaning: drop remote markers older than the TTL (non-fatal).
+        const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString()
+        const { error: cleanErr } = await supabase
+          .from('custom_plan_tombstones')
+          .delete()
+          .eq('user_id', userId)
+          .lt('deleted_at', cutoff)
+        if (cleanErr) trackSyncError('clean_custom_plan_tombstones', cleanErr)
         return 0
       } catch (err) {
         trackSyncError('pull_custom_plan_tombstones', err)
@@ -526,6 +541,14 @@ export async function pullCustomEntities(userId: string): Promise<PullCustomEnti
           const localEx = await db.exercises.get(row.exercise_id)
           if (localEx) await db.exercises.delete(row.exercise_id)
         }
+        // Self-cleaning: drop remote markers older than the TTL (non-fatal).
+        const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString()
+        const { error: cleanErr } = await supabase
+          .from('exercise_tombstones')
+          .delete()
+          .eq('user_id', userId)
+          .lt('deleted_at', cutoff)
+        if (cleanErr) trackSyncError('clean_exercise_tombstones', cleanErr)
         return 0
       } catch (err) {
         trackSyncError('pull_exercise_tombstones', err)

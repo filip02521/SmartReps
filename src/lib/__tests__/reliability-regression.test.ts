@@ -185,6 +185,7 @@ function makeQueryBuilder(
       supabaseCallOrder.push(`delete:${table}`)
       return builder
     }),
+    lt: vi.fn(() => builder),
     in: vi.fn().mockResolvedValue({ error: null }),
     // Make the builder awaitable — resolves to { data, error }
     then: vi.fn((resolve: (v: unknown) => void) => {
