@@ -184,7 +184,9 @@ export function ShowcasePickerSheet({
           </ul>
         )}
 
-        <div className="flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] pt-4">
+        {/* Sticky footer — tiles scroll above; save stays reachable.
+            Negative margins extend the bg over the sheet panel padding. */}
+        <div className="sticky bottom-0 -mx-6 -mb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] mt-1 flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-6 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3">
           <Button type="button" size="touch" fullWidth onClick={save} className={FOCUS_RING}>
             {pl.achievementsShowcaseSave}
           </Button>

@@ -194,7 +194,7 @@ export function TitlePickerSheet({
               Negative margins extend the bg over the sheet panel padding. */}
           <div className="sticky bottom-0 -mx-6 -mb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] mt-1 flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-6 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3">
             <Button type="button" size="touch" fullWidth onClick={save} disabled={busy} className={FOCUS_RING}>
-              {pl.achievementsShowcaseSave}
+              {pl.profileTitleSave}
             </Button>
             <Button type="button" size="md" variant="ghost" fullWidth onClick={onClose}>
               {pl.cancel}

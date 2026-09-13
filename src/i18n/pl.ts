@@ -977,6 +977,7 @@ export const plDict = {
   profileTitleLockedBy: (name: string) => `Odblokuj: ${name}`,
   profileTitleChange: 'Zmień tytuł',
   profileTitleSetCta: 'Ustaw tytuł',
+  profileTitleSave: 'Zapisz tytuł',
   profileTitleChangeAria: (title: string) => `Tytuł profilu: ${title} — zmień`,
   profileTitleGroupUnlocked: (n: number) => `Odblokowane (${n})`,
   profileTitleGroupLocked: (n: number) => `Do odblokowania (${n})`,

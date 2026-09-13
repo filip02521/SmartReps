@@ -944,6 +944,7 @@ export const en: Translation = {
   profileTitleLockedBy: (name: string) => `Unlock: ${name}`,
   profileTitleChange: 'Change title',
   profileTitleSetCta: 'Set a title',
+  profileTitleSave: 'Save title',
   profileTitleChangeAria: (title: string) => `Profile title: ${title} — change`,
   profileTitleGroupUnlocked: (n: number) => `Unlocked (${n})`,
   profileTitleGroupLocked: (n: number) => `Locked (${n})`,
