@@ -4,6 +4,7 @@ import { buildAchievementSnapshot, emptyImpact } from '@/lib/achievements/snapsh
 import type { AchievementSnapshot } from '@/lib/achievements/types'
 import { SkeletonCard } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
+import { cn } from '@/lib/utils'
 
 type StatItem = {
   icon: typeof Dumbbell
@@ -64,25 +65,29 @@ export function ProfileStats() {
     : []
 
   if (!loaded) {
-    return (
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => (
-          <SkeletonCard key={i} className="min-h-[5.5rem]" />
-        ))}
-      </div>
-    )
+    return <SkeletonCard className="min-h-[7.5rem]" />
   }
 
+  // One card, 2×2 cells with hairline dividers — same data as before, but
+  // without four separate card chrome around every number.
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-      {items.map((item) => (
+    <div className="grid grid-cols-2 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]">
+      {items.map((item, i) => (
         <div
           key={item.label}
-          className="flex flex-col items-center gap-1.5 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-3.5 text-center"
+          className={cn(
+            'flex items-center gap-3 px-3.5 py-3',
+            i % 2 === 1 && 'border-l border-[var(--sr-border-subtle)]',
+            i >= 2 && 'border-t border-[var(--sr-border-subtle)]',
+          )}
         >
-          <item.icon size={20} strokeWidth={1.75} className="text-[var(--sr-brand-primary)]" aria-hidden />
-          <p className="sr-text-h3 tabular-nums text-[var(--sr-text-primary)]">{item.value}</p>
-          <p className="sr-text-caption text-[var(--sr-text-muted)]">{item.label}</p>
+          <item.icon size={18} strokeWidth={1.75} className="shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
+          <div className="min-w-0">
+            <p className="sr-text-body-sm font-bold tabular-nums leading-tight text-[var(--sr-text-primary)]">
+              {item.value}
+            </p>
+            <p className="sr-text-caption text-[var(--sr-text-muted)]">{item.label}</p>
+          </div>
         </div>
       ))}
     </div>

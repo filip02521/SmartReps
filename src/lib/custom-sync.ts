@@ -510,12 +510,16 @@ export async function pullCustomEntities(userId: string): Promise<PullCustomEnti
         }
         // Self-cleaning: drop remote markers older than the TTL (non-fatal).
         const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString()
-        const { error: cleanErr } = await supabase
-          .from('custom_plan_tombstones')
-          .delete()
-          .eq('user_id', userId)
-          .lt('deleted_at', cutoff)
-        if (cleanErr) trackSyncError('clean_custom_plan_tombstones', cleanErr)
+        try {
+          const { error: cleanErr } = await supabase
+            .from('custom_plan_tombstones')
+            .delete()
+            .eq('user_id', userId)
+            .lt('deleted_at', cutoff)
+          if (cleanErr) trackSyncError('clean_custom_plan_tombstones', cleanErr)
+        } catch (cleanErr) {
+          trackSyncError('clean_custom_plan_tombstones', cleanErr)
+        }
         return 0
       } catch (err) {
         trackSyncError('pull_custom_plan_tombstones', err)
@@ -543,12 +547,16 @@ export async function pullCustomEntities(userId: string): Promise<PullCustomEnti
         }
         // Self-cleaning: drop remote markers older than the TTL (non-fatal).
         const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString()
-        const { error: cleanErr } = await supabase
-          .from('exercise_tombstones')
-          .delete()
-          .eq('user_id', userId)
-          .lt('deleted_at', cutoff)
-        if (cleanErr) trackSyncError('clean_exercise_tombstones', cleanErr)
+        try {
+          const { error: cleanErr } = await supabase
+            .from('exercise_tombstones')
+            .delete()
+            .eq('user_id', userId)
+            .lt('deleted_at', cutoff)
+          if (cleanErr) trackSyncError('clean_exercise_tombstones', cleanErr)
+        } catch (cleanErr) {
+          trackSyncError('clean_exercise_tombstones', cleanErr)
+        }
         return 0
       } catch (err) {
         trackSyncError('pull_exercise_tombstones', err)

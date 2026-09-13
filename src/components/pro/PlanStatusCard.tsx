@@ -5,6 +5,43 @@ import { dateBcp47 } from '@/lib/date-locale'
 import { daysRemaining, usePlanBadgeState } from '@/lib/subscription'
 import { useAppStore } from '@/stores/app-store'
 
+export type PlanSummary = {
+  chip: string
+  detail: string | null
+  tone: 'muted' | 'brand' | 'warning'
+}
+
+/** Shared plan-status copy/tone — used by PlanStatusCard and the merged
+ *  services card on Profile. Five states: free / trial / pro / lifetime /
+ *  expired. */
+export function usePlanSummary(): PlanSummary {
+  const expiresAt = useAppStore((s) => s.settings.subscriptionExpiresAt)
+  const state = usePlanBadgeState()
+  const days = daysRemaining(expiresAt)
+
+  if (state === 'lifetime') {
+    return { chip: pl.proSubscriptionLifetime, detail: null, tone: 'brand' }
+  }
+  if (state === 'trial') {
+    return { chip: pl.proBadge, detail: pl.proSubscriptionTrial(days ?? 0), tone: 'brand' }
+  }
+  if (state === 'pro') {
+    return {
+      chip: pl.proBadge,
+      detail: expiresAt
+        ? pl.proSubscriptionExpires(new Date(expiresAt).toLocaleDateString(dateBcp47()))
+        : pl.proSubscriptionActive,
+      tone: 'brand',
+    }
+  }
+  if (state === 'expired') {
+    // 'expired' or a trial whose window passed (status stays 'trial' until
+    // the webhook marks it expired) — same renewal prompt either way.
+    return { chip: pl.proSubscriptionExpired, detail: null, tone: 'warning' }
+  }
+  return { chip: pl.proSubscriptionFree, detail: null, tone: 'muted' }
+}
+
 /**
  * Current plan status — chip + label + optional action slot.
  * Five states: free / trial (days left) / pro (expiry) / lifetime / expired.
@@ -18,36 +55,7 @@ export function PlanStatusCard({
   action?: React.ReactNode
   className?: string
 }) {
-  const expiresAt = useAppStore((s) => s.settings.subscriptionExpiresAt)
-  const state = usePlanBadgeState()
-
-  const days = daysRemaining(expiresAt)
-
-  let chip: string
-  let detail: string | null = null
-  let tone: 'muted' | 'brand' | 'warning' = 'muted'
-
-  if (state === 'lifetime') {
-    chip = pl.proSubscriptionLifetime
-    tone = 'brand'
-  } else if (state === 'trial') {
-    chip = pl.proBadge
-    detail = pl.proSubscriptionTrial(days ?? 0)
-    tone = 'brand'
-  } else if (state === 'pro') {
-    chip = pl.proBadge
-    detail = expiresAt
-      ? pl.proSubscriptionExpires(new Date(expiresAt).toLocaleDateString(dateBcp47()))
-      : pl.proSubscriptionActive
-    tone = 'brand'
-  } else if (state === 'expired') {
-    // 'expired' or a trial whose window passed (status stays 'trial' until
-    // the webhook marks it expired) — same renewal prompt either way.
-    chip = pl.proSubscriptionExpired
-    tone = 'warning'
-  } else {
-    chip = pl.proSubscriptionFree
-  }
+  const { chip, detail, tone } = usePlanSummary()
 
   return (
     <div

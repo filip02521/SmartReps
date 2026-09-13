@@ -117,16 +117,16 @@ Query: ?tab=mine|programs|library|community ; legacy ?library=1 → library
 ## Wireframe — Profil
 
 ```
-[ProfileHero — display name · email · bio · public/private toggle · sync status · follow counts · edit]
-[ProfileStats — sesje · powtórzenia · streak · best streak]
-[AiCoachCard — status connected/offline → otwiera SettingsSheet]
+[ProfileHero — display name · plan badge · tytuł · email · status line (offline/local/public) · follow counts · edit]
+[ProfileStats — jedna karta 2×2: sesje · powtórzenia · streak · best streak]
+[ProfileServicesCard — plan (chip + CTA → /pro) + Trener AI (status → SettingsSheet) w jednej karcie]
 [AiCoachHistory — insights (post-workout, weekly report, plateau warning) · filtry · dismiss — gdy AI connected]
 [ProfileAchievementsSection — gablotka 3 sloty (auto najmocniejsze / ręczne) · Wybierz · Wszystkie → Postępy]
 [ProfileAbout — app identity · wersja · privacy/terms · źródła · health disclaimer]
 [SettingsSheet (na żądanie) — sekcje:
   Konto i synchronizacja · Wygląd i język · Trening · Przypomnienia · Trener AI · Dane i backup]
 ```
-Kolejność: hero → stats → AI coach → osiągnięcia → about. Settings w sheecie (nie inline).
+Kolejność: hero → stats → plan+coach → historia coacha → osiągnięcia → about. Settings w sheecie (nie inline).
 Programy zarządzane w Plans (`/plans?tab=programs`), nie na Profilu.
 
 ## Wireframe — Trening (`ActiveWorkoutScreen`)

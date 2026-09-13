@@ -625,6 +625,12 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
           .eq('user_id', userId)
           .eq('id', id)
         if (error) throw error
+        // Belt-and-braces tombstone at drain — covers deletes queued before
+        // tombstones existed (otherwise nothing blocks resurrection once the
+        // queue item is gone).
+        if (id) {
+          await db.sessionTombstones.put({ sessionId: id, deletedAt: new Date().toISOString() })
+        }
       } else {
         const queued = payload as LocalWorkoutSession
         if (await db.sessionTombstones.get(queued.id)) break
@@ -655,6 +661,9 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
           .eq('user_id', userId)
           .eq('id', id)
         if (error) throw error
+        if (id) {
+          await db.bodyWeightTombstones.put({ entryId: id, deletedAt: new Date().toISOString() })
+        }
       } else {
         const queued = payload as BodyWeightEntry
         if (await db.bodyWeightTombstones.get(queued.id)) break
@@ -677,6 +686,9 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
         const id = (payload as { id: string }).id
         const { error } = await supabase.from('user_exercises').delete().eq('id', id).eq('user_id', userId)
         if (error) throw error
+        if (id) {
+          await db.exerciseTombstones.put({ exerciseId: id, deletedAt: new Date().toISOString() })
+        }
       } else {
         const queued = payload as import('@/lib/exercise-model').ExerciseDefinition
         if (await db.exerciseTombstones.get(queued.id)) break
@@ -690,6 +702,9 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
         const id = (payload as { id: string }).id
         const { error } = await supabase.from('custom_plans').delete().eq('id', id).eq('user_id', userId)
         if (error) throw error
+        if (id) {
+          await db.customPlanTombstones.put({ planId: id, deletedAt: new Date().toISOString() })
+        }
       } else {
         const queued = payload as import('@/lib/exercise-model').CustomPlan
         if (await db.customPlanTombstones.get(queued.id)) break
@@ -765,6 +780,15 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
           .eq('user_id', userId)
           .eq('id', insight.id)
         if (error) throw error
+        // Persist the tombstone at drain time too — deletes queued before the
+        // tombstone feature shipped have no marker, and once this queue item
+        // is gone nothing would stop another device's stale copy resurrecting.
+        if (insight.id) {
+          await db.aiInsightTombstones.put({
+            insightId: insight.id,
+            deletedAt: new Date().toISOString(),
+          })
+        }
       } else {
         if (await hasPendingInsightDelete(insight.id)) break
         // Deleted on this or another device — don't resurrect the remote row.
@@ -1457,12 +1481,16 @@ export async function pullRemoteData(): Promise<SyncResult> {
       // Self-cleaning: remote markers older than the TTL are dropped so the
       // table stays bounded (same window the local prune already accepts).
       const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString()
-      const { error: cleanErr } = await supabase
-        .from('session_tombstones')
-        .delete()
-        .eq('user_id', userId)
-        .lt('deleted_at', cutoff)
-      if (cleanErr) trackSyncError('clean_session_tombstones', cleanErr)
+      try {
+        const { error: cleanErr } = await supabase
+          .from('session_tombstones')
+          .delete()
+          .eq('user_id', userId)
+          .lt('deleted_at', cutoff)
+        if (cleanErr) trackSyncError('clean_session_tombstones', cleanErr)
+      } catch (cleanErr) {
+        trackSyncError('clean_session_tombstones', cleanErr)
+      }
       return { ok: true, errors: 0 }
     } catch (err) {
       trackSyncError('pull_session_tombstones', err)
@@ -1505,12 +1533,16 @@ export async function pullRemoteData(): Promise<SyncResult> {
         if (localEntry) await db.bodyWeight.delete(row.entry_id)
       }
       const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString()
-      const { error: cleanErr } = await supabase
-        .from('body_weight_tombstones')
-        .delete()
-        .eq('user_id', userId)
-        .lt('deleted_at', cutoff)
-      if (cleanErr) trackSyncError('clean_body_weight_tombstones', cleanErr)
+      try {
+        const { error: cleanErr } = await supabase
+          .from('body_weight_tombstones')
+          .delete()
+          .eq('user_id', userId)
+          .lt('deleted_at', cutoff)
+        if (cleanErr) trackSyncError('clean_body_weight_tombstones', cleanErr)
+      } catch (cleanErr) {
+        trackSyncError('clean_body_weight_tombstones', cleanErr)
+      }
       return { ok: true, errors: 0 }
     } catch (err) {
       trackSyncError('pull_body_weight_tombstones', err)
@@ -1604,12 +1636,16 @@ export async function pullRemoteData(): Promise<SyncResult> {
         if (localInsight) await db.aiInsights.delete(r.insight_id)
       }
       const cutoff = new Date(Date.now() - TOMBSTONE_TTL_MS).toISOString()
-      const { error: cleanErr } = await supabase
-        .from('ai_insight_tombstones')
-        .delete()
-        .eq('user_id', userId)
-        .lt('deleted_at', cutoff)
-      if (cleanErr) trackSyncError('clean_ai_insight_tombstones', cleanErr)
+      try {
+        const { error: cleanErr } = await supabase
+          .from('ai_insight_tombstones')
+          .delete()
+          .eq('user_id', userId)
+          .lt('deleted_at', cutoff)
+        if (cleanErr) trackSyncError('clean_ai_insight_tombstones', cleanErr)
+      } catch (cleanErr) {
+        trackSyncError('clean_ai_insight_tombstones', cleanErr)
+      }
       return { ok: true, errors: 0 }
     } catch (err) {
       trackSyncError('pull_ai_insight_tombstones', err)

@@ -12,7 +12,6 @@ import { useIsTrial, usePlanBadgeState, useProFeatures } from '@/lib/subscriptio
 import { canExport, canWebPush, type ProFeature } from '@/lib/feature-gating'
 import { ProTeaser } from '@/components/ux/ProTeaser'
 import { canUseManagedAi } from '@/lib/ai/managed-client'
-import { PlanStatusCard } from '@/components/pro/PlanStatusCard'
 import { ProfileAchievementsSection } from '@/components/achievements/ProfileAchievementsSection'
 import { TitlePickerSheet } from '@/components/achievements/TitlePickerSheet'
 import { getAllUnlocks } from '@/lib/achievements/store'
@@ -21,7 +20,7 @@ import { ImportBackupSheet } from '@/components/profile/ImportBackupSheet'
 import { SettingsSheet } from '@/components/profile/SettingsSheet'
 import { ProfileStats } from '@/components/profile/ProfileStats'
 import { ProfileHero } from '@/components/profile/ProfileHero'
-import { AiCoachCard } from '@/components/profile/AiCoachCard'
+import { ProfileServicesCard } from '@/components/profile/ProfileServicesCard'
 import { AiCoachHistory } from '@/components/profile/AiCoachHistory'
 import { ProfileAbout } from '@/components/profile/ProfileAbout'
 import { FollowersSheet, FollowingSheet, PublicProfileSheet } from '@/components/follow/FollowManager'
@@ -318,10 +317,11 @@ export default function ProfilePage() {
         <ProfileStats />
       </div>
 
-      {/* Current plan — free sees "Zobacz Pro", pro sees manage. Details on /pro. */}
+      {/* Plan + AI Coach — one card, two rows. Plan CTA: free sees
+          "Zobacz Pro", pro sees manage; coach row opens settings. */}
       <div className="mt-6">
-        <PlanStatusCard
-          action={
+        <ProfileServicesCard
+          planAction={
             planState === 'lifetime' ? undefined : (
             <Button
               variant={pro && !isTrial ? 'secondary' : 'primary'}
@@ -336,16 +336,9 @@ export default function ProfilePage() {
             </Button>
             )
           }
-        />
-      </div>
-
-      {/* AI Coach — promoted from settings to profile. Connected = BYOK key
-          configured OR hosted SmartReps AI available (logged-in session). */}
-      <div className="mt-6">
-        <AiCoachCard
-          connected={pro && (!!(settings.aiApiKey ?? '').trim() || canUseManagedAi(loggedIn === true, pro))}
-          hosted={!(settings.aiApiKey ?? '').trim() && canUseManagedAi(loggedIn === true, pro)}
-          requiresPro={!pro}
+          aiConnected={pro && (!!(settings.aiApiKey ?? '').trim() || canUseManagedAi(loggedIn === true, pro))}
+          aiHosted={!(settings.aiApiKey ?? '').trim() && canUseManagedAi(loggedIn === true, pro)}
+          aiRequiresPro={!pro}
           onOpenSettings={() => setShowSettings(true)}
         />
       </div>

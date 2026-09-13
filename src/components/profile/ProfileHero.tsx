@@ -1,6 +1,5 @@
 import { Settings, RefreshCw, LogIn, Pencil, Users, UserCheck, Globe, Lock, ChevronRight, Crown } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Card'
 import { UserPlanBadge } from '@/components/pro/UserPlanBadge'
 import { ProfileTitleChip } from '@/components/achievements/ProfileTitleChip'
 import { getProfileTitle } from '@/lib/achievements/titles'
@@ -136,28 +135,23 @@ export function ProfileHero({
               {email}
             </p>
           )}
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <Badge variant={connected ? 'success' : 'info'}>
-              {connected ? pl.profileHeroConnected : pl.profileHeroLocal}
-            </Badge>
-            {/* Public/private badge */}
-            {showFollowStats && (
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
-                  isPublic
-                    ? 'bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary)]'
-                    : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
-                )}
-              >
-                {isPublic ? <Globe size={11} aria-hidden /> : <Lock size={11} aria-hidden />}
-                {isPublic ? pl.profileHeroPublic : pl.profileHeroPrivate}
-              </span>
-            )}
-            {!online && (
-              <span className="text-xs text-[var(--sr-text-muted)]">{pl.offline}</span>
-            )}
-          </div>
+          {/* Status line — one muted caption instead of stacked pill badges.
+              Priority: offline > local mode > public/private profile. The
+              connected state needs no marker — email + sync CTA show it. */}
+          {(!online || !connected || showFollowStats) && (
+            <p className="mt-1.5 flex items-center gap-1.5 sr-text-caption text-[var(--sr-text-muted)]">
+              {!online ? (
+                pl.offline
+              ) : !connected ? (
+                pl.profileHeroLocal
+              ) : showFollowStats ? (
+                <>
+                  {isPublic ? <Globe size={11} aria-hidden /> : <Lock size={11} aria-hidden />}
+                  {isPublic ? pl.profileHeroPublic : pl.profileHeroPrivate}
+                </>
+              ) : null}
+            </p>
+          )}
         </div>
 
         {/* Settings — gear icon */}
