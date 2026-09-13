@@ -21,7 +21,7 @@ import { computeBuiltinSessionInsights, computeCustomSessionInsights, primarySet
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import { customSessionTotalReps } from '@/lib/custom-session-comparison'
 import { getProgramLabel } from '@/lib/plan-resolver'
-import { enqueueSync } from '@/lib/sync'
+import { deleteAiInsight } from '@/lib/sync'
 import { parseJsonResponse, AiApiError, isGeminiEndpoint } from './ai-client'
 import { aiChat, type AiContext } from './managed-client'
 import { buildPostWorkoutPrompt, buildWeeklyReportPrompt } from './prompts'
@@ -57,10 +57,9 @@ export async function pruneOldAiInsights(): Promise<void> {
   const toDelete = sorted.slice(0, all.length - MAX_AI_INSIGHTS)
   for (const insight of toDelete) {
     if (!insight?.id) continue
-    await db.aiInsights.delete(insight.id)
-    // Propagate the delete so pruned rows don't resurrect from the cloud on
+    // Tombstoned delete so pruned rows don't resurrect from the cloud on
     // other devices or a fresh install.
-    void enqueueSync('ai_insights', 'delete', insight)
+    await deleteAiInsight(insight)
   }
 }
 

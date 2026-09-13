@@ -27,8 +27,19 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+const mockEnqueueSync = vi.hoisted(() =>
+  vi.fn((_table?: string, _action?: string, _payload?: unknown) => Promise.resolve()),
+)
+
 vi.mock('@/lib/sync', () => ({
-  enqueueSync: vi.fn(() => Promise.resolve()),
+  enqueueSync: mockEnqueueSync,
+  // Mirror the real observable behavior: cloud delete queued + local row removed.
+  deleteAiInsight: vi.fn(async (insight: { id?: string }) => {
+    if (!insight.id) return
+    await mockEnqueueSync('ai_insights', 'delete', insight)
+    const { db } = await import('@/lib/db')
+    await db.aiInsights.delete(insight.id)
+  }),
 }))
 
 // Mock session-summary-insights — compute functions are stubbed per-test;

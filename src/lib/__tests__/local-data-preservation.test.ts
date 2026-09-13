@@ -79,6 +79,7 @@ vi.mock('@/lib/db', () => ({
     customPlanTombstones: { clear: vi.fn() },
     exerciseTombstones: { clear: vi.fn() },
     bodyWeightTombstones: { clear: vi.fn() },
+    aiInsightTombstones: { clear: vi.fn() },
     streakFreezes: { clear: vi.fn() },
   },
 }))

@@ -103,7 +103,22 @@ export function ProgramHomeCard({
   }
 
   if (model.loadError) {
-    return null
+    // Never hide the card — a failed load must stay visible with a retry,
+    // otherwise an active program silently disappears from the dashboard.
+    return (
+      <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
+        <div className="flex items-center gap-3">
+          <ProgramIconBadge program={program} />
+          <h3 className="min-w-0 flex-1 break-words sr-text-h2 text-[var(--sr-text-primary)]">
+            {model.label}
+          </h3>
+        </div>
+        <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">{model.loadError}</p>
+        <Button className="mt-4" size="touch" fullWidth onClick={onReload}>
+          {pl.retry}
+        </Button>
+      </ProgramAccentCard>
+    )
   }
 
   if (bucket === 'unconfigured' || !progress) {

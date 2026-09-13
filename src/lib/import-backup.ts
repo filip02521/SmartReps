@@ -466,8 +466,16 @@ export async function applyJsonImport(
       await db.bodyWeightTombstones.put(t)
     }
   }
+  // Insight tombstones restore BEFORE insights — a deleted insight must not be
+  // resurrected by the backup on this device or pushed back to the cloud.
+  if (snapshot.aiInsightTombstones?.length) {
+    for (const t of snapshot.aiInsightTombstones) {
+      await db.aiInsightTombstones.put(t)
+    }
+  }
   if (snapshot.aiInsights?.length) {
     for (const ai of snapshot.aiInsights) {
+      if (!ai.id || (await db.aiInsightTombstones.get(ai.id))) continue
       const local = await db.aiInsights.get(ai.id)
       if (local) continue
       await db.aiInsights.put(ai)

@@ -362,9 +362,8 @@ export default function ProfilePage() {
         <ProfileAchievementsSection />
       </div>
 
-      {/* Title picker — opened from the hero chip; the achievements section
-          keeps its own trigger so both entry points stay in sync via the
-          shared settings.selectedTitle. */}
+      {/* Title picker — single entry point: the chip under the name in the
+          hero (direct manipulation — tap the displayed title to change it). */}
       <TitlePickerSheet
         open={showTitlePicker}
         onClose={() => setShowTitlePicker(false)}

@@ -8,7 +8,10 @@ import {
 } from '@/lib/progress-engine'
 import { getProgramStats, loadFrozenWeekKeys, type ProgramStats } from '@/lib/stats-engine'
 import { isStaleActiveWorkout, enqueueSync } from '@/lib/sync'
-import { reconcileActiveWorkout } from '@/lib/program-service'
+import {
+  reconcileActiveWorkout,
+  reconcileProgressFromSessions,
+} from '@/lib/program-service'
 import { pl } from '@/i18n/pl'
 import { currentLang } from '@/i18n'
 import { buildActivityInsights, daysSinceLastPassedSession, type ActivityInsights } from '@/lib/weekly-recap'
@@ -727,6 +730,9 @@ export async function loadHomeDashboard(
   const cardModels = await Promise.all(
     enabledPrograms.map(async (program): Promise<ProgramCardModel> => {
       try {
+        // Self-heal first: a completed session whose progress update was lost
+        // (app closed between writes) must advance progress before we render.
+        await reconcileProgressFromSessions(program)
         const progress =
           (await db.programProgress.where('program').equals(program).first()) ?? null
         if (!progress) {

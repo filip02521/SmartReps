@@ -117,6 +117,12 @@ const mockDb = vi.hoisted(() => ({
     get: vi.fn().mockResolvedValue(undefined),
     put: vi.fn(),
   },
+  aiInsightTombstones: {
+    toArray: vi.fn().mockResolvedValue([]),
+    get: vi.fn().mockResolvedValue(undefined),
+    put: vi.fn(),
+  },
+  transaction: vi.fn(async (_m: unknown, _t: unknown, fn: () => Promise<unknown>) => fn()),
   customPlans: {
     toArray: vi.fn().mockResolvedValue([]),
     get: vi.fn().mockResolvedValue(undefined),

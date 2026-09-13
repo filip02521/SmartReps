@@ -3,6 +3,7 @@ import { useAppStore, type UserSettings } from '@/stores/app-store'
 import type {
   ActiveCustomWorkoutState,
   ActiveWorkoutState,
+  AiInsightTombstone,
   BodyWeightEntry,
   LocalAchievementUnlockRow,
   LocalAiInsight,
@@ -61,6 +62,8 @@ export type BackupSnapshotV3 = {
   customPlanTombstones?: CustomPlanTombstone[]
   exerciseTombstones?: ExerciseTombstone[]
   bodyWeightTombstones?: BodyWeightTombstone[]
+  /** Optional — added after v3 shipped; absent in older v3 backups. */
+  aiInsightTombstones?: AiInsightTombstone[]
   aiInsights: LocalAiInsight[]
   /** Optional — added after v3 shipped; absent in older v3 backups. */
   streakFreezes?: StreakFreezeRow[]
@@ -86,6 +89,7 @@ export async function exportBackupSnapshot(): Promise<BackupSnapshotV3> {
     customPlanTombstones,
     exerciseTombstones,
     bodyWeightTombstones,
+    aiInsightTombstones,
     streakFreezes,
   ] = await Promise.all([
     db.programProgress.toArray(),
@@ -103,6 +107,7 @@ export async function exportBackupSnapshot(): Promise<BackupSnapshotV3> {
     db.customPlanTombstones.toArray(),
     db.exerciseTombstones.toArray(),
     db.bodyWeightTombstones.toArray(),
+    db.aiInsightTombstones.toArray(),
     db.streakFreezes.toArray(),
   ])
 
@@ -128,6 +133,7 @@ export async function exportBackupSnapshot(): Promise<BackupSnapshotV3> {
     customPlanTombstones,
     exerciseTombstones,
     bodyWeightTombstones,
+    aiInsightTombstones,
     aiInsights,
     streakFreezes,
   }

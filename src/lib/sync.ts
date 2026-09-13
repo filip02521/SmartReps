@@ -765,6 +765,8 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
         if (error) throw error
       } else {
         if (await hasPendingInsightDelete(insight.id)) break
+        // Deleted on this or another device — don't resurrect the remote row.
+        if (await db.aiInsightTombstones.get(insight.id)) break
         const { error } = await supabase.from('ai_insights').upsert({
           id: insight.id,
           user_id: userId,
@@ -787,7 +789,9 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
           // server-side report already exists — drop the local duplicate
           // instead of dead-lettering; it arrives via pull anyway.
           if ((error as { code?: string }).code === '23505' && insight.type === 'weekly_report') {
-            await db.aiInsights.delete(insight.id)
+            // Tombstoned delete — a remote row under this id may exist if the
+            // report was pushed before the canonical one existed.
+            await deleteAiInsight(insight)
             break
           }
           throw error
@@ -1286,7 +1290,27 @@ type RemoteAiInsightRow = {
   metrics_json: string | null
 }
 
+/** Delete an ai_insight locally with a durable tombstone + cloud-delete
+ *  propagation. Mirrors deleteWorkoutSession: without the tombstone another
+ *  device's stale copy could resurrect the row on the next sync. */
+export async function deleteAiInsight(insight: { id?: string }): Promise<void> {
+  const id = insight.id
+  if (!id) return
+  // 1. Enqueue cloud delete BEFORE local delete to prevent resurrection
+  await enqueueSync('ai_insights', 'delete', insight)
+  // 2. Tombstone + local delete atomically
+  await db.transaction('rw', [db.aiInsightTombstones, db.aiInsights], async () => {
+    await db.aiInsightTombstones.put({ insightId: id, deletedAt: new Date().toISOString() })
+    await db.aiInsights.delete(id)
+  })
+}
+
 export async function mergeAiInsightRemote(remote: RemoteAiInsightRow) {
+  // Don't resurrect an insight deleted locally (pending queue) or on another
+  // device (tombstone pulled from cloud).
+  if (await hasPendingInsightDelete(remote.id)) return
+  if (await db.aiInsightTombstones.get(remote.id)) return
+
   const existing = await db.aiInsights.get(remote.id)
   // For weekly reports: if remote is AI and local has a different-id local
   // report for the same weekKey, replace it (AI wins over local for same week)
@@ -1296,11 +1320,10 @@ export async function mergeAiInsightRemote(remote: RemoteAiInsightRow) {
       .equals(remote.week_key)
       .filter((i) => i.type === 'weekly_report' && i.id !== remote.id && i.source !== 'ai')
       .toArray()
-    await Promise.all(sameWeekLocals.map((r) => db.aiInsights.delete(r.id)))
-    // Propagate deletes — the replaced local reports may exist in the cloud
+    // Tombstoned deletes — the replaced local reports may exist in the cloud
     // (local insights sync too) and would be pulled back on other devices.
     for (const r of sameWeekLocals) {
-      if (r.id) void enqueueSync('ai_insights', 'delete', r)
+      await deleteAiInsight(r)
     }
   }
   if (existing) {
@@ -1557,7 +1580,64 @@ export async function pullRemoteData(): Promise<SyncResult> {
     }
   })()
 
-  const aiInsightsPull: Promise<SyncResult> = (async () => {
+  // AI-insight tombstones — same contract as session_tombstones: pull remote
+  // markers (and delete resurrected local rows) + push local markers; both in
+  // phase 1 so the ai_insights pull can be gated on tombstone success.
+  const aiInsightTombstonesPull: Promise<SyncResult> = (async () => {
+    try {
+      const { data: remoteTombstones, error: tombstoneError } = await supabase
+        .from('ai_insight_tombstones')
+        .select('insight_id, deleted_at')
+        .eq('user_id', userId)
+      if (tombstoneError) throw tombstoneError
+      for (const row of remoteTombstones ?? []) {
+        const r = row as { insight_id: string; deleted_at: string }
+        await db.aiInsightTombstones.put({ insightId: r.insight_id, deletedAt: r.deleted_at })
+        // Delete local insight if it still exists (resurrected by earlier sync)
+        const localInsight = await db.aiInsights.get(r.insight_id)
+        if (localInsight) await db.aiInsights.delete(r.insight_id)
+      }
+      return { ok: true, errors: 0 }
+    } catch (err) {
+      trackSyncError('pull_ai_insight_tombstones', err)
+      return { ok: false, errors: 1, tombstoneErrors: 1 }
+    }
+  })()
+
+  const aiInsightTombstonesPush: Promise<SyncResult> = (async () => {
+    let errs = 0
+    try {
+      const localTombstones = await db.aiInsightTombstones.toArray()
+      for (const tombstone of localTombstones) {
+        try {
+          const { error } = await supabase
+            .from('ai_insight_tombstones')
+            .upsert(
+              {
+                user_id: userId,
+                insight_id: tombstone.insightId,
+                deleted_at: tombstone.deletedAt,
+              },
+              { onConflict: 'user_id,insight_id' },
+            )
+          if (error) throw error
+        } catch (err) {
+          errs++
+          trackSyncError('push_ai_insight_tombstone', err)
+        }
+      }
+    } catch (err) {
+      errs++
+      trackSyncError('push_ai_insight_tombstones', err)
+    }
+    return errs > 0
+      ? { ok: false, errors: errs, tombstoneErrors: errs }
+      : { ok: true, errors: 0 }
+  })()
+
+  // Deferred to phase 2 — gated on the ai_insight_tombstones section so a
+  // remote row deleted on another device isn't merged back before markers load.
+  const aiInsightsPull = async (): Promise<SyncResult> => {
     try {
       const { data: remoteInsights, error: insightsError } = await supabase
         .from('ai_insights')
@@ -1580,7 +1660,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
       trackSyncError('pull_ai_insights', err)
       return { ok: false, errors: 1 }
     }
-  })()
+  }
 
   // Custom entities (plans, exercises, progress, active custom workouts).
   // Deferred to phase 2 — mergeActiveCustomRemote inspects the just-pulled
@@ -1634,13 +1714,17 @@ export async function pullRemoteData(): Promise<SyncResult> {
     sessionTombstonesPull,
     bodyWeightTombstonesSync,
     sessionTombstonesPush,
+    aiInsightTombstonesPull,
+    aiInsightTombstonesPush,
     activeWorkoutsPull,
     maxTestsPull,
-    aiInsightsPull,
     streakFreezesPull,
   ])
   const sessionTombstonesResult = phase1[2]
   const bodyWeightTombstonesResult = phase1[3]
+  // Pull + push run in parallel — combine tombstone failures for the gate.
+  const aiInsightTombstoneErrors =
+    (phase1[5].tombstoneErrors ?? 0) + (phase1[6].tombstoneErrors ?? 0)
 
   let errors = 0
   let tombstoneErrors = 0
@@ -1675,6 +1759,10 @@ export async function pullRemoteData(): Promise<SyncResult> {
         }
       })(),
     )
+  }
+
+  if (aiInsightTombstoneErrors === 0) {
+    gated.push(aiInsightsPull())
   }
 
   if ((bodyWeightTombstonesResult.tombstoneErrors ?? 0) === 0) {
@@ -1730,6 +1818,7 @@ async function pruneOldTombstones(): Promise<void> {
   await db.customPlanTombstones.where('deletedAt').below(cutoff).delete()
   await db.exerciseTombstones.where('deletedAt').below(cutoff).delete()
   await db.bodyWeightTombstones.where('deletedAt').below(cutoff).delete()
+  await db.aiInsightTombstones.where('deletedAt').below(cutoff).delete()
 }
 
 export async function syncWithRemote(): Promise<SyncResult> {

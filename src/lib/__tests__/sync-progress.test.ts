@@ -87,6 +87,8 @@ vi.mock('@/lib/db', () => ({
     bodyWeightTombstones: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), put: vi.fn() },
     sessionTombstones: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), put: vi.fn() },
     aiInsights: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), put: vi.fn() },
+    aiInsightTombstones: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), put: vi.fn() },
+    transaction: vi.fn(async (_m: unknown, _t: unknown, fn: () => Promise<unknown>) => fn()),
     customPlans: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), delete: vi.fn() },
     exercises: { toArray: vi.fn().mockResolvedValue([]), get: vi.fn(), delete: vi.fn() },
     customProgramProgress: {

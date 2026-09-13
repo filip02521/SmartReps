@@ -115,8 +115,14 @@ export async function getProgramStats(
  * streak-freeze.ts delegates to this.
  */
 export async function loadFrozenWeekKeys(): Promise<Set<string>> {
-  const rows = await db.streakFreezes.where('kind').equals('use').toArray()
-  return new Set(rows.map((r) => r.weekKey).filter((k): k is string => k !== null))
+  try {
+    const rows = await db.streakFreezes.where('kind').equals('use').toArray()
+    return new Set(rows.map((r) => r.weekKey).filter((k): k is string => k !== null))
+  } catch {
+    // Freezes are additive streak metadata — never let a read failure
+    // (e.g. older schema mid-upgrade) break stats/dashboard loading.
+    return new Set()
+  }
 }
 
 /** Local Monday 00:00 — shared with heatmap (Pn–Nd) and best-streak. */

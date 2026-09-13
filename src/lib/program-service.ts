@@ -97,17 +97,15 @@ export async function completeWorkoutDay(
   sessionId?: string,
   sessionDayNumber?: number,
 ) {
-  if (sessionId) {
-    const key = `${program}:${sessionId}`
-    if (advancedBySession.has(key)) return
-    advancedBySession.add(key)
-  }
+  if (sessionId && advancedBySession.has(`${program}:${sessionId}`)) return
 
   const progress = await getProgramProgress(program)
   if (!progress) return
 
   const cycle = getCycleById(progress.cycleId)
   if (!cycle) return
+
+  if (sessionId) advancedBySession.add(`${program}:${sessionId}`)
 
   // Use the session's dayNumber if provided — this ensures we advance from
   // the day the session was actually for, not from progress.currentDay which
@@ -170,6 +168,45 @@ export async function completeWorkoutDay(
     lastWorkoutAt: new Date().toISOString(),
     nextWorkoutAfter: nextDate.toISOString(),
   })
+}
+
+/**
+ * Self-heal: advances progress when a completed session for the current
+ * cycle/attempt was never consumed — e.g. the app closed between the session
+ * write and the progress update in finalizeSuccessfulDay. Idempotent: after
+ * the advance the session's cycle/attempt/day no longer match the progress
+ * row, so re-runs are no-ops.
+ */
+export async function reconcileProgressFromSessions(program: Program): Promise<void> {
+  const progress = await getProgramProgress(program)
+  if (!progress) return
+  if (progress.status === 'paused' || progress.status === 'test_pending') return
+
+  const lastWorkoutMs = progress.lastWorkoutAt ? new Date(progress.lastWorkoutAt).getTime() : 0
+  const sessions = await db.workoutSessions
+    .where('[program+status]')
+    .equals([program, 'completed'])
+    .toArray()
+  const unconsumed = sessions
+    .filter(
+      (s) =>
+        s.cycleId === progress.cycleId &&
+        s.cycleAttempt === progress.cycleAttempt &&
+        s.dayNumber >= progress.currentDay &&
+        !!s.completedAt &&
+        new Date(s.completedAt).getTime() > lastWorkoutMs,
+    )
+    .sort(
+      (a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime(),
+    )[0]
+  if (!unconsumed) return
+  await completeWorkoutDay(
+    program,
+    unconsumed.passed === true,
+    unconsumed.totalReps ?? 0,
+    unconsumed.id,
+    unconsumed.dayNumber,
+  )
 }
 
 export function getStatusTone(progress: LocalProgramProgress): 'success' | 'warning' | 'info' | 'error' {

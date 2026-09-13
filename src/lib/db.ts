@@ -172,6 +172,12 @@ export type BodyWeightTombstone = {
   deletedAt: string
 }
 
+/** Tombstone for a deleted AI insight — prevents resurrection by cross-device sync. */
+export type AiInsightTombstone = {
+  insightId: string
+  deletedAt: string
+}
+
 /**
  * Streak freeze event (Pro perk). 'grant' accrues a freeze (1/month while Pro),
  * 'use' marks a skipped week as covered by the streak. Deterministic ids
@@ -208,6 +214,7 @@ class SmartRepsDB extends Dexie {
   customPlanTombstones!: EntityTable<CustomPlanTombstone, 'planId'>
   exerciseTombstones!: EntityTable<ExerciseTombstone, 'exerciseId'>
   bodyWeightTombstones!: EntityTable<BodyWeightTombstone, 'entryId'>
+  aiInsightTombstones!: EntityTable<AiInsightTombstone, 'insightId'>
   streakFreezes!: EntityTable<StreakFreezeRow, 'id'>
 
   constructor() {
@@ -484,6 +491,11 @@ class SmartRepsDB extends Dexie {
       bodyWeightTombstones: 'entryId, deletedAt',
       aiPlanDrafts: 'id, createdAt',
       streakFreezes: 'id, kind, weekKey, monthKey',
+    })
+    // v16: aiInsightTombstones — durable delete markers so a dismissed/pruned
+    // insight isn't resurrected by another device's stale copy.
+    this.version(16).stores({
+      aiInsightTombstones: 'insightId, deletedAt',
     })
   }
 }

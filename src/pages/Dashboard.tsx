@@ -29,7 +29,7 @@ import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { db, type LocalAiInsight, type LocalWorkoutSession } from '@/lib/db'
-import { enqueueSync, refreshSubscriptionStatus } from '@/lib/sync'
+import { deleteAiInsight, enqueueSync, refreshSubscriptionStatus } from '@/lib/sync'
 import { track, AnalyticsEvents } from '@/lib/analytics'
 import { generateWeeklyReport } from '@/lib/ai/proactive-coach'
 import { canUseManagedAi, resolveAiContextForCall } from '@/lib/ai/managed-client'
@@ -219,12 +219,16 @@ export default function Dashboard() {
   useEffect(() => {
     if (!hydrated) return
     const completed = heatmapSessions.filter((s) => s.status === 'completed')
-    void maintainStreakFreezes(completed).then((saved) => {
-      if (saved.length) {
-        showToast(pl.streakFreezeSavedToast, 'success')
-        track(AnalyticsEvents.streakFreezeUsed, { weeks: saved.length })
-      }
-    })
+    void maintainStreakFreezes(completed)
+      .then((saved) => {
+        if (saved.length) {
+          showToast(pl.streakFreezeSavedToast, 'success')
+          track(AnalyticsEvents.streakFreezeUsed, { weeks: saved.length })
+        }
+      })
+      .catch(() => {
+        // Streak freezes are additive — a failure must never break the dashboard.
+      })
   }, [hydrated, heatmapSessions])
 
   useEffect(() => {
@@ -284,14 +288,12 @@ export default function Dashboard() {
             if (a.source !== 'ai' && b.source === 'ai') return 1
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           })[0]
-          // Clean up duplicate reports for the same week (keep only the best)
+          // Clean up duplicate reports for the same week (keep only the best).
+          // Tombstoned deletes — prevents resurrection from other devices.
           if (allExisting.length > 1) {
             const duplicates = allExisting.filter((r) => r.id !== best.id)
-            await Promise.all(duplicates.map((r) => db.aiInsights.delete(r.id)))
-            // Enqueue sync deletes so duplicates are removed from cloud too
-            // (prevents resurrection from other devices)
             for (const dup of duplicates) {
-              void enqueueSync('ai_insights', 'delete', dup)
+              await deleteAiInsight(dup)
             }
           }
           if (!cancelled && !best.dismissedAt) setWeeklyReport(best)
@@ -354,8 +356,7 @@ export default function Dashboard() {
             if (cancelled) { setWeeklyReportGenerating(false); return }
             if (forceRegenerate) {
               const old = await db.aiInsights.where('weekKey').equals(targetWeekKey).filter((i) => i.type === 'weekly_report').toArray()
-              await Promise.all(old.map((r) => db.aiInsights.delete(r.id)))
-              for (const r of old) void enqueueSync('ai_insights', 'delete', r)
+              for (const r of old) await deleteAiInsight(r)
             }
             await db.aiInsights.put(report)
             void enqueueSync('ai_insights', 'insert', report)
@@ -423,8 +424,7 @@ export default function Dashboard() {
             .equals(targetWeekKey)
             .filter((i) => i.type === 'weekly_report')
             .toArray()
-          await Promise.all(old.map((r) => db.aiInsights.delete(r.id)))
-          for (const r of old) void enqueueSync('ai_insights', 'delete', r)
+          for (const r of old) await deleteAiInsight(r)
         }
         await db.aiInsights.put(report)
         void enqueueSync('ai_insights', 'insert', report)

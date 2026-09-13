@@ -26,20 +26,24 @@ export function HomeStatusHeader({
   const isScroll = cta?.kind === 'scroll'
   return (
     <header className="mb-5">
-      {/* Date + greeting — compact eyebrow; plan chip mirrors Profile */}
-      <div className="flex items-center gap-2">
+      {/* Date + greeting — compact eyebrow; plan chip stays glued to the name
+          and wraps as one unit on narrow screens (mobile 375px). */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
           {summary.dateLabel}
         </p>
         {displayName && (
           <>
             <span className="sr-text-body-sm text-[var(--sr-text-muted)]" aria-hidden>·</span>
-            <p className="sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
-              {pl[greetingKey](displayName)}
-            </p>
+            <span className="inline-flex min-w-0 items-center gap-2">
+              <p className="min-w-0 truncate sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
+                {pl[greetingKey](displayName)}
+              </p>
+              <UserPlanBadge />
+            </span>
           </>
         )}
-        <UserPlanBadge />
+        {!displayName && <UserPlanBadge />}
       </div>
       {/* Headline — dominant, immediate answer to "what should I do?" */}
       <h2 className="mt-1.5 sr-text-h2 leading-snug text-[var(--sr-text-primary)]">
