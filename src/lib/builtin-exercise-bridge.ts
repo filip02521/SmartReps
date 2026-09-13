@@ -2,7 +2,8 @@ import type { LocalWorkoutSession } from '@/lib/db'
 import type { ExerciseDefinition, ExerciseLog, SetLog } from '@/lib/exercise-model'
 import { setTargetToMetricTarget } from '@/lib/exercise-model'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
-import { pl } from '@/i18n/pl'
+import { pl, plDict, type Translation } from '@/i18n/pl'
+import { en } from '@/i18n/en'
 
 /** Builtin Strong programs that share starter library exercises. */
 export const BUILTIN_LIBRARY_PROGRAMS = ['pushups', 'pullups', 'squats'] as const
@@ -12,17 +13,24 @@ function normalizeExerciseName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-/** Starter / program labels that map a library exercise to a builtin program. */
-const PROGRAM_NAME_ALIASES: Record<BuiltinLibraryProgram, string[]> = {
-  pushups: [pl.exerciseStarterPushups, pl.pushupsProgram],
-  pullups: [pl.exerciseStarterPullups, pl.pullupsProgram],
-  squats: [pl.exerciseStarterSquats, pl.squatsProgram],
-}
+/** i18n keys whose values map a library exercise to a builtin program.
+ *  Looked up in EVERY supported language — a stored exercise name keeps the
+ *  language it was created in, so matching must accept all variants. */
+const PROGRAM_ALIAS_KEYS = {
+  pushups: ['exerciseStarterPushups', 'pushupsProgram'],
+  pullups: ['exerciseStarterPullups', 'pullupsProgram'],
+  squats: ['exerciseStarterSquats', 'squatsProgram'],
+} as const satisfies Record<BuiltinLibraryProgram, readonly (keyof Translation)[]>
 
 const PROGRAM_ALIAS_LOOKUP = new Map<string, BuiltinLibraryProgram>()
 for (const program of BUILTIN_LIBRARY_PROGRAMS) {
-  for (const label of PROGRAM_NAME_ALIASES[program]) {
-    PROGRAM_ALIAS_LOOKUP.set(normalizeExerciseName(label), program)
+  for (const key of PROGRAM_ALIAS_KEYS[program]) {
+    for (const dict of [plDict, en]) {
+      const label = dict[key]
+      if (typeof label === 'string') {
+        PROGRAM_ALIAS_LOOKUP.set(normalizeExerciseName(label), program)
+      }
+    }
   }
 }
 

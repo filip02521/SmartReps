@@ -171,7 +171,7 @@ export async function buildAchievementSnapshot(opts?: {
   }
 
   const promise = (async () => {
-  const [allSessions, maxTests, progressRows, customPlans, tombstones, bodyWeightEntries, customExercises, aiInsights, exerciseTombstones] = await Promise.all([
+  const [allSessions, maxTests, progressRows, customPlans, tombstones, bodyWeightEntries, customExercises, aiInsights, exerciseTombstones, freezeRows] = await Promise.all([
     db.workoutSessions.toArray(),
     db.maxTests.toArray(),
     db.programProgress.toArray(),
@@ -181,7 +181,14 @@ export async function buildAchievementSnapshot(opts?: {
     db.exercises.toArray(),
     db.aiInsights.toArray(),
     db.exerciseTombstones.toArray(),
+    db.streakFreezes.toArray(),
   ])
+  // Frozen weeks count toward streak_* achievements — a consumed freeze
+  // preserves the streak by design. detectComeback deliberately ignores
+  // freezes (it measures real training rebounds).
+  const frozenWeeks = new Set(
+    freezeRows.map((r) => r.weekKey).filter((k): k is string => k !== null),
+  )
 
   // Defensive: exclude any session that has a tombstone (shouldn't happen in normal flow
   // since delete removes the row, but protects against sync resurrection bugs)
@@ -315,8 +322,8 @@ export async function buildAchievementSnapshot(opts?: {
     squatsSessions,
     // Only count user-created plans (not imported/duplicated from community/backup)
     customPlansCount: customPlans.filter((p) => p.source === 'user').length,
-    streakWeeks: computeStreakWeeks(completed, now),
-    bestStreakWeeks: computeBestStreakWeeks(completed),
+    streakWeeks: computeStreakWeeks(completed, now, frozenWeeks),
+    bestStreakWeeks: computeBestStreakWeeks(completed, frozenWeeks, now),
     maxPushups,
     maxPullups,
     maxSquats,

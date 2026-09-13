@@ -10,6 +10,8 @@ import type {
 } from '@/lib/exercise-model'
 import {
   EXERCISE_STARTERS,
+  starterExerciseLabel,
+  starterExerciseNameVariants,
   type ExerciseStarterKey,
   validateCustomPlan,
   validateExerciseDefinition,
@@ -27,82 +29,18 @@ import {
   mergeDuplicateExercises,
 } from '@/lib/custom-exercise-dedup'
 
-const STARTER_LABELS: Record<ExerciseStarterKey, string> = {
-  pushups: pl.exerciseStarterPushups,
-  pullups: pl.exerciseStarterPullups,
-  squats: pl.exerciseStarterSquats,
-  plank: pl.exerciseStarterPlank,
-  sidePlank: pl.exerciseStarterSidePlank,
-  press: pl.exerciseStarterPress,
-  // Klatka piersiowa
-  benchPress: pl.exerciseStarterBenchPress,
-  inclineBenchPress: pl.exerciseStarterInclineBenchPress,
-  dumbbellFlyes: pl.exerciseStarterDumbbellFlyes,
-  dips: pl.exerciseStarterDips,
-  pushupWide: pl.exerciseStarterPushupWide,
-  declineBenchPress: pl.exerciseStarterDeclineBenchPress,
-  pecDeck: pl.exerciseStarterPecDeck,
-  // Plecy
-  barbellRow: pl.exerciseStarterBarbellRow,
-  latPulldown: pl.exerciseStarterLatPulldown,
-  deadlift: pl.exerciseStarterDeadlift,
-  seatedRow: pl.exerciseStarterSeatedRow,
-  facePulls: pl.exerciseStarterFacePulls,
-  dumbbellRow: pl.exerciseStarterDumbbellRow,
-  tbarRow: pl.exerciseStarterTbarRow,
-  straightArmPulldown: pl.exerciseStarterStraightArmPulldown,
-  shrug: pl.exerciseStarterShrug,
-  // Barki
-  overheadPress: pl.exerciseStarterOverheadPress,
-  lateralRaise: pl.exerciseStarterLateralRaise,
-  frontRaise: pl.exerciseStarterFrontRaise,
-  rearDeltFlyes: pl.exerciseStarterRearDeltFlyes,
-  arnoldPress: pl.exerciseStarterArnoldPress,
-  uprightRow: pl.exerciseStarterUprightRow,
-  // Ramiona
-  barbellCurl: pl.exerciseStarterBarbellCurl,
-  dumbbellCurl: pl.exerciseStarterDumbbellCurl,
-  hammerCurl: pl.exerciseStarterHammerCurl,
-  tricepPushdown: pl.exerciseStarterTricepPushdown,
-  skullCrusher: pl.exerciseStarterSkullCrusher,
-  closeGripBench: pl.exerciseStarterCloseGripBench,
-  concentrationCurl: pl.exerciseStarterConcentrationCurl,
-  preacherCurl: pl.exerciseStarterPreacherCurl,
-  overheadTricepExtension: pl.exerciseStarterOverheadTricepExtension,
-  tricepKickback: pl.exerciseStarterTricepKickback,
-  // Nogi
-  legPress: pl.exerciseStarterLegPress,
-  lunges: pl.exerciseStarterLunges,
-  romanianDeadlift: pl.exerciseStarterRomanianDeadlift,
-  legExtension: pl.exerciseStarterLegExtension,
-  legCurl: pl.exerciseStarterLegCurl,
-  calfRaise: pl.exerciseStarterCalfRaise,
-  gobletSquat: pl.exerciseStarterGobletSquat,
-  hipThrust: pl.exerciseStarterHipThrust,
-  frontSquat: pl.exerciseStarterFrontSquat,
-  stepUp: pl.exerciseStarterStepUp,
-  // Core
-  crunches: pl.exerciseStarterCrunches,
-  hangingLegRaise: pl.exerciseStarterHangingLegRaise,
-  russianTwist: pl.exerciseStarterRussianTwist,
-  mountainClimbers: pl.exerciseStarterMountainClimbers,
-  deadBug: pl.exerciseStarterDeadBug,
-  reverseCrunch: pl.exerciseStarterReverseCrunch,
-  lyingLegRaise: pl.exerciseStarterLyingLegRaise,
-  // Całe ciało
-  burpees: pl.exerciseStarterBurpees,
-  kettlebellSwing: pl.exerciseStarterKettlebellSwing,
-  thrusters: pl.exerciseStarterThrusters,
-  cleanAndPress: pl.exerciseStarterCleanAndPress,
-  // Cardio
-  stairClimbing: pl.exerciseStarterStairClimbing,
-  running: pl.exerciseStarterRunning,
-  cycling: pl.exerciseStarterCycling,
-  rowingMachine: pl.exerciseStarterRowingMachine,
-  elliptical: pl.exerciseStarterElliptical,
-  jumpRope: pl.exerciseStarterJumpRope,
-  jumpingJacks: pl.exerciseStarterJumpingJacks,
-  highKnees: pl.exerciseStarterHighKnees,
+/** Match an existing exercise to a starter key by any localized name variant.
+ *  Stored names keep the language they were created in, so matching must
+ *  accept every language variant — never only the active dictionary. */
+function findByStarterKey(
+  byName: Map<string, ExerciseDefinition>,
+  key: ExerciseStarterKey,
+): ExerciseDefinition | undefined {
+  for (const variant of starterExerciseNameVariants(key)) {
+    const match = byName.get(variant.trim().toLowerCase())
+    if (match) return match
+  }
+  return undefined
 }
 
 export function shouldPersistDraft(plan: CustomPlan): boolean {
@@ -147,7 +85,7 @@ export async function ensureDefaultExercises(): Promise<{
       // Backfill: if user has fewer exercises than the starter pack, add missing ones.
       const byName = new Set(active.map((e) => e.name.trim().toLowerCase()))
       const missing = EXERCISE_STARTERS.some(
-        (s) => !byName.has(STARTER_LABELS[s.key].toLowerCase()),
+        (s) => !starterExerciseNameVariants(s.key).some((n) => byName.has(n.trim().toLowerCase())),
       )
       if (missing) {
         const { created } = await seedStarterExercises()
@@ -169,8 +107,7 @@ export async function ensureDefaultExercises(): Promise<{
 async function backfillStarterMuscleGroups(active: ExerciseDefinition[]): Promise<void> {
   const byName = new Map(active.map((e) => [e.name.trim().toLowerCase(), e]))
   for (const starter of EXERCISE_STARTERS) {
-    const name = STARTER_LABELS[starter.key]
-    const match = byName.get(name.toLowerCase())
+    const match = findByStarterKey(byName, starter.key)
     if (match && (!match.muscleGroup || (match.source !== 'ai' && match.source !== 'starter'))) {
       const updated: ExerciseDefinition = {
         ...match,
@@ -187,7 +124,7 @@ async function backfillStarterMuscleGroups(active: ExerciseDefinition[]): Promis
       }
       await db.exercises.put(updated)
       await enqueueSync('user_exercises', 'update', updated)
-      byName.set(name.toLowerCase(), updated)
+      byName.set(updated.name.trim().toLowerCase(), updated)
     }
   }
 }
@@ -291,8 +228,8 @@ export async function seedStarterExercises(): Promise<{
   const created: ExerciseDefinition[] = []
 
   for (const starter of EXERCISE_STARTERS) {
-    const name = STARTER_LABELS[starter.key]
-    if (byName.has(name.toLowerCase())) continue
+    if (findByStarterKey(byName, starter.key)) continue
+    const name = starterExerciseLabel(starter.key)
     const ex = await saveExercise({
       name,
       primaryMetric: starter.primaryMetric,

@@ -65,7 +65,7 @@ export function buildPlanGenerationPrompt(
   }
 
   const duration = input.sessionDurationMin
-    ? `- ${input.sessionDurationMin} min per session`
+    ? pl.aiPromptPlanDurationLine(input.sessionDurationMin)
     : ''
 
   const userPrompt = pl.aiPromptPlanBuild(

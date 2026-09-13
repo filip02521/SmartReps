@@ -2,8 +2,11 @@
 // Deploy: supabase functions deploy delete-account
 // Auth: user JWT (Authorization: Bearer <access_token>)
 // Deletes all user data then removes the auth user via service role.
+// Cancels any active Stripe subscription before deletion so the user is
+// not charged after account removal.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
+import Stripe from 'npm:stripe@17'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -49,6 +52,36 @@ Deno.serve(async (req) => {
 
   const userId = userData.user.id
   const admin = createClient(supabaseUrl, serviceKey)
+
+  // ── Cancel any active Stripe subscription before deleting data ──
+  // Without this, a deleting user with an active Pro subscription would
+  // keep getting charged until the subscription naturally expires.
+  const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('stripe_customer_id, subscription_status')
+    .eq('id', userId)
+    .maybeSingle()
+  if (stripeKey && profile?.stripe_customer_id) {
+    try {
+      const stripe = new Stripe(stripeKey)
+      // Cancel active, trialing, AND past_due subscriptions — past_due
+      // subs still retry-charging and must be cancelled to stop dunning.
+      for (const subStatus of ['active', 'trialing', 'past_due'] as const) {
+        const subs = await stripe.subscriptions.list({
+          customer: profile.stripe_customer_id,
+          status: subStatus,
+          limit: 10,
+        })
+        for (const sub of subs.data) {
+          await stripe.subscriptions.cancel(sub.id)
+        }
+      }
+    } catch (err) {
+      // Log but don't block deletion — the user wants their account gone.
+      console.error('delete-account: stripe cancel failed', err)
+    }
+  }
 
   const { data: sessions } = await admin
     .from('workout_sessions')

@@ -1,4 +1,4 @@
-import { db, type LocalMaxTest, type LocalProgramProgress, type LocalWorkoutSession, type ActiveWorkoutState, type BodyWeightEntry, type LocalAiInsight } from './db'
+import { db, FREEZE_CHANGED_EVENT, type LocalMaxTest, type LocalProgramProgress, type LocalWorkoutSession, type ActiveWorkoutState, type BodyWeightEntry, type LocalAiInsight, type StreakFreezeRow } from './db'
 import { isSupabaseConfigured, supabase } from './supabase/client'
 import {
   mapRemoteSetRow,
@@ -32,6 +32,7 @@ import {
   hasPendingSessionDelete,
 } from '@/lib/sync-queue-utils'
 import { useAppStore } from '@/stores/app-store'
+import { isPro } from '@/lib/subscription'
 import { trackSyncError, trackSyncResult, trackSyncSection, track, AnalyticsEvents } from '@/lib/analytics'
 
 type SyncAction = 'insert' | 'update' | 'delete'
@@ -308,6 +309,7 @@ async function upsertProfileEnabledPrograms(userId: string): Promise<void> {
       ai_model: settings.aiModel ?? null,
       ai_base_url: settings.aiBaseUrl ?? null,
       rpe_rir_education_dismissed: settings.rpeRirEducationDismissed ?? false,
+      selected_title: settings.selectedTitle ?? null,
       ui_settings_updated_at: uiUpdatedAt,
     },
     { onConflict: 'id' },
@@ -379,7 +381,7 @@ async function pullProfileEnabledPrograms(userId: string): Promise<SyncResult> {
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, weight_unit, high_contrast, language, ai_proactive_coach, ai_reasoning_effort, ai_model, ai_base_url, rpe_rir_education_dismissed, ui_settings_updated_at, subscription_status, subscription_expires_at, trial_started_at',
+        'display_name, enabled_programs, enabled_programs_updated_at, enabled_workouts_json, enabled_workouts_updated_at, custom_plans_filter_explicit, theme_preference, timer_sound, timer_vibration, keep_screen_on, reminder_hour, weight_unit, high_contrast, language, ai_proactive_coach, ai_reasoning_effort, ai_model, ai_base_url, rpe_rir_education_dismissed, selected_title, ui_settings_updated_at, subscription_status, subscription_expires_at, trial_started_at',
       )
       .eq('id', userId)
       .maybeSingle()
@@ -729,6 +731,29 @@ async function processQueueItem(userId: string, table: string, action: SyncActio
       }
       break
     }
+    case 'streak_freezes': {
+      // Append-only — rows are never updated or deleted.
+      const row = payload as StreakFreezeRow
+      if (action === 'delete') break
+      const { error } = await supabase.from('streak_freezes').upsert(
+        {
+          id: row.id,
+          user_id: userId,
+          kind: row.kind,
+          week_key: row.weekKey,
+          month_key: row.monthKey,
+          created_at: row.createdAt,
+        },
+        { onConflict: 'user_id,id' },
+      )
+      if (error) {
+        // Server-side Pro gate rejected the insert (e.g. Pro lapsed between
+        // the local write and the push). Permanent — drop, don't retry.
+        if (error.message?.includes('streak_freeze_requires_pro')) break
+        throw error
+      }
+      break
+    }
     case 'ai_insights': {
       const insight = payload as LocalAiInsight
       if (action === 'delete') {
@@ -956,6 +981,38 @@ export async function syncAllLocalData(): Promise<SyncResult> {
   } catch (err) {
     errors++
     trackSyncError('push_active_workout_section', err)
+  }
+
+  // Streak freezes — append-only, deterministic ids. Skip entirely for
+  // non-Pro: the server trigger rejects those inserts anyway, and rows
+  // earned during a lapsed subscription stay valid locally and push again
+  // if the user re-subscribes.
+  if (isPro()) {
+    try {
+      const freezes = await db.streakFreezes.toArray()
+      for (const row of freezes) {
+        try {
+          const { error } = await supabase.from('streak_freezes').upsert(
+            {
+              id: row.id,
+              user_id: userId,
+              kind: row.kind,
+              week_key: row.weekKey,
+              month_key: row.monthKey,
+              created_at: row.createdAt,
+            },
+            { onConflict: 'user_id,id' },
+          )
+          if (error) throw error
+        } catch (err) {
+          errors++
+          trackSyncError('push_streak_freeze_row', err)
+        }
+      }
+    } catch (err) {
+      errors++
+      trackSyncError('push_streak_freezes_section', err)
+    }
   }
 
   // Flush queue — must always run even if earlier sections failed
@@ -1540,6 +1597,37 @@ export async function pullRemoteData(): Promise<SyncResult> {
     }
   }
 
+  const streakFreezesPull: Promise<SyncResult> = (async () => {
+    try {
+      const { data: remoteFreezes, error: freezesError } = await supabase
+        .from('streak_freezes')
+        .select('id, kind, week_key, month_key, created_at')
+        .eq('user_id', userId)
+      if (freezesError) throw freezesError
+      let merged = false
+      for (const remote of remoteFreezes ?? []) {
+        // Append-only with deterministic ids — put() is a safe idempotent merge.
+        await db.streakFreezes.put({
+          id: remote.id as string,
+          kind: remote.kind as StreakFreezeRow['kind'],
+          weekKey: (remote.week_key as string | null) ?? null,
+          monthKey: (remote.month_key as string | null) ?? null,
+          createdAt: remote.created_at as string,
+        })
+        merged = true
+      }
+      if (merged) {
+        // Let streak-freeze hooks reload — can't import the module here
+        // (it imports sync.ts), so we go through a window event.
+        window.dispatchEvent(new Event(FREEZE_CHANGED_EVENT))
+      }
+      return { ok: true, errors: 0 }
+    } catch (err) {
+      trackSyncError('pull_streak_freezes', err)
+      return { ok: false, errors: 1 }
+    }
+  })()
+
   const phase1 = await Promise.all([
     pullProfileEnabledPrograms(userId),
     pullProgramProgressRemote(userId),
@@ -1549,6 +1637,7 @@ export async function pullRemoteData(): Promise<SyncResult> {
     activeWorkoutsPull,
     maxTestsPull,
     aiInsightsPull,
+    streakFreezesPull,
   ])
   const sessionTombstonesResult = phase1[2]
   const bodyWeightTombstonesResult = phase1[3]

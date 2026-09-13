@@ -23,6 +23,7 @@ import {
   formatCooldownRemaining,
 } from '@/lib/ai/rate-limiter'
 import { AiCoachHeader, AiCoachMessage } from '@/components/brand/AiCoachHeader'
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
 import { TrendingUp, AlertTriangle, Check, Lightbulb, RotateCcw } from 'lucide-react'
 import { db } from '@/lib/db'
 import { cn } from '@/lib/utils'
@@ -44,12 +45,17 @@ const STATUS_COLORS = {
   high: 'text-[var(--sr-warning)]',
 }
 
-const STATUS_LABELS = {
-  optimal: pl.aiStatusOptimal,
-  below_mev: pl.aiStatusBelowMev,
-  above_mrv: pl.aiStatusAboveMrv,
-  low: pl.aiStatusLow,
-  high: pl.aiStatusHigh,
+// Resolved at render time — a module-level pl.* map would freeze whichever
+// dict was active at import, so labels wouldn't follow language switches.
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'optimal': return pl.aiStatusOptimal
+    case 'below_mev': return pl.aiStatusBelowMev
+    case 'above_mrv': return pl.aiStatusAboveMrv
+    case 'low': return pl.aiStatusLow
+    case 'high': return pl.aiStatusHigh
+    default: return status
+  }
 }
 
 export function AiWorkoutAnalysis() {
@@ -302,60 +308,74 @@ export function AiWorkoutAnalysis() {
             {result.summary}
           </AiCoachMessage>
 
-          {/* Strengths */}
+          {/* Detail sections — collapsible; the analysis is long, so only
+              the summary bubble is open by default. Each section header
+              shows its item count so the user can scan before expanding. */}
           {result.strengths.length > 0 && (
-            <AiCoachMessage tone="success">
-              <p className="mb-2 flex items-center gap-1.5 font-semibold text-[var(--sr-success)]">
-                <Check size={16} aria-hidden />
-                {pl.aiStrengths}
-              </p>
-              <ul className="flex flex-col gap-1">
+            <CollapsibleSection
+              title={pl.aiStrengths}
+              icon={Check}
+              tone="success"
+              count={result.strengths.length}
+            >
+              <ul className="flex flex-col gap-1.5">
                 {result.strengths.map((s, i) => (
-                  <li key={i}>• {s}</li>
+                  <li
+                    key={i}
+                    className="flex items-start gap-2 text-sm leading-snug text-[var(--sr-text-secondary)]"
+                  >
+                    <Check size={15} className="mt-0.5 shrink-0 text-[var(--sr-success)]" aria-hidden />
+                    <span className="min-w-0">{s}</span>
+                  </li>
                 ))}
               </ul>
-            </AiCoachMessage>
+            </CollapsibleSection>
           )}
 
-          {/* Weaknesses */}
           {result.weaknesses.length > 0 && (
-            <AiCoachMessage tone="warning">
-              <p className="mb-2 flex items-center gap-1.5 font-semibold text-[var(--sr-warning)]">
-                <AlertTriangle size={16} aria-hidden />
-                {pl.aiWeaknesses}
-              </p>
-              <ul className="flex flex-col gap-1">
+            <CollapsibleSection
+              title={pl.aiWeaknesses}
+              icon={AlertTriangle}
+              tone="warning"
+              count={result.weaknesses.length}
+            >
+              <ul className="flex flex-col gap-1.5">
                 {result.weaknesses.map((w, i) => (
-                  <li key={i}>• {w}</li>
+                  <li
+                    key={i}
+                    className="flex items-start gap-2 text-sm leading-snug text-[var(--sr-text-secondary)]"
+                  >
+                    <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--sr-warning)]" aria-hidden />
+                    <span className="min-w-0">{w}</span>
+                  </li>
                 ))}
               </ul>
-            </AiCoachMessage>
+            </CollapsibleSection>
           )}
 
-          {/* Volume assessment */}
           {result.volumeAssessment.length > 0 && (
-            <AiCoachMessage>
-              <p className="mb-2 flex items-center gap-1.5 font-semibold text-[var(--sr-text-primary)]">
-                <TrendingUp size={16} aria-hidden />
-                {pl.aiVolumeAssessment}
-              </p>
+            <CollapsibleSection
+              title={pl.aiVolumeAssessment}
+              icon={TrendingUp}
+              count={result.volumeAssessment.length}
+            >
               <ul className="flex flex-col gap-2">
                 {result.volumeAssessment.map((v, i) => {
                   const label = result.muscleGroupLabels[v.muscleGroup] ?? v.muscleGroup
                   const status = v.status as keyof typeof STATUS_COLORS
                   const statusColor = STATUS_COLORS[status] ?? 'text-[var(--sr-text-muted)]'
-                  const statusLabel = STATUS_LABELS[status] ?? v.status
+                  const statusText = statusLabel(v.status)
                   return (
                     <li
                       key={i}
-                      className="rounded-[var(--sr-radius-sm)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-2"
+                      className="rounded-[var(--sr-radius-sm)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-2"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className="min-w-0 flex-1 break-words font-medium text-[var(--sr-text-primary)]">
                           {label}
                         </span>
                         <span className={cn('shrink-0 text-right text-xs font-semibold', statusColor)}>
-                          {v.weeklySets} {pl.setsShort}/tyg — {statusLabel}
+                          {pl.muscleBalanceWeeklySets(v.weeklySets)} — {statusText}
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-[var(--sr-text-muted)]">
@@ -365,22 +385,21 @@ export function AiWorkoutAnalysis() {
                   )
                 })}
               </ul>
-            </AiCoachMessage>
+            </CollapsibleSection>
           )}
 
-          {/* Suggestions */}
           {result.suggestions.length > 0 && (
-            <AiCoachMessage>
-              <p className="mb-2 flex items-center gap-1.5 font-semibold text-[var(--sr-text-primary)]">
-                <Lightbulb size={16} aria-hidden />
-                {pl.aiSuggestions}
-              </p>
+            <CollapsibleSection
+              title={pl.aiSuggestions}
+              icon={Lightbulb}
+              count={result.suggestions.length}
+            >
               <ul className="flex flex-col gap-2">
                 {result.suggestions.map((s, i) => (
                   <li
                     key={i}
                     className={cn(
-                      'rounded-[var(--sr-radius-sm)] border border-[var(--sr-border-subtle)] border-l-4 bg-[var(--sr-bg-surface)] p-3',
+                      'rounded-[var(--sr-radius-sm)] border border-[var(--sr-border-subtle)] border-l-4 bg-[var(--sr-bg-elevated)] p-3',
                       PRIORITY_COLORS[s.priority] ?? 'border-l-[var(--sr-border-subtle)]',
                     )}
                   >
@@ -400,7 +419,7 @@ export function AiWorkoutAnalysis() {
                   </li>
                 ))}
               </ul>
-            </AiCoachMessage>
+            </CollapsibleSection>
           )}
 
           <Button

@@ -16,16 +16,7 @@ import type {
   StarterTemplate,
   StarterTemplateDay,
 } from '@/data/starter-templates'
-import { EXERCISE_STARTERS, type ExerciseStarterKey, type PrimaryMetric } from '@/lib/exercise-model'
-
-const STARTER_LABELS: Record<ExerciseStarterKey, string> = EXERCISE_STARTERS.reduce(
-  (acc, s) => {
-    const key = `exerciseStarter${s.key.charAt(0).toUpperCase()}${s.key.slice(1)}` as keyof typeof pl
-    acc[s.key] = pl[key] as string
-    return acc
-  },
-  {} as Record<ExerciseStarterKey, string>,
-)
+import { EXERCISE_STARTERS, starterExerciseLabel, type PrimaryMetric } from '@/lib/exercise-model'
 
 function formatSet(
   set: StarterTemplateDay['exercises'][number]['sets'][number],
@@ -125,7 +116,7 @@ export function StarterTemplatePreviewSheet({
         <div className="flex flex-col gap-3">
           {day.exercises.map((pe, i) => {
             const starter = EXERCISE_STARTERS.find((s) => s.key === pe.starterKey)
-            const exName = STARTER_LABELS[pe.starterKey] ?? pl.planEllipsis
+            const exName = starterExerciseLabel(pe.starterKey) || pl.planEllipsis
             const metric = starter?.primaryMetric ?? 'reps'
             const durationUnit: DurationUnit =
               starter?.muscleGroup === 'cardio' ? 'min' : 'sec'

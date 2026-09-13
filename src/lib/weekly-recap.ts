@@ -1,6 +1,6 @@
 import { startOfWeek, subWeeks } from 'date-fns'
 import { db, type LocalWorkoutSession } from '@/lib/db'
-import { computeStreakWeeks, getWeekKey } from '@/lib/stats-engine'
+import { computeStreakWeeks, getWeekKey, loadFrozenWeekKeys } from '@/lib/stats-engine'
 
 const MS_PER_DAY = 86400000
 
@@ -58,6 +58,7 @@ export function computeRepsChangePct(current: number, previous: number): number 
 export function buildActivityInsights(
   passed: LocalWorkoutSession[],
   now = new Date(),
+  frozenWeeks?: ReadonlySet<string>,
 ): ActivityInsights {
   const nowMs = now.getTime()
   const windowMs = 14 * MS_PER_DAY
@@ -73,13 +74,17 @@ export function buildActivityInsights(
     repsPrev14d: previous.reps,
     repsChangePct: computeRepsChangePct(current.reps, previous.reps),
     sessionsDelta14d: current.count - previous.count,
-    streakWeeks: computeStreakWeeks(passed),
-    bestStreakWeeks: computeBestStreakWeeks(passed),
+    streakWeeks: computeStreakWeeks(passed, now, frozenWeeks),
+    bestStreakWeeks: computeBestStreakWeeks(passed, frozenWeeks, now),
     repsWeekChangePct: computeRepsChangePct(thisWeek.reps, prevWeek.reps),
   }
 }
 
-export function computeBestStreakWeeks(passedSessions: LocalWorkoutSession[]): number {
+export function computeBestStreakWeeks(
+  passedSessions: LocalWorkoutSession[],
+  frozenWeeks?: ReadonlySet<string>,
+  now = new Date(),
+): number {
   if (!passedSessions.length) return 0
 
   const weeksWithTraining = new Set<string>()
@@ -94,12 +99,16 @@ export function computeBestStreakWeeks(passedSessions: LocalWorkoutSession[]): n
   const toMonday = day === 0 ? -6 : 1 - day
   cursor.setDate(cursor.getDate() + toMonday)
 
-  const end = new Date(Math.max(...timestamps))
+  // Scan through `now` (not just the last session) — a consumed freeze can
+  // extend the best run past the most recent session week. Uncovered
+  // trailing weeks only reset `run`, so this is a no-op without freezes.
+  const end = new Date(Math.max(...timestamps, now.getTime()))
   let best = 0
   let run = 0
 
   while (cursor.getTime() <= end.getTime()) {
-    if (weeksWithTraining.has(getWeekKey(cursor))) {
+    const key = getWeekKey(cursor)
+    if (weeksWithTraining.has(key) || frozenWeeks?.has(key) === true) {
       run++
       best = Math.max(best, run)
     } else {
@@ -113,8 +122,9 @@ export function computeBestStreakWeeks(passedSessions: LocalWorkoutSession[]): n
 
 export async function loadActivityInsights(now = new Date()): Promise<ActivityInsights> {
   const allSessions = await db.workoutSessions.toArray()
+  const frozenWeeks = await loadFrozenWeekKeys()
   const completed = allSessions.filter((s) => s.status === 'completed')
-  return buildActivityInsights(completed, now)
+  return buildActivityInsights(completed, now, frozenWeeks)
 }
 
 export function daysSinceLastPassedSession(

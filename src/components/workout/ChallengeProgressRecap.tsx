@@ -17,11 +17,19 @@ import {
 import type { Program } from '@/data/plans/types'
 import type { LocalWorkoutSession } from '@/lib/db'
 
-const TYPE_LABEL: Record<ChallengeType, string> = {
-  volume: pl.challengeTypeVolume,
-  consistency: pl.challengeTypeConsistency,
-  precision: pl.challengeTypePrecision,
-  personal_best: pl.challengeTypePersonalBest,
+// Resolved lazily — `pl` proxies the active dictionary; a module-level map
+// would freeze labels at import-time language.
+function typeLabel(type: ChallengeType): string {
+  switch (type) {
+    case 'volume':
+      return pl.challengeTypeVolume
+    case 'consistency':
+      return pl.challengeTypeConsistency
+    case 'precision':
+      return pl.challengeTypePrecision
+    case 'personal_best':
+      return pl.challengeTypePersonalBest
+  }
 }
 
 function progressLabel(type: ChallengeType, current: number, target: number): string {
@@ -181,7 +189,7 @@ export function ChallengeProgressRecap({
                 <div className="flex min-w-0 items-start gap-1.5">
                   {p!.achieved && <Sparkles size={12} className="shrink-0 text-[var(--sr-success)]" aria-hidden />}
                   <span className="min-w-0 break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
-                    {TYPE_LABEL[ch.challenge_type]}
+                    {typeLabel(ch.challenge_type)}
                   </span>
                 </div>
                 <span

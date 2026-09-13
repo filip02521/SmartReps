@@ -27,6 +27,7 @@ import {
   type ProgramStats,
 } from '@/lib/stats-engine'
 import { buildActivityInsights } from '@/lib/weekly-recap'
+import { useFrozenWeeks } from '@/lib/streak-freeze'
 import { useAppStore } from '@/stores/app-store'
 import { pl } from '@/i18n/pl'
 import { TAB_PAGE_SHELL, FOCUS_RING } from '@/lib/ui-chrome'
@@ -281,10 +282,11 @@ export default function ProgressPage() {
     [...programDataMap.values()].some((d) => d.sessions.length > 0) ||
     customSessionsAll.length > 0
 
+  const frozenWeeks = useFrozenWeeks()
   const activityInsights = useMemo(() => {
     const passed = allSessions.filter((s) => s.status === 'completed' && s.passed)
-    return buildActivityInsights(passed)
-  }, [allSessions])
+    return buildActivityInsights(passed, new Date(), frozenWeeks)
+  }, [allSessions, frozenWeeks])
 
   const totalPassedSessions =
     [...programDataMap.values()].reduce(

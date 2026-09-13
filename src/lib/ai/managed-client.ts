@@ -17,7 +17,7 @@ export type { AiFeature }
 // Daily managed-AI quota for Pro/trial/lifetime. Mirrored in the ai-proxy
 // Edge Function (supabase/functions/ai-proxy/index.ts) — keep in sync.
 // Free users get no AI at all (hard paywall — hosted and BYOK alike).
-export const MANAGED_PRO_DAILY_LIMIT = 60
+export const MANAGED_PRO_DAILY_LIMIT = 30
 
 /**
  * How an AI call is executed. Two modes:

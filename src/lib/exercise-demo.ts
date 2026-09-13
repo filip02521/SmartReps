@@ -4,83 +4,17 @@
  * Each exercise has 3 frames (start, middle, end) that we animate via CSS.
  */
 import type { ExerciseDefinition, ExerciseStarterKey } from '@/lib/exercise-model'
-import { EXERCISE_STARTERS } from '@/lib/exercise-model'
-import { pl } from '@/i18n/pl'
+import { EXERCISE_STARTERS, starterExerciseNameVariants } from '@/lib/exercise-model'
 
-/** Build a reverse map: lowercase name → starter key */
+/** Build a reverse map: lowercase name → starter key.
+ *  Includes every localized name variant — a stored exercise name keeps the
+ *  language it was created in, so matching must accept all of them. */
 const NAME_TO_KEY: Map<string, ExerciseStarterKey> = (() => {
   const map = new Map<string, ExerciseStarterKey>()
-  const labels: Record<ExerciseStarterKey, string> = {
-    pushups: pl.exerciseStarterPushups,
-    pullups: pl.exerciseStarterPullups,
-    squats: pl.exerciseStarterSquats,
-    plank: pl.exerciseStarterPlank,
-    sidePlank: pl.exerciseStarterSidePlank,
-    press: pl.exerciseStarterPress,
-    benchPress: pl.exerciseStarterBenchPress,
-    inclineBenchPress: pl.exerciseStarterInclineBenchPress,
-    dumbbellFlyes: pl.exerciseStarterDumbbellFlyes,
-    dips: pl.exerciseStarterDips,
-    pushupWide: pl.exerciseStarterPushupWide,
-    declineBenchPress: pl.exerciseStarterDeclineBenchPress,
-    pecDeck: pl.exerciseStarterPecDeck,
-    barbellRow: pl.exerciseStarterBarbellRow,
-    latPulldown: pl.exerciseStarterLatPulldown,
-    deadlift: pl.exerciseStarterDeadlift,
-    seatedRow: pl.exerciseStarterSeatedRow,
-    facePulls: pl.exerciseStarterFacePulls,
-    dumbbellRow: pl.exerciseStarterDumbbellRow,
-    tbarRow: pl.exerciseStarterTbarRow,
-    straightArmPulldown: pl.exerciseStarterStraightArmPulldown,
-    shrug: pl.exerciseStarterShrug,
-    overheadPress: pl.exerciseStarterOverheadPress,
-    lateralRaise: pl.exerciseStarterLateralRaise,
-    frontRaise: pl.exerciseStarterFrontRaise,
-    rearDeltFlyes: pl.exerciseStarterRearDeltFlyes,
-    arnoldPress: pl.exerciseStarterArnoldPress,
-    uprightRow: pl.exerciseStarterUprightRow,
-    barbellCurl: pl.exerciseStarterBarbellCurl,
-    dumbbellCurl: pl.exerciseStarterDumbbellCurl,
-    hammerCurl: pl.exerciseStarterHammerCurl,
-    tricepPushdown: pl.exerciseStarterTricepPushdown,
-    skullCrusher: pl.exerciseStarterSkullCrusher,
-    closeGripBench: pl.exerciseStarterCloseGripBench,
-    concentrationCurl: pl.exerciseStarterConcentrationCurl,
-    preacherCurl: pl.exerciseStarterPreacherCurl,
-    overheadTricepExtension: pl.exerciseStarterOverheadTricepExtension,
-    tricepKickback: pl.exerciseStarterTricepKickback,
-    legPress: pl.exerciseStarterLegPress,
-    lunges: pl.exerciseStarterLunges,
-    romanianDeadlift: pl.exerciseStarterRomanianDeadlift,
-    legExtension: pl.exerciseStarterLegExtension,
-    legCurl: pl.exerciseStarterLegCurl,
-    calfRaise: pl.exerciseStarterCalfRaise,
-    gobletSquat: pl.exerciseStarterGobletSquat,
-    hipThrust: pl.exerciseStarterHipThrust,
-    frontSquat: pl.exerciseStarterFrontSquat,
-    stepUp: pl.exerciseStarterStepUp,
-    crunches: pl.exerciseStarterCrunches,
-    hangingLegRaise: pl.exerciseStarterHangingLegRaise,
-    russianTwist: pl.exerciseStarterRussianTwist,
-    mountainClimbers: pl.exerciseStarterMountainClimbers,
-    deadBug: pl.exerciseStarterDeadBug,
-    reverseCrunch: pl.exerciseStarterReverseCrunch,
-    lyingLegRaise: pl.exerciseStarterLyingLegRaise,
-    burpees: pl.exerciseStarterBurpees,
-    kettlebellSwing: pl.exerciseStarterKettlebellSwing,
-    thrusters: pl.exerciseStarterThrusters,
-    cleanAndPress: pl.exerciseStarterCleanAndPress,
-    stairClimbing: pl.exerciseStarterStairClimbing,
-    running: pl.exerciseStarterRunning,
-    cycling: pl.exerciseStarterCycling,
-    rowingMachine: pl.exerciseStarterRowingMachine,
-    elliptical: pl.exerciseStarterElliptical,
-    jumpRope: pl.exerciseStarterJumpRope,
-    jumpingJacks: pl.exerciseStarterJumpingJacks,
-    highKnees: pl.exerciseStarterHighKnees,
-  }
   for (const starter of EXERCISE_STARTERS) {
-    map.set(labels[starter.key].toLowerCase(), starter.key)
+    for (const name of starterExerciseNameVariants(starter.key)) {
+      map.set(name.trim().toLowerCase(), starter.key)
+    }
   }
   return map
 })()

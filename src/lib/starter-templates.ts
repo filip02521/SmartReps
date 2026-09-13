@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import {
   EXERCISE_STARTERS,
+  starterExerciseNameVariants,
   type CustomPlan,
   type ExerciseDefinition,
   type ExerciseStarterKey,
@@ -34,15 +35,9 @@ export type {
   StarterTemplateExerciseRef,
 } from '@/data/starter-templates'
 
-/** Mapa starterKey → zlokalizowana nazwa (jak STARTER_LABELS w custom-plan-service). */
-const STARTER_LABELS: Record<ExerciseStarterKey, string> = EXERCISE_STARTERS.reduce(
-  (acc, s) => {
-    const key = `exerciseStarter${s.key.charAt(0).toUpperCase()}${s.key.slice(1)}` as keyof typeof pl
-    acc[s.key] = pl[key] as string
-    return acc
-  },
-  {} as Record<ExerciseStarterKey, string>,
-)
+/** Wszystkie zlokalizowane warianty nazwy startera — zapisane ćwiczenia
+ *  zachowują język z momentu utworzenia, więc matching musi akceptować
+ *  każdy wariant językowy (patrz custom-plan-service). */
 
 /** Konwertuje templateId (kebab-case) na camelCase suffix dla klucza i18n. */
 function templateIdToCamel(id: string): string {
@@ -83,16 +78,23 @@ export async function materializeStarterTemplate(
   const existingExercises = await db.exercises.toArray()
   const byStarterKey = new Map<ExerciseStarterKey, ExerciseDefinition>()
   for (const starter of EXERCISE_STARTERS) {
-    const name = STARTER_LABELS[starter.key]
+    const variants = starterExerciseNameVariants(starter.key).map((n) =>
+      n.trim().toLowerCase(),
+    )
     const match = existingExercises.find(
-      (ex) => !ex.archived && ex.name.trim().toLowerCase() === name.trim().toLowerCase(),
+      (ex) => !ex.archived && variants.includes(ex.name.trim().toLowerCase()),
     )
     if (match) {
       byStarterKey.set(starter.key, match)
     } else {
       // Fallback: dedup key (nazwa + primaryMetric) — działa gdy user zmienił nazwę.
-      const dedup = await findActiveExerciseByDedupKey(name, starter.primaryMetric)
-      if (dedup) byStarterKey.set(starter.key, dedup)
+      for (const name of starterExerciseNameVariants(starter.key)) {
+        const dedup = await findActiveExerciseByDedupKey(name, starter.primaryMetric)
+        if (dedup) {
+          byStarterKey.set(starter.key, dedup)
+          break
+        }
+      }
     }
   }
 

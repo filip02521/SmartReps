@@ -16,6 +16,7 @@ import type {
   CustomPlanTombstone,
   ExerciseTombstone,
   BodyWeightTombstone,
+  StreakFreezeRow,
 } from '@/lib/db'
 
 export type BackupSnapshotV1 = {
@@ -61,6 +62,8 @@ export type BackupSnapshotV3 = {
   exerciseTombstones?: ExerciseTombstone[]
   bodyWeightTombstones?: BodyWeightTombstone[]
   aiInsights: LocalAiInsight[]
+  /** Optional — added after v3 shipped; absent in older v3 backups. */
+  streakFreezes?: StreakFreezeRow[]
 }
 
 export type BackupSnapshot = BackupSnapshotV1 | BackupSnapshotV2 | BackupSnapshotV3
@@ -83,6 +86,7 @@ export async function exportBackupSnapshot(): Promise<BackupSnapshotV3> {
     customPlanTombstones,
     exerciseTombstones,
     bodyWeightTombstones,
+    streakFreezes,
   ] = await Promise.all([
     db.programProgress.toArray(),
     db.workoutSessions.toArray(),
@@ -99,6 +103,7 @@ export async function exportBackupSnapshot(): Promise<BackupSnapshotV3> {
     db.customPlanTombstones.toArray(),
     db.exerciseTombstones.toArray(),
     db.bodyWeightTombstones.toArray(),
+    db.streakFreezes.toArray(),
   ])
 
   // Strip aiApiKey from exported settings — it's LOCAL-ONLY and must never
@@ -124,6 +129,7 @@ export async function exportBackupSnapshot(): Promise<BackupSnapshotV3> {
     exerciseTombstones,
     bodyWeightTombstones,
     aiInsights,
+    streakFreezes,
   }
 }
 

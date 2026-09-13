@@ -19,6 +19,8 @@ export type PublicProfile = {
   achievement_count: number
   top_achievements: PublicAchievementBadge[]
   showcase_slots: string[] | null
+  /** Achievement-derived profile title (Pro perk). null = none. */
+  title_achievement_id?: string | null
   updated_at?: string
 }
 
@@ -33,6 +35,7 @@ export type FolloweeProfile = {
   achievement_count: number
   top_achievements: PublicAchievementBadge[]
   followed_at: string
+  title_achievement_id?: string | null
 }
 
 export type FollowerProfile = {
@@ -46,6 +49,7 @@ export type FollowerProfile = {
   achievement_count: number
   top_achievements: PublicAchievementBadge[]
   followed_at: string
+  title_achievement_id?: string | null
 }
 
 export type FollowCounts = {
@@ -126,18 +130,25 @@ export async function upsertMyPublicProfile(args: {
   bio?: string
   isPublic?: boolean
   showcaseSlots?: string[] | null
+  /** Title semantics on the server: undefined/null = keep, '' = clear,
+   *  id = validate (Pro + title allowlist + unlocked) then set. */
+  titleAchievementId?: string | null
 }): Promise<PublicProfile> {
   const { data, error } = await supabase.rpc('upsert_my_public_profile', {
     p_display_name: args.displayName ?? '',
     p_bio: args.bio ?? '',
     p_is_public: args.isPublic ?? false,
     p_showcase_slots: args.showcaseSlots ?? null,
+    p_title_achievement_id: args.titleAchievementId ?? null,
   })
   if (error) {
     const msg = error.message ?? ''
     if (msg.includes('not_authenticated')) throw new Error('not_authenticated')
     if (msg.includes('display_name_too_long')) throw new Error('display_name_too_long')
     if (msg.includes('bio_too_long')) throw new Error('bio_too_long')
+    if (msg.includes('title_requires_pro')) throw new Error('title_requires_pro')
+    if (msg.includes('title_not_eligible')) throw new Error('title_not_eligible')
+    if (msg.includes('title_not_unlocked')) throw new Error('title_not_unlocked')
     throw error
   }
   const raw = safeJsonParse<PublicProfile>(data)

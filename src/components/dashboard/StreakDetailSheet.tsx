@@ -1,12 +1,16 @@
-import { useMemo } from 'react'
-import { Flame, TrendingUp, Trophy, Calendar, AlertTriangle, Sparkles } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Flame, TrendingUp, Trophy, Calendar, AlertTriangle, Sparkles, Snowflake, Lock } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
 import { StreakHeatmap } from '@/components/progress/StreakHeatmap'
+import { ProTeaser } from '@/components/ux/ProTeaser'
 import { pl } from '@/i18n/pl'
 import { computeStreakWeeks, getWeekKey } from '@/lib/stats-engine'
 import { computeBestStreakWeeks } from '@/lib/weekly-recap'
+import { useFrozenWeeks, useFreezeBalance } from '@/lib/streak-freeze'
+import { useProFeatures } from '@/lib/subscription'
 import type { LocalWorkoutSession } from '@/lib/db'
 import { cn } from '@/lib/utils'
+import { FOCUS_RING } from '@/lib/ui-chrome'
 
 const MILESTONES = [4, 8, 12, 26, 52]
 
@@ -109,8 +113,18 @@ export function StreakDetailSheet({
     () => sessions.filter((s) => s.status === 'completed'),
     [sessions],
   )
-  const streak = useMemo(() => computeStreakWeeks(completed), [completed])
-  const bestStreak = useMemo(() => computeBestStreakWeeks(completed), [completed])
+  const frozenWeeks = useFrozenWeeks()
+  const freezeBalance = useFreezeBalance()
+  const pro = useProFeatures()
+  const [freezeTeaserOpen, setFreezeTeaserOpen] = useState(false)
+  const streak = useMemo(
+    () => computeStreakWeeks(completed, new Date(), frozenWeeks),
+    [completed, frozenWeeks],
+  )
+  const bestStreak = useMemo(
+    () => computeBestStreakWeeks(completed, frozenWeeks),
+    [completed, frozenWeeks],
+  )
   const totalSessions = completed.length
   const isNewRecord = streak > 0 && streak >= bestStreak && bestStreak > 0
   const isLegendary = streak >= 26
@@ -125,6 +139,7 @@ export function StreakDetailSheet({
   const isEmpty = totalSessions === 0
 
   return (
+    <>
     <Sheet open={open} onClose={onClose} title={pl.streakSheetTitle} className="max-w-md">
       <div className="flex flex-col gap-5 pb-4">
         {/* Empty state — motivational, not demotivating */}
@@ -264,7 +279,63 @@ export function StreakDetailSheet({
             </div>
           </>
         )}
+
+        {/* Streak freeze — Pro perk; free users see a teaser row */}
+        {pro ? (
+          <div className="flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[color-mix(in_srgb,var(--sr-info)_30%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-info)_7%,var(--sr-bg-surface))] p-3">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-info-muted)] text-[var(--sr-info)]"
+              aria-hidden
+            >
+              <Snowflake size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
+                {pl.streakFreezeTitle}
+              </p>
+              <p className="mt-0.5 sr-text-caption font-medium text-[var(--sr-info)]">
+                {freezeBalance.available > 0
+                  ? pl.streakFreezeAvailable(freezeBalance.available)
+                  : pl.streakFreezeAvailableNone}
+              </p>
+              <p className="mt-0.5 sr-text-caption text-[var(--sr-text-secondary)]">
+                {pl.streakFreezeHowItWorks}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setFreezeTeaserOpen(true)}
+            className={cn(
+              FOCUS_RING,
+              'flex w-full items-center gap-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-3 text-left transition-colors hover:bg-[var(--sr-bg-elevated)]',
+            )}
+          >
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)]"
+              aria-hidden
+            >
+              <Snowflake size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
+                {pl.streakFreezeTitle}
+              </p>
+              <p className="mt-0.5 sr-text-caption text-[var(--sr-text-secondary)]">
+                {pl.streakFreezeFreeHint}
+              </p>
+            </div>
+            <Lock size={16} aria-hidden className="shrink-0 text-[var(--sr-text-muted)]" />
+          </button>
+        )}
       </div>
     </Sheet>
+    <ProTeaser
+      open={freezeTeaserOpen}
+      onClose={() => setFreezeTeaserOpen(false)}
+      feature="streakFreeze"
+    />
+    </>
   )
 }

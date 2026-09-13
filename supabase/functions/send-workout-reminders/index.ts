@@ -15,6 +15,7 @@ const cors = {
 const PROGRAM_LABELS: Record<string, string> = {
   pushups: 'Pompki',
   pullups: 'Podciąganie',
+  squats: 'Przysiady',
 }
 
 /** Local hour 0–23 for an IANA timezone at the given instant. */

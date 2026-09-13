@@ -9,16 +9,20 @@ import { parseJsonResponse, AiApiError, isGeminiEndpoint } from './ai-client'
 import { aiChat, type AiContext } from './managed-client'
 import { buildWorkoutAnalysisPrompt, type AiAnalysisResponse, type WorkoutHistorySummary } from './prompts'
 
-const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
-  chest: pl.muscleGroupFull_chest,
-  back: pl.muscleGroupFull_back,
-  shoulders: pl.muscleGroupFull_shoulders,
-  arms: pl.muscleGroupFull_arms,
-  legs: pl.muscleGroupFull_legs,
-  core: pl.muscleGroupFull_core,
-  full_body: pl.muscleGroupFull_full_body,
-  cardio: pl.muscleGroupFull_cardio,
-  other: pl.muscleGroupFull_other,
+// Resolved lazily — `pl` is a proxy on the active dict; a module-level
+// constant would freeze labels in whatever language was active at import.
+function muscleGroupLabels(): Record<MuscleGroup, string> {
+  return {
+    chest: pl.muscleGroupFull_chest,
+    back: pl.muscleGroupFull_back,
+    shoulders: pl.muscleGroupFull_shoulders,
+    arms: pl.muscleGroupFull_arms,
+    legs: pl.muscleGroupFull_legs,
+    core: pl.muscleGroupFull_core,
+    full_body: pl.muscleGroupFull_full_body,
+    cardio: pl.muscleGroupFull_cardio,
+    other: pl.muscleGroupFull_other,
+  }
 }
 
 export type AnalysisResult = AiAnalysisResponse['analysis'] & {
@@ -64,7 +68,7 @@ export async function analyzeWorkouts(
 
   return {
     ...safeAnalysis,
-    muscleGroupLabels: MUSCLE_GROUP_LABELS,
+    muscleGroupLabels: muscleGroupLabels(),
   }
 }
 
@@ -115,6 +119,7 @@ async function gatherWorkoutHistory(
   const BUILTIN_MUSCLE_GROUP: Record<string, MuscleGroup> = {
     pushups: 'chest',
     pullups: 'back',
+    squats: 'legs',
   }
 
   // Accumulate totals over ALL completed sessions (not just last 20).

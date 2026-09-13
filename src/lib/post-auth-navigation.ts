@@ -11,7 +11,7 @@ export function isSafeReturnPath(path: string): boolean {
   if (path.startsWith('/setup/')) return false
   const pathOnly = path.split('?')[0] ?? path
   if (pathOnly === '/') return true
-  if (/^\/workout\/(pushups|pullups)(\/summary)?$/.test(pathOnly)) return true
+  if (/^\/workout\/(pushups|pullups|squats)(\/summary)?$/.test(pathOnly)) return true
   if (/^\/community\/[a-z0-9-]+$/.test(pathOnly)) return true
   const allowedRoots = ['/profile', '/progress', '/plans', '/workout/custom']
   return allowedRoots.some((root) => pathOnly === root || pathOnly.startsWith(`${root}/`))

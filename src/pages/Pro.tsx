@@ -65,22 +65,32 @@ export default function ProPage() {
     el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [feature])
 
-  // Stripe return: ?checkout=success|cancel. Entitlement itself arrives via
-  // the webhook — we only toast + pull the fresh status.
+  // Stripe return: ?checkout=success|cancel, ?portal=returned.
+  // Entitlement itself arrives via the webhook — we only toast + pull the
+  // fresh status. The portal return needs its own refresh because the user
+  // may have cancelled or changed plans inside the portal.
   const checkout = params.get('checkout')
+  const portal = params.get('portal')
   useEffect(() => {
     if (checkout === 'success') {
       showToast(pl.proCheckoutSuccess, 'success')
       void refreshSubscriptionStatus()
     } else if (checkout === 'cancel') {
       showToast(pl.proCheckoutCanceled, 'info')
+    } else if (portal === 'returned') {
+      void refreshSubscriptionStatus()
     }
-  }, [checkout])
+  }, [checkout, portal])
 
   const trialEligible = status === 'free' && !hasUsedTrial()
-  // Active Pro/trial/lifetime → no pricing; free/expired/lapsed-trial → pricing.
-  const showPricing = !isPro
-  const showManage = isPro && !isTrial // pro or lifetime
+  // Active Pro/lifetime → no pricing; trial/free/expired/lapsed-trial → pricing.
+  // Trial users see pricing so they can choose a plan when upgrading —
+  // isPro is true for trial, but trial is temporary and the user needs
+  // to pick a paid plan before the trial ends.
+  const showPricing = !isPro || isTrial
+  // Only paid Pro (recurring subscription) can be managed via the Stripe
+  // portal. Lifetime is a one-time payment with nothing to cancel/update.
+  const showManage = isPro && !isTrial && status !== 'lifetime'
 
   const handleCta = async () => {
     track(AnalyticsEvents.proCtaClick, {
@@ -140,6 +150,13 @@ export default function ProPage() {
     }
   }
 
+  // Lifetime has nothing to manage (one-time payment) and nothing to buy
+  // (already top tier) — hide the CTA entirely. Paid Pro needs the CTA
+  // for "Manage subscription" (Customer Portal).
+  const showCta = showManage || !isPro || isTrial || planState === 'expired'
+  // The sticky bar also hosts the trial hint / "coming soon" message and
+  // the "Continue free" button — keep it when any of those are visible.
+  const showStickyBar = showCta || trialEligible || !BILLING_ENABLED || !isPro
   const ctaLabel = showManage
     ? pl.proManageSubscription
     : planState === 'expired'
@@ -163,7 +180,7 @@ export default function ProPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-lg px-4 pb-44 safe-top">
+    <div className={`mx-auto max-w-lg px-4 safe-top ${showStickyBar ? 'pb-44' : 'pb-8'}`}>
       {/* Slim top bar — back only; the hero carries the identity */}
       <div className="flex items-center pt-2">
         <button
@@ -245,7 +262,7 @@ export default function ProPage() {
         <PlanComparisonTable highlightFeature={feature} />
       </div>
 
-      {/* Pricing — hidden for active Pro/lifetime */}
+      {/* Pricing — visible for free/trial/expired; hidden for active Pro/lifetime */}
       {showPricing && (
         <div className="mt-8">
           <h2 className="sr-text-overline mb-3 text-[var(--sr-text-muted)]">
@@ -259,10 +276,14 @@ export default function ProPage() {
             }}
             disabled={!BILLING_ENABLED}
           />
+          <p className="mt-3 text-center text-xs leading-relaxed text-[var(--sr-text-muted)]">
+            {pl.proLaunchOfferNote}
+          </p>
         </div>
       )}
 
-      {/* Trust row */}
+      {/* Trust row — hidden for Pro users (they already have it) */}
+      {!isPro && (
       <ul className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
         <li className="flex items-center gap-1.5 text-xs text-[var(--sr-text-secondary)]">
           <ShieldCheck size={15} className="shrink-0 text-[var(--sr-success)]" aria-hidden />
@@ -282,6 +303,7 @@ export default function ProPage() {
           </Link>
         </li>
       </ul>
+      )}
 
       {/* Legal */}
       <p className="mt-5 text-center text-xs text-[var(--sr-text-muted)]">
@@ -294,24 +316,28 @@ export default function ProPage() {
         </Link>
       </p>
 
-      {/* Sticky CTA — elevated bar above safe area; page has no tab bar */}
+      {/* Sticky CTA — elevated bar above safe area; page has no tab bar.
+          Hidden entirely for lifetime (nothing to buy, nothing to manage). */}
+      {showStickyBar && (
       <div
         className="fixed inset-x-0 bottom-0 border-t border-[var(--sr-border-subtle)] bg-[var(--sr-bg-base)]/90 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-md"
         style={{ zIndex: Z_TAB_BAR, boxShadow: 'var(--sr-shadow-nav)' }}
       >
         <div className="mx-auto flex max-w-lg flex-col gap-2">
-          <Button
-            variant="primary"
-            size="touch"
-            fullWidth
-            disabled={trialBusy || billingBusy || (!BILLING_ENABLED && !trialEligible)}
-            onClick={() => void handleCta()}
-          >
-            {(trialBusy || billingBusy) && (
-              <Loader2 size={18} className="animate-spin" aria-hidden />
-            )}
-            {ctaLabel}
-          </Button>
+          {showCta && (
+            <Button
+              variant={showManage ? 'secondary' : 'primary'}
+              size="touch"
+              fullWidth
+              disabled={trialBusy || billingBusy || (!BILLING_ENABLED && !trialEligible)}
+              onClick={() => void handleCta()}
+            >
+              {(trialBusy || billingBusy) && (
+                <Loader2 size={18} className="animate-spin" aria-hidden />
+              )}
+              {ctaLabel}
+            </Button>
+          )}
           {trialEligible ? (
             <p className="text-center text-xs text-[var(--sr-text-muted)]">
               {pl.proTrialHint}
@@ -328,6 +354,7 @@ export default function ProPage() {
           )}
         </div>
       </div>
+      )}
     </div>
   )
 }

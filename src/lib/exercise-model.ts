@@ -1,7 +1,8 @@
 /** Domain model for custom exercises and multi-exercise plans. */
 
 import type { SetTarget } from '../data/plans/types'
-import { pl } from '../i18n/pl'
+import { pl, plDict, type Translation } from '../i18n/pl'
+import { en } from '../i18n/en'
 
 export type PrimaryMetric = 'reps' | 'duration_sec' | 'reps_weight'
 
@@ -624,3 +625,21 @@ export const EXERCISE_STARTERS: Array<{
   { key: 'jumpingJacks', primaryMetric: 'duration_sec', restDefaultSec: 60, muscleGroup: 'cardio' },
   { key: 'highKnees', primaryMetric: 'duration_sec', restDefaultSec: 60, muscleGroup: 'cardio' },
 ]
+
+function starterI18nKey(key: ExerciseStarterKey): keyof Translation {
+  return `exerciseStarter${key.charAt(0).toUpperCase()}${key.slice(1)}` as keyof Translation
+}
+
+/** Current-language display name for a starter exercise (lazy — tracks the
+ *  active dictionary, so it stays correct after a mid-session language change). */
+export function starterExerciseLabel(key: ExerciseStarterKey): string {
+  return pl[starterI18nKey(key)] as string
+}
+
+/** Every localized name variant of a starter exercise (all supported languages).
+ *  Stored exercise names keep the language they were created in — matching
+ *  existing rows must accept every variant, never just the active language. */
+export function starterExerciseNameVariants(key: ExerciseStarterKey): string[] {
+  const k = starterI18nKey(key)
+  return [...new Set([plDict[k], en[k]] as string[])]
+}

@@ -94,7 +94,7 @@ export function parseSessionsCsv(text: string): LocalWorkoutSession[] {
       // V3: data,session_id,program,custom_plan_id,cycle_id,day,attempt,status,passed,total_reps,sets,exercise_logs
       if (cols.length < 12) continue
       const [date, id, program, _customPlanId, cycleId, day, attempt, status, passed, totalReps, setsRaw] = cols
-      if (program !== 'pushups' && program !== 'pullups') continue
+      if (program !== 'pushups' && program !== 'pullups' && program !== 'squats') continue
       if (status !== 'completed' && status !== 'in_progress' && status !== 'abandoned') continue
       sessions.push({
         id,
@@ -112,7 +112,7 @@ export function parseSessionsCsv(text: string): LocalWorkoutSession[] {
       // V1/V2: data,session_id,program,cycle_id,day,attempt,status,passed,total_reps,sets
       if (cols.length < 10) continue
       const [date, id, program, cycleId, day, attempt, status, passed, totalReps, setsRaw] = cols
-      if (program !== 'pushups' && program !== 'pullups') continue
+      if (program !== 'pushups' && program !== 'pullups' && program !== 'squats') continue
       if (status !== 'completed' && status !== 'in_progress' && status !== 'abandoned') continue
       sessions.push({
         id,
@@ -472,6 +472,14 @@ export async function applyJsonImport(
       if (local) continue
       await db.aiInsights.put(ai)
       await enqueueSync('ai_insights', 'insert', ai)
+    }
+  }
+  // Streak freezes — deterministic ids make put idempotent. Push may be
+  // rejected server-side for non-Pro users (pro gate); the row stays local.
+  if (snapshot.streakFreezes?.length) {
+    for (const f of snapshot.streakFreezes) {
+      await db.streakFreezes.put(f)
+      await enqueueSync('streak_freezes', 'insert', f)
     }
   }
 

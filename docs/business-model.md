@@ -70,6 +70,8 @@ Dane rynkowe (Adapty SOIS 2026, RevenueCat 2024-2025):
 | **Export JSON (backup)** | ✓ | ✓ | Data portability = baseline etyczny — dane usera są jego |
 | **Achievement showcase customization** | auto + manual | auto + manual | Darmowe — personalizacja profilu napędza community engagement; za cienkie na osobny paywall |
 | **Verified author badge** | ✗ | ✓ | Status społeczny w katalogu — ⚠️ NIE wdrożone jeszcze, nie reklamować w UI (usunięte z tabeli porównania i ProTeaser do czasu implementacji) |
+| **Streak freeze (ochrona serii)** | ✗ | ✓ | 1 zamrożenie/mies., bank max 3, auto-save przy przerwie ≤3 tyg. z tygodniową kotwicą; append-only `streak_freezes` + trigger Pro-gate (migracja 087) |
+| **Tytuły profilu z osiągnięć** | ✗ | ✓ | 42 tytuły z allowlisty achievementów; `profiles.selected_title` (sync prywatny) + `public_profiles.title_achievement_id` (serwer waliduje Pro + unlock — migracja 088) |
 | **Wyzwania tygodniowe** | ✓ | ✓ | Engagement = nie gate'ować |
 | **Osiągnięcia (unlock)** | ✓ | ✓ | Gamification = nie gate'ować |
 | **High-contrast + theme** | ✓ | ✓ | Dostępność = nie gate'ować |
@@ -99,13 +101,14 @@ Dane rynkowe (Adapty SOIS 2026, RevenueCat 2024-2025):
 | Plan | Cena PLN | Cena USD | Uwagi |
 |------|----------|----------|-------|
 | Free | 0 | 0 | Core features, 3 custom plans, lokalne insighty (bez AI) |
-| Pro Monthly | 14.99 PLN/mo | ~$3.99/mo | Wszystkie funkcje Pro, cancel anytime |
-| Pro Annual | 79.99 PLN/yr | ~$19.99/yr | ~6.67 PLN/mo (44% oszczędności), annual-first |
-| Pro Lifetime | 199.99 PLN | ~$49.99 | One-time, wszystkie funkcje Pro na zawsze |
+| Pro Monthly | 19.99 PLN/mo | ~$4.99/mo | Wszystkie funkcje Pro, cancel anytime — głównie kotwica cenowa |
+| Pro Annual | 79.99 PLN/yr | ~$19.99/yr | ~6.67 PLN/mo (67% oszczędności vs monthly), annual-first. **Cena startowa** — docelowo 99.99 PLN/rok; kupujący teraz zachowują cenę na zawsze |
+| Pro Lifetime | 299.99 PLN | ~$74.99 | One-time, wszystkie funkcje Pro na zawsze (3.75× roczną — wcześniej 199.99 było za tanio przy 2.5×) |
 
 **Strategia cenowa:**
 - Annual-first (60.6% przychodu H&F = annual, 2.4x retention vs monthly)
 - PLN pricing (PPP-adjusted dla polskiego rynku — 79.99 PLN nie $29.99)
+- **Launch offer**: roczny 79.99 z przekreśloną przyszłą ceną 99.99 + badge "Cena startowa" — napędza konwersję na starcie, podwyżka dla nowych subów bez ruszania istniejących
 - Lifetime option dla userów nienawidzących subskrypcji (Strong: $99.99, my taniej)
 - 14-day free trial ( optimum wg danych: 14-21 dni = 46% konwersji)
 - Pricing page: annual z monthly equivalent obok (wzór: 5-7x monthly)
@@ -170,19 +173,21 @@ Pro User → SmartReps PWA → Supabase Edge Function (ai-proxy)
                          Response back to client
 ```
 
-**Wybór modelu (aktualne ceny per 1M tokenów in/out, typowe zapytanie ~3-5k in / ~600 out):**
-- `gpt-5-mini` ($0.25/$2.00) → ~$0.002-0.005/zapytanie — **model bazowy** (`AI_MODEL`): najlepszy stosunek jakość/cena, bardzo dobry polski, stabilny JSON, reasoning wbudowany
-- `gpt-5.4-mini` ($0.75/$4.50) → ~$0.005-0.01/zapytanie — **model premium** (`AI_MODEL_PRO`, nadpisuje `AI_MODEL` dla pro/trial/lifetime): zauważalnie lepsza analiza = konkretny benefit płatności
-- `gemini-2.5-flash-lite` ($0.10/$0.40) → ~$0.0005-0.001/zapytanie — budżetowy fallback gdy koszty urosną; proxy wysyła `reasoning_effort: 'none'` (thinking wyłączony = szybko i tanio)
-- Uwaga na reasoning: modele gpt-5.x liczą ukryte tokeny myślenia jako output — proxy dodaje +1024 headroom do `max_completion_tokens` i wymusza `reasoning_effort: low` (medium przy generowaniu planu)
-- Koszt ponoszą wyłącznie płacący userzy (hard paywall): przy limicie 60/dzień nawet 100 Pro userów dobijających limit ≈ $12-36/dzień teoretyczne max, realnie ułamek tego
+**Wybór modelu — zweryfikowane na produkcyjnym kluczu 13.09.2026 (Google AI Studio, free tier):**
+- Klucz `AI_API_KEY` jest **kluczem Gemini** → wymagane `AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai` (endpoint OpenAI-compatible)
+- `AI_MODEL=gemini-3.5-flash-lite` — tani fallback
+- `AI_MODEL_PRO=gemini-3.8-flash` — najlepszy flash dostępny na kluczu (hosted AI wołają wyłącznie Pro/trial/lifetime, więc `AI_MODEL_PRO` jest faktycznym modelem produkcyjnym)
+- Modele `-latest` (gemini-flash-latest, gemini-pro-latest) — **nie używać**: nie pasują do reguły `/gemini-3/` w proxy (ryzyko złego shapingu) i pro-latest wymaga płatnego tieru
+- Deprecated/niedostępne na tym kluczu: `gemini-2.5-flash-lite` (404), `gemini-2.5-pro` (404), `gemini-3.1-pro-preview` (429 — wymaga billing)
+- Gemini 3.x myśli domyślnie (hidden reasoning liczy się w `max_tokens`) — klienckie `maxTokens` ≥ ~512 jest bezpieczne; przy włączeniu billing rozważyć pro model dla `AI_MODEL_PRO`
+- Koszt ponoszą wyłącznie płacący userzy (hard paywall): limit globalny **30/dzień** + capy per-feature (`plan_generation` 3/d, `progression_adaptation` 5/d, `workout_analysis` 10/d — migracja 086) — worst-case abuser ≈ $1-2/mies., realny user ≈ $0.20-0.30/mies.
 
 **Zaimplementowano (Phase 2):**
 1. `supabase/functions/ai-proxy/` — Edge Function proxy ✅
    - Weryfikuje JWT użytkownika (auth)
    - Czyta `subscription_status` z `profiles` → tier (free/pro/trial/lifetime)
    - Atomowy limit dzienny per user: `ai_consume` RPC + tabela `ai_usage_daily` (migracja 078)
-   - **AI = hard paywall Pro**: free → 403 `pro_required` (zero AI, hosted i BYOK); Pro/trial/lifetime → 60 wywołań/dzień
+   - **AI = hard paywall Pro**: free → 403 `pro_required` (zero AI, hosted i BYOK); Pro/trial/lifetime → 30 wywołań/dzień + capy per-feature
    - Klucz API jako Supabase secret (`AI_API_KEY`) — nigdy w kliencie
    - Model i provider wybierane server-side (`AI_MODEL`, `AI_MODEL_PRO`, `AI_BASE_URL`)
    - Whitelist feature'ów + limity rozmiaru payloadu (max 20 wiadomości, 24k znaków, 8k tokenów)
@@ -197,7 +202,9 @@ Pro User → SmartReps PWA → Supabase Edge Function (ai-proxy)
 ```bash
 supabase db push                       # migracja 078: ai_usage_daily + ai_consume + ai_refund
 supabase functions deploy ai-proxy --no-verify-jwt
-supabase secrets set AI_API_KEY=<klucz> AI_MODEL=gpt-5-mini AI_MODEL_PRO=gpt-5.4-mini
+supabase secrets set AI_API_KEY=<klucz> \
+  AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai \
+  AI_MODEL=gemini-3.5-flash-lite AI_MODEL_PRO=gemini-3.8-flash
 ```
 
 Kluczowe elementy: refund quota przy błędach providera (`ai_refund`), timeout 30s na upstream, shaping requestów per-model (Gemini 3.x bez temperature, Gemini 2.5 Flash z reasoning_effort 'none', OpenAI reasoning z max_completion_tokens + headroom), neutralne błędy bez wycieku wnętrzności providera.
@@ -283,7 +290,7 @@ Zmiany w kodzie, które NIE wymagają Stripe — wykonane:
 1. **`supabase/functions/ai-proxy/`** ✅ — Edge Function proxy (OpenAI-compatible; provider via `AI_BASE_URL`)
 2. **`src/lib/ai/managed-client.ts`** ✅ — `aiChat()` router: managed → proxy, BYOK → `chatCompletion()`
 3. **`resolveAiContext(settings, loggedIn, proAccess)`** ✅ — free → `undefined` (lokalny fallback), Pro → BYOK lub managed
-4. **Rate limiting server-side** ✅ — `ai_usage_daily` + atomowy `ai_consume`/`ai_refund`, 60/dzień dla Pro, 403 `pro_required` dla free
+4. **Rate limiting server-side** ✅ — `ai_usage_daily` + atomowy `ai_consume`/`ai_refund`, 30/dzień globalnie + capy per-feature (plan_gen 3, adaptacja 5, analiza 10), 403 `pro_required` dla free
 5. **UI: AI gating** ✅ — `ProTeaser` na wszystkich powierzchniach, BYOK jako opcja zaawansowana dla Pro
 6. **Pozostało:** deploy (`supabase db push` + `functions deploy` + secrets) + cost monitoring na `ai_usage_daily`
 
@@ -313,7 +320,7 @@ Zmiany w kodzie, które NIE wymagają Stripe — wykonane:
 | Pozycja | 100 Pro users | 1000 Pro users | Uwagi |
 |---------|---------------|----------------|-------|
 | Supabase (free tier → Pro) | $0-25 | $25-100 | Zależy od DB size + Edge Function invocations |
-| AI API (gpt-5-mini / gpt-5.4-mini) | ~$3-10 | ~$30-100 | ~$0.002-0.01/request, tylko Pro userzy generują koszty, limit 60/dzień |
+| AI API (gemini-3.8-flash, paid tier) | ~$20-30 | ~$200-300 | ~$0.008/request średnio (insight ~$0.006, generowanie planu ~$0.03), tylko Pro generuje koszty, 30/dzień + capy per-feature |
 | Stripe fees | ~2.9% + $0.30/transaction | ~2.9% + $0.30/transaction | Standard |
 | Vercel | $0 (free) | $0-20 | Hobby tier wystarcza długo |
 | **Total** | ~$10-40 | ~$80-270 | |
@@ -342,7 +349,7 @@ Przy kosztach ~$25/miesiąc (Supabase + AI + Vercel) i ARPU ~80 PLN/yr (~$20/yr)
 |--------|-------------------|-----------|
 | Userzy odejdą przy wprowadzeniu płatności | Średnie | Core (38 cykli, custom plans, community, podstawowe postępy) zostaje darmowe; AI gate'owane od startu jako nowa wartość premium, z ProTeaser i lokalnym fallbackiem |
 | Konkurencja doda podobne funkcje za darmo | Niskie | PL-first + community + Strong-style UX = trudne do skopiowania |
-| AI API costs rosną | Średnie | Koszty tylko od płacących (hard paywall), limit 60/dzień per user, `AI_MODEL` można przełączyć na tańszy (gemini-2.5-flash-lite), cache 24h po stronie klienta |
+| AI API costs rosną | Średnie | Koszty tylko od płacących (hard paywall), 30/dzień + capy per-feature (086), `AI_MODEL`/`AI_MODEL_PRO` przełączalne bez deployu, cache 24h po stronie klienta |
 | App Store rejection | Średnie | PWA działa niezależnie; Capacitor to dodatek, nie zależność. Review process ~1 tydzień |
 | Polish market price sensitivity | Wysokie | PLN pricing (nie USD), annual-first (niższa miesięczna), lifetime option, 14-day trial |
 
@@ -351,7 +358,7 @@ Przy kosztach ~$25/miesiąc (Supabase + AI + Vercel) i ARPU ~80 PLN/yr (~$20/yr)
 ## Decyzje (rozstrzygnięte)
 
 1. **Stripe** — pełna kontrola, lower fees, Stripe Customer Portal
-2. **OpenAI dla hosted AI** — `gpt-5-mini` jako `AI_MODEL` (jakość/cena), `gpt-5.4-mini` jako `AI_MODEL_PRO`; proxy jest provider-agnostic (OpenAI-compatible `AI_BASE_URL` pozwala przełączyć na Gemini/Groq bez zmian kodu)
+2. **Gemini dla hosted AI** — `gemini-3.8-flash` jako `AI_MODEL_PRO` (najlepszy flash, $0.75/$3.75 per 1M do 31.12.2026, potem $1.50/$7.50), `gemini-3.5-flash-lite` jako `AI_MODEL` fallback ($0.30/$2.50). **Wymagany paid tier w AI Studio** — free tier to ~20 req/dzień *na projekt* (nie skaluje się) i dane trafiają do treningu Google (problem dla danych treningowych userów). Proxy jest provider-agnostic — `AI_BASE_URL` pozwala przełączyć na OpenAI/Groq bez zmian kodu
 3. **Opt-in trial** — user sam decyduje o rozpoczęciu 14-dniowego trial (nie auto-start)
 4. **AI = hard paywall Pro** — żadnych darmowych wywołań AI (ani hosted, ani BYOK); free dostaje lokalne insighty heurystyczne jako teaser; "taste" realizowane przez 14-dniowy trial zamiast darmowej quoty
 5. **Cloud sync = darmowy dla wszystkich** — sync między urządzeniami to fundament offline-first i data safety przy zmianie telefonu; gate'owanie karałoby zaangażowanych userów w newralgicznym momencie za znikomy koszt infra. Pro koncentruje się na wartości addytywnej (AI, analytics, limity, export, push)

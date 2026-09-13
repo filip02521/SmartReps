@@ -52,6 +52,8 @@ export type UserSettings = {
   trialStartedAt: string | null
   /** When true, user has dismissed the RPE/RIR education hint and won't see it again. Synced to cloud. */
   rpeRirEducationDismissed: boolean
+  /** Selected profile title = achievement id (Pro perk). null = no title shown. Synced to cloud. */
+  selectedTitle: string | null
 }
 
 export type PendingTest = {
@@ -165,6 +167,7 @@ const UI_SYNC_KEYS: (keyof UserSettings)[] = [
   'aiModel',
   'aiBaseUrl',
   'rpeRirEducationDismissed',
+  'selectedTitle',
 ]
 
 export const defaultSettings: UserSettings = {
@@ -191,6 +194,7 @@ export const defaultSettings: UserSettings = {
   subscriptionExpiresAt: null,
   trialStartedAt: null,
   rpeRirEducationDismissed: false,
+  selectedTitle: null,
 }
 
 export const useAppStore = create<AppStore>()(

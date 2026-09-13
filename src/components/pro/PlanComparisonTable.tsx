@@ -58,21 +58,23 @@ export function PlanComparisonTable({
     {
       title: pl.proCatStats,
       icon: BarChart2,
-      featureKeys: ['advancedAnalytics'],
+      featureKeys: ['advancedAnalytics', 'streakFreeze'],
       rows: [
         { label: pl.proRowBasicStats, free: true, pro: true },
         { label: pl.proRowAdvancedStats, free: false, pro: true },
         { label: pl.proRowForecasts, free: false, pro: true },
+        { label: pl.proRowStreakFreeze, free: false, pro: pl.proValAuto },
       ],
     },
     {
       title: pl.proCatCommunity,
       icon: Users,
-      featureKeys: ['unlimitedPublications'],
+      featureKeys: ['unlimitedPublications', 'profileTitle'],
       rows: [
         { label: pl.proRowCommunityBrowse, free: true, pro: true },
         { label: pl.proRowFollow, free: true, pro: true },
         { label: pl.proRowPublish, free: pl.proValThree, pro: pl.proValUnlimited },
+        { label: pl.proRowProfileTitle, free: false, pro: pl.proValAutoManual },
       ],
     },
     {

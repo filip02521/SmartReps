@@ -45,6 +45,7 @@ import {
 } from '@/lib/ai/rate-limiter'
 import { listExercises } from '@/lib/custom-plan-service'
 import { getWeekKey, startOfLocalWeek } from '@/lib/stats-engine'
+import { maintainStreakFreezes } from '@/lib/streak-freeze'
 import {
   loadHomeDashboard,
   localDayKey,
@@ -211,10 +212,25 @@ export default function Dashboard() {
     hasSession,
   ])
 
+  // Streak freeze maintenance — accrues this month's freeze (Pro) and
+  // auto-rescues a broken streak. Both steps are idempotent; the toast only
+  // fires when a freeze was actually consumed this run. Runs even with zero
+  // sessions — the monthly grant must accrue before the first workout.
+  useEffect(() => {
+    if (!hydrated) return
+    const completed = heatmapSessions.filter((s) => s.status === 'completed')
+    void maintainStreakFreezes(completed).then((saved) => {
+      if (saved.length) {
+        showToast(pl.streakFreezeSavedToast, 'success')
+        track(AnalyticsEvents.streakFreezeUsed, { weeks: saved.length })
+      }
+    })
+  }, [hydrated, heatmapSessions])
+
   useEffect(() => {
     if (!hydrated || loading || !home) return
     const programParam = searchParams.get('program')
-    if (programParam !== 'pushups' && programParam !== 'pullups') return
+    if (programParam !== 'pushups' && programParam !== 'pullups' && programParam !== 'squats') return
     scrollToProgram(programParam)
     setSearchParams({}, { replace: true })
   }, [hydrated, loading, home, searchParams, setSearchParams])

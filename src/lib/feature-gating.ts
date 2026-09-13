@@ -33,6 +33,8 @@ export type ProFeature =
   | 'unlimitedPublications'
   | 'verifiedBadge'
   | 'manualShowcase'
+  | 'streakFreeze'
+  | 'profileTitle'
 
 /**
  * Check if a feature requires Pro.

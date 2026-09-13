@@ -18,6 +18,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { useEffect, useMemo, useState } from 'react'
 import { pl } from '@/i18n/pl'
 import { buildActivityInsights } from '@/lib/weekly-recap'
+import { useFrozenWeeks } from '@/lib/streak-freeze'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import type { LocalProgramProgress, LocalWorkoutSession } from '@/lib/db'
 import type {
@@ -406,11 +407,12 @@ export function OverviewPanel({
 
   // Aktywność globalna — dla zakładki Aktywność użyj wszystkich sesji
   // Dla programów przelicz aktywność tylko z sesji tego programu
+  const frozenWeeks = useFrozenWeeks()
   const scopedActivity = useMemo(() => {
     if (scope === 'activity') return activity
     const passed = scopedSessions.filter((s) => s.status === 'completed' && s.passed)
-    return buildActivityInsights(passed)
-  }, [scope, activity, scopedSessions])
+    return buildActivityInsights(passed, new Date(), frozenWeeks)
+  }, [scope, activity, scopedSessions, frozenWeeks])
 
   // ===== Zakładka AKTYWNOŚĆ =====
   // Pokazuje: custom plans, aktywność globalną, balans mięśniowy, kalendarz, rekordy custom

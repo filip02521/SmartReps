@@ -73,6 +73,9 @@ export const AnalyticsEvents = {
   proTeaserShown: 'pro_teaser_shown',
   proTrialStart: 'pro_trial_start',
   proTrialExpired: 'pro_trial_expired',
+  // Pro perks
+  streakFreezeUsed: 'streak_freeze_used',
+  profileTitleSet: 'profile_title_set',
 } as const
 
 export type AnalyticsEventName =

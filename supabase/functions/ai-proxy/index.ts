@@ -24,8 +24,18 @@ const cors = {
 }
 
 // AI is Pro-only: free users get 403 before any quota is consumed. Pro,
-// trial and lifetime get a daily quota as abuse/cost control.
-const PRO_DAILY_LIMIT = 60
+// trial and lifetime get a daily quota as abuse/cost control. 30/day is
+// ~10x a realistic training day (insight + report + analysis); a higher cap
+// would let scripted abuse exceed a monthly subscription's value.
+const PRO_DAILY_LIMIT = 30
+
+// Per-feature caps for expensive calls — plan_generation is ~10x the cost of
+// a short insight and has no legitimate need for more than a few/day.
+const FEATURE_DAILY_LIMITS: Record<string, number> = {
+  plan_generation: 3,
+  progression_adaptation: 5,
+  workout_analysis: 10,
+}
 
 const ALLOWED_FEATURES = new Set([
   'weekly_report',
@@ -152,20 +162,24 @@ Deno.serve(async (req) => {
   const dailyLimit = PRO_DAILY_LIMIT
 
   // ── Atomic quota consume ──
+  const featureLimit = FEATURE_DAILY_LIMITS[feature]
   const { data: consumed, error: consumeError } = await admin.rpc('ai_consume', {
     p_user_id: userId,
     p_feature: feature,
     p_daily_limit: dailyLimit,
+    p_feature_limit: featureLimit ?? null,
   })
   if (consumeError) {
     console.error('ai_consume failed', consumeError.message)
     return json(500, { error: 'quota_check_failed' })
   }
-  if (consumed === -1) {
+  if (consumed === -1 || consumed === -2) {
     return json(429, {
       error: 'quota_exceeded',
       dailyLimit,
       proLimit: PRO_DAILY_LIMIT,
+      // -2 = the feature-specific cap, not the global daily cap.
+      ...(consumed === -2 ? { featureLimit, feature } : {}),
     })
   }
 

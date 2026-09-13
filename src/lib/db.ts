@@ -172,6 +172,23 @@ export type BodyWeightTombstone = {
   deletedAt: string
 }
 
+/**
+ * Streak freeze event (Pro perk). 'grant' accrues a freeze (1/month while Pro),
+ * 'use' marks a skipped week as covered by the streak. Deterministic ids
+ * ('grant-YYYY-MM' / 'use-YYYY-MM-DD') make cross-device sync idempotent —
+ * two devices writing the same event produce the same row, not duplicates.
+ * Rows are immutable and never deleted — no tombstones needed.
+ */
+export type StreakFreezeRow = {
+  id: string
+  kind: 'grant' | 'use'
+  /** 'use' rows: frozen week (local Monday, YYYY-MM-DD). */
+  weekKey: string | null
+  /** 'grant' rows: grant month 'YYYY-MM'. */
+  monthKey: string | null
+  createdAt: string
+}
+
 class SmartRepsDB extends Dexie {
   programProgress!: EntityTable<LocalProgramProgress, 'id'>
   workoutSessions!: EntityTable<LocalWorkoutSession, 'id'>
@@ -191,6 +208,7 @@ class SmartRepsDB extends Dexie {
   customPlanTombstones!: EntityTable<CustomPlanTombstone, 'planId'>
   exerciseTombstones!: EntityTable<ExerciseTombstone, 'exerciseId'>
   bodyWeightTombstones!: EntityTable<BodyWeightTombstone, 'entryId'>
+  streakFreezes!: EntityTable<StreakFreezeRow, 'id'>
 
   constructor() {
     super('SmartRepsDB')
@@ -444,10 +462,38 @@ class SmartRepsDB extends Dexie {
       bodyWeightTombstones: 'entryId, deletedAt',
       aiPlanDrafts: 'id, createdAt',
     })
+    // v15: streakFreezes — Pro streak-freeze events (grant/use). Append-only,
+    // deterministic ids — no tombstones, no updatedAt merge.
+    this.version(15).stores({
+      programProgress: '++id, &program',
+      workoutSessions: 'id, program, status, startedAt, [program+status], customPlanId',
+      activeWorkout: 'program',
+      activeCustomWorkout: 'customPlanId',
+      syncQueue: '++id, createdAt, table',
+      maxTests: '++id, program, testedAt, &[program+testedAt]',
+      exercises: 'id, updatedAt, archived',
+      customPlans: 'id, status, updatedAt',
+      customProgramProgress: '++id, &customPlanId, updatedAt',
+      achievementUnlocks: 'id, unlockedAt',
+      bodyWeight: 'id, measuredAt',
+      aiInsights: 'id, type, sessionId, weekKey, createdAt',
+      sessionTombstones: 'sessionId, deletedAt',
+      aiAnalysisCache: 'id, createdAt',
+      customPlanTombstones: 'planId, deletedAt',
+      exerciseTombstones: 'exerciseId, deletedAt',
+      bodyWeightTombstones: 'entryId, deletedAt',
+      aiPlanDrafts: 'id, createdAt',
+      streakFreezes: 'id, kind, weekKey, monthKey',
+    })
   }
 }
 
 export const db = new SmartRepsDB()
+
+/** Window event dispatched when streakFreezes rows change (local write or
+ *  remote pull merge). Lives here so sync.ts can dispatch it without
+ *  importing streak-freeze.ts (which imports sync.ts — a cycle). */
+export const FREEZE_CHANGED_EVENT = 'sr-streak-freezes-changed'
 
 // Diagnostics — log when the DB is blocked or ready so we can diagnose
 // "DexieError" issues that appear after schema upgrades or HMR reloads.

@@ -23,6 +23,7 @@ import {
   Layers,
 } from 'lucide-react'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
+import { parseCoachBody } from '@/lib/coach-body'
 import { format, formatDistanceToNow } from 'date-fns'
 import { dateFnsLocale } from '@/lib/date-locale'
 
@@ -51,39 +52,7 @@ function parseMetrics(insight: LocalAiInsight): WeeklyMetrics | null {
   }
 }
 
-/**
- * Parse the coach body into structured sections. AI-generated reports mark
- * strengths with "✓", improvements with "→" and the recommendation with "💡"
- * (see generateWeeklyReport). Local fallback bodies are plain sentences and
- * land entirely in `summary`.
- */
-function parseCoachBody(body: string): {
-  summary: string
-  strengths: string[]
-  improvements: string[]
-  recommendation: string | null
-} {
-  const summaryParts: string[] = []
-  let strengths: string[] = []
-  let improvements: string[] = []
-  let recommendation: string | null = null
-  for (const line of body.split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed) continue
-    // 💡 is a surrogate pair — strip markers code-point-aware, not slice(1).
-    const content = trimmed.replace(/^[✓→💡]+\s*/u, '')
-    if (trimmed.startsWith('✓')) {
-      strengths = content.split(';').map((s) => s.trim()).filter(Boolean)
-    } else if (trimmed.startsWith('→')) {
-      improvements = content.split(';').map((s) => s.trim()).filter(Boolean)
-    } else if (trimmed.startsWith('💡')) {
-      recommendation = content || null
-    } else {
-      summaryParts.push(trimmed)
-    }
-  }
-  return { summary: summaryParts.join('\n'), strengths, improvements, recommendation }
-}
+// parseCoachBody lives in @/lib/coach-body — shared with AiCoachHistory.
 
 function formatWeekRange(weekStart: string, weekEnd: string): string {
   const start = new Date(weekStart)

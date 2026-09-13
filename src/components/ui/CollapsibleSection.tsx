@@ -15,10 +15,18 @@ import { FOCUS_RING } from '@/lib/ui-chrome'
  * - Content region has role="region" and aria-labelledby
  * - Keyboard accessible (native button)
  */
+const TONE_ICON: Record<string, string> = {
+  default: 'text-[var(--sr-text-muted)]',
+  success: 'text-[var(--sr-success)]',
+  warning: 'text-[var(--sr-warning)]',
+  danger: 'text-[var(--sr-error)]',
+}
+
 export function CollapsibleSection({
   title,
   icon: Icon,
   hint,
+  count,
   children,
   defaultOpen = false,
   tone = 'default',
@@ -26,9 +34,11 @@ export function CollapsibleSection({
   title: string
   icon?: React.ComponentType<{ size?: number; className?: string }>
   hint?: string
+  /** Item count shown as a small pill next to the title. */
+  count?: number
   children: ReactNode
   defaultOpen?: boolean
-  tone?: 'default' | 'danger'
+  tone?: 'default' | 'success' | 'warning' | 'danger'
 }) {
   const [open, setOpen] = useState(defaultOpen)
   const contentId = useId()
@@ -59,12 +69,7 @@ export function CollapsibleSection({
         {Icon && (
           <Icon
             size={18}
-            className={cn(
-              'shrink-0',
-              tone === 'danger'
-                ? 'text-[var(--sr-error)]'
-                : 'text-[var(--sr-text-muted)]',
-            )}
+            className={cn('shrink-0', TONE_ICON[tone] ?? TONE_ICON.default)}
           />
         )}
         <div className="min-w-0 flex-1">
@@ -78,6 +83,11 @@ export function CollapsibleSection({
           >
             {title}
           </span>
+          {count != null && count > 0 && (
+            <span className="ml-1.5 rounded-full bg-[var(--sr-bg-elevated)] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-[var(--sr-text-muted)]">
+              {count}
+            </span>
+          )}
           {hint && !open && (
             <span className="mt-0.5 block text-xs text-[var(--sr-text-muted)]">
               {hint}
@@ -94,13 +104,16 @@ export function CollapsibleSection({
         />
       </button>
 
-      {/* Animated content — grid 0fr → 1fr trick for height: auto animation */}
+      {/* Animated content — grid 0fr → 1fr trick for height: auto animation.
+          `inert` when closed: 0-height + opacity-0 leaves children keyboard-
+          focusable and readable by screen readers without it. */}
       <div
         id={contentId}
         role="region"
         aria-labelledby={headerId}
+        inert={!open}
         className={cn(
-          'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out',
+          'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out motion-reduce:transition-none',
           open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
         )}
       >

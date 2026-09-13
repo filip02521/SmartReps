@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/Button'
 import { achievementRarityLabel } from '@/lib/achievements/copy'
 import { pl } from '@/i18n/pl'
 import { FOCUS_RING } from '@/lib/ui-chrome'
-import { upsertMyPublicProfile } from '@/lib/follow-system'
+import { getMyPublicProfile, upsertMyPublicProfile } from '@/lib/follow-system'
 import { showToast } from '@/stores/toast-store'
 
 export function ShowcasePickerSheet({
@@ -57,9 +57,18 @@ export function ShowcasePickerSheet({
     else setShowcasePinnedIds(draft)
     onSaved()
     onClose()
-    // Sync to cloud so other users see the same showcase in follow cards
+    // Sync to cloud so other users see the same showcase in follow cards.
+    // The RPC overwrites every column — pass the existing values so saving
+    // the showcase doesn't wipe display_name/bio/is_public.
     try {
-      await upsertMyPublicProfile({ showcaseSlots: auto ? null : draft })
+      const existing = await getMyPublicProfile()
+      if (!existing) return
+      await upsertMyPublicProfile({
+        displayName: existing.display_name,
+        bio: existing.bio,
+        isPublic: existing.is_public,
+        showcaseSlots: auto ? null : draft,
+      })
     } catch {
       showToast(pl.followErrorGeneric, 'error')
     }

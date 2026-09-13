@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { showToast } from '@/stores/toast-store'
 import { useAppStore } from '@/stores/app-store'
+import { useProFeatures } from '@/lib/subscription'
 import { useOnline } from '@/hooks/useOnline'
 import {
   toggleFollow,
@@ -26,6 +27,7 @@ import type { AchievementId, AchievementDef, LocalAchievementUnlock } from '@/li
 import { GLYPHS } from '@/components/achievements/AchievementTile'
 import { TrophyShape } from '@/components/achievements/TrophyShape'
 import { AchievementDetailSheet } from '@/components/achievements/AchievementDetailSheet'
+import { ProfileTitleChip } from '@/components/achievements/ProfileTitleChip'
 import { trophyShapeFor, trophyTierFor } from '@/lib/achievements/trophy-tier'
 import type { FollowData } from '@/hooks/useFollowData'
 
@@ -285,6 +287,7 @@ function FolloweeCard({
           <p className="break-words sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
             {name}
           </p>
+          <ProfileTitleChip achievementId={profile.title_achievement_id} className="mt-0.5" />
           {profile.bio && (
             <p className="line-clamp-2 sr-text-caption text-[var(--sr-text-muted)]">
               {profile.bio}
@@ -373,6 +376,8 @@ export function PublicProfileSheet({
   onSaved: () => void
 }) {
   const setSettings = useAppStore((s) => s.setSettings)
+  const selectedTitle = useAppStore((s) => s.settings.selectedTitle)
+  const pro = useProFeatures()
   const [nameDraft, setNameDraft] = useState(displayName)
   const [bio, setBio] = useState('')
   const [isPublic, setIsPublic] = useState(false)
@@ -403,14 +408,28 @@ export function PublicProfileSheet({
     setBusy(true)
     setError('')
     const prevName = displayName
+    const base = {
+      displayName: trimmedName,
+      bio,
+      isPublic,
+      showcaseSlots: existing?.showcase_slots ?? null,
+    }
     try {
-      // 1. Update public profile (display_name + bio + is_public) first
-      await upsertMyPublicProfile({
-        displayName: trimmedName,
-        bio,
-        isPublic,
-        showcaseSlots: existing?.showcase_slots ?? null,
-      })
+      // 1. Update public profile (display_name + bio + is_public) first.
+      // Propagate the selected title so it appears as soon as the profile
+      // goes public; omitting it keeps whatever the server already has.
+      try {
+        await upsertMyPublicProfile({
+          ...base,
+          titleAchievementId: pro && selectedTitle ? selectedTitle : undefined,
+        })
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : ''
+        if (!msg.startsWith('title_')) throw e
+        // Title rejected (stale local id / unlock not synced yet) — still
+        // save the rest of the profile.
+        await upsertMyPublicProfile(base)
+      }
       if (!mountedRef.current) return
       // 2. Update local settings only after successful upsert
       if (trimmedName !== prevName) {
@@ -445,7 +464,7 @@ export function PublicProfileSheet({
     } finally {
       if (mountedRef.current) setBusy(false)
     }
-  }, [nameDraft, bio, isPublic, displayName, setSettings, onSaved, onClose, existing])
+  }, [nameDraft, bio, isPublic, displayName, setSettings, onSaved, onClose, existing, pro, selectedTitle])
 
   return (
     <Sheet open={open} onClose={onClose} title={pl.followPublicProfile}>
@@ -566,6 +585,7 @@ function FollowerCard({ profile }: { profile: FollowerProfile }) {
           <p className="break-words sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
             {name}
           </p>
+          <ProfileTitleChip achievementId={profile.title_achievement_id} className="mt-0.5" />
           {profile.bio && (
             <p className="line-clamp-2 sr-text-caption text-[var(--sr-text-muted)]">
               {profile.bio}

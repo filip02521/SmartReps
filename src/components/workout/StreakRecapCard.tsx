@@ -3,6 +3,7 @@ import { Flame, TrendingUp, ShieldCheck } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { computeStreakWeeks, getWeekKey } from '@/lib/stats-engine'
 import { computeBestStreakWeeks } from '@/lib/weekly-recap'
+import { useFrozenWeeks } from '@/lib/streak-freeze'
 import type { LocalWorkoutSession } from '@/lib/db'
 import { cn } from '@/lib/utils'
 
@@ -27,9 +28,12 @@ function milestoneJustReached(prevStreak: number, newStreak: number): number | n
  * (sessions in previous weeks) but no session in the current week (at-risk).
  * After completing, the streak is preserved/extended.
  */
-function wasAtRisk(prevSessions: LocalWorkoutSession[]): boolean {
+function wasAtRisk(
+  prevSessions: LocalWorkoutSession[],
+  frozenWeeks: ReadonlySet<string>,
+): boolean {
   const completed = prevSessions.filter((s) => s.status === 'completed')
-  const prevStreak = computeStreakWeeks(completed)
+  const prevStreak = computeStreakWeeks(completed, new Date(), frozenWeeks)
   if (prevStreak === 0) return false
   const currentWeekKey = getWeekKey(new Date())
   return !completed.some(
@@ -49,17 +53,32 @@ export function StreakRecapCard({
   sessions: LocalWorkoutSession[]
   previousSessions: LocalWorkoutSession[]
 }) {
+  const frozenWeeks = useFrozenWeeks()
   const newStreak = useMemo(
-    () => computeStreakWeeks(sessions.filter((s) => s.status === 'completed')),
-    [sessions],
+    () =>
+      computeStreakWeeks(
+        sessions.filter((s) => s.status === 'completed'),
+        new Date(),
+        frozenWeeks,
+      ),
+    [sessions, frozenWeeks],
   )
   const prevStreak = useMemo(
-    () => computeStreakWeeks(previousSessions.filter((s) => s.status === 'completed')),
-    [previousSessions],
+    () =>
+      computeStreakWeeks(
+        previousSessions.filter((s) => s.status === 'completed'),
+        new Date(),
+        frozenWeeks,
+      ),
+    [previousSessions, frozenWeeks],
   )
   const bestStreak = useMemo(
-    () => computeBestStreakWeeks(sessions.filter((s) => s.status === 'completed')),
-    [sessions],
+    () =>
+      computeBestStreakWeeks(
+        sessions.filter((s) => s.status === 'completed'),
+        frozenWeeks,
+      ),
+    [sessions, frozenWeeks],
   )
 
   const streakIncreased = newStreak > prevStreak
@@ -67,7 +86,7 @@ export function StreakRecapCard({
   const isNewRecord = newStreak > 0 && newStreak >= bestStreak && bestStreak > 0
   const next = nextMilestone(newStreak)
   const weeksToNext = next ? next - newStreak : 0
-  const atRiskBefore = wasAtRisk(previousSessions)
+  const atRiskBefore = wasAtRisk(previousSessions, frozenWeeks)
   // "Streak saved" = user was at-risk (no session this week before) and completed a workout.
   // The streak may have increased (from "at-risk count" to "active count"), but the emotional
   // message is "saved" not "increased" — the user preserved their streak from breaking.

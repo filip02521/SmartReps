@@ -8,12 +8,15 @@ import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { Sheet } from '@/components/ui/Sheet'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'
-import { usePlanBadgeState, useProFeatures } from '@/lib/subscription'
+import { useIsTrial, usePlanBadgeState, useProFeatures } from '@/lib/subscription'
 import { canExport, canWebPush, type ProFeature } from '@/lib/feature-gating'
 import { ProTeaser } from '@/components/ux/ProTeaser'
 import { canUseManagedAi } from '@/lib/ai/managed-client'
 import { PlanStatusCard } from '@/components/pro/PlanStatusCard'
 import { ProfileAchievementsSection } from '@/components/achievements/ProfileAchievementsSection'
+import { TitlePickerSheet } from '@/components/achievements/TitlePickerSheet'
+import { getAllUnlocks } from '@/lib/achievements/store'
+import type { LocalAchievementUnlock } from '@/lib/achievements/types'
 import { ImportBackupSheet } from '@/components/profile/ImportBackupSheet'
 import { SettingsSheet } from '@/components/profile/SettingsSheet'
 import { ProfileStats } from '@/components/profile/ProfileStats'
@@ -62,6 +65,7 @@ export default function ProfilePage() {
   const { settings, setSettings } = useAppStore()
   const { loggedIn } = useSupabaseAuth()
   const pro = useProFeatures()
+  const isTrial = useIsTrial()
   const planState = usePlanBadgeState()
   const lastSyncedAt = useAppStore((s) => s.lastSyncedAt)
   const navigate = useNavigate()
@@ -81,6 +85,8 @@ export default function ProfilePage() {
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [showFollowersSheet, setShowFollowersSheet] = useState(false)
   const [showFollowingSheet, setShowFollowingSheet] = useState(false)
+  const [showTitlePicker, setShowTitlePicker] = useState(false)
+  const [titleUnlocks, setTitleUnlocks] = useState<LocalAchievementUnlock[]>([])
   const followData = useFollowData()
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(() =>
     typeof Notification !== 'undefined' ? Notification.permission : null,
@@ -298,6 +304,13 @@ export default function ProfilePage() {
         onEditProfile={() => setShowProfileEdit(true)}
         onViewFollowers={() => setShowFollowersSheet(true)}
         onViewFollowing={() => setShowFollowingSheet(true)}
+        profileTitleId={settings.selectedTitle}
+        onEditTitle={() => {
+          setShowTitlePicker(true)
+          // Refresh unlocks lazily on each open — local Dexie read, cheap,
+          // and the set may have grown since the achievements section loaded.
+          void getAllUnlocks().then(setTitleUnlocks).catch(() => setTitleUnlocks([]))
+        }}
       />
 
       {/* Stats summary */}
@@ -309,17 +322,19 @@ export default function ProfilePage() {
       <div className="mt-6">
         <PlanStatusCard
           action={
+            planState === 'lifetime' ? undefined : (
             <Button
-              variant={pro ? 'secondary' : 'primary'}
+              variant={pro && !isTrial ? 'secondary' : 'primary'}
               size="sm"
               onClick={() => navigate('/pro?source=profile')}
             >
-              {pro
+              {pro && !isTrial
                 ? pl.proManageSubscription
                 : planState === 'expired'
                   ? pl.proRenew
                   : pl.proUpgradeCta}
             </Button>
+            )
           }
         />
       </div>
@@ -346,6 +361,15 @@ export default function ProfilePage() {
       <div className="mt-6">
         <ProfileAchievementsSection />
       </div>
+
+      {/* Title picker — opened from the hero chip; the achievements section
+          keeps its own trigger so both entry points stay in sync via the
+          shared settings.selectedTitle. */}
+      <TitlePickerSheet
+        open={showTitlePicker}
+        onClose={() => setShowTitlePicker(false)}
+        unlocks={titleUnlocks}
+      />
 
       {/* About — redesigned with app identity, legal links, disclaimer */}
       <PageSection title={pl.profileAboutTitle} className="mt-6">

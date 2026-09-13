@@ -41,6 +41,7 @@ import { computeCustomSessionInsights, type CustomSessionInsights } from '@/lib/
 import { sessionTotalSets } from '@/lib/custom-session-stats'
 import { daysUntilWorkout } from '@/lib/progress-engine'
 import { computeStreakWeeks } from '@/lib/stats-engine'
+import { useFrozenWeeks } from '@/lib/streak-freeze'
 import { shouldShowLoginCloudPrompt } from '@/lib/summary-actions'
 import { shareCustomSessionCard } from '@/lib/share-card'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
@@ -115,6 +116,7 @@ export default function CustomSessionSummary() {
   const [showCelebration, setShowCelebration] = useState(false)
   const [allSessionsForStreak, setAllSessionsForStreak] = useState<LocalWorkoutSession[]>([])
   const [previousSessionsForStreak, setPreviousSessionsForStreak] = useState<LocalWorkoutSession[]>([])
+  const frozenWeeks = useFrozenWeeks()
   const [progressionSuggestion, setProgressionSuggestion] = useState<ProgressionSuggestion | null>(null)
   const [suggestionDismissed, setSuggestionDismissed] = useState(false)
   const achievementQueue = useAchievementUiStore((s) => s.queue)
@@ -558,14 +560,14 @@ export default function CustomSessionSummary() {
             ? [{ icon: Flame, value: Math.round(volumeKg), label: pl.celebrationStatVolume, animate: true }]
             : [{ icon: Flame, value: exerciseCount, label: pl.celebrationStatExercises, animate: true }]),
         ]}
-        streakWeeks={computeStreakWeeks(allSessionsForStreak.filter((s) => s.status === 'completed'))}
+        streakWeeks={computeStreakWeeks(allSessionsForStreak.filter((s) => s.status === 'completed'), new Date(), frozenWeeks)}
         streakIncreased={
-          computeStreakWeeks(allSessionsForStreak.filter((s) => s.status === 'completed')) >
-          computeStreakWeeks(previousSessionsForStreak.filter((s) => s.status === 'completed'))
+          computeStreakWeeks(allSessionsForStreak.filter((s) => s.status === 'completed'), new Date(), frozenWeeks) >
+          computeStreakWeeks(previousSessionsForStreak.filter((s) => s.status === 'completed'), new Date(), frozenWeeks)
         }
         streakMilestoneReached={(() => {
-          const newS = computeStreakWeeks(allSessionsForStreak.filter((s) => s.status === 'completed'))
-          const prevS = computeStreakWeeks(previousSessionsForStreak.filter((s) => s.status === 'completed'))
+          const newS = computeStreakWeeks(allSessionsForStreak.filter((s) => s.status === 'completed'), new Date(), frozenWeeks)
+          const prevS = computeStreakWeeks(previousSessionsForStreak.filter((s) => s.status === 'completed'), new Date(), frozenWeeks)
           for (const m of [4, 8, 12, 26, 52]) {
             if (prevS < m && newS >= m) return m
           }

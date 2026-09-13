@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 import { dateFnsLocale } from '@/lib/date-locale'
 import { pl } from '@/i18n/pl'
 import { startOfLocalWeek, getWeekKey, computeStreakWeeks } from '@/lib/stats-engine'
+import { useFrozenWeeks } from '@/lib/streak-freeze'
 import type { LocalWorkoutSession } from '@/lib/db'
 import { cn } from '@/lib/utils'
 
@@ -15,9 +16,14 @@ type WeekCell = {
   sessions: number
   reps: number
   isCurrent: boolean
+  isFrozen: boolean
 }
 
-function buildWeekCells(sessions: LocalWorkoutSession[], weeks = 12): WeekCell[] {
+function buildWeekCells(
+  sessions: LocalWorkoutSession[],
+  frozenWeeks: ReadonlySet<string>,
+  weeks = 12,
+): WeekCell[] {
   const now = new Date()
   const currentWeekStart = startOfLocalWeek(now)
   const currentWeekKey = getWeekKey(now)
@@ -52,12 +58,16 @@ function buildWeekCells(sessions: LocalWorkoutSession[], weeks = 12): WeekCell[]
       sessions: data?.sessions ?? 0,
       reps: data?.reps ?? 0,
       isCurrent: key === currentWeekKey,
+      isFrozen: frozenWeeks.has(key),
     })
   }
   return cells
 }
 
-function cellColor(sessions: number): string {
+function cellColor(sessions: number, isFrozen: boolean): string {
+  if (isFrozen) {
+    return 'bg-[var(--sr-info-muted)] border-[color-mix(in_srgb,var(--sr-info)_45%,transparent)]'
+  }
   if (sessions === 0) return 'bg-[var(--sr-bg-surface)] border-[var(--sr-border-subtle)]'
   if (sessions <= 3) return 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_30%,var(--sr-bg-surface))]'
   if (sessions <= 6) return 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_60%,var(--sr-bg-surface))]'
@@ -76,13 +86,22 @@ export function StreakHeatmap({
   /** Show the title/hint header. Set false when embedded in a ProgressSection that already provides title+hint. */
   showHeader?: boolean
 }) {
-  const cells = useMemo(() => buildWeekCells(sessions, weeks), [sessions, weeks])
+  const frozenWeeks = useFrozenWeeks()
+  const cells = useMemo(
+    () => buildWeekCells(sessions, frozenWeeks, weeks),
+    [sessions, frozenWeeks, weeks],
+  )
   const streak = useMemo(
-    () => computeStreakWeeks(sessions.filter((s) => s.status === 'completed')),
-    [sessions],
+    () =>
+      computeStreakWeeks(
+        sessions.filter((s) => s.status === 'completed'),
+        new Date(),
+        frozenWeeks,
+      ),
+    [sessions, frozenWeeks],
   )
 
-  const hasData = cells.some((c) => c.sessions > 0)
+  const hasData = cells.some((c) => c.sessions > 0 || c.isFrozen)
   if (!hasData) {
     return (
       <div>
@@ -147,11 +166,15 @@ export function StreakHeatmap({
         {cells.map((cell) => (
           <div
             key={cell.weekKey}
-            title={pl.streakHeatmapCellAria(cell.sessions, cell.reps, cell.label)}
+            title={
+              cell.isFrozen
+                ? pl.streakFreezeCellTitle(cell.label)
+                : pl.streakHeatmapCellAria(cell.sessions, cell.reps, cell.label)
+            }
             className={cn(
               'rounded-[var(--sr-radius-sm)] border transition-colors',
               compact ? 'h-4 w-4 flex-1' : 'h-6 w-6',
-              cellColor(cell.sessions),
+              cellColor(cell.sessions, cell.isFrozen),
               cell.isCurrent && 'ring-2 ring-[var(--sr-brand-primary)] ring-offset-1 ring-offset-[var(--sr-bg-elevated)]',
             )}
           />
@@ -163,12 +186,18 @@ export function StreakHeatmap({
         <div className="mt-3 flex items-center justify-end gap-1.5 text-[10px] text-[var(--sr-text-muted)]">
           <span>{pl.streakHeatmapLegendNone}</span>
           <div className="flex gap-0.5">
-            <div className={cn('h-2.5 w-2.5 rounded-[var(--sr-radius-sm)] border', cellColor(0))} />
-            <div className={cn('h-2.5 w-2.5 rounded-[var(--sr-radius-sm)] border', cellColor(2))} />
-            <div className={cn('h-2.5 w-2.5 rounded-[var(--sr-radius-sm)] border', cellColor(5))} />
-            <div className={cn('h-2.5 w-2.5 rounded-[var(--sr-radius-sm)] border', cellColor(8))} />
+            <div className={cn('h-2.5 w-2.5 rounded-[var(--sr-radius-sm)] border', cellColor(0, false))} />
+            <div className={cn('h-2.5 w-2.5 rounded-[var(--sr-radius-sm)] border', cellColor(2, false))} />
+            <div className={cn('h-2.5 w-2.5 rounded-[var(--sr-radius-sm)] border', cellColor(5, false))} />
+            <div className={cn('h-2.5 w-2.5 rounded-[var(--sr-radius-sm)] border', cellColor(8, false))} />
           </div>
           <span>{pl.streakHeatmapLegendHigh}</span>
+          {frozenWeeks.size > 0 && (
+            <span className="ml-2 flex items-center gap-1">
+              <span className={cn('h-2.5 w-2.5 rounded-[var(--sr-radius-sm)] border', cellColor(0, true))} />
+              {pl.streakFreezeLegend}
+            </span>
+          )}
         </div>
       )}
     </div>

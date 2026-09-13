@@ -5,18 +5,22 @@ import { pl } from '@/i18n/pl'
 
 type TargetKind = MetricTarget['kind']
 
-const KIND_LABELS: Record<TargetKind, string> = {
-  fixed: pl.customTargetKindFixed,
-  min: pl.customTargetKindMin,
-  max: pl.customTargetKindMax,
-  exact: pl.customTargetKindExact,
-}
-
-const KIND_LABELS_COMPACT: Record<TargetKind, string> = {
-  fixed: pl.customTargetKindFixedShort,
-  min: pl.customTargetKindMinShort,
-  max: pl.customTargetKindMaxShort,
-  exact: pl.customTargetKindExactShort,
+// Resolved lazily per render — `pl` proxies the active dictionary; a
+// module-level map would freeze labels at import-time language.
+function kindLabels(compact: boolean): Record<TargetKind, string> {
+  return compact
+    ? {
+        fixed: pl.customTargetKindFixedShort,
+        min: pl.customTargetKindMinShort,
+        max: pl.customTargetKindMaxShort,
+        exact: pl.customTargetKindExactShort,
+      }
+    : {
+        fixed: pl.customTargetKindFixed,
+        min: pl.customTargetKindMin,
+        max: pl.customTargetKindMax,
+        exact: pl.customTargetKindExact,
+      }
 }
 
 export function TargetKindChips({
@@ -34,7 +38,7 @@ export function TargetKindChips({
   size?: 'default' | 'compact'
   className?: string
 }) {
-  const labels = size === 'compact' ? KIND_LABELS_COMPACT : KIND_LABELS
+  const labels = kindLabels(size === 'compact')
   const options = allowKinds.map((kind) => ({ value: kind, label: labels[kind] }))
   const kind = target.kind
 

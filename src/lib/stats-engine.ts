@@ -81,7 +81,8 @@ export async function getProgramStats(
   const maxTestRecord = tests.length ? Math.max(...tests.map((t) => t.reps)) : null
 
   const totalRepsAllTime = completed.reduce((sum, s) => sum + (s.totalReps ?? 0), 0)
-  const streakWeeks = computeStreakWeeks(completed)
+  const frozenWeeks = await loadFrozenWeekKeys()
+  const streakWeeks = computeStreakWeeks(completed, new Date(), frozenWeeks)
 
   let nextWorkoutLabel: string = pl.today
   if (progress.nextWorkoutAfter) {
@@ -107,6 +108,17 @@ export async function getProgramStats(
   }
 }
 
+/**
+ * Week keys covered by consumed streak freezes. Lives here (not in
+ * streak-freeze.ts) because that module imports getWeekKey from this one —
+ * a direct table read avoids the import cycle. `getFrozenWeekKeys` in
+ * streak-freeze.ts delegates to this.
+ */
+export async function loadFrozenWeekKeys(): Promise<Set<string>> {
+  const rows = await db.streakFreezes.where('kind').equals('use').toArray()
+  return new Set(rows.map((r) => r.weekKey).filter((k): k is string => k !== null))
+}
+
 /** Local Monday 00:00 — shared with heatmap (Pn–Nd) and best-streak. */
 export function startOfLocalWeek(d: Date): Date {
   const cursor = new Date(d)
@@ -126,13 +138,25 @@ export function getWeekKey(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-export function computeStreakWeeks(passedSessions: LocalWorkoutSession[], now = new Date()): number {
+/**
+ * `frozenWeeks` is a set of week keys (local Monday, YYYY-MM-DD) covered by a
+ * consumed streak freeze — they count as trained. Callers that don't care
+ * about freezes can omit it.
+ */
+export function computeStreakWeeks(
+  passedSessions: LocalWorkoutSession[],
+  now = new Date(),
+  frozenWeeks?: ReadonlySet<string>,
+): number {
   if (!passedSessions.length) return 0
 
   const weeksWithTraining = new Set<string>()
   for (const s of passedSessions) {
     weeksWithTraining.add(getWeekKey(new Date(s.startedAt)))
   }
+
+  const covered = (key: string) =>
+    weeksWithTraining.has(key) || frozenWeeks?.has(key) === true
 
   let streak = 0
   const cursor = startOfLocalWeek(now)
@@ -141,13 +165,13 @@ export function computeStreakWeeks(passedSessions: LocalWorkoutSession[], now = 
   // This preserves the streak value for "at risk" weeks — the user still has
   // a streak from previous weeks, it's just at risk of breaking if they don't
   // train this week. The UI uses this value to show at-risk warnings.
-  if (!weeksWithTraining.has(getWeekKey(cursor))) {
+  if (!covered(getWeekKey(cursor))) {
     cursor.setDate(cursor.getDate() - 7)
   }
 
   for (let i = 0; i < 104; i++) {
     const key = getWeekKey(cursor)
-    if (weeksWithTraining.has(key)) {
+    if (covered(key)) {
       streak++
       cursor.setDate(cursor.getDate() - 7)
     } else {

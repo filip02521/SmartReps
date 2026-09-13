@@ -261,8 +261,9 @@ function SyncErrorDiagnostics({ errors }: { errors: import('@/lib/analytics').Sy
         />
       </button>
       <div
+        inert={!open}
         className={cn(
-          'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out',
+          'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out motion-reduce:transition-none',
           open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
         )}
       >
@@ -303,8 +304,9 @@ function FaqCollapsible() {
         />
       </button>
       <div
+        inert={!open}
         className={cn(
-          'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out',
+          'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out motion-reduce:transition-none',
           open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
         )}
       >

@@ -497,7 +497,7 @@ export async function detectPlateau(
 // ─── Weekly Report ─────────────────────────────────────────────────────────
 
 import { buildActivityInsights } from '@/lib/weekly-recap'
-import { getWeekKey, startOfLocalWeek } from '@/lib/stats-engine'
+import { getWeekKey, startOfLocalWeek, loadFrozenWeekKeys } from '@/lib/stats-engine'
 
 /** Compute total volume for a session: reps × weight for custom, reps for builtin. */
 function sessionVolume(session: LocalWorkoutSession): number {
@@ -641,7 +641,7 @@ export async function generateWeeklyReport(params: {
     (s) => new Date(s.startedAt) >= weekStart && new Date(s.startedAt) < weekEnd,
   )
 
-  const activity = buildActivityInsights(completedSessions)
+  const activity = buildActivityInsights(completedSessions, now, await loadFrozenWeekKeys())
   // Use customSessionTotalReps for custom sessions (exerciseLogs), totalReps for builtin
   const totalReps = weekSessions.reduce((sum, s) => {
     if (isCustomWorkoutSession(s)) return sum + customSessionTotalReps(s)

@@ -5,6 +5,7 @@ import { dateFnsLocale } from '@/lib/date-locale'
 import { pl } from '@/i18n/pl'
 import { startOfLocalWeek, getWeekKey, computeStreakWeeks } from '@/lib/stats-engine'
 import { computeBestStreakWeeks } from '@/lib/weekly-recap'
+import { useFrozenWeeks } from '@/lib/streak-freeze'
 import type { LocalWorkoutSession } from '@/lib/db'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
@@ -49,9 +50,15 @@ type WeekCell = {
   sessions: number
   isCurrent: boolean
   isPartOfStreak: boolean
+  /** Week covered by a consumed streak freeze — no sessions, streak kept. */
+  isFrozen: boolean
 }
 
-function buildWeekCells(sessions: LocalWorkoutSession[], weeks = 12): WeekCell[] {
+function buildWeekCells(
+  sessions: LocalWorkoutSession[],
+  frozenWeeks: ReadonlySet<string>,
+  weeks = 12,
+): WeekCell[] {
   const now = new Date()
   const currentWeekStart = startOfLocalWeek(now)
   const currentWeekKey = getWeekKey(now)
@@ -76,6 +83,7 @@ function buildWeekCells(sessions: LocalWorkoutSession[], weeks = 12): WeekCell[]
       sessions: sessionsCount,
       isCurrent: key === currentWeekKey,
       isPartOfStreak: false,
+      isFrozen: frozenWeeks.has(key),
     })
   }
 
@@ -84,7 +92,7 @@ function buildWeekCells(sessions: LocalWorkoutSession[], weeks = 12): WeekCell[]
   const cursor = new Date(currentWeekStart)
   for (let i = 0; i < weeks; i++) {
     const key = getWeekKey(cursor)
-    const hasSessions = (weekMap.get(key) ?? 0) > 0
+    const hasSessions = (weekMap.get(key) ?? 0) > 0 || frozenWeeks.has(key)
     // Current week: if no sessions yet, still counts as "in streak" (at risk)
     if (hasSessions) {
       streakSet.add(key)
@@ -105,10 +113,16 @@ function buildWeekCells(sessions: LocalWorkoutSession[], weeks = 12): WeekCell[]
   return cells
 }
 
-function cellVisual(sessions: number, isPartOfStreak: boolean): {
+function cellVisual(sessions: number, isPartOfStreak: boolean, isFrozen: boolean): {
   bg: string
   border: string
 } {
+  if (isFrozen) {
+    return {
+      bg: 'bg-[var(--sr-info-muted)]',
+      border: 'border-[color-mix(in_srgb,var(--sr-info)_45%,transparent)]',
+    }
+  }
   if (sessions === 0) {
     return {
       bg: isPartOfStreak
@@ -158,10 +172,17 @@ export function StreakChainCard({
     () => sessions.filter((s) => s.status === 'completed'),
     [sessions],
   )
-  const streak = useMemo(() => computeStreakWeeks(completed), [completed])
-  const bestStreak = useMemo(() => computeBestStreakWeeks(completed), [completed])
+  const frozenWeeks = useFrozenWeeks()
+  const streak = useMemo(
+    () => computeStreakWeeks(completed, new Date(), frozenWeeks),
+    [completed, frozenWeeks],
+  )
+  const bestStreak = useMemo(
+    () => computeBestStreakWeeks(completed, frozenWeeks),
+    [completed, frozenWeeks],
+  )
   const animatedStreak = useCountUp(streak)
-  const cells = useMemo(() => buildWeekCells(completed), [completed])
+  const cells = useMemo(() => buildWeekCells(completed, frozenWeeks), [completed, frozenWeeks])
 
   const hasAnyTraining = completed.length > 0
   const currentWeekHasSessions = (cells[cells.length - 1]?.sessions ?? 0) > 0
@@ -275,11 +296,15 @@ export function StreakChainCard({
       {!compact ? (
         <div className="flex items-center gap-1" role="img" aria-label={pl.streakHeatmapMiniAria(streak)}>
           {cells.map((cell) => {
-            const visual = cellVisual(cell.sessions, cell.isPartOfStreak)
+            const visual = cellVisual(cell.sessions, cell.isPartOfStreak, cell.isFrozen)
             return (
               <div
                 key={cell.weekKey}
-                title={pl.streakHeatmapCellAria(cell.sessions, 0, cell.label)}
+                title={
+                  cell.isFrozen
+                    ? pl.streakFreezeCellTitle(cell.label)
+                    : pl.streakHeatmapCellAria(cell.sessions, 0, cell.label)
+                }
                 className={cn(
                   'h-7 flex-1 rounded-[var(--sr-radius-sm)] border transition-colors',
                   visual.bg,
@@ -295,18 +320,24 @@ export function StreakChainCard({
           {cells.slice(-3).map((cell) => (
             <div
               key={cell.weekKey}
-              title={pl.streakHeatmapCellAria(cell.sessions, 0, cell.label)}
+              title={
+                cell.isFrozen
+                  ? pl.streakFreezeCellTitle(cell.label)
+                  : pl.streakHeatmapCellAria(cell.sessions, 0, cell.label)
+              }
               className={cn(
                 'h-1.5 w-1.5 rounded-full transition-colors',
-                cell.sessions >= 5
-                  ? 'bg-[var(--sr-brand-primary)]'
-                  : cell.sessions >= 3
-                    ? 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_60%,transparent)]'
-                    : cell.sessions > 0
-                      ? 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_35%,transparent)]'
-                      : cell.isPartOfStreak
-                        ? 'bg-[color-mix(in_srgb,var(--sr-warning)_40%,transparent)]'
-                        : 'bg-[var(--sr-border-subtle)]',
+                cell.isFrozen
+                  ? 'bg-[color-mix(in_srgb,var(--sr-info)_55%,transparent)]'
+                  : cell.sessions >= 5
+                    ? 'bg-[var(--sr-brand-primary)]'
+                    : cell.sessions >= 3
+                      ? 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_60%,transparent)]'
+                      : cell.sessions > 0
+                        ? 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_35%,transparent)]'
+                        : cell.isPartOfStreak
+                          ? 'bg-[color-mix(in_srgb,var(--sr-warning)_40%,transparent)]'
+                          : 'bg-[var(--sr-border-subtle)]',
               )}
             />
           ))}

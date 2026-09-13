@@ -42,6 +42,7 @@ export async function clearAllLocalData(): Promise<void> {
     db.customPlanTombstones.clear(),
     db.exerciseTombstones.clear(),
     db.bodyWeightTombstones.clear(),
+    db.streakFreezes.clear(),
   ])
   // Clear backfill flag so the next account starts fresh — otherwise the first
   // evaluation after account switch would skip the backfill check.

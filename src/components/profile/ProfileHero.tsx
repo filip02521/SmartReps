@@ -1,7 +1,9 @@
-import { Settings, RefreshCw, LogIn, Pencil, Users, UserCheck, Globe, Lock, ChevronRight } from 'lucide-react'
+import { Settings, RefreshCw, LogIn, Pencil, Users, UserCheck, Globe, Lock, ChevronRight, Crown } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Card'
 import { UserPlanBadge } from '@/components/pro/UserPlanBadge'
+import { ProfileTitleChip } from '@/components/achievements/ProfileTitleChip'
+import { getProfileTitle } from '@/lib/achievements/titles'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
@@ -27,6 +29,8 @@ export function ProfileHero({
   onEditProfile,
   onViewFollowers,
   onViewFollowing,
+  profileTitleId,
+  onEditTitle,
 }: {
   displayName: string
   email: string | null
@@ -42,6 +46,10 @@ export function ProfileHero({
   onEditProfile: () => void
   onViewFollowers: () => void
   onViewFollowing: () => void
+  /** Selected achievement-title id — rendered as a tappable chip under the
+   *  name so the pick has an immediate visual echo on the user's own profile. */
+  profileTitleId: string | null
+  onEditTitle: () => void
 }) {
   // Avatar initials from display name or email
   const initials = (displayName || email || '?')
@@ -52,6 +60,7 @@ export function ProfileHero({
     .join('') || '?'
 
   const title = displayName || email || pl.navProfile
+  const profileTitle = profileTitleId ? getProfileTitle(profileTitleId) : null
   const isPublic = followProfile?.is_public ?? false
   const bio = followProfile?.bio?.trim() ?? ''
   const showFollowStats = connected && online && !followLoading
@@ -90,6 +99,38 @@ export function ProfileHero({
             </h1>
             <UserPlanBadge />
           </div>
+          {/* Title chip — the same public-facing label followers see; tap
+              opens the picker. Ghost CTA when nothing is selected yet. */}
+          {profileTitle ? (
+            <button
+              type="button"
+              onClick={onEditTitle}
+              aria-label={pl.profileTitleChangeAria(profileTitle)}
+              className={cn(
+                FOCUS_RING,
+                'group/title mt-1 inline-flex items-center gap-1 rounded-[var(--sr-radius-sm)] px-1 py-0.5 -mx-1 transition-colors hover:bg-[var(--sr-bg-surface)]',
+              )}
+            >
+              <ProfileTitleChip achievementId={profileTitleId} />
+              <Pencil
+                size={10}
+                aria-hidden
+                className="shrink-0 text-[var(--sr-text-muted)] opacity-60 transition-opacity group-hover/title:opacity-100 group-focus-visible/title:opacity-100"
+              />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onEditTitle}
+              className={cn(
+                FOCUS_RING,
+                'mt-1.5 inline-flex min-h-8 items-center gap-1.5 rounded-full border border-dashed border-[var(--sr-border-subtle)] px-2.5 py-0.5 sr-text-caption font-medium text-[var(--sr-text-muted)] transition-colors hover:border-[var(--sr-brand-primary)] hover:text-[var(--sr-brand-primary)]',
+              )}
+            >
+              <Crown size={11} aria-hidden className="shrink-0" />
+              {pl.profileTitleSetCta}
+            </button>
+          )}
           {email && displayName && (
             <p className="mt-0.5 break-words text-sm text-[var(--sr-text-secondary)]">
               {email}

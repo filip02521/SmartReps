@@ -6,7 +6,7 @@ import {
   getTargetReps,
   isWorkoutAvailable,
 } from '@/lib/progress-engine'
-import { getProgramStats, type ProgramStats } from '@/lib/stats-engine'
+import { getProgramStats, loadFrozenWeekKeys, type ProgramStats } from '@/lib/stats-engine'
 import { isStaleActiveWorkout, enqueueSync } from '@/lib/sync'
 import { reconcileActiveWorkout } from '@/lib/program-service'
 import { pl } from '@/i18n/pl'
@@ -709,7 +709,7 @@ export async function loadHomeDashboard(
   const completedAll = allSessions.filter(
     (s) => s.status === 'completed' && (s.programKind === 'custom' || s.program === 'custom' || s.passed === true),
   )
-  const activity = buildActivityInsights(completedAll)
+  const activity = buildActivityInsights(completedAll, new Date(), await loadFrozenWeekKeys())
   const sessions14d = activity.sessions14d
   const reps14d = activity.reps14d
   const daysSince = daysSinceLastPassedSession(completedAll)

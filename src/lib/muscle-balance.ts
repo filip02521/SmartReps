@@ -5,6 +5,7 @@ import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 const BUILTIN_MUSCLE_GROUP: Record<string, MuscleGroup> = {
   pushups: 'chest',
   pullups: 'back',
+  squats: 'legs',
 }
 
 const DISPLAY_GROUPS: MuscleGroup[] = [

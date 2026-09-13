@@ -36,6 +36,10 @@ function featureCopy(feature: ProFeature | string | undefined) {
         title: pl.proLimitPublicationsTitle,
         desc: pl.proLimitPublicationsDesc,
       }
+    case 'streakFreeze':
+      return { title: pl.proLimitStreakFreezeTitle, desc: pl.proLimitStreakFreezeDesc }
+    case 'profileTitle':
+      return { title: pl.proLimitProfileTitleTitle, desc: pl.proLimitProfileTitleDesc }
     default:
       return { title: pl.proUpgradeTitle, desc: pl.proUpgradeDescription }
   }
@@ -103,6 +107,8 @@ export function ProTeaser({
     pl.proFeatureHostedAi,
     pl.proFeatureUnlimitedPlans,
     pl.proFeatureAdvancedAnalytics,
+    pl.proFeatureStreakFreeze,
+    pl.proFeatureProfileTitle,
     pl.proFeatureWebPush,
     pl.proFeatureExport,
     pl.proFeatureUnlimitedPublications,

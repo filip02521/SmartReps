@@ -13,6 +13,10 @@ type PlanDef = {
   priceSuffix?: string
   /** Secondary line under the plan name (per-month equivalent / savings). */
   sub?: string
+  /** Struck-through anchor price above the real price (launch offer). */
+  strikePrice?: string
+  /** Promo pill under the price (e.g. "Cena startowa"). */
+  promoLabel?: string
   badge?: string
   bestValue?: boolean
 }
@@ -40,6 +44,8 @@ export function PricingCards({
       price: pl.proPriceAnnual,
       priceSuffix: pl.proPerYear,
       sub: `${pl.proPriceAnnualMonthly} · ${pl.proPlanAnnualSavings}`,
+      strikePrice: pl.proPriceAnnualFuture,
+      promoLabel: pl.proPriceAnnualPromo,
       badge: pl.proBestValue,
       bestValue: true,
     },
@@ -106,6 +112,11 @@ export function PricingCards({
               )}
             </span>
             <span className="shrink-0 text-right">
+              {plan.strikePrice && (
+                <span className="block text-xs font-medium leading-tight text-[var(--sr-text-muted)] line-through">
+                  {plan.strikePrice}
+                </span>
+              )}
               <span
                 className={cn(
                   'block text-lg font-bold leading-tight',
@@ -119,6 +130,11 @@ export function PricingCards({
               {plan.priceSuffix && (
                 <span className="block text-[0.625rem] font-medium text-[var(--sr-text-muted)]">
                   {plan.priceSuffix}
+                </span>
+              )}
+              {plan.promoLabel && (
+                <span className="mt-1 inline-block rounded-[var(--sr-radius-full)] bg-[var(--sr-success)] px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-[var(--sr-bg-base)]">
+                  {plan.promoLabel}
                 </span>
               )}
             </span>

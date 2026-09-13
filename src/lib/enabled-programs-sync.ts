@@ -37,6 +37,8 @@ export type RemoteProfileSettings = {
   ai_base_url?: string | null
   /** When true, user has dismissed the RPE/RIR education hint. Synced to cloud. */
   rpe_rir_education_dismissed?: boolean | null
+  /** Selected profile title (achievement id). null = cleared. Synced to cloud. */
+  selected_title?: string | null
   ui_settings_updated_at?: string | null
   // Subscription status — pulled from cloud, NOT pushed (cloud → local only)
   subscription_status?: 'free' | 'trial' | 'pro' | 'lifetime' | 'expired' | null
@@ -153,6 +155,9 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
   const aiModel = remote.ai_model ?? settings.aiModel
   const aiBaseUrl = remote.ai_base_url ?? settings.aiBaseUrl
   const rpeRirEducationDismissed = remote.rpe_rir_education_dismissed ?? settings.rpeRirEducationDismissed
+  // null is a real value (cleared title) — only undefined means "not fetched".
+  const selectedTitle =
+    remote.selected_title === undefined ? settings.selectedTitle : remote.selected_title
 
   const unchanged =
     theme === settings.theme &&
@@ -167,7 +172,8 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     aiReasoningEffort === settings.aiReasoningEffort &&
     aiModel === settings.aiModel &&
     aiBaseUrl === settings.aiBaseUrl &&
-    rpeRirEducationDismissed === settings.rpeRirEducationDismissed
+    rpeRirEducationDismissed === settings.rpeRirEducationDismissed &&
+    selectedTitle === settings.selectedTitle
 
   if (unchanged) {
     useAppStore.setState({ uiSettingsUpdatedAt: remote.ui_settings_updated_at })
@@ -189,6 +195,7 @@ export function mergeUiSettingsFromProfile(remote: RemoteProfileSettings | null)
     aiModel,
     aiBaseUrl,
     rpeRirEducationDismissed,
+    selectedTitle,
   }
   useAppStore.setState({
     settings: next,

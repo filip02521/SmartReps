@@ -52,14 +52,22 @@ async function recordEvent(
   plan?: string | null,
 ): Promise<void> {
   // Unique stripe_event_id makes retries no-ops; ignore the conflict error.
+  // MUST throw on non-conflict errors — if the insert fails, the event is
+  // not marked as processed, so Stripe retries and the handler re-runs
+  // (setSubscription is idempotent, so reprocessing is safe).
   const { error } = await admin.from('subscription_events').insert({
     user_id: userId,
     event_type: eventType,
     plan: plan ?? null,
-    source: 'stripe',
+    metadata: { source: 'stripe' },
     stripe_event_id: eventId,
   })
-  if (error) console.error('subscription_events insert failed', error.message)
+  if (error) {
+    // 23505 = unique_violation — duplicate event already processed, OK.
+    if (error.code !== '23505') {
+      throw new Error(`subscription_events insert failed: ${error.message}`)
+    }
+  }
 }
 
 async function setSubscription(
@@ -70,23 +78,29 @@ async function setSubscription(
 ): Promise<void> {
   // Never downgrade lifetime — a manual lifetime grant or completed one-time
   // payment must survive subscription churn / stale events.
-  const { data: current } = await admin
+  // MUST throw on SELECT error — if the query fails, `current` is null and
+  // the lifetime guard would be silently bypassed, allowing a downgrade.
+  const { data: current, error: selectError } = await admin
     .from('profiles')
     .select('subscription_status')
     .eq('id', userId)
     .maybeSingle()
+  if (selectError) throw new Error(`setSubscription select failed: ${selectError.message}`)
   if (current?.subscription_status === 'lifetime' && status !== 'lifetime') {
     return
   }
-  const { error } = await admin
+  // MUST throw on UPDATE error — if the update fails, the webhook must
+  // return 500 so Stripe retries. Otherwise the user never gets Pro access
+  // and Stripe considers the event delivered.
+  // NOTE: profiles has no updated_at column — don't include it in the update.
+  const { error: updateError } = await admin
     .from('profiles')
     .update({
       subscription_status: status,
       subscription_expires_at: expiresAt,
-      updated_at: new Date().toISOString(),
     })
     .eq('id', userId)
-  if (error) console.error('profiles subscription update failed', error.message)
+  if (updateError) throw new Error(`setSubscription update failed: ${updateError.message}`)
 }
 
 async function saveCustomerId(
@@ -94,11 +108,15 @@ async function saveCustomerId(
   userId: string,
   customerId: string,
 ): Promise<void> {
-  await admin
+  // MUST throw on error — if the update fails, stripe_customer_id is never
+  // saved, and the Customer Portal returns 404 no_customer for this user.
+  // Only writes when the column is NULL (never overwrites an existing ID).
+  const { error } = await admin
     .from('profiles')
     .update({ stripe_customer_id: customerId })
     .eq('id', userId)
     .is('stripe_customer_id', null)
+  if (error) throw new Error(`saveCustomerId failed: ${error.message}`)
 }
 
 /** Resolve the profile id for a Stripe object: metadata → client_reference_id → customer lookup. */
