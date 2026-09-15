@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Card'
+import { StatusPill } from '@/components/ui/StatusPill'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { PageSection } from '@/components/ui/PageSection'
 import { Sheet } from '@/components/ui/Sheet'
@@ -391,18 +392,17 @@ export function CommunityPublicationView({ slug, onBack }: Props) {
       {row.tags.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {row.tags.map((t) => (
-            <span
-              key={t}
-              className="rounded-[var(--sr-radius-full)] bg-[var(--sr-bg-muted)] px-2.5 py-1 text-xs text-[var(--sr-text-secondary)]"
-            >
+            <StatusPill key={t} tone="neutral" size="md" className="font-normal">
               {communityTagLabel(t)}
-            </span>
+            </StatusPill>
           ))}
         </div>
       )}
 
+      {/* Like count lives only in the action row below — the meta line shows
+          the import count so the same datum isn't repeated. */}
       <p className="mt-3 text-xs text-[var(--sr-text-muted)]">
-        {pl.communityDetailMeta(row.like_count, row.import_count)}
+        {pl.communityImports(row.import_count)}
       </p>
 
       {/* Follow author button — only for other users' published plans with public profiles */}

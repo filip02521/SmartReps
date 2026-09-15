@@ -7,6 +7,7 @@ import { TextField } from '@/components/ui/TextField'
 import { SwitchRow } from '@/components/ui/Switch'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { ExerciseLibraryPanel } from '@/components/plans/ExerciseLibraryPanel'
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
 import { CustomSetChips } from '@/components/plans/CustomSetChips'
 import { CustomSetPrescriptionEditor } from '@/components/plans/CustomSetPrescriptionEditor'
 import { RestSecChips, SetsCountStepper } from '@/components/plans/RestSecChips'
@@ -713,10 +714,13 @@ export function CustomPlanEditor({
             </Button>
             </div>
 
-            <div>
-              <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
-                {pl.planSectionProgression}
-              </p>
+            {/* Progression + deload are advanced knobs (7 fields, negative
+                deltas) — collapsed by default unless the plan already uses
+                them, so the hub stays scannable for most users. */}
+            <CollapsibleSection
+              title={pl.planSectionProgression}
+              defaultOpen={Boolean(plan.progression?.enabled || plan.deload?.enabled)}
+            >
               <div className="flex flex-col gap-3">
               <div className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] p-3">
               <SwitchRow
@@ -888,7 +892,7 @@ export function CustomPlanEditor({
               )}
             </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             <SaveBar
               plan={plan}

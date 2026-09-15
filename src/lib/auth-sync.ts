@@ -17,7 +17,13 @@ import { hasIncompleteSetup } from '@/lib/setup-flow'
 import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
 import { completeOnboardingIfSynced } from '@/lib/onboarding-from-sync'
-import { track, trackSyncError, AnalyticsEvents } from '@/lib/analytics'
+import {
+  track,
+  trackSyncError,
+  clearRecentSyncErrors,
+  recentSyncErrorsAreNetworkOnly,
+  AnalyticsEvents,
+} from '@/lib/analytics'
 import { clearSignedOutPreference } from '@/lib/auth-lifecycle'
 import {
   isSessionExpiredToastInCooldown,
@@ -305,7 +311,15 @@ function failureToastForReason(reason: SyncFailureReason): {
 
 async function inferFailureReason(errors: number): Promise<SyncFailureReason> {
   if ((await getDeadLetterCount()) > 0) return 'dead_letter'
-  if (errors > 0) return 'remote_error'
+  if (errors > 0) {
+    // A fetch that never reached the server (TypeError: Failed to fetch /
+    // Load failed) is connectivity, not a server problem — show "Brak
+    // sieci", not "Błąd serwera". recentSyncErrors is cleared at sync
+    // start, so it describes this attempt only.
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return 'offline'
+    if (recentSyncErrorsAreNetworkOnly()) return 'offline'
+    return 'remote_error'
+  }
   return 'unknown'
 }
 
@@ -380,6 +394,9 @@ async function runSyncBody(userId: string): Promise<SyncResult> {
   if (accountResult === 'needs_confirm') {
     return { ok: false, errors: 0, reason: 'unknown' as SyncFailureReason }
   }
+  // Reset the diagnostics log so it describes THIS attempt only — the
+  // network-only classification in inferFailureReason depends on it.
+  clearRecentSyncErrors()
   const result = await syncForAccount(accountResult)
   let reason = result.reason
   if (!result.ok && !reason) {
@@ -397,12 +414,7 @@ async function runSyncBody(userId: string): Promise<SyncResult> {
     useAppStore.getState().setLastSyncedAt(new Date().toISOString())
     useAppStore.getState().setLastSyncFailureReason(null)
     // Clear in-memory sync error log — sync succeeded, old errors are stale
-    try {
-      const { clearRecentSyncErrors } = await import('@/lib/analytics')
-      clearRecentSyncErrors()
-    } catch {
-      /* best-effort */
-    }
+    clearRecentSyncErrors()
     await completeOnboardingIfSynced()
     track(AnalyticsEvents.syncOk)
   } else {
@@ -490,7 +502,12 @@ export async function runAuthenticatedSync(opts?: SyncToastOpts): Promise<SyncRe
   // a failure while keeping the underlying sync single-flight until it settles.
   authenticatedSyncLock = runSyncBody(session.user.id).catch((err) => {
     trackSyncError('authenticated_sync', err)
-    const reason: SyncFailureReason = 'remote_error'
+    // Network-level throw (fetch never reached the server) = offline, not
+    // a server failure. trackSyncError above just logged it, so the
+    // network-only check sees this attempt's error.
+    const reason: SyncFailureReason = recentSyncErrorsAreNetworkOnly()
+      ? 'offline'
+      : 'remote_error'
     const toastOpts = { ...pendingSyncToasts }
     pendingSyncToasts = {}
     useAppStore.getState().setLastSyncFailureReason(reason)

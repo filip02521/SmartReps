@@ -6,6 +6,7 @@ import { ProgressSection } from '@/components/progress/ProgressSection'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Card'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { ChipRail } from '@/components/ui/ChipRail'
 import { Sheet } from '@/components/ui/Sheet'
 import { LogoMark } from '@/components/brand/Logo'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
@@ -219,21 +220,18 @@ export function HistoryPanel({
           )}
         </div>
 
-        {/* Source filter — inline, always visible */}
-        <div className="mt-3">
-          <SegmentedControl
-            size="compact"
-            stretch
-            aria-label={pl.progressSourceAll}
-            options={[
-              { value: 'all' as const, label: pl.progressSourceAll },
-              { value: 'builtin' as const, label: pl.progressSourceBuiltin },
-              { value: 'custom' as const, label: pl.progressSourceCustom },
-            ]}
-            value={sourceFilter}
-            onChange={setSourceFilter}
-          />
-        </div>
+        {/* Source filter — chip rail, zgodny z idiomem filtrów w community */}
+        <ChipRail
+          className="mt-3"
+          ariaLabel={pl.progressSourceAll}
+          options={[
+            { value: 'all' as const, label: pl.progressSourceAll },
+            { value: 'builtin' as const, label: pl.progressSourceBuiltin },
+            { value: 'custom' as const, label: pl.progressSourceCustom },
+          ]}
+          value={sourceFilter}
+          onChange={setSourceFilter}
+        />
 
         {filtersActive && (
           <div className="mt-3 flex flex-wrap items-center gap-2">

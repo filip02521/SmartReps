@@ -1,5 +1,6 @@
 import { ChevronRight, Heart, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/Card'
+import { StatusPill } from '@/components/ui/StatusPill'
 import { FollowButton } from '@/components/follow/FollowManager'
 import { pl } from '@/i18n/pl'
 import type { CommunityPublicationRow } from '@/lib/community-api'
@@ -115,12 +116,9 @@ export function CommunityPlanCard({
             {!compact && row.tags.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-1">
                 {row.tags.slice(0, 3).map((t) => (
-                  <span
-                    key={t}
-                    className="rounded-[var(--sr-radius-full)] bg-[var(--sr-bg-surface)] px-2 py-0.5 text-[11px] text-[var(--sr-text-muted)]"
-                  >
+                  <StatusPill key={t} tone="neutral" className="font-normal">
                     {communityTagLabel(t)}
-                  </span>
+                  </StatusPill>
                 ))}
               </div>
             ) : null}

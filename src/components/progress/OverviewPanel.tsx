@@ -14,7 +14,7 @@ import { LogoMark } from '@/components/brand/Logo'
 import { EmptyState } from '@/components/ux/Feedback'
 import { MetricStrip } from '@/components/ui/MetricStrip'
 import { NestedStat } from '@/components/ui/NestedStat'
-import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { ChipRail } from '@/components/ui/ChipRail'
 import { useEffect, useMemo, useState } from 'react'
 import { pl } from '@/i18n/pl'
 import { buildActivityInsights } from '@/lib/weekly-recap'
@@ -97,19 +97,18 @@ function ProgramSection({
 
   return (
     <ProgressSection first={first} icon={BarChart3} title={pl.progressProgramSectionTitle(programLabel(program))}>
-      <div className="mb-3">
-        <SegmentedControl
-          aria-label={pl.progressRangeLabel}
-          value={String(rangeDays)}
-          onChange={(v) => setRangeDays(Number(v) as 14 | 30 | 90 | 365)}
-          options={[
-            { value: '14' as const, label: pl.range14d },
-            { value: '30' as const, label: pl.range30d },
-            { value: '90' as const, label: pl.range90d },
-            { value: '365' as const, label: pl.rangeYear },
-          ]}
-        />
-      </div>
+      <ChipRail
+        className="mb-3"
+        ariaLabel={pl.progressRangeLabel}
+        value={String(rangeDays)}
+        onChange={(v) => setRangeDays(Number(v) as 14 | 30 | 90 | 365)}
+        options={[
+          { value: '14' as const, label: pl.range14d },
+          { value: '30' as const, label: pl.range30d },
+          { value: '90' as const, label: pl.range90d },
+          { value: '365' as const, label: pl.rangeYear },
+        ]}
+      />
       <MetricStrip
         metrics={[
           {
@@ -574,17 +573,15 @@ export function OverviewPanel({
 
   return (
     <>
-      {/* Filtr zakresu — pokazuj tylko gdy jest więcej niż jedna opcja */}
+      {/* Filtr zakresu — chip rail, odmienny idiom od nav SegmentedControl */}
       {scopeOptions.length > 1 && (
-        <div className="mb-4">
-          <SegmentedControl
-            stretch
-            aria-label={pl.progressScopeLabel}
-            value={scope}
-            onChange={(v) => setScope(v as Scope)}
-            options={scopeOptions}
-          />
-        </div>
+        <ChipRail
+          className="mb-4"
+          ariaLabel={pl.progressScopeLabel}
+          value={scope}
+          onChange={(v) => setScope(v as Scope)}
+          options={scopeOptions}
+        />
       )}
 
       {/* ===== ZAKŁADKA: AKTYWNOŚĆ ===== */}

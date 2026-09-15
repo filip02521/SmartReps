@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
 import { ChevronRight, Copy, Dumbbell, Download, MoreHorizontal, Pause, Pencil, Play, Plus, Share2, Sparkles, Trash2, Upload } from 'lucide-react'
-import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { allCycles } from '@/data/plans'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { PageSection } from '@/components/ui/PageSection'
@@ -21,12 +20,11 @@ import { StarterTemplateChip, StarterTemplateCard } from '@/components/plans/Sta
 import { STARTER_TEMPLATES, type StarterTemplate } from '@/data/starter-templates'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { CustomWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
-import { ProgramSettingsCard } from '@/components/profile/ProgramSettingsCard'
 import { ProgramBrowser } from '@/components/plans/ProgramBrowser'
 import { getLastTestReps } from '@/lib/cycle-selector'
 import { db } from '@/lib/db'
 import { pl } from '@/i18n/pl'
-import { TAB_PAGE_SHELL, FOCUS_RING } from '@/lib/ui-chrome'
+import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
 import { isPro, useProFeatures } from '@/lib/subscription'
 import { canCreateCustomPlan, canPublishPlan, canUseHostedAi, type ProFeature } from '@/lib/feature-gating'
@@ -364,10 +362,6 @@ export default function PlansPage() {
     await reloadPrograms()
   }
 
-  const missingPrograms = (['pushups', 'pullups', 'squats'] as Program[]).filter(
-    (p) => !settings.enabledPrograms.includes(p),
-  )
-
   const showProgramsLoading =
     !programsReady &&
     Object.keys(progressByProgram).length === 0 &&
@@ -443,7 +437,7 @@ export default function PlansPage() {
       <PageHeader title={pl.navPlans} subtitle={plansSubtitle(tab)} />
 
       <SegmentedControl
-        className="mb-3"
+        className="mb-4"
         size="compact"
         stretch
         aria-label={pl.plansTabAriaLabel}
@@ -460,14 +454,8 @@ export default function PlansPage() {
         ]}
       />
 
-      {/* Short hint under tabs — changes per active tab */}
-      <p className="mb-4 sr-text-caption text-[var(--sr-text-muted)]">
-        {tab === 'mine' && pl.plansTabMineHint}
-        {tab === 'programs' && pl.plansTabProgramsHint}
-        {tab === 'community' && pl.plansTabCommunityHint}
-        {tab === 'library' && pl.plansTabLibraryHint}
-      </p>
-
+      {/* Tab context lives in the PageHeader subtitle — a second hint
+          paragraph here used to repeat the same description. */}
       {tab === 'community' && (
         <div>
           {communityMine ? (
@@ -492,40 +480,33 @@ export default function PlansPage() {
               <Plus size={20} aria-hidden />
               {pl.newCustomPlan}
             </Button>
-            <button
-              type="button"
-              onClick={() => setAiGeneratorOpen(true)}
-              aria-label={pl.aiCoachName}
-              className={cn(
-                FOCUS_RING,
-                'flex min-h-12 w-full items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-brand-primary)]/30 bg-[var(--sr-bg-elevated)] p-4 text-left shadow-[var(--sr-shadow-card)] transition-colors hover:bg-[var(--sr-bg-surface)]',
-              )}
-              style={{
-                backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 8%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 60%)`,
-              }}
-            >
-              <AiCoachMark size="sm" />
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[var(--sr-text-primary)]">
-                  {pl.aiCoachName}
+            {/* Secondary creation paths share one row — a column of three
+                stacked CTAs pushed the plan list below the fold. */}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                className="min-w-0 flex-1"
+                onClick={() => setAiGeneratorOpen(true)}
+              >
+                <Sparkles size={16} className="shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
+                <span className="inline-flex min-w-0 items-center justify-center gap-1.5 truncate">
+                  <span className="truncate">{pl.aiCoachName}</span>
                   {!pro && <ProBadge />}
-                </p>
-                <p className="truncate text-xs text-[var(--sr-text-secondary)]">
-                  {pl.aiGeneratePlanHint}
-                </p>
-              </div>
-              <ChevronRight size={18} className="shrink-0 text-[var(--sr-text-muted)]" aria-hidden />
-            </button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="md"
-              fullWidth
-              onClick={() => importInputRef.current?.click()}
-            >
-              <Download size={16} aria-hidden />
-              {pl.planImportJson}
-            </Button>
+                </span>
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                className="min-w-0 flex-1"
+                onClick={() => importInputRef.current?.click()}
+              >
+                <Download size={16} className="shrink-0" aria-hidden />
+                <span className="truncate">{pl.planImportJson}</span>
+              </Button>
+            </div>
             <input
               ref={importInputRef}
               type="file"
@@ -546,21 +527,12 @@ export default function PlansPage() {
             </div>
           ) : customPlans.length === 0 ? (
             <div className="flex flex-col gap-4">
+              {/* No CTAs here — the creation buttons above stay visible and
+                  the starter cards below are the actionable content. */}
               <EmptyState
                 icon={<LogoMark size={48} />}
                 title={pl.myPlansEmpty}
                 description={pl.myPlansHint}
-                action={{
-                  label: pl.myPlansEmptyCta,
-                  onClick: openNewPlanEditor,
-                }}
-                secondaryAction={{
-                  label: pl.plansTabLibrary,
-                  onClick: () => {
-                    setTab('library')
-                    writeTabParam('library')
-                  },
-                }}
               />
               <div className="flex flex-col gap-3">
                 <div>
@@ -793,6 +765,9 @@ export default function PlansPage() {
           <EmptyState icon={<LogoMark size={48} />} title={pl.noPlans} />
         ) : (
           <>
+            {/* One block per program — the browser header carries the status
+                badge, cycle/day line and ⋯ menu that used to live in a second
+                card rendering the same program again. */}
             <PageSection title={pl.programs} hint={pl.plansProgramHint}>
               {showProgramsLoading ? (
                 <div className="flex flex-col gap-4" aria-busy aria-label={pl.profileProgramsLoading}>
@@ -800,107 +775,46 @@ export default function PlansPage() {
                   {settings.enabledPrograms.length > 1 && <SkeletonCard className="min-h-[7rem]" />}
                 </div>
               ) : (
-                <div className="flex flex-col gap-4">
-                  {settings.enabledPrograms.length === 0 && (
-                    <p className="text-pretty sr-text-body-sm text-[var(--sr-text-secondary)]">
-                      {pl.profileProgramsEmpty}
-                    </p>
-                  )}
-
-                  {settings.enabledPrograms.map((program) => (
-                    <ProgramSettingsCard
-                      key={program}
-                      program={program}
-                      progress={progressByProgram[program]}
-                      canDisable={true}
-                      onSetupOnTraining={() => navigate(`/?program=${program}`)}
-                      onChangeLevel={() => void changeLevel(program)}
-                      onRetest={() => void retest(program)}
-                      onTogglePause={() => void togglePause(program)}
-                      onDisable={() => setPendingDisable(program)}
-                    />
-                  ))}
-
-                  {missingPrograms.length > 0 && (
-                    <div className="rounded-[var(--sr-radius-md)] border border-dashed border-[var(--sr-border-strong)] bg-[var(--sr-bg-surface)]/60 px-3 py-3.5">
-                      <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--sr-text-muted)]">
-                        {pl.addProgram}
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        {missingPrograms.map((p) => (
-                          <Button
-                            key={p}
-                            variant="secondary"
-                            size="md"
-                            fullWidth
-                            className="justify-start px-4"
-                            onClick={() => addProgram(p)}
-                          >
-                            {p === 'pushups'
-                              ? pl.addProgramPushups
-                              : p === 'pullups'
-                                ? pl.addProgramPullups
-                                : pl.addProgramSquats}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                <div className="flex flex-col gap-6">
+                  {(['pushups', 'pullups', 'squats'] as Program[]).map((p) => {
+                    const cyclesForProgram =
+                      p === 'pushups' ? pushups : p === 'pullups' ? pullups : squats
+                    const enabled = settings.enabledPrograms.includes(p)
+                    return (
+                      <ProgramBrowser
+                        key={p}
+                        program={p}
+                        cycles={cyclesForProgram}
+                        programEnabled={enabled}
+                        hasProgress={!!progressByProgram[p]}
+                        currentCycleId={progressByProgram[p]?.cycleId ?? null}
+                        currentStatus={progressByProgram[p]?.status}
+                        lastTestReps={lastTestRepsByProgram[p] ?? null}
+                        highlightCycleId={
+                          highlightId && cyclesForProgram.some((c) => c.id === highlightId)
+                            ? highlightId
+                            : null
+                        }
+                        onHighlightConsumed={clearHighlightParam}
+                        onEnableProgram={addProgram}
+                        progress={enabled ? progressByProgram[p] : undefined}
+                        manage={
+                          enabled
+                            ? {
+                                canDisable: true,
+                                onSetupOnTraining: () => navigate(`/?program=${p}`),
+                                onChangeLevel: () => void changeLevel(p),
+                                onRetest: () => void retest(p),
+                                onTogglePause: () => void togglePause(p),
+                                onDisable: () => setPendingDisable(p),
+                              }
+                            : undefined
+                        }
+                      />
+                    )
+                  })}
                 </div>
               )}
-            </PageSection>
-
-            <PageSection title={pl.programBrowseTitle} hint={pl.programBrowseHint} className="mt-6">
-              <div className="flex flex-col gap-6">
-                <ProgramBrowser
-                  program="pushups"
-                  cycles={pushups}
-                  programEnabled={settings.enabledPrograms.includes('pushups')}
-                  hasProgress={!!progressByProgram.pushups}
-                  currentCycleId={progressByProgram.pushups?.cycleId ?? null}
-                  currentStatus={progressByProgram.pushups?.status}
-                  lastTestReps={lastTestRepsByProgram.pushups ?? null}
-                  highlightCycleId={
-                    highlightId && pushups.some((c) => c.id === highlightId)
-                      ? highlightId
-                      : null
-                  }
-                  onHighlightConsumed={clearHighlightParam}
-                  onEnableProgram={addProgram}
-                />
-                <ProgramBrowser
-                  program="pullups"
-                  cycles={pullups}
-                  programEnabled={settings.enabledPrograms.includes('pullups')}
-                  hasProgress={!!progressByProgram.pullups}
-                  currentCycleId={progressByProgram.pullups?.cycleId ?? null}
-                  currentStatus={progressByProgram.pullups?.status}
-                  lastTestReps={lastTestRepsByProgram.pullups ?? null}
-                  highlightCycleId={
-                    highlightId && pullups.some((c) => c.id === highlightId)
-                      ? highlightId
-                      : null
-                  }
-                  onHighlightConsumed={clearHighlightParam}
-                  onEnableProgram={addProgram}
-                />
-                <ProgramBrowser
-                  program="squats"
-                  cycles={squats}
-                  programEnabled={settings.enabledPrograms.includes('squats')}
-                  hasProgress={!!progressByProgram.squats}
-                  currentCycleId={progressByProgram.squats?.cycleId ?? null}
-                  currentStatus={progressByProgram.squats?.status}
-                  lastTestReps={lastTestRepsByProgram.squats ?? null}
-                  highlightCycleId={
-                    highlightId && squats.some((c) => c.id === highlightId)
-                      ? highlightId
-                      : null
-                  }
-                  onHighlightConsumed={clearHighlightParam}
-                  onEnableProgram={addProgram}
-                />
-              </div>
             </PageSection>
 
             <PageSection title={pl.resistanceBandsTitle} hint={pl.resistanceBandsIntro} className="mt-6">

@@ -30,9 +30,8 @@ export const plDict = {
   homeSessions14dHint: '14 dni',
   homeReps14d: 'Powtórzenia',
   homeReps14dHint: '14 dni',
-  homeActivityTitle: 'Twoja aktywność',
-  homeMotivationTitle: 'Motywacja tygodnia',
-  homeMotivationSectionAria: 'Motywacja tygodnia — wyzwanie i seria treningowa',
+  homeThisWeekTitle: 'Twój tydzień',
+  homeThisWeekSectionAria: 'Twój tydzień — wyzwanie, seria treningowa i aktywność',
   homeAvgPerSession: 'Śr. / sesję',
   homeAvgPerSessionHint: 'powt.',
   homeInsightNoActivity: 'Brak treningów od miesiąca — czas wrócić do planu.',
@@ -804,9 +803,6 @@ export const plDict = {
   retestNow: 'Wykonaj test max',
   login: 'Zaloguj się',
   addProgram: 'Dodaj program',
-  addProgramPushups: 'Dodaj pompki',
-  addProgramPullups: 'Dodaj podciąganie',
-  addProgramSquats: 'Dodaj przysiady',
   changeLevelActiveWarning:
     'Masz niedokończoną sesję treningu. Zmiana poziomu usunie tę sesję. Kontynuować?',
   prevColumn: 'Poprz.',
@@ -898,8 +894,6 @@ export const plDict = {
     `Seria treningowa: ${current} tygodni z rzędu, rekord: ${best} tygodni`,
   // Streak detail sheet
   streakSheetTitle: 'Twoja seria',
-  streakSheetCurrent: 'Obecna',
-  streakSheetBest: 'Rekord',
   streakSheetTotal: 'Treningi',
   streakSheetMilestones: 'Kamienie milowe',
   streakSheetWeeksShort: 'tyg.',
@@ -1073,10 +1067,6 @@ export const plDict = {
     'W niektórych seriach zrobiono mniej niż w planie — to w porządku.',
   /** @deprecated Custom days no longer fail; kept for residual imports */
   customSummaryRecFail: 'Trening zapisany — wróć, gdy będziesz gotowy.',
-  /** @deprecated */
-  customSummaryFailPolicy: '',
-  customFailEndLabel: 'Zapisz i kontynuuj',
-  customFailBannerHint: 'Poniżej celu — możesz poprawić albo zapisać wynik i iść dalej.',
   customWorkoutAddSet: 'Dodaj serię',
   customWorkoutRemoveSet: 'Usuń serię',
   customWorkoutSetsCount: (n: number) => `${n}`,
@@ -1117,7 +1107,6 @@ export const plDict = {
   customSummaryUpdatePlanGroupExercises: 'Zmiany ćwiczeń (dodane, zamienione)',
   customSummaryUpdatePlanGroupExercisesHint: 'Zachowaj zmiany ćwiczeń w planie na stałe',
   customSummaryUpdatePlanSaveSelected: 'Zapisz zaznaczone',
-  customSummaryUpdatePlanSaveAll: 'Zapisz wszystko',
   customSummaryUpdatePlanDone: 'Plan zaktualizowany.',
   customSummaryUpdatePlanFailed: 'Nie udało się zapisać zmian w planie.',
   customWorkoutProblemTitle: 'Nie można rozpocząć treningu',
@@ -1385,7 +1374,7 @@ export const plDict = {
   // Plans — resistance bands
   plansMinePageHint: 'Własne plany treningowe — edycja i start.',
   plansLibraryPageHint: 'Ćwiczenia do użycia w planach.',
-  plansProgramsPageHint: 'Programy pompki i podciąganie — rozwiń cykl, aby zobaczyć cele.',
+  plansProgramsPageHint: 'Programy pompki, podciągania i przysiadów — rozwiń cykl, aby zobaczyć cele.',
   plansProgramHint: 'Rozwiń cykl, aby zobaczyć cele serii w kolejnych dniach.',
   plansTabAriaLabel: 'Zakładki planów',
   plansYourCycle: 'Twój cykl',
@@ -1393,8 +1382,6 @@ export const plDict = {
   plansPeakDay: (day: number, reps: number) => `szczyt D${day} · ~${reps} powt.`,
   plansDayReps: (sets: number, total: number) =>
     sets === 1 ? `1 seria · ~${total}` : `${sets} serie · ~${total}`,
-  programBrowseTitle: 'Przeglądaj treningi',
-  programBrowseHint: 'Wybierz poziom doświadczenia i aktywuj cykl',
   programGoalPushups: 'Droga do 100 pompek',
   programGoalPullups: 'Droga do 50 podciągnięć',
   programGoalSquats: 'Droga do 300 przysiadów',
@@ -1461,7 +1448,6 @@ export const plDict = {
   profileDataDeleteHint: 'Trwale usuwa konto i wszystkie dane z chmury.',
   profileUnconfiguredHint: 'Jeszcze bez poziomu — skonfigurujesz na ekranie Trening.',
   profileSetupOnTraining: 'Skonfiguruj na Treningu',
-  profileProgramsEmpty: 'Brak włączonych programów treningowych.',
   timerSound: 'Dźwięki treningu',
   timerSoundHint: 'Seria, przerwa, odliczanie 3-2-1, AMRAP i cel czasu',
   timerVibration: 'Wibracja',
@@ -1494,7 +1480,6 @@ export const plDict = {
   reminderHourOption: (h: number) => `${String(h).padStart(2, '0')}:00`,
   reminderNotificationTitle: 'SmartReps',
   reminderNotificationBody: 'Czas na trening — sprawdź swój plan na dziś.',
-  syncNow: 'Synchronizuj teraz',
   syncNowOffline: 'Brak sieci — synchronizacja niedostępna',
   syncLastAt: (when: string) => `Ostatnia synchronizacja: ${when}`,
   syncNever: 'Jeszcze nie synchronizowano z tego urządzenia',
@@ -1570,17 +1555,7 @@ export const plDict = {
     }
     return labels[reason] ?? labels.unknown
   },
-  syncFaqTitle: 'Jak działa synchronizacja?',
   syncFaqLocal: 'Możesz trenować bez logowania — postęp zostaje na telefonie.',
-  syncFaqLogin:
-    'Logowanie kodem e-mail tworzy kopię w chmurze i pozwala wrócić na innym urządzeniu.',
-  syncFaqWhat:
-    'Sync obejmuje postęp programów, sesje treningowe, testy max i ustawienia (motyw, programy).',
-  syncFaqMidWorkout:
-    'Trening w trakcie synchronizuje się dopiero po zakończeniu dnia — nie w czasie serii.',
-  syncCtaLoginBackup: 'Zaloguj się, aby backupować postęp',
-  syncCtaLoginAgain: 'Zaloguj ponownie',
-  syncCtaSessionExpired: 'Zaloguj się ponownie',
   toastSyncFailedOffline: 'Brak sieci — synchronizacja wznowi się po połączeniu',
   toastSyncFailedDeadLetter:
     'Część zmian nie poszła do chmury — sprawdź panel synchronizacji w Profilu',
@@ -1684,14 +1659,9 @@ export const plDict = {
   plansTabPrograms: 'Programy',
   plansTabMine: 'Moje',
   plansTabLibrary: 'Biblioteka',
-  plansTabProgramsHint: 'Gotowe cykle: pompki, podciąganie, przysiady',
-  plansTabMineHint: 'Twoje własne plany treningowe',
-  plansTabLibraryHint: 'Szablony i ćwiczenia do budowania planów',
-  plansTabCommunityHint: 'Plany od innych użytkowników',
   myPlansTitle: 'Moje plany',
   myPlansHint: 'Ułóż własny trening z kilkoma ćwiczeniami.',
   myPlansEmpty: 'Nie masz jeszcze własnego planu.',
-  myPlansEmptyCta: 'Stwórz plan',
   // ─── Starter templates (gotowe szablony planów) ───
   starterSheetTitle: 'Szablony startowe',
   starterSheetHint: 'Gotowe plany od prostych po zaawansowane. Aktywuj i trenuj od razu.',
@@ -1770,7 +1740,6 @@ export const plDict = {
   planSectionRestDay: 'Przerwa po dniu',
   // ─── AI Plan Generator ───
   aiGeneratePlan: 'Generuj z AI',
-  aiGeneratePlanHint: 'Opisz swój cel, a AI ułoży plan na podstawie badań naukowych.',
   aiSettingsTitle: 'AI — konfiguracja',
   aiSettingsHint: 'Klucz API jest przechowywany lokalnie na urządzeniu. Nie jest synchronizowany do chmury.',
   aiProviderLabel: 'Dostawca AI',
@@ -2425,7 +2394,7 @@ export const plDict = {
     'Tu pojawią się Twoje plany. Stwórz plan albo dodaj ćwiczenia do biblioteki.',
   homeCustomEmptyCreate: 'Stwórz plan',
   homeCustomEmptyLibrary: 'Biblioteka ćwiczeń',
-  homeSeeAllCustom: 'Zobacz wszystkie',
+  homeSeeAll: 'Zobacz wszystkie',
   homeCustomDayOf: (current: number, total: number) =>
     total > 0 ? `Dzień ${current} z ${total}` : pl.dayLabel(current),
   homeCustomTodayPreview: (names: string, exercises: number, sets: number) => {
@@ -2740,8 +2709,6 @@ export const plDict = {
   communityTeaserHint: 'Gotowe plany do importu.',
   communityTeaserCta: 'Zobacz więcej',
   communityDetailDays: 'Plan dnia po dniu',
-  communityDetailMeta: (likes: number, imports: number) =>
-    `${likes === 1 ? '1 polubienie' : `${likes} polubień`} · ${imports === 1 ? '1 import' : `${imports} importów`}`,
   communityAccountSwitchPending: 'Najpierw rozstrzygnij zmianę konta.',
   communityRateLimited: 'Limit publikacji — spróbuj jutro.',
   communityPublishLimitReached: 'Osiągnięto limit 3 publikacji. SmartReps Pro zdejmuje limit.',

@@ -706,8 +706,8 @@ test.describe('custom plans smoke', () => {
 
     await page.goto('/progress?tab=history')
     await dismissAchievementUi(page)
-    // Filter to custom sessions only
-    await page.getByRole('radio', { name: 'Własne' }).click()
+    // Filter to custom sessions only (chip rail — button with aria-pressed)
+    await page.getByRole('button', { name: 'Własne' }).click()
     await expect(page.getByText('E2E history plan')).toBeVisible({ timeout: 15_000 })
     await page.getByText('E2E history plan').click()
     // Detail sheet opens — navigate to full summary

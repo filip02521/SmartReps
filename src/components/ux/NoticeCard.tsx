@@ -6,6 +6,7 @@ import {
   Lightbulb,
   Download,
   LogIn,
+  Trophy,
   X,
   XCircle,
 } from 'lucide-react'
@@ -181,7 +182,7 @@ export function noticeIcon(tone: NoticeTone, size = 20): ReactNode {
     case 'error':
       return <XCircle {...props} />
     case 'brand':
-      return <Download {...props} />
+      return <Trophy {...props} />
     case 'neutral':
       return <Lightbulb {...props} />
     default:

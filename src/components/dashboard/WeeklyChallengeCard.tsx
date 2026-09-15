@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Trophy, Loader2, Users, Clock, Medal, ShieldCheck,
-  CalendarCheck, Crosshair, TrendingUp, ChevronDown, ChevronUp,
-  Sparkles,
+  Trophy, Loader2, Users, Clock, Medal,
+  ChevronRight, Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ux/Feedback'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { StatusPill } from '@/components/ui/StatusPill'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
@@ -19,6 +19,16 @@ import { track, AnalyticsEvents, trackError } from '@/lib/analytics'
 import { scheduleAchievementCheck } from '@/lib/achievements/schedule'
 import { getFollowing } from '@/lib/follow-system'
 import { ChallengeUserSheet } from '@/components/dashboard/ChallengeUserSheet'
+import { ChallengeDetailSheet } from '@/components/dashboard/challenge/ChallengeDetailSheet'
+import {
+  daysUntil,
+  programLabel,
+  progressLabel,
+  typeTitle,
+  TYPE_COLOR,
+  TYPE_ICON,
+  MEDAL_CLASS,
+} from '@/components/dashboard/challenge/challenge-ui'
 import {
   getActiveWeeklyChallenges,
   getWeeklyChallengeLeaderboard,
@@ -33,152 +43,9 @@ import {
   type ChallengeProgress,
   type LeaderboardEntry,
   type MonthlyLeaderboardEntry,
-  type ChallengeType,
   type ScoredChallenge,
-  type ChallengeContext,
 } from '@/lib/weekly-challenge'
 import type { Program } from '@/data/plans/types'
-
-// ── Helpers ──
-
-function daysUntil(endDate: string): number {
-  const end = new Date(endDate).getTime()
-  const now = Date.now()
-  return Math.ceil((end - now) / 86400000)
-}
-
-function programLabel(program: Program): string {
-  switch (program) {
-    case 'pushups': return pl.pushupsProgram
-    case 'pullups': return pl.pullupsProgram
-    case 'squats': return pl.squatsProgram
-  }
-}
-
-const TYPE_ICON: Record<ChallengeType, typeof Trophy> = {
-  volume: Trophy,
-  consistency: CalendarCheck,
-  precision: Crosshair,
-  personal_best: TrendingUp,
-}
-
-const TYPE_COLOR: Record<ChallengeType, string> = {
-  volume: 'var(--sr-brand-primary)',
-  consistency: 'var(--sr-info)',
-  precision: 'var(--sr-success)',
-  personal_best: 'var(--sr-warning)',
-}
-
-function typeTitle(type: ChallengeType): string {
-  switch (type) {
-    case 'volume': return pl.challengeTypeVolume
-    case 'consistency': return pl.challengeTypeConsistency
-    case 'precision': return pl.challengeTypePrecision
-    case 'personal_best': return pl.challengeTypePersonalBest
-  }
-}
-
-function typeDescription(type: ChallengeType): string {
-  switch (type) {
-    case 'volume': return pl.challengeDescVolume
-    case 'consistency': return pl.challengeDescConsistency
-    case 'precision': return pl.challengeDescPrecision
-    case 'personal_best': return pl.challengeDescPersonalBest
-  }
-}
-
-function progressLabel(type: ChallengeType, current: number, target: number): string {
-  if (type === 'consistency') return pl.challengeProgressSessions(current, target)
-  if (type === 'personal_best') return pl.challengeProgressPersonalBest(current, target)
-  if (type === 'precision') return pl.challengeProgressCount(current, target)
-  return pl.challengeProgressReps(current, target)
-}
-
-const MEDAL_CLASS: Record<number, string> = {
-  1: 'text-[var(--sr-warning)]',
-  2: 'text-[var(--sr-text-secondary)]',
-  3: 'text-[var(--sr-bronze)]',
-}
-
-// ── Leaderboard ──
-
-function Leaderboard({
-  entries,
-  currentUserId,
-  followingIds,
-  onSelectUser,
-}: {
-  entries: LeaderboardEntry[]
-  currentUserId: string | null
-  followingIds: Set<string>
-  onSelectUser: (userId: string, name: string) => void
-}) {
-  if (entries.length === 0) {
-    return <EmptyState title={pl.challengeLeaderboardEmpty} />
-  }
-  return (
-    <ol className="space-y-1.5" aria-label={pl.challengeLeaderboard}>
-      {entries.map((entry) => {
-        const isMe = entry.user_id === currentUserId
-        const isFollowed = followingIds.has(entry.user_id)
-        const medalClass = MEDAL_CLASS[entry.rank] ?? 'text-[var(--sr-text-muted)]'
-        const name = entry.display_name || pl.challengeAnonymous
-        const content = (
-          <>
-            <span
-              className={cn(
-                'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums',
-                medalClass,
-              )}
-              aria-label={pl.challengeRankPosition(entry.rank)}
-            >
-              {entry.rank <= 3 ? <Medal size={16} aria-hidden /> : entry.rank}
-            </span>
-            <span className="min-w-0 flex-1 break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
-              {name}
-              {isMe && (
-                <span className="ml-1.5 text-[var(--sr-brand-primary)]">({pl.challengeYouLabel})</span>
-              )}
-              {!isMe && isFollowed && (
-                <span className="ml-1.5 sr-text-caption text-[var(--sr-text-muted)]">· {pl.followingButton}</span>
-              )}
-            </span>
-            <span className="shrink-0 tabular-nums font-semibold text-[var(--sr-text-primary)]">
-              {entry.total_reps}
-            </span>
-          </>
-        )
-        return (
-          <li
-            key={entry.id}
-            className={cn(
-              'rounded-[var(--sr-radius-sm)]',
-              isMe
-                ? 'border-2 border-[var(--sr-brand-primary)]/30 bg-[var(--sr-brand-primary-muted)]'
-                : 'bg-[var(--sr-bg-elevated)]',
-            )}
-          >
-            {isMe ? (
-              <div className="flex items-start gap-3 px-3 py-2">{content}</div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onSelectUser(entry.user_id, name)}
-                aria-label={pl.challengeViewUser(name)}
-                className={cn(
-                  'flex w-full items-start gap-3 rounded-[var(--sr-radius-sm)] px-3 py-2 text-left transition-colors hover:bg-[var(--sr-bg-surface)] active:bg-[var(--sr-bg-surface)]',
-                  FOCUS_RING,
-                )}
-              >
-                {content}
-              </button>
-            )}
-          </li>
-        )
-      })}
-    </ol>
-  )
-}
 
 // ── Monthly leaderboard (cross-week points ranking) ──
 
@@ -265,62 +132,35 @@ function MonthlyLeaderboard({
   )
 }
 
-// ── Single challenge card ──
+// ── Single challenge row — compact; details + leaderboard open in a sheet ──
 
 function ChallengeItem({
   challenge,
   progress,
-  expanded,
-  onToggleExpand,
-  leaderboard,
-  currentUserId,
-  followingIds,
-  boardFilter,
-  hasFollowing,
-  onBoardFilterChange,
-  onSelectUser,
+  onOpenDetail,
   recommended,
-  context,
 }: {
   challenge: WeeklyChallenge
   progress: ChallengeProgress
-  expanded: boolean
-  onToggleExpand: () => void
-  leaderboard: LeaderboardEntry[]
-  currentUserId: string | null
-  followingIds: Set<string>
-  boardFilter: 'global' | 'following'
-  hasFollowing: boolean
-  onBoardFilterChange: (v: 'global' | 'following') => void
-  onSelectUser: (userId: string, name: string) => void
+  onOpenDetail: () => void
   recommended: boolean
-  context: ChallengeContext | null
 }) {
   const Icon = TYPE_ICON[challenge.challenge_type]
   const color = TYPE_COLOR[challenge.challenge_type]
   const daysLeft = daysUntil(challenge.ends_at)
   const hasEnded = daysLeft <= 0
   const title = typeTitle(challenge.challenge_type)
-  const description = typeDescription(challenge.challenge_type)
-
-  const filteredBoard = useMemo(() => {
-    if (boardFilter === 'following') {
-      return leaderboard.filter((e) => followingIds.has(e.user_id))
-    }
-    return leaderboard
-  }, [leaderboard, boardFilter, followingIds])
 
   return (
     <div
       className="rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-2.5"
       aria-label={title}
     >
-      {/* Header row */}
       <button
         type="button"
-        onClick={onToggleExpand}
+        onClick={onOpenDetail}
+        aria-haspopup="dialog"
         className={cn('flex w-full items-start gap-2.5 rounded-[var(--sr-radius-sm)] text-left', FOCUS_RING)}
-        aria-expanded={expanded}
       >
         <div
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)]"
@@ -334,9 +174,9 @@ function ChallengeItem({
               {title}
             </p>
             {recommended && !progress.achieved && (
-              <span className="shrink-0 rounded-full bg-[var(--sr-brand-primary-muted)] px-1.5 py-0.5 sr-text-caption font-semibold text-[var(--sr-brand-primary)]">
+              <StatusPill tone="brand" size="xs" className="shrink-0">
                 {pl.challengeRecommended}
-              </span>
+              </StatusPill>
             )}
             {progress.achieved && (
               <span
@@ -351,11 +191,11 @@ function ChallengeItem({
             {programLabel(challenge.program)} · {hasEnded ? pl.challengeEnded : pl.challengeEndsIn(daysLeft)}
           </p>
         </div>
-        <div className="shrink-0 text-right">
+        <div className="flex shrink-0 items-center gap-1 text-right">
           <p className="tabular-nums sr-text-body-sm font-bold text-[var(--sr-text-primary)]">
             {progressLabel(challenge.challenge_type, progress.current, progress.target)}
           </p>
-          {expanded ? <ChevronUp size={14} className="ml-auto text-[var(--sr-text-muted)]" aria-hidden /> : <ChevronDown size={14} className="ml-auto text-[var(--sr-text-muted)]" aria-hidden />}
+          <ChevronRight size={14} className="text-[var(--sr-text-muted)]" aria-hidden />
         </div>
       </button>
 
@@ -376,77 +216,6 @@ function ChallengeItem({
           }}
         />
       </div>
-
-      {/* Description + context — only when expanded */}
-      {expanded && (
-        <>
-          <p className="mt-2 sr-text-caption text-[var(--sr-text-secondary)]">
-            {description}
-          </p>
-
-          {/* Personal context: recent average + difficulty */}
-          {context && context.recentAverage > 0 && (
-            <div className="mt-1.5 flex items-center gap-2 sr-text-caption text-[var(--sr-text-muted)]">
-              <span>
-                {pl.challengeYourAverage(context.recentAverage)}
-              </span>
-              <span className="text-[var(--sr-text-muted)]">·</span>
-              <span className={cn(
-                'font-medium',
-                context.difficulty === 'easy' && 'text-[var(--sr-success)]',
-                context.difficulty === 'challenging' && 'text-[var(--sr-warning)]',
-                context.difficulty === 'hard' && 'text-[var(--sr-error)]',
-                context.difficulty === 'unknown' && 'text-[var(--sr-text-muted)]',
-              )}>
-                {context.difficulty === 'easy' && pl.challengeDifficultyEasy}
-                {context.difficulty === 'challenging' && pl.challengeDifficultyChallenging}
-                {context.difficulty === 'hard' && pl.challengeDifficultyHard}
-                {context.difficulty === 'unknown' && pl.challengeDifficultyUnknown}
-              </span>
-            </div>
-          )}
-
-          {/* Auto-tracked badge */}
-          <div className="mt-2 flex items-center gap-1.5">
-            <ShieldCheck size={12} className="text-[var(--sr-success)]" aria-hidden />
-            <span className="sr-text-caption text-[var(--sr-text-muted)]">
-              {pl.challengeAutoTracked}
-            </span>
-          </div>
-        </>
-      )}
-
-      {/* Expanded leaderboard */}
-      {expanded && (
-        <div className="mt-3 border-t border-[var(--sr-border-subtle)] pt-3">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h4 className="sr-text-overline text-[var(--sr-text-muted)]">
-              {pl.challengeLeaderboard}
-            </h4>
-            {hasFollowing && (
-              <SegmentedControl
-                aria-label={pl.challengeLeaderboard}
-                value={boardFilter}
-                onChange={onBoardFilterChange}
-                options={[
-                  { label: pl.challengeLeaderboardGlobal, value: 'global' },
-                  { label: pl.challengeLeaderboardFollowing, value: 'following' },
-                ]}
-              />
-            )}
-          </div>
-          {boardFilter === 'following' && filteredBoard.length === 0 ? (
-            <EmptyState title={pl.challengeLeaderboardFollowingEmpty} />
-          ) : (
-            <Leaderboard
-              entries={filteredBoard}
-              currentUserId={currentUserId}
-              followingIds={followingIds}
-              onSelectUser={onSelectUser}
-            />
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -467,7 +236,7 @@ export function WeeklyChallengeCard() {
   const [participantCounts, setParticipantCounts] = useState<Map<string, number>>(new Map())
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
   const [boardFilter, setBoardFilter] = useState<'global' | 'following'>('global')
@@ -741,7 +510,7 @@ export function WeeklyChallengeCard() {
             size="sm"
             variant="ghost"
             className="mt-1"
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate('/profile?edit=profile')}
           >
             {pl.challengeSetNameCta}
           </Button>
@@ -799,23 +568,11 @@ export function WeeklyChallengeCard() {
               key={ch.id}
               challenge={ch}
               progress={p}
-              expanded={expandedId === ch.id}
-              onToggleExpand={() => {
-                const newId = expandedId === ch.id ? null : ch.id
-                setExpandedId(newId)
-                if (newId) {
-                  track(AnalyticsEvents.challengeLeaderboardToggle, { challengeId: newId })
-                }
+              onOpenDetail={() => {
+                setDetailId(ch.id)
+                track(AnalyticsEvents.challengeLeaderboardToggle, { challengeId: ch.id })
               }}
-              leaderboard={leaderboards.get(ch.id) ?? []}
-              currentUserId={currentUserId}
-              followingIds={followingIds}
-              boardFilter={effectiveBoardFilter}
-              hasFollowing={hasFollowing}
-              onBoardFilterChange={setBoardFilter}
-              onSelectUser={handleSelectUser}
               recommended={scored?.recommended ?? false}
-              context={scored?.context ?? null}
             />
           )
         })}
@@ -859,6 +616,38 @@ export function WeeklyChallengeCard() {
           {pl.challengeEndedHint}
         </div>
       )}
+
+      {/* Challenge detail — description, personal context, leaderboard */}
+      {detailId && (() => {
+        const ch = challenges.find((c) => c.id === detailId)
+        if (!ch) return null
+        const idx = challenges.indexOf(ch)
+        const p = progress[idx] ?? {
+          challengeId: ch.id,
+          challengeType: ch.challenge_type,
+          program: ch.program as Program,
+          current: 0,
+          target: ch.target_reps,
+          achieved: false,
+          pct: 0,
+        }
+        const scored = scoredChallenges.find((s) => s.challenge.id === ch.id)
+        return (
+          <ChallengeDetailSheet
+            challenge={ch}
+            progress={p}
+            leaderboard={leaderboards.get(ch.id) ?? []}
+            context={scored?.context ?? null}
+            currentUserId={currentUserId}
+            followingIds={followingIds}
+            boardFilter={effectiveBoardFilter}
+            hasFollowing={hasFollowing}
+            onBoardFilterChange={setBoardFilter}
+            onSelectUser={handleSelectUser}
+            onClose={() => setDetailId(null)}
+          />
+        )
+      })()}
 
       {/* User sheet — tap a leaderboard row to view profile + follow */}
       <ChallengeUserSheet

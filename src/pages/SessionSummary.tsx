@@ -5,7 +5,6 @@ import { pl } from '@/i18n/pl'
 import { getProgramLabel } from '@/lib/plan-resolver'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { SessionCompare } from '@/components/workout/SessionCompare'
 import { ErrorBanner, EmptyState, PageLoader } from '@/components/ux/Feedback'
 import { WorkoutCelebrationOverlay } from '@/components/ux/WorkoutCelebrationOverlay'
@@ -480,21 +479,22 @@ export default function SessionSummary() {
         })()}
       />
 
-      <PageHeader
-        title={failed ? pl.dayFailed : pl.dayComplete(current?.dayNumber ?? 1)}
-        subtitle={`${getProgramLabel(program)}${
-          !failed && progress && progress.status !== 'test_pending'
-            ? ` · ${pl.nextWorkoutIn(daysLeft)}`
-            : ''
-        }`}
-      />
+      {/* WorkoutResultCard is the single status header — the h1 stays for
+          screen readers only so the "day completed" message isn't repeated. */}
+      <h1 className="sr-only">
+        {failed ? pl.dayFailed : pl.dayComplete(current?.dayNumber ?? 1)}
+      </h1>
 
       {/* Unified workout result card — status + PR + AI + CTA in one cohesive unit */}
       <WorkoutResultCard
         className="mb-6"
         failed={failed}
         title={failed ? pl.summaryHeroFail : pl.summaryHeroSuccess}
-        subtitle={`${getProgramLabel(program)}${cycle ? ` · ${cycle.nameShort}` : ''} · ${pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}`}
+        subtitle={`${getProgramLabel(program)}${cycle ? ` · ${cycle.nameShort}` : ''} · ${pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}${
+          !failed && progress && progress.status !== 'test_pending'
+            ? ` · ${pl.nextWorkoutIn(daysLeft)}`
+            : ''
+        }`}
         prRecords={prRecords}
         coachInsight={coachInsight}
         onDismissInsight={async () => {

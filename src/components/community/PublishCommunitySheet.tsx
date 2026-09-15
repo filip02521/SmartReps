@@ -205,7 +205,7 @@ export function PublishCommunitySheet({ plan, open, onClose, onPublished }: Prop
               fullWidth
               onClick={() => {
                 onClose()
-                navigate('/profile')
+                navigate('/profile?edit=profile')
               }}
             >
               {pl.communityPublishGoToProfile}

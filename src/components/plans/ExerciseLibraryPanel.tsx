@@ -3,6 +3,7 @@ import { Dumbbell, ChevronDown, Check, X, ArrowDownUp } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { ChipRail } from '@/components/ui/ChipRail'
 import { Sheet } from '@/components/ui/Sheet'
 import { cn } from '@/lib/utils'
 import { EmptyState, SkeletonCard } from '@/components/ux/Feedback'
@@ -267,7 +268,8 @@ export function ExerciseLibraryPanel({
                   </button>
                 )}
               </div>
-              <SegmentedControl
+              <ChipRail
+                ariaLabel={pl.exerciseMetric}
                 value={metricFilter}
                 onChange={(v) => setMetricFilter(v as PrimaryMetric | 'all')}
                 options={[

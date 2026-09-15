@@ -17,12 +17,12 @@ import {
 type SettingsSheetProps = {
   open: boolean
   onClose: () => void
+  /** Sekcja rozwinięta przy otwarciu (deep link, np. ?settings=ai) */
+  openSection?: 'ai' | null
   // Account
   syncing: boolean
   online: boolean
   showLogout: boolean
-  onSyncNow: () => void | Promise<void>
-  onLogin: () => void
   onLogout: () => void
   // Preferences
   settings: UserSettings
@@ -58,11 +58,10 @@ type SettingsSheetProps = {
 export function SettingsSheet({
   open,
   onClose,
+  openSection,
   syncing,
   online,
   showLogout,
-  onSyncNow,
-  onLogin,
   onLogout,
   settings,
   pushDescription,
@@ -109,8 +108,6 @@ export function SettingsSheet({
             syncing={syncing}
             online={online}
             showLogout={showLogout}
-            onSyncNow={onSyncNow}
-            onLogin={onLogin}
             onLogout={onLogout}
           />
         </CollapsibleSection>
@@ -175,6 +172,7 @@ export function SettingsSheet({
           title={pl.profileSettingsGroupAi}
           hint={pl.profileSettingsHintAi}
           icon={Bot}
+          defaultOpen={openSection === 'ai'}
         >
           <AiCoachSection
             aiApiKey={settings.aiApiKey ?? ''}

@@ -3,7 +3,6 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, Trophy, PencilLine, Flame, Dumbbell, CalendarClock, AlertCircle, BarChart3, StickyNote, Award } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState, PageLoader } from '@/components/ux/Feedback'
 import { WorkoutCelebrationOverlay } from '@/components/ux/WorkoutCelebrationOverlay'
 import { ACHIEVEMENT_BY_ID } from '@/lib/achievements/catalog'
@@ -378,10 +377,12 @@ export default function CustomSessionSummary() {
     track(AnalyticsEvents.loginCloudPromptShown)
   }, [showLoginPrompt])
 
-  async function handleSavePlanFromSession(opts?: { values?: boolean; exercises?: boolean }) {
+  async function handleSavePlanFromSession() {
     if (!session || !plan || planUpdateBusy) return
-    const values = opts?.values ?? applyValues
-    const exercises = opts?.exercises ?? applyExercises
+    // Gate each apply flag on its change type actually existing — a default-true
+    // applyValues with no value changes must not count as "something to save".
+    const values = hasValueChanges && applyValues
+    const exercises = hasExerciseChanges && applyExercises
     if (!values && !exercises) return
     setPlanUpdateBusy(true)
     try {
@@ -502,7 +503,10 @@ export default function CustomSessionSummary() {
       : []
   const planChangeHasSets = planChanges.some((c) => c.kind === 'sets' || c.kind === 'target_values')
   const { hasValueChanges, hasExerciseChanges } = categorizePlanChanges(planChanges)
-  const canSaveSelected = applyValues || applyExercises
+  // Only a checkbox for a change type that exists can enable saving — otherwise
+  // the default-true applyValues would let "save nothing" fire on exercise-only diffs.
+  const canSaveSelected =
+    (hasValueChanges && applyValues) || (hasExerciseChanges && applyExercises)
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
@@ -575,22 +579,22 @@ export default function CustomSessionSummary() {
         })()}
       />
 
-      <PageHeader
-        title={failed ? pl.customDayFailed : pl.customDayPassed}
-        subtitle={
-          planName
-            ? pl.progressCustomSessionMeta(planName, session.dayNumber)
-            : pl.dayLabel(session.dayNumber)
-        }
-      />
+      {/* WorkoutResultCard is the single status header — the h1 stays for
+          screen readers only so the "day passed" message isn't repeated. */}
+      <h1 className="sr-only">
+        {failed ? pl.customDayFailed : pl.customDayPassed}
+      </h1>
 
-      {/* Hero status banner */}
       {/* Unified workout result card — status + PR + AI + CTA in one cohesive unit */}
       <WorkoutResultCard
         className="mb-6"
         failed={failed}
         title={failed ? pl.summaryHeroFail : pl.summaryHeroSuccess}
-        subtitle={`${planName ?? pl.dayLabel(session.dayNumber)} · ${pl.attemptShort(session.cycleAttempt)}`}
+        subtitle={`${
+          planName
+            ? pl.progressCustomSessionMeta(planName, session.dayNumber)
+            : pl.dayLabel(session.dayNumber)
+        } · ${pl.attemptShort(session.cycleAttempt)}`}
         prRecords={prRecords}
         coachInsight={coachInsight}
         onDismissInsight={async () => {
@@ -796,31 +800,22 @@ export default function CustomSessionSummary() {
             )}
           </div>
 
-          {planChangeHasSets && applyValues && (
+          {planChangeHasSets && hasValueChanges && applyValues && (
             <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
               {pl.customSummaryUpdatePlanTargetsNote}
             </p>
           )}
 
           <div className="mt-4 flex flex-col gap-2">
-            {hasValueChanges && hasExerciseChanges && (
-              <Button
-                size="touch"
-                fullWidth
-                disabled={planUpdateBusy || !canSaveSelected}
-                onClick={() => void handleSavePlanFromSession()}
-              >
-                {pl.customSummaryUpdatePlanSaveSelected}
-              </Button>
-            )}
+            {/* Jedna primary — respektuje checkboxy; "Zapisz wszystko"
+                omijał zaznaczenie i mylił z "Zapisz wybrane". */}
             <Button
               size="touch"
               fullWidth
-              variant={hasValueChanges && hasExerciseChanges ? 'secondary' : 'primary'}
-              disabled={planUpdateBusy}
-              onClick={() => void handleSavePlanFromSession({ values: true, exercises: true })}
+              disabled={planUpdateBusy || !canSaveSelected}
+              onClick={() => void handleSavePlanFromSession()}
             >
-              {pl.customSummaryUpdatePlanSaveAll}
+              {pl.customSummaryUpdatePlanSaveSelected}
             </Button>
             <Button
               variant="ghost"

@@ -1,20 +1,10 @@
-import { useState, lazy, Suspense } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MoreVertical, Play } from 'lucide-react'
 import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Sheet } from '@/components/ui/Sheet'
-import { TrendIndicator } from '@/components/ui/TrendIndicator'
 import { ProgramAccentCard } from '@/components/ui/ProgramAccentCard'
-import { ProgramIcon } from '@/components/ui/ProgramIcon'
-import { NestedStat } from '@/components/ui/NestedStat'
-import { CycleDayRail } from '@/components/ui/CycleDayRail'
-import { CycleDayPicker } from '@/components/ui/CycleDayPicker'
-import { SetTargetsRow } from '@/components/ui/SetTargetsRow'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { BuiltinWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
-import { FeedbackBanner } from '@/components/ux/Feedback'
-import { showToast } from '@/stores/toast-store'
 import { pl } from '@/i18n/pl'
 import {
   getStatusLabel,
@@ -23,22 +13,20 @@ import {
 } from '@/lib/program-service'
 import { abandonAllInProgress } from '@/lib/session-service'
 import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
-import { getCycleDayStatus } from '@/lib/cycle-progress'
 import { getMaxSetPerDay } from '@/lib/stats-engine'
 import { getCycleById } from '@/data/plans'
 import { useAppStore } from '@/stores/app-store'
-import { cn } from '@/lib/utils'
-import { FOCUS_RING } from '@/lib/ui-chrome'
-import { AccessibleChart } from '@/components/ui/AccessibleChart'
+import { ProgramIconBadge } from './program-card/ProgramIconBadge'
+import { ProgramCardHeader, type CardBadgeVariant } from './program-card/ProgramCardHeader'
+import { ProgramCardProgress, ProgramCardStatsStrip } from './program-card/ProgramCardProgress'
+import { ProgramCardPreview, ProgramCardBanner } from './program-card/ProgramCardPreview'
+import { ProgramCardCta } from './program-card/ProgramCardCta'
+import { StaleRestSheet, CycleMapSheet } from './program-card/ProgramCardSheets'
 import type { ProgramCardModel, TipSuppression } from '@/lib/home-summary'
-
-const MaxPerDayChart = lazy(() =>
-  import('./MaxPerDayChart').then((m) => ({ default: m.MaxPerDayChart })),
-)
 
 function toneToBadge(
   tone: ReturnType<typeof getStatusTone>,
-): 'success' | 'warning' | 'error' | 'info' {
+): CardBadgeVariant {
   if (tone === 'success') return 'success'
   if (tone === 'warning') return 'warning'
   if (tone === 'error') return 'error'
@@ -58,7 +46,6 @@ export function ProgramHomeCard({
 }) {
   const navigate = useNavigate()
   const enabledPrograms = useAppStore((s) => s.settings.enabledPrograms)
-  const [showMenu, setShowMenu] = useState(false)
   const [trainDespiteRest, setTrainDespiteRest] = useState(false)
   const [showStaleConfirm, setShowStaleConfirm] = useState(false)
   const [showTrainAnywayConfirm, setShowTrainAnywayConfirm] = useState(false)
@@ -68,13 +55,6 @@ export function ProgramHomeCard({
   const [showPreview, setShowPreview] = useState(false)
   const [showCycleMap, setShowCycleMap] = useState(false)
   const [cycleMapDay, setCycleMapDay] = useState<number | null>(null)
-
-  // When opening the cycle map, default to the current day (or day 1)
-  // to avoid the anti-pattern of showing an empty details area.
-  const openCycleMap = () => {
-    setCycleMapDay(progress?.currentDay ?? 1)
-    setShowCycleMap(true)
-  }
   const [maxPerDay, setMaxPerDay] = useState<{ day: number; maxActual: number }[]>([])
 
   const { program, bucket, progress, stats, resume, available, daysLeft } = model
@@ -83,8 +63,21 @@ export function ProgramHomeCard({
   const resting = bucket === 'resting' || (resume != null && !available && !isPaused && !isTestPending)
   const hasResume = bucket === 'resume' || bucket === 'resume_stale'
   const hideRestPreview = Boolean(allResting && resting && !hasResume)
+  // Rest preview box already shows nextWorkoutLabel as its primary line —
+  // the stats strip "Następny trening" entry would repeat the same datum.
+  const restPreviewShown =
+    (bucket === 'resting' || bucket === 'test_pending_rest') && !hideRestPreview
   const cycle = progress ? getCycleById(progress.cycleId) : null
-  const waitingRestDays = Math.max(1, daysLeft)
+
+  // When opening the cycle map, default to the current day (or day 1)
+  // to avoid the anti-pattern of showing an empty details area.
+  const openCycleMap = async () => {
+    if (progress) {
+      setMaxPerDay(await getMaxSetPerDay(program, progress.cycleId, progress.cycleAttempt))
+    }
+    setCycleMapDay(progress?.currentDay ?? 1)
+    setShowCycleMap(true)
+  }
 
   const displayBadge = hasResume
     ? { label: pl.statusInProgress, variant: 'info' as const }
@@ -100,6 +93,29 @@ export function ProgramHomeCard({
     } finally {
       setBusy(false)
     }
+  }
+
+  async function abandonAndReload() {
+    setBusy(true)
+    try {
+      await abandonAllInProgress(program)
+      onReload()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function startDay() {
+    if (!model.currentDaySets || !cycle) {
+      // Fallback: no preview data — start directly.
+      navigate(
+        trainDespiteRest || !available
+          ? `/workout/${program}?force=1`
+          : `/workout/${program}`,
+      )
+      return
+    }
+    setShowPreview(true)
   }
 
   if (model.loadError) {
@@ -148,526 +164,108 @@ export function ProgramHomeCard({
     )
   }
 
-  const completedDays =
-    isTestPending && cycle
-      ? cycle.days.length
-      : Math.max(0, progress.currentDay - 1)
-  const pct =
-    cycle && cycle.days.length > 0
-      ? Math.round((completedDays / cycle.days.length) * 100)
-      : 0
+  const showCrossTrain =
+    program === 'pullups' &&
+    bucket === 'resting' &&
+    !allResting &&
+    enabledPrograms.includes('pushups')
 
   return (
     <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
-      {/* Header — icon + title + badge inline, menu button right.
-          Na wąskich ekranach (375px) badge + menu mogą się nie zmieścić,
-          dlatego grupa po prawej zawija się pod tytuł gdy brakuje miejsca. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <ProgramIconBadge program={program} />
-          <div className="min-w-0 flex-1">
-            <h3 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
-              {model.label}
-            </h3>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Badge variant={displayBadge.variant}>{displayBadge.label}</Badge>
-          <button
-            type="button"
-            aria-label={pl.menuProgram}
-            aria-haspopup="dialog"
-            aria-expanded={showMenu}
-            className={cn(
-              'flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
-              FOCUS_RING,
-            )}
-            onClick={() => setShowMenu(true)}
-          >
-            <MoreVertical size={18} />
-          </button>
-        </div>
-      </div>
-
-      {/* Cycle name — subtle subtitle below title */}
-      {model.cycleNameShort && (
-        <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
-          {model.cycleNameShort}
-        </p>
-      )}
-
-      <Sheet open={showMenu} onClose={() => setShowMenu(false)} title={pl.menuProgram}>
-        <div className="flex flex-col gap-1 pb-2">
-          <Button
-            variant="ghost"
-            fullWidth
-            className="justify-start px-3"
-            onClick={() => {
-              setShowMenu(false)
-              if (resume) setPendingSetup('level')
-              else void beginLevelChange(navigate, program)
-            }}
-          >
-            {pl.menuChangeLevel}
-          </Button>
-          <Button
-            variant="ghost"
-            fullWidth
-            className="justify-start px-3"
-            onClick={() => {
-              setShowMenu(false)
-              if (progress) {
-                navigate(`/plans?tab=programs&highlight=${progress.cycleId}`)
-              } else {
-                navigate('/plans?tab=programs')
-              }
-            }}
-          >
-            {pl.menuFullCycle}
-          </Button>
-          <Button
-            variant="ghost"
-            fullWidth
-            className="justify-start px-3"
-            onClick={async () => {
-              setShowMenu(false)
-              if (progress) {
-                setMaxPerDay(await getMaxSetPerDay(program, progress.cycleId, progress.cycleAttempt))
-              }
-              openCycleMap()
-            }}
-          >
-            {pl.menuCycleMap}
-          </Button>
-          <Button
-            variant="ghost"
-            fullWidth
-            className="justify-start px-3"
-            onClick={() => {
-              setShowMenu(false)
-              navigate('/progress?tab=history')
-            }}
-          >
-            {pl.menuHistory}
-          </Button>
-          {bucket === 'resting' && !hasResume && (
-            <Button
-              variant="ghost"
-              fullWidth
-              className="justify-start px-3"
-              onClick={() => {
-                setShowMenu(false)
-                void (async () => {
-                  const { skipRestDay } = await import('@/lib/program-service')
-                  await skipRestDay(program)
-                  onReload()
-                  showToast(pl.restDaySkipped, 'success')
-                })()
-              }}
-            >
-              {pl.menuSkipRest}
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            fullWidth
-            className="justify-start px-3 text-[var(--sr-error)] hover:text-[var(--sr-error)]"
-            onClick={() => {
-              setShowMenu(false)
-              if (resume) setPendingSetup('retest')
-              else void beginProgramSetup(navigate, program, { retest: true })
-            }}
-          >
-            {pl.menuRetest}
-          </Button>
-        </div>
-      </Sheet>
+      <ProgramCardHeader
+        program={program}
+        label={model.label}
+        badge={displayBadge}
+        cycleNameShort={model.cycleNameShort}
+        progress={progress}
+        resume={resume}
+        showSkipRest={bucket === 'resting' && !hasResume}
+        onReload={onReload}
+        onPendingSetup={setPendingSetup}
+        onOpenCycleMap={openCycleMap}
+      />
 
       {cycle && (
-        <div className="mt-3">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-              {isTestPending
-                ? pl.cycleDoneTestLabel
-                : pl.homeProgramLevelDay(
-                    model.cycleNameShort ?? '',
-                    progress.currentDay,
-                    cycle.days.length,
-                  )}
-              {progress.cycleAttempt >= 2 && (
-                <>
-                  {' · '}
-                  {pl.homeCycleRestart(progress.cycleAttempt)}
-                </>
-              )}
-            </p>
-            <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
-              {pct}%
-            </p>
-          </div>
-
-          {/* Progress bar — accent-colored, subtle */}
-          <div
-            className="mb-2.5 h-2 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
-            role="progressbar"
-            aria-valuenow={pct}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          >
-            <div
-              className="h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none"
-              style={{
-                width: `${pct}%`,
-                background:
-                  program === 'pushups'
-                    ? 'var(--sr-pushups-accent)'
-                    : program === 'pullups'
-                      ? 'var(--sr-pullups-accent)'
-                      : 'var(--sr-squats-accent)',
-              }}
-            />
-          </div>
-
-          <CycleDayRail
-            totalDays={cycle.days.length}
-            days={cycle.days.map((d) => ({
-              dayNumber: d.dayNumber,
-              status: getCycleDayStatus(progress, d.dayNumber, cycle.days.length),
-            }))}
-          />
-        </div>
+        <ProgramCardProgress
+          program={program}
+          cycle={cycle}
+          progress={progress}
+          isTestPending={isTestPending}
+          cycleNameShort={model.cycleNameShort}
+        />
       )}
 
-      {/* Session preview — compact, unified style */}
-      {(() => {
-        if (hasResume && resume) {
-          return (
-            <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[color-mix(in_srgb,var(--sr-brand-primary)_8%,var(--sr-bg-surface))] px-3.5 py-3">
-              <div className="mb-2 flex items-baseline justify-between gap-2">
-                <p className="sr-text-overline text-[var(--sr-text-muted)]">{pl.statusInProgress}</p>
-                <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
-                  {pl.homeInProgressSets(resume.set, resume.total, resume.day)}
-                </p>
-              </div>
-              <div className="flex gap-1.5" aria-hidden>
-                {Array.from({ length: resume.total }, (_, i) => (
-                  <span
-                    key={i}
-                    className="h-2 flex-1 rounded-full transition-colors"
-                    style={{
-                      background:
-                        i < resume.currentSetIndex
-                          ? 'var(--sr-success)'
-                          : i === resume.currentSetIndex
-                            ? 'var(--sr-brand-primary)'
-                            : 'var(--sr-bg-elevated)',
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )
-        }
-        if (bucket === 'paused') {
-          return (
-            <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
-              <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.homeProgramPaused}</p>
-            </div>
-          )
-        }
-        if (bucket === 'test_pending_ready') return null
-        if (bucket === 'resting' || bucket === 'test_pending_rest') {
-          if (hideRestPreview) return null
-          return (
-            <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
-              <p className="sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
-                {pl.restPrimaryLabel(stats?.nextWorkoutLabel ?? pl.restIn(daysLeft))}
-              </p>
-              <p className="mt-0.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
-                {bucket === 'resting'
-                  ? pl.restGateHint(waitingRestDays)
-                  : pl.homeCardTestRestHint(stats?.nextWorkoutLabel ?? pl.today)}
-              </p>
-            </div>
-          )
-        }
-        if (bucket === 'ready' && model.currentDaySets && model.setsTargetTotal != null) {
-          return (
-            <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
-              <div className="mb-2 flex items-baseline justify-between gap-2">
-                <p className="sr-text-overline text-[var(--sr-text-muted)]">{pl.homeTodaySession}</p>
-                <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
-                  {pl.plansDayReps(model.currentDaySets.length, model.setsTargetTotal)}
-                </p>
-              </div>
-              <SetTargetsRow sets={model.currentDaySets} size="sm" />
-            </div>
-          )
-        }
-        return null
-      })()}
+      <ProgramCardPreview
+        bucket={bucket}
+        hasResume={hasResume}
+        resume={resume}
+        stats={stats}
+        daysLeft={daysLeft}
+        hideRestPreview={hideRestPreview}
+        currentDaySets={model.currentDaySets}
+        setsTargetTotal={model.setsTargetTotal}
+      />
 
-      {stats &&
-        (stats.lastSession ||
-          stats.lastTotalReps !== null ||
-          stats.maxLastSetTrend.delta !== null) && (
-        <div className="mt-2.5 grid grid-cols-2 gap-2">
-          {stats.lastSession && (
-            <NestedStat
-              size="sm"
-              overline={pl.lastWorkout}
-              value={pl.dayDoneCheck(stats.lastSession.dayNumber)}
-            />
-          )}
-          <NestedStat
-            size="sm"
-            className={!stats.lastSession ? 'col-span-2' : undefined}
-            overline={pl.nextWorkout}
-            value={stats.nextWorkoutLabel}
-          />
-          {(stats.lastTotalReps !== null || stats.maxLastSetTrend.delta !== null) && (
-            <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
-              {stats.lastTotalReps !== null && (
-                <span>
-                  {pl.totalRepsLastSession(stats.lastTotalReps)}
-                </span>
-              )}
-              {stats.maxLastSetTrend.delta !== null && (
-                <span className="inline-flex items-center gap-1.5">
-                  <span>{pl.maxSetTrend}</span>
-                  <span className="font-semibold tabular-nums text-[var(--sr-text-primary)]">
-                    {stats.maxLastSetTrend.current}
-                  </span>
-                  <TrendIndicator delta={stats.maxLastSetTrend.delta} />
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+      {stats && (
+        <ProgramCardStatsStrip stats={stats} showNextWorkout={!restPreviewShown} />
       )}
 
-      {/* Banners — subtle, compact */}
-      {(() => {
-        if (hasResume && resume?.stale && !tipSuppression.stale) {
-          return (
-            <div className="mt-2.5">
-              <FeedbackBanner variant="warning" message={pl.staleSession} density="compact" />
-            </div>
-          )
-        }
-        if (isTestPending && !tipSuppression.test) {
-          return (
-            <div className="mt-2.5">
-              <FeedbackBanner variant="info" message={pl.cycleCompleteHint} density="compact" />
-            </div>
-          )
-        }
-        if (hasResume && resting && !tipSuppression.stale) {
-          return (
-            <div className="mt-2.5">
-              <FeedbackBanner variant="info" message={pl.resumeDespiteRestHint} density="compact" />
-            </div>
-          )
-        }
-        if (
-          !hasResume &&
-          bucket === 'resting' &&
-          !trainDespiteRest &&
-          !hideRestPreview &&
-          progress.cycleAttempt >= 2 &&
-          model.lastFailed &&
-          !tipSuppression.level
-        ) {
-          return (
-            <div className="mt-2.5">
-              <FeedbackBanner
-                variant="info"
-                message={pl.considerLowerLevel}
-                actionLabel={pl.menuChangeLevel}
-                onAction={() => void beginLevelChange(navigate, program)}
-                density="compact"
-              />
-            </div>
-          )
-        }
-        if (
-          progress.cycleAttempt >= 2 &&
-          !hasResume &&
-          bucket === 'ready' &&
-          !tipSuppression.level &&
-          model.lastFailed
-        ) {
-          return (
-            <div className="mt-2.5">
-              <FeedbackBanner
-                variant="info"
-                message={pl.considerLowerLevel}
-                actionLabel={pl.menuChangeLevel}
-                onAction={() => void beginLevelChange(navigate, program)}
-                density="compact"
-              />
-            </div>
-          )
-        }
-        return null
-      })()}
+      <ProgramCardBanner
+        hasResume={hasResume}
+        resumeStale={resume?.stale ?? false}
+        resting={resting}
+        isTestPending={isTestPending}
+        bucket={bucket}
+        trainDespiteRest={trainDespiteRest}
+        hideRestPreview={hideRestPreview}
+        cycleAttempt={progress.cycleAttempt}
+        lastFailed={model.lastFailed}
+        tipSuppression={tipSuppression}
+        onChangeLevel={() => void beginLevelChange(navigate, program)}
+      />
 
-      {/* CTA */}
-      <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-4">
-        {hasResume && resume && (
-          <div className="flex flex-col gap-2">
-            <Button
-              size="touch"
-              fullWidth
-              disabled={busy}
-              className="sr-pulse-cta"
-              onClick={() => {
-                // Stale session data must always be confirmed before resuming —
-                // resting adds a rest-specific sheet (both abandon-only paths),
-                // otherwise the simpler continue/start-fresh confirm sheet.
-                if (resume.stale) {
-                  if (resting) setShowStaleRestSheet(true)
-                  else setShowStaleConfirm(true)
-                } else {
-                  navigate(`/workout/${program}?force=1`)
-                }
-              }}
-            >
-              <span className="flex items-center justify-center gap-2">
-                <Play size={18} className="fill-current" />
-                {pl.continueWorkout(resume.day, resume.set, resume.total)}
-              </span>
-            </Button>
-            {resume.stale && !resting && (
-              <Button
-                variant="ghost"
-                fullWidth
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true)
-                  try {
-                    await abandonAllInProgress(program)
-                    onReload()
-                  } finally {
-                    setBusy(false)
-                  }
-                }}
-              >
-                {pl.startFresh}
-              </Button>
-            )}
-            {!resume.stale && resting && (
-              <Button
-                variant="ghost"
-                fullWidth
-                disabled={busy}
-                onClick={() => setShowTrainAnywayConfirm(true)}
-              >
-                {pl.trainAnywayNew}
-              </Button>
-            )}
-          </div>
-        )}
-
-        {!hasResume && bucket === 'paused' && (
-          <Button
-            size="touch"
-            fullWidth
-            onClick={async () => {
+      <ProgramCardCta
+        bucket={bucket}
+        hasResume={hasResume}
+        resume={resume}
+        resting={resting}
+        trainDespiteRest={trainDespiteRest}
+        showCrossTrain={showCrossTrain}
+        busy={busy}
+        currentDay={progress.currentDay}
+        handlers={{
+          // Stale session data must always be confirmed before resuming —
+          // resting adds a rest-specific sheet (both abandon-only paths),
+          // otherwise the simpler continue/start-fresh confirm sheet.
+          onResume: () => {
+            if (!resume) return
+            if (resume.stale) {
+              if (resting) setShowStaleRestSheet(true)
+              else setShowStaleConfirm(true)
+            } else {
+              navigate(`/workout/${program}?force=1`)
+            }
+          },
+          onStartFresh: () => void abandonAndReload(),
+          onTrainAnywayIntent: () => setShowTrainAnywayConfirm(true),
+          onResumeProgram: () => {
+            void (async () => {
               await setProgramPaused(program, false)
               onReload()
-            }}
-          >
-            {pl.resumeProgram}
-          </Button>
-        )}
-
-        {!hasResume && bucket === 'test_pending_ready' && (
-          <div className="flex flex-col gap-2">
-            <Button
-              size="touch"
-              fullWidth
-              onClick={() => void beginProgramSetup(navigate, program, { retest: true })}
-            >
-              {pl.retestNow}
-            </Button>
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={() => void beginLevelChange(navigate, program)}
-            >
-              {pl.menuChangeLevel}
-            </Button>
-          </div>
-        )}
-
-        {!hasResume && bucket === 'test_pending_rest' && (
-          <Button
-            variant="secondary"
-            size="touch"
-            fullWidth
-            onClick={() => void beginLevelChange(navigate, program)}
-          >
-            {pl.menuChangeLevel}
-          </Button>
-        )}
-
-        {!hasResume && (bucket === 'resting' || bucket === 'ready') && (
-          <div className="flex flex-col gap-2">
-            {program === 'pullups' &&
-              bucket === 'resting' &&
-              !trainDespiteRest &&
-              !allResting &&
-              enabledPrograms.includes('pushups') && (
-              <Button
-                variant="secondary"
-                size="touch"
-                fullWidth
-                onClick={() => {
-                  const el = document.getElementById('program-pushups')
-                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                }}
-              >
-                {pl.crossTrainingCta}
-              </Button>
-            )}
-            {bucket === 'resting' && !trainDespiteRest ? (
-              <Button
-                variant="ghost"
-                size="touch"
-                fullWidth
-                onClick={() => setTrainDespiteRest(true)}
-              >
-                {pl.trainAnyway}
-              </Button>
-            ) : (
-              <Button
-                size="touch"
-                fullWidth
-                onClick={() => {
-                  if (!model.currentDaySets || !cycle) {
-                    // Fallback: no preview data — start directly.
-                    navigate(
-                      trainDespiteRest || !available
-                        ? `/workout/${program}?force=1`
-                        : `/workout/${program}`,
-                    )
-                    return
-                  }
-                  setShowPreview(true)
-                }}
-              >
-                {pl.startDay(progress.currentDay)}
-              </Button>
-            )}
-            {bucket === 'resting' && trainDespiteRest && (
-              <Button variant="ghost" fullWidth onClick={() => setTrainDespiteRest(false)}>
-                {pl.cancel}
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
+            })()
+          },
+          onRetestNow: () => void beginProgramSetup(navigate, program, { retest: true }),
+          onChangeLevel: () => void beginLevelChange(navigate, program),
+          onTrainDespiteRest: () => setTrainDespiteRest(true),
+          onCancelDespiteRest: () => setTrainDespiteRest(false),
+          onStartDay: startDay,
+          onCrossTrain: () => {
+            document
+              .getElementById('program-pushups')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          },
+        }}
+      />
 
       {showStaleConfirm && resume && (
         <ConfirmSheet
@@ -703,45 +301,20 @@ export function ProgramHomeCard({
       )}
 
       {showStaleRestSheet && (
-        <Sheet
-          open
+        <StaleRestSheet
+          busy={busy}
+          onAbandon={() => {
+            void (async () => {
+              await abandonAndReload()
+              setShowStaleRestSheet(false)
+            })()
+          }}
+          onAbandonAndTrain={() => {
+            setShowStaleRestSheet(false)
+            void abandonThenForce()
+          }}
           onClose={() => setShowStaleRestSheet(false)}
-          title={pl.abandonOrTrainAnywayTitle}
-        >
-          <p className="mb-4 text-sm text-[var(--sr-text-secondary)]">
-            {pl.abandonOrTrainAnywayBody} {pl.forceRestRestartHint}
-          </p>
-          <div className="flex flex-col gap-2 pb-2">
-            <Button
-              variant="secondary"
-              fullWidth
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true)
-                try {
-                  await abandonAllInProgress(program)
-                  setShowStaleRestSheet(false)
-                  onReload()
-                } finally {
-                  setBusy(false)
-                }
-              }}
-            >
-              {pl.abandonOnly}
-            </Button>
-            <Button
-              variant="ghost"
-              fullWidth
-              disabled={busy}
-              onClick={() => {
-                setShowStaleRestSheet(false)
-                void abandonThenForce()
-              }}
-            >
-              {pl.abandonAndTrain}
-            </Button>
-          </div>
-        </Sheet>
+        />
       )}
 
       {pendingSetup && (
@@ -786,113 +359,24 @@ export function ProgramHomeCard({
       )}
 
       {showCycleMap && cycle && progress && (
-        <Sheet
-          open
+        <CycleMapSheet
+          cycle={cycle}
+          progress={progress}
+          stats={stats}
+          maxPerDay={maxPerDay}
+          selectedDay={cycleMapDay}
+          onSelectDay={setCycleMapDay}
+          onShowFullPlan={() => {
+            setShowCycleMap(false)
+            setCycleMapDay(null)
+            navigate(`/plans?tab=programs&highlight=${progress.cycleId}`)
+          }}
           onClose={() => {
             setShowCycleMap(false)
             setCycleMapDay(null)
           }}
-          title={pl.cycleMapTitle(cycle.nameShort)}
-        >
-          <div className="pb-2">
-            <p className="mb-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
-              {pl.progressCycleProgress(
-                stats?.completedDaysInCycle ?? 0,
-                stats?.cycleDaysTotal ?? cycle.days.length,
-              )}
-            </p>
-            <CycleDayPicker
-              totalDays={cycle.days.length}
-              selectedDay={cycleMapDay}
-              onSelect={setCycleMapDay}
-              days={cycle.days.map((d) => ({
-                dayNumber: d.dayNumber,
-                status: getCycleDayStatus(progress, d.dayNumber, cycle.days.length),
-              }))}
-            />
-
-            {cycleMapDay !== null && (
-              <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3">
-                <p className="sr-text-overline text-[var(--sr-text-muted)]">
-                  {pl.dayLabel(cycleMapDay)}
-                </p>
-                {(() => {
-                  const day = cycle.days.find((d) => d.dayNumber === cycleMapDay)
-                  if (!day) return null
-                  return (
-                    <div className="mt-2">
-                      <SetTargetsRow sets={day.sets} size="md" />
-                      <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">
-                        {pl.restBetweenSets(day.restBetweenSetsSec)}
-                      </p>
-                    </div>
-                  )
-                })()}
-              </div>
-            )}
-
-            {maxPerDay.length > 0 && (
-              <div className="mt-4">
-                <p className="mb-2 sr-text-overline text-[var(--sr-text-muted)]">
-                  {pl.maxSetPerDay}
-                </p>
-                <AccessibleChart
-                  label={pl.progressMaxSetChartAria(maxPerDay.length)}
-                  data={maxPerDay.map((d) => ({ day: pl.dayLabel(d.day), max: d.maxActual }))}
-                  columns={[
-                    { key: 'day', header: pl.dayLabelShort },
-                    { key: 'max', header: pl.repsUnit },
-                  ]}
-                  className="h-36 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3 pl-1"
-                >
-                  <Suspense fallback={null}>
-                    <MaxPerDayChart data={maxPerDay} />
-                  </Suspense>
-                </AccessibleChart>
-              </div>
-            )}
-
-            <Button
-              variant="secondary"
-              size="sm"
-              className="mt-4"
-              fullWidth
-              onClick={() => {
-                setShowCycleMap(false)
-                setCycleMapDay(null)
-                navigate(`/plans?tab=programs&highlight=${progress.cycleId}`)
-              }}
-            >
-              {pl.progressFullCyclePlan}
-            </Button>
-          </div>
-        </Sheet>
+        />
       )}
     </ProgramAccentCard>
-  )
-}
-
-/* ─── Program icon badge — larger, with gradient ring ─── */
-
-function ProgramIconBadge({ program }: { program: 'pushups' | 'pullups' | 'squats' }) {
-  const accentVar =
-    program === 'pushups'
-      ? 'var(--sr-pushups-accent)'
-      : program === 'pullups'
-        ? 'var(--sr-pullups-accent)'
-        : 'var(--sr-squats-accent)'
-  return (
-    <div
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--sr-radius-lg)] ring-1"
-      style={{
-        background: `color-mix(in srgb, ${accentVar} 12%, transparent)`,
-        color: accentVar,
-        // @ts-expect-error — CSS custom property
-        '--tw-ring-color': `color-mix(in srgb, ${accentVar} 25%, transparent)`,
-      }}
-      aria-hidden
-    >
-      <ProgramIcon program={program} size={26} />
-    </div>
   )
 }

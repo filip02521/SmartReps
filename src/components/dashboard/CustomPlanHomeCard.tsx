@@ -12,6 +12,8 @@ import type { CustomPlanHomeCardModel, CustomPlanCycleDay } from '@/lib/custom-p
 import type { CustomCycleDayStatus } from '@/lib/custom-plan-cycle-rail'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
+import { AccentCard } from '@/components/ui/ProgramAccentCard'
+import { AccentIconBadge } from '@/components/dashboard/program-card/ProgramIconBadge'
 import { pl } from '@/i18n/pl'
 import { Dumbbell, MoreVertical, Play } from 'lucide-react'
 
@@ -123,26 +125,16 @@ export function CustomPlanHomeCard({
   }
 
   return (
-    <article
-      className={cn(
-        'relative overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] border-l-[3px] p-3.5 shadow-[var(--sr-shadow-card)] transition-colors hover:border-l-[var(--sr-border-strong)]',
-      )}
-      style={{
-        borderLeftColor: 'var(--sr-brand-primary)',
-        backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 10%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 42%)`,
-      }}
-    >
-      {/* Header — compact: icon + title + badge inline, menu button right */}
-      <div className="flex items-center justify-between gap-2.5">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)] text-[var(--sr-brand-primary)]"
-            aria-hidden
-          >
-            <Dumbbell size={18} strokeWidth={2.25} />
-          </div>
+    <AccentCard accent="var(--sr-brand-primary)">
+      {/* Header — same layout as the builtin program card: icon + title +
+          badge inline, menu button right. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <AccentIconBadge accent="var(--sr-brand-primary)">
+            <Dumbbell size={24} strokeWidth={2.25} />
+          </AccentIconBadge>
           <div className="min-w-0 flex-1">
-            <h3 className="min-w-0 break-words sr-text-h3 text-[var(--sr-text-primary)]">
+            <h3 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
               {model.planName}
             </h3>
           </div>
@@ -160,7 +152,7 @@ export function CustomPlanHomeCard({
             )}
             onClick={() => setShowMenu(true)}
           >
-            <MoreVertical size={16} />
+            <MoreVertical size={18} />
           </button>
         </div>
       </div>
@@ -218,11 +210,12 @@ export function CustomPlanHomeCard({
         </div>
       </Sheet>
 
-      {/* Progress bar + cycle rail */}
+      {/* Progress bar + cycle rail — same metrics line + h-2 bar as the
+          builtin card. */}
       {model.totalDays > 0 && (
-        <div className="mt-2.5">
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <p className="sr-text-caption text-[var(--sr-text-secondary)]">
+        <div className="mt-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
               {model.isCycleComplete
                 ? pl.homeCustomStatusCycleComplete
                 : pl.homeCustomDayOf(
@@ -236,12 +229,12 @@ export function CustomPlanHomeCard({
                 </>
               )}
             </p>
-            <p className="sr-text-caption font-semibold tabular-nums text-[var(--sr-text-primary)]">
+            <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
               {model.pct}%
             </p>
           </div>
           <div
-            className="mb-2 h-1 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
+            className="mb-2.5 h-2 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
             role="progressbar"
             aria-valuenow={model.pct}
             aria-valuemin={0}
@@ -265,11 +258,11 @@ export function CustomPlanHomeCard({
         </p>
       )}
 
-      {/* CTA */}
-      <div className="mt-2.5 border-t border-[var(--sr-border-subtle)] pt-2.5">
+      {/* CTA — same touch size + divider spacing as the builtin card. */}
+      <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-4">
         <Button
           type="button"
-          size="md"
+          size="touch"
           fullWidth
           className={cn(model.resume && 'sr-pulse-cta')}
           onClick={() => {
@@ -287,7 +280,7 @@ export function CustomPlanHomeCard({
           }}
         >
           <span className="flex items-center justify-center gap-2">
-            {model.resume && <Play size={16} className="fill-current" />}
+            {model.resume && <Play size={18} className="fill-current" />}
             {model.ctaLabel}
           </span>
         </Button>
@@ -365,6 +358,6 @@ export function CustomPlanHomeCard({
           </div>
         </Sheet>
       )}
-    </article>
+    </AccentCard>
   )
 }

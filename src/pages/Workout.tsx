@@ -414,13 +414,8 @@ export default function WorkoutPage() {
         checklistRef.current
           ?.querySelector('[data-active-set="true"]')
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-        // Auto-collapse after 1.5s so the user isn't trapped on the ready screen.
-        window.setTimeout(() => {
-          const still = useWorkoutStore.getState().restTimer
-          if (still && still.remainingSec <= 0 && still.mode !== 'idle') {
-            useWorkoutStore.getState().setRestTimer(skipRest())
-          }
-        }, 1500)
+        // Ready state persists until the user taps "Rozpocznij serię" —
+        // auto-collapsing after 1.5s fired the action before it could be read.
       },
     }, { sound: timerSound, vibration: timerVibration }))
     return () => stopRestTimerWorker()

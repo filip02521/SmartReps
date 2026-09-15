@@ -212,6 +212,10 @@ export type SyncErrorEntry = {
   section: string
   message: string
   timestamp: string
+  /** True when the raw error was a network-level fetch failure
+   *  (TypeError: Failed to fetch / Load failed / …) rather than a server
+   *  response error. Drives the offline vs remote_error classification. */
+  network?: boolean
 }
 
 const MAX_SYNC_ERROR_ENTRIES = 20
@@ -223,6 +227,34 @@ export function getRecentSyncErrors(): SyncErrorEntry[] {
 
 export function clearRecentSyncErrors(): void {
   recentSyncErrors.length = 0
+}
+
+/** Fetch-abort/connectivity errors look identical across browsers:
+ *  Chrome/Node: "Failed to fetch" / "fetch failed", Safari: "Load failed",
+ *  Firefox: "NetworkError when attempting to fetch resource.", RN: "Network
+ *  request failed". These are TypeErrors — never a structured server error. */
+export function isNetworkSyncError(error: unknown): boolean {
+  if (!(error instanceof TypeError)) {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return true
+    return false
+  }
+  const msg = error.message.toLowerCase()
+  return (
+    msg.includes('failed to fetch') ||
+    msg.includes('fetch failed') ||
+    msg.includes('load failed') ||
+    msg.includes('networkerror') ||
+    msg.includes('network request failed') ||
+    msg.includes('network is unreachable') ||
+    msg.includes('internet connection')
+  )
+}
+
+/** True when the recent-error log holds at least one entry and every
+ *  entry is a network failure — i.e. this attempt died on connectivity,
+ *  not on the server. Mixed logs (any server error present) stay false. */
+export function recentSyncErrorsAreNetworkOnly(): boolean {
+  return recentSyncErrors.length > 0 && recentSyncErrors.every((e) => e.network === true)
 }
 
 /** Extract a human-readable message from any error type — including Supabase
@@ -270,6 +302,7 @@ export function trackSyncError(section: string, error: unknown): void {
       section,
       message: message.slice(0, 300),
       timestamp: new Date().toISOString(),
+      network: isNetworkSyncError(error),
     })
     if (recentSyncErrors.length > MAX_SYNC_ERROR_ENTRIES) {
       recentSyncErrors.shift()

@@ -155,7 +155,7 @@ describe('canUndoCustomSet', () => {
       },
       { exerciseId: 'b', order: 1, sets: [] },
     ]
-    expect(canUndoCustomSet(day, logs, 1, 0, null, undefined, null)).toBe(true)
+    expect(canUndoCustomSet(day, logs, 1, 0, null, null)).toBe(true)
   })
 })
 

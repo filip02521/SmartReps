@@ -382,6 +382,41 @@ describe('runAuthenticatedSync', () => {
     expect(result).toEqual({ ok: false, errors: 1, reason: 'remote_error' })
     expect(setLastSyncFailureReason).toHaveBeenCalledWith('remote_error')
   })
+
+  it('classifies a fetch-level rejection as offline, not remote_error', async () => {
+    vi.mocked(syncWithRemote).mockRejectedValue(new TypeError('Failed to fetch'))
+
+    const result = await runAuthenticatedSync({ showFailureToast: false })
+
+    expect(result).toEqual({ ok: false, errors: 1, reason: 'offline' })
+    expect(setLastSyncFailureReason).toHaveBeenCalledWith('offline')
+  })
+
+  it('classifies section failures as offline when every logged error is a network TypeError', async () => {
+    const { trackSyncError } = await import('@/lib/analytics')
+    vi.mocked(syncWithRemote).mockImplementation(async () => {
+      trackSyncError('pull_custom_entities', new TypeError('Load failed'))
+      return { ok: false, errors: 1 }
+    })
+
+    const result = await runAuthenticatedSync({ showFailureToast: false })
+
+    expect(result.reason).toBe('offline')
+    expect(setLastSyncFailureReason).toHaveBeenCalledWith('offline')
+  })
+
+  it('keeps remote_error when a real server error is mixed with network failures', async () => {
+    const { trackSyncError } = await import('@/lib/analytics')
+    vi.mocked(syncWithRemote).mockImplementation(async () => {
+      trackSyncError('pull_custom_entities', new TypeError('Failed to fetch'))
+      trackSyncError('push_sessions', { message: 'row violates RLS', code: '42501' })
+      return { ok: false, errors: 2 }
+    })
+
+    const result = await runAuthenticatedSync({ showFailureToast: false })
+
+    expect(result.reason).toBe('remote_error')
+  })
 })
 
 describe('completeSignInFlow', () => {

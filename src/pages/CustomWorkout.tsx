@@ -165,7 +165,6 @@ export default function CustomWorkoutPage() {
   const [previousResults, setPreviousResults] = useState<Map<number, { reps?: number; durationSec?: number; weightKg?: number }>>(new Map())
   const [coachSuggestion, setCoachSuggestion] = useState<string | null>(null)
   const [pulseFlash, setPulseFlash] = useState(false)
-  const [failedIndex, setFailedIndex] = useState<number | undefined>()
   const [saveError, setSaveError] = useState<string | null>(null)
   const timerRef = useRef<number | null>(null)
   const sessionRef = useRef<Awaited<ReturnType<typeof createCustomSession>> | null>(null)
@@ -678,7 +677,6 @@ export default function CustomWorkoutPage() {
       return
     }
     setTimerRunning(false)
-    setFailedIndex(undefined)
     // Clear previous-result state to avoid stale data from prior exercise
     setPreviousResult(undefined)
     setPreviousResults(new Map())
@@ -748,13 +746,8 @@ export default function CustomWorkoutPage() {
         checklistRef.current
           ?.querySelector('[data-active-set="true"]')
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-        // Auto-collapse after 1.5s so the user isn't trapped on the ready screen.
-        window.setTimeout(() => {
-          const still = useCustomWorkoutStore.getState().restTimer
-          if (still && still.remainingSec <= 0 && still.mode !== 'idle') {
-            useCustomWorkoutStore.getState().setRestTimer(skipRest())
-          }
-        }, 1500)
+        // Ready state persists until the user taps "Rozpocznij serię" —
+        // auto-collapsing after 1.5s fired the action before it could be read.
       },
     }, { sound: timerSound, vibration: timerVibration }))
     return () => stopRestTimerWorker()
@@ -888,8 +881,6 @@ export default function CustomWorkoutPage() {
       livePlan.days.find((d) => d.dayNumber === store.dayNumber) ?? livePlan.days[0]
     const livePlanned = liveDay?.exercises[store.currentExerciseIndex]
     if (!liveDay || !livePlanned) return
-
-    setFailedIndex(undefined)
     if (result.passed) {
       setPulseFlash(true)
       window.setTimeout(() => setPulseFlash(false), 450)
@@ -1155,33 +1146,6 @@ export default function CustomWorkoutPage() {
     }
   }
 
-  function buildCurrentBelowTargetResult(): SetLog | null {
-    if (!planned || !prescription || !exDef) return null
-    const actual: SetActual =
-      exDef.primaryMetric === 'duration_sec'
-        ? { durationSec: actualSec }
-        : {
-            reps: actualReps,
-            weightKg:
-              exDef.primaryMetric === 'reps_weight'
-                ? weightKg === ''
-                  ? null
-                  : Number(weightKg)
-                : undefined,
-          }
-    return {
-      setNumber: store.currentSetIndex + 1,
-      actual,
-      passed: false,
-      prescription,
-      ...(rpeRirValue != null
-        ? rpeRirMode === 'rpe'
-          ? { rpe: rpeRirValue }
-          : { rir: rpeRirValue }
-        : {}),
-      ...(setNote ? { note: setNote } : {}),
-    }
-  }
 
   function persistDayOverride(
     overrideDay: import('@/lib/exercise-model').PlanDay,
@@ -1300,7 +1264,6 @@ export default function CustomWorkoutPage() {
     if (logged === plannedEx.sets.length && plannedEx.sets.length > baseline) {
       const removed = store.undoLastSet()
       if (!removed) return
-      setFailedIndex(undefined)
       if (exDef?.primaryMetric === 'duration_sec') {
         setActualSec(removed.actual.durationSec ?? 0)
       } else {
@@ -1330,7 +1293,6 @@ export default function CustomWorkoutPage() {
     )
     if (!next) return
     setPlanLive(next)
-    setFailedIndex(undefined)
     const overrideDay = next.days.find((d) => d.dayNumber === liveDay.dayNumber)
     if (!overrideDay) return
     const newLen = overrideDay.exercises[exerciseIndex]?.sets.length ?? 0
@@ -1410,8 +1372,6 @@ export default function CustomWorkoutPage() {
       currentSetIndex: 0,
       failedRetryUsed: false,
     })
-
-    setFailedIndex(undefined)
     setSwapOpen(false)
     setSwapConfirm(null)
 
@@ -1500,7 +1460,6 @@ export default function CustomWorkoutPage() {
   function handleEditPreviousSet() {
     const removed = store.undoLastSet()
     if (!removed) return
-    setFailedIndex(undefined)
     skipNextResetRef.current = true
     if (exDef?.primaryMetric === 'duration_sec') {
       setActualSec(removed.actual.durationSec ?? 0)
@@ -1548,7 +1507,6 @@ export default function CustomWorkoutPage() {
     store.setPointers(targetIndex, resumeSet)
     setShowMenu(false)
     setShowPlanSheet(false)
-    setFailedIndex(undefined)
     void persistState()
   }
 
@@ -1787,15 +1745,12 @@ export default function CustomWorkoutPage() {
     store.currentExerciseIndex,
     store.currentSetIndex,
     restTimer,
-    failedIndex,
     store.amrapEndAt,
   )
-  const failedRetryVisible = failedIndex === store.currentSetIndex
   const activeGroup = getGroupForExercise(day, store.currentExerciseIndex)
   const canAddSet =
     canAddSetToExercise(day, store.currentExerciseIndex) &&
-    !(restTimer && restTimer.mode !== 'idle') &&
-    !failedRetryVisible
+    !(restTimer && restTimer.mode !== 'idle')
   const currentBaseline = baselineSetCountForExercise(
     baselineSets,
     planned.exerciseId,
@@ -1809,17 +1764,14 @@ export default function CustomWorkoutPage() {
       currentBaseline,
       setResults.length,
     ) &&
-    !(restTimer && restTimer.mode !== 'idle') &&
-    !failedRetryVisible
+    !(restTimer && restTimer.mode !== 'idle')
   const showSetAdjust =
     !activeGroup &&
-    !(restTimer && restTimer.mode !== 'idle') &&
-    !failedRetryVisible
-  const showRestAdjust = !activeGroup && !failedRetryVisible
+    !(restTimer && restTimer.mode !== 'idle')
+  const showRestAdjust = !activeGroup
   const canSwapExercise =
     !activeGroup &&
-    !(restTimer && restTimer.mode !== 'idle') &&
-    !failedRetryVisible
+    !(restTimer && restTimer.mode !== 'idle')
 
   return (
     <>
@@ -1847,13 +1799,11 @@ export default function CustomWorkoutPage() {
         actual={actual}
         previousResult={previousResult}
         previousResults={previousResults}
-        failedIndex={failedIndex}
         showHint={showHint}
         showMenu={showMenu}
         showCancelConfirm={cancelOpen}
         showLeaveConfirm={leaveOpen}
         showPlanSheet={showPlanSheet}
-        failedRetryVisible={failedRetryVisible}
         pulseFlash={pulseFlash}
         nextLabel={nextLabel}
         checklistRef={checklistRef}
@@ -1909,23 +1859,6 @@ export default function CustomWorkoutPage() {
         }}
         onDone={() => void handleDone()}
         onEditPreviousSet={handleEditPreviousSet}
-        onRetry={() => setFailedIndex(undefined)}
-        onFinishDayEarly={() => {
-          if (finishingRef.current) return
-          const below = buildCurrentBelowTargetResult()
-          if (!below) return
-          finishingRef.current = true
-          void (async () => {
-            try {
-              onSetFailedFeedback({ sound: timerSound, vibration: timerVibration })
-              await acceptSetAndContinue(below)
-            } catch {
-              setSaveError(pl.errorSaveSet)
-            } finally {
-              finishingRef.current = false
-            }
-          })()
-        }}
         onExpandTimer={() => {
           if (restTimer) mutateRestTimer({ ...restTimer, mode: 'expanded' })
         }}

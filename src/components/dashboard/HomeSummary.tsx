@@ -1,13 +1,11 @@
-import { Play, ChevronDown, Activity } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import type { HomeLoadResult, QuickCta } from '@/lib/home-summary'
 import { getGreetingKey } from '@/lib/home-summary'
 import { Button } from '@/components/ui/Button'
 import { MetricStrip } from '@/components/ui/MetricStrip'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { UserPlanBadge } from '@/components/pro/UserPlanBadge'
 import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
 import { pl } from '@/i18n/pl'
-import { cn } from '@/lib/utils'
 
 type Summary = HomeLoadResult['summary']
 
@@ -22,8 +20,11 @@ export function HomeStatusHeader({
 }) {
   const greetingKey = getGreetingKey()
   const cta = summary.quickCta
-  const showCta = cta && onQuickCta
-  const isScroll = cta?.kind === 'scroll'
+  // Actionable kinds ('workout', 'workout-force', 'setup') are not rendered
+  // here on purpose — the first program card directly below offers the exact
+  // same action, and two stacked pulsing CTAs competed in the first viewport.
+  // Only 'scroll' stays: jumping to a card is something no card button does.
+  const showCta = cta?.kind === 'scroll' && !!onQuickCta
   return (
     <header className="mb-5">
       {/* Date + greeting — compact eyebrow; plan chip stays glued to the name
@@ -54,20 +55,16 @@ export function HomeStatusHeader({
           {summary.statusSubtitle}
         </p>
       )}
-      {/* Quick CTA — primary action, one tap away */}
+      {/* Scroll CTA — jump to the card that needs attention */}
       {showCta && cta && onQuickCta && (
         <Button
           size="touch"
           fullWidth
-          className={cn('mt-3', !isScroll && 'sr-pulse-cta')}
+          className="mt-3"
           onClick={() => onQuickCta(cta)}
         >
           <span className="flex items-center justify-center gap-2">
-            {isScroll ? (
-              <ChevronDown size={18} aria-hidden />
-            ) : (
-              <Play size={18} className="fill-current" aria-hidden />
-            )}
+            <ChevronDown size={18} aria-hidden />
             {cta.label}
           </span>
         </Button>
@@ -76,14 +73,15 @@ export function HomeStatusHeader({
   )
 }
 
+/** Activity metrics fragment — renders inside the merged "Twój tydzień"
+ *  section on the dashboard, so it has no own header/landmark. */
 export function HomeActivitySection({
   summary,
 }: {
   summary: Summary
 }) {
   return (
-    <section aria-label={pl.homeActivityTitle}>
-      <SectionHeader icon={Activity} title={pl.homeActivityTitle} />
+    <>
       <MetricStrip
         metrics={[
           {
@@ -113,22 +111,6 @@ export function HomeActivitySection({
         compact
         customLastWorkout={summary.customLastWorkout}
       />
-    </section>
-  )
-}
-
-/** @deprecated Prefer HomeStatusHeader + HomeActivitySection */
-export function HomeSummary({
-  summary,
-}: {
-  summary: Summary
-  onScrollToProgram?: (program: import('@/data/plans/types').Program) => void
-  sessions?: import('@/lib/db').LocalWorkoutSession[]
-}) {
-  return (
-    <section className="mb-5" aria-label={pl.navWorkout}>
-      <HomeStatusHeader summary={summary} />
-      <HomeActivitySection summary={summary} />
-    </section>
+    </>
   )
 }

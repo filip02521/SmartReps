@@ -103,11 +103,11 @@ export default function Dashboard() {
       return
     }
     if (!settings.aiProactiveCoach) {
-      navigate('/profile')
+      navigate('/profile?settings=ai')
       return
     }
     if (!weeklyAiReady) {
-      navigate(hasSession === false ? '/setup/login' : '/profile')
+      navigate(hasSession === false ? '/setup/login' : '/profile?settings=ai')
       return
     }
     setSearchParams({ weekly_report: 'force' }, { replace: true })
@@ -624,19 +624,21 @@ export default function Dashboard() {
               <div className="flex flex-col gap-3">
                 <CustomPlansHomeSection embedded />
                 {home.cards.length > 0 && (
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="sr-text-body-sm font-semibold text-[var(--sr-text-secondary)]">
-                      {pl.programs}
-                    </h3>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => navigate('/plans?tab=programs')}
-                    >
-                      {pl.homeSeeAllCustom}
-                    </Button>
-                  </div>
+                  <SectionHeader
+                    as="h3"
+                    density="compact"
+                    title={pl.programs}
+                    action={
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => navigate('/plans?tab=programs')}
+                      >
+                        {pl.homeSeeAll}
+                      </Button>
+                    }
+                  />
                 )}
                 {home.cards.map((card) => (
                   <ProgramHomeCard
@@ -666,17 +668,16 @@ export default function Dashboard() {
             <CustomPlansHomeSection hideEmptyDiscover />
           )}
 
-          {/* 4. Motywacja tygodnia — wyzwanie + streak (skonsolidowane) */}
-          <section aria-label={pl.homeMotivationSectionAria} className="mt-6">
-            <SectionHeader title={pl.homeMotivationTitle} />
+          {/* 4. Twój tydzień — wyzwanie + seria + metryki aktywności w jednej
+              sekcji (wcześniej dwa osobne landmarki rozbijały scroll). */}
+          <section aria-label={pl.homeThisWeekSectionAria} className="mt-6">
+            <SectionHeader title={pl.homeThisWeekTitle} />
             <WeeklyChallengeCard />
             <StreakChainCard sessions={heatmapSessions} compact />
+            <div className="mt-3">
+              <HomeActivitySection summary={home.summary} />
+            </div>
           </section>
-
-          {/* 5. Activity metrics — retrospective, kompaktowe */}
-          <div className="mt-6">
-            <HomeActivitySection summary={home.summary} />
-          </div>
 
           {/* 6. Proactive coach: weekly report card + CTA gdy AI brak */}
           <section aria-label={pl.coachWeeklyReportSectionAria} className="mt-6">

@@ -14,7 +14,6 @@ import {
   type SyncStatusSnapshot,
 } from '@/lib/sync-status'
 import { retryDeadLetterItems, clearDeadLetterItems } from '@/lib/sync'
-import { useAppStore } from '@/stores/app-store'
 import { showToast } from '@/stores/toast-store'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
@@ -45,21 +44,17 @@ type AccountHeroProps = {
   syncing: boolean
   online: boolean
   showLogout: boolean
-  onSyncNow: () => void | Promise<void>
-  onLogin: () => void
   onLogout: () => void
 }
 
-/** Account + sync status for Profile — one primary CTA; logout is secondary ghost. */
+/** Account + sync status inside Settings — status-only on purpose: the
+ *  ProfileHero owns the sync/login CTA so the action isn't duplicated. */
 export function AccountHero({
   syncing,
   online,
   showLogout,
-  onSyncNow,
-  onLogin,
   onLogout,
 }: AccountHeroProps) {
-  const hasCompletedFirstWorkout = useAppStore((s) => s.hasCompletedFirstWorkout)
   const [snapshot, setSnapshot] = useState<SyncStatusSnapshot | null>(null)
   const [retrying, setRetrying] = useState(false)
 
@@ -108,15 +103,6 @@ export function AccountHero({
       ? pl.syncErrorReason(snapshot.lastSyncFailureReason)
       : null,
   ].filter(Boolean) as string[]
-
-  const showLoginCta = snapshot.accountState === 'local_only'
-  const showLoginAgain =
-    snapshot.accountState === 'logged_out_locally' ||
-    snapshot.accountState === 'session_expired'
-  const showSyncCta =
-    snapshot.accountState === 'sync_error' ||
-    snapshot.accountState === 'logged_in' ||
-    snapshot.accountState === 'syncing'
 
   const handleRetryDeadLetter = async () => {
     if (retrying) return
@@ -202,39 +188,13 @@ export function AccountHero({
         <SyncErrorDiagnostics errors={snapshot.recentErrors} />
       )}
 
-      {/* FAQ — styled collapsible (not native <details>) */}
-      <FaqCollapsible />
-
-      <div className="flex flex-col gap-2.5 border-t border-[var(--sr-border-subtle)] pt-3">
-        {showLoginCta && (
-          <Button size="touch" fullWidth onClick={onLogin}>
-            {hasCompletedFirstWorkout ? pl.syncCtaLoginBackup : pl.login}
-          </Button>
-        )}
-        {showLoginAgain && (
-          <Button size="touch" fullWidth onClick={onLogin}>
-            {snapshot.accountState === 'session_expired'
-              ? pl.syncCtaSessionExpired
-              : pl.syncCtaLoginAgain}
-          </Button>
-        )}
-        {showSyncCta && (
-          <Button
-            size="touch"
-            fullWidth
-            disabled={!online || syncing}
-            onClick={() => void onSyncNow()}
-          >
-            {syncing && <BrandLoader size={18} className="mr-2" />}
-            {syncing ? pl.syncInProgress : pl.syncNow}
-          </Button>
-        )}
-        {showLogout && (
+      {showLogout && (
+        <div className="border-t border-[var(--sr-border-subtle)] pt-3">
           <Button variant="ghost" size="md" fullWidth onClick={onLogout}>
             {pl.logout}
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -282,43 +242,4 @@ function SyncErrorDiagnostics({ errors }: { errors: import('@/lib/analytics').Sy
   )
 }
 
-/** Styled FAQ collapsible — replaces native <details> for consistent focus + animation. */
-function FaqCollapsible() {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="overflow-hidden rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)]/60">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className={cn('flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-sm font-medium text-[var(--sr-text-primary)] transition-colors hover:bg-[var(--sr-bg-elevated)]', FOCUS_RING)}
-      >
-        {pl.syncFaqTitle}
-        <ChevronDown
-          size={18}
-          className={cn(
-            'shrink-0 text-[var(--sr-text-muted)] transition-transform duration-200',
-            open && 'rotate-180',
-          )}
-          aria-hidden
-        />
-      </button>
-      <div
-        inert={!open}
-        className={cn(
-          'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out motion-reduce:transition-none',
-          open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
-        )}
-      >
-        <div className="overflow-hidden">
-          <ul className="flex flex-col gap-2 border-t border-[var(--sr-border-subtle)] px-3 py-3 text-sm leading-relaxed text-[var(--sr-text-secondary)]">
-            <li>{pl.syncFaqLocal}</li>
-            <li>{pl.syncFaqLogin}</li>
-            <li>{pl.syncFaqWhat}</li>
-            <li>{pl.syncFaqMidWorkout}</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  )
-}
+

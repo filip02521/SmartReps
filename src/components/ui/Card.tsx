@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { HTMLAttributes } from 'react'
+import { StatusPill } from '@/components/ui/StatusPill'
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
@@ -13,6 +14,10 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   )
 }
 
+/**
+ * Badge — status pill used across cards. Thin wrapper over the shared
+ * StatusPill system so all label chips share one chrome.
+ */
 export function Badge({
   className,
   variant = 'default',
@@ -20,18 +25,21 @@ export function Badge({
 }: HTMLAttributes<HTMLSpanElement> & {
   variant?: 'default' | 'success' | 'warning' | 'error' | 'info'
 }) {
-  const colors = {
-    default: 'bg-[var(--sr-brand-primary-muted)] text-[var(--sr-brand-primary-hover)]',
-    success: 'bg-[var(--sr-success-muted)] text-[var(--sr-success)]',
-    warning: 'bg-[var(--sr-warning-muted)] text-[var(--sr-warning)]',
-    error: 'bg-[var(--sr-error-muted)] text-[var(--sr-error)]',
-    info: 'bg-[var(--sr-info-muted)] text-[var(--sr-info)]',
-  }
+  const toneMap = {
+    default: 'brand',
+    success: 'success',
+    warning: 'warning',
+    error: 'error',
+    info: 'info',
+  } as const
+  const tone = toneMap[variant]
   return (
-    <span
+    <StatusPill
+      tone={tone}
+      size="md"
       className={cn(
-        'inline-flex items-center rounded-[var(--sr-radius-full)] px-2.5 py-0.5 text-xs font-medium',
-        colors[variant],
+        'py-0.5 font-medium',
+        variant === 'default' && 'text-[var(--sr-brand-primary-hover)]',
         className,
       )}
       {...props}

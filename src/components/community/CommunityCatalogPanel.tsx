@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { EmptyState, FeedbackBanner, SkeletonCard } from '@/components/ux/Feedback'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { ChipRail } from '@/components/ui/ChipRail'
 import { CommunityPlanCard } from '@/components/community/CommunityPlanCard'
 import { pl } from '@/i18n/pl'
 import { useOnline } from '@/hooks/useOnline'
@@ -23,8 +24,6 @@ import {
 import { sortCommunityRows } from '@/lib/community-sort'
 import { COMMUNITY_TAGS, type CommunityTag } from '@/data/community-tags'
 import { communityTagLabel } from '@/lib/community-labels'
-import { cn } from '@/lib/utils'
-import { FOCUS_RING } from '@/lib/ui-chrome'
 import { setAuthReturnTo } from '@/lib/auth-sync'
 import { getAccountSwitchPending } from '@/lib/account-switch-gate'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
@@ -173,7 +172,10 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
   }
   if (error && rows.length === 0) {
     return (
-      <EmptyState title={pl.communityOffline} description={pl.plansCommunityPageHint} />
+      <EmptyState
+        title={error}
+        action={{ label: pl.retry, onClick: () => void load() }}
+      />
     )
   }
 
@@ -196,43 +198,15 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
         ]}
       />
 
-      <div
-        className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        role="group"
-        aria-label={pl.communityTagFilterLabel}
-      >
-        <button
-          type="button"
-          aria-pressed={tag == null}
-          className={cn(
-            FOCUS_RING,
-            'shrink-0 rounded-[var(--sr-radius-full)] px-2.5 py-1.5 text-xs font-medium',
-            tag == null
-              ? 'bg-[var(--sr-brand-primary-muted)] font-semibold text-[var(--sr-brand-primary)]'
-              : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)]',
-          )}
-          onClick={() => setTag(null)}
-        >
-          {pl.communityFilterAll}
-        </button>
-        {COMMUNITY_TAGS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            aria-pressed={tag === t}
-            className={cn(
-              FOCUS_RING,
-              'shrink-0 rounded-[var(--sr-radius-full)] px-2.5 py-1.5 text-xs font-medium',
-              tag === t
-                ? 'bg-[var(--sr-brand-primary-muted)] font-semibold text-[var(--sr-brand-primary)]'
-                : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)]',
-            )}
-            onClick={() => setTag(t === tag ? null : t)}
-          >
-            {communityTagLabel(t)}
-          </button>
-        ))}
-      </div>
+      <ChipRail
+        ariaLabel={pl.communityTagFilterLabel}
+        value={tag ?? 'all'}
+        onChange={(v) => setTag(v === 'all' ? null : v)}
+        options={[
+          { value: 'all' as const, label: pl.communityFilterAll },
+          ...COMMUNITY_TAGS.map((t) => ({ value: t, label: communityTagLabel(t) })),
+        ]}
+      />
 
       {showMyLink && userId && isSupabaseConfigured && (
         <div className="flex justify-end">

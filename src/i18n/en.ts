@@ -16,9 +16,8 @@ export const en: Translation = {
   homeSessions14dHint: '14 days',
   homeReps14d: 'Reps',
   homeReps14dHint: '14 days',
-  homeActivityTitle: 'Your activity',
-  homeMotivationTitle: 'This week\'s motivation',
-  homeMotivationSectionAria: 'This week\'s motivation — challenge and training streak',
+  homeThisWeekTitle: 'Your week',
+  homeThisWeekSectionAria: 'Your week — challenge, training streak and activity',
   homeAvgPerSession: 'Avg / session',
   homeAvgPerSessionHint: 'reps',
   homeInsightNoActivity: 'No workouts in a month — time to get back on track.',
@@ -773,9 +772,6 @@ export const en: Translation = {
   retestNow: 'Take a max test',
   login: 'Log in',
   addProgram: 'Add program',
-  addProgramPushups: 'Add pushups',
-  addProgramPullups: 'Add pull-ups',
-  addProgramSquats: 'Add squats',
   changeLevelActiveWarning:
     'You have a workout session in progress. Changing the level will delete this session. Continue?',
   prevColumn: 'Prev.',
@@ -865,8 +861,6 @@ export const en: Translation = {
     `Training streak: ${current} weeks in a row, best: ${best} weeks`,
   // Streak detail sheet
   streakSheetTitle: 'Your streak',
-  streakSheetCurrent: 'Current',
-  streakSheetBest: 'Best',
   streakSheetTotal: 'Workouts',
   streakSheetMilestones: 'Milestones',
   streakSheetWeeksShort: 'wks',
@@ -1039,10 +1033,6 @@ export const en: Translation = {
     'Some sets came in below the plan — that\'s fine.',
   /** @deprecated Custom days no longer fail; kept for residual imports */
   customSummaryRecFail: 'Workout saved — come back when you\'re ready.',
-  /** @deprecated */
-  customSummaryFailPolicy: '',
-  customFailEndLabel: 'Save and continue',
-  customFailBannerHint: 'Below target — you can fix it or save the result and move on.',
   customWorkoutAddSet: 'Add set',
   customWorkoutRemoveSet: 'Remove set',
   customWorkoutSetsCount: (n: number) => `${n}`,
@@ -1083,7 +1073,6 @@ export const en: Translation = {
   customSummaryUpdatePlanGroupExercises: 'Exercise changes (added, swapped)',
   customSummaryUpdatePlanGroupExercisesHint: 'Keep exercise changes in the plan permanently',
   customSummaryUpdatePlanSaveSelected: 'Save selected',
-  customSummaryUpdatePlanSaveAll: 'Save all',
   customSummaryUpdatePlanDone: 'Plan updated.',
   customSummaryUpdatePlanFailed: 'Failed to save changes to the plan.',
   customWorkoutProblemTitle: 'Can\'t start the workout',
@@ -1344,7 +1333,7 @@ export const en: Translation = {
   // Plans — resistance bands
   plansMinePageHint: 'Custom training plans — edit and start.',
   plansLibraryPageHint: 'Exercises to use in plans.',
-  plansProgramsPageHint: 'Pushup and pull-up programs — expand a cycle to see targets.',
+  plansProgramsPageHint: 'Push-up, pull-up, and squat programs — expand a cycle to see targets.',
   plansProgramHint: 'Expand a cycle to see set targets across days.',
   plansTabAriaLabel: 'Plan tabs',
   plansYourCycle: 'Your cycle',
@@ -1352,8 +1341,6 @@ export const en: Translation = {
   plansPeakDay: (day: number, reps: number) => `peak D${day} · ~${reps} reps`,
   plansDayReps: (sets: number, total: number) =>
     sets === 1 ? `1 set · ~${total}` : `${sets} sets · ~${total}`,
-  programBrowseTitle: 'Browse workouts',
-  programBrowseHint: 'Choose your experience level and activate a cycle',
   programGoalPushups: 'Road to 100 push-ups',
   programGoalPullups: 'Road to 50 pull-ups',
   programGoalSquats: 'Road to 300 squats',
@@ -1420,7 +1407,6 @@ export const en: Translation = {
   profileDataDeleteHint: 'Permanently deletes your account and all cloud data.',
   profileUnconfiguredHint: 'No level yet — you\'ll set it up on the Training screen.',
   profileSetupOnTraining: 'Set up on Training',
-  profileProgramsEmpty: 'No enabled training programs.',
   timerSound: 'Workout sounds',
   timerSoundHint: 'Set, rest, 3-2-1 countdown, AMRAP and time target',
   timerVibration: 'Vibration',
@@ -1453,7 +1439,6 @@ export const en: Translation = {
   reminderHourOption: (h: number) => `${String(h).padStart(2, '0')}:00`,
   reminderNotificationTitle: 'SmartReps',
   reminderNotificationBody: 'Time to train — check your plan for today.',
-  syncNow: 'Sync now',
   syncNowOffline: 'No network — sync unavailable',
   syncLastAt: (when: string) => `Last sync: ${when}`,
   syncNever: 'Not synced from this device yet',
@@ -1528,17 +1513,7 @@ export const en: Translation = {
     }
     return labels[reason] ?? labels.unknown
   },
-  syncFaqTitle: 'How does sync work?',
   syncFaqLocal: 'You can train without logging in — progress stays on your phone.',
-  syncFaqLogin:
-    'Logging in with email code creates a cloud backup and lets you restore on another device.',
-  syncFaqWhat:
-    'Sync covers program progress, workout sessions, max tests, and settings (theme, programs).',
-  syncFaqMidWorkout:
-    'A workout in progress syncs only after the day is completed — not between sets.',
-  syncCtaLoginBackup: 'Log in to back up progress',
-  syncCtaLoginAgain: 'Log in again',
-  syncCtaSessionExpired: 'Log in again',
   toastSyncFailedOffline: 'No network — sync will resume when connected',
   toastSyncFailedDeadLetter:
     'Some changes didn\u2019t reach the cloud — check the sync panel in Profile',
@@ -1642,14 +1617,9 @@ export const en: Translation = {
   plansTabPrograms: 'Programs',
   plansTabMine: 'Mine',
   plansTabLibrary: 'Library',
-  plansTabProgramsHint: 'Built-in cycles: push-ups, pull-ups, squats',
-  plansTabMineHint: 'Your custom training plans',
-  plansTabLibraryHint: 'Templates and exercises for building plans',
-  plansTabCommunityHint: 'Plans from other users',
   myPlansTitle: 'My plans',
   myPlansHint: 'Build your own workout with a few exercises.',
   myPlansEmpty: 'You don\u2019t have a custom plan yet.',
-  myPlansEmptyCta: 'Create plan',
   // ─── Starter templates (ready-made plan templates) ───
   starterSheetTitle: 'Starter templates',
   starterSheetHint: 'Ready-made plans from beginner to advanced. Activate and train right away.',
@@ -1728,7 +1698,6 @@ export const en: Translation = {
   planSectionRestDay: 'Rest after day',
   // \u2500\u2500\u2500 AI Plan Generator \u2500\u2500\u2500
   aiGeneratePlan: 'Generate with AI',
-  aiGeneratePlanHint: 'Describe your goal and AI will build a plan based on scientific research.',
   aiSettingsTitle: 'AI — setup',
   aiSettingsHint: 'The API key is stored locally on your device. It is not synced to the cloud.',
   aiProviderLabel: 'AI provider',
@@ -2373,7 +2342,7 @@ export const en: Translation = {
     'Your plans will appear here. Create a plan or add exercises to the library.',
   homeCustomEmptyCreate: 'Create plan',
   homeCustomEmptyLibrary: 'Exercise library',
-  homeSeeAllCustom: 'See all',
+  homeSeeAll: 'See all',
   homeCustomDayOf: (current: number, total: number) =>
     total > 0 ? `Day ${current} of ${total}` : `Day ${current}`,
   homeCustomTodayPreview: (names: string, exercises: number, sets: number) => {
@@ -2688,8 +2657,6 @@ export const en: Translation = {
   communityTeaserHint: 'Ready-made plans to import.',
   communityTeaserCta: 'See more',
   communityDetailDays: 'Day by day plan',
-  communityDetailMeta: (likes: number, imports: number) =>
-    `${likes === 1 ? '1 like' : `${likes} likes`} \u00B7 ${imports === 1 ? '1 import' : `${imports} imports`}`,
   communityAccountSwitchPending: 'Resolve the account switch first.',
   communityRateLimited: 'Publish limit reached — try tomorrow.',
   communityPublishLimitReached: 'You reached the 3-publication limit. SmartReps Pro removes it.',

@@ -1,6 +1,6 @@
 import { cn, formatRestTime, vibrate } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
-import { Check, ChevronDown, ChevronRight, ChevronUp, Minus, Plus, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, ChevronUp, Minus, Plus, TrendingUp, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { BrandLoader } from '@/components/ui/BrandLoader'
 import { OverlayPortal } from '@/components/ui/OverlayPortal'
@@ -92,6 +92,45 @@ export function ConfirmSheet({
   )
 }
 
+/**
+ * WorkoutStepperButton — the shared −/+ control chrome (h-14, bordered,
+ * surface bg) used by every workout counter: builtin RepCounter, custom
+ * metric counter and the reps+weight metric columns. `elevated` is for
+ * steppers sitting on a WorkoutControlSurface (elevated bg) — they use the
+ * elevated bg themselves so they still read as buttons.
+ */
+export function WorkoutStepperButton({
+  ariaLabel,
+  disabled,
+  onClick,
+  children,
+  elevated = false,
+}: {
+  ariaLabel: string
+  disabled?: boolean
+  onClick: () => void
+  children: ReactNode
+  elevated?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      disabled={disabled}
+      className={cn(
+        'flex h-14 w-14 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] text-[var(--sr-text-primary)] transition-all hover:border-[var(--sr-border-strong)] active:scale-95 disabled:opacity-50 disabled:active:scale-100',
+        elevated
+          ? 'bg-[var(--sr-bg-elevated)] hover:bg-[var(--sr-bg-surface)]'
+          : 'bg-[var(--sr-bg-surface)] hover:bg-[var(--sr-bg-elevated)]',
+        FOCUS_RING,
+      )}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  )
+}
+
 export function RepCounter({
   target,
   program,
@@ -155,18 +194,13 @@ export function RepCounter({
         <p className="text-center text-sm text-[var(--sr-text-secondary)]">{disabledHint}</p>
       )}
       <div className="flex w-full max-w-xs items-center gap-3">
-        <button
-          type="button"
-          aria-label={pl.lessReps}
+        <WorkoutStepperButton
+          ariaLabel={pl.lessReps}
           disabled={disabled}
-          className={cn(
-            'flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] transition-all hover:border-[var(--sr-border-strong)] hover:bg-[var(--sr-bg-elevated)] active:scale-95 disabled:opacity-50 disabled:active:scale-100',
-            FOCUS_RING,
-          )}
           onClick={() => onActualChange(Math.max(0, actual - 1))}
         >
           <Minus size={24} />
-        </button>
+        </WorkoutStepperButton>
         <Button
           size="touch"
           fullWidth
@@ -181,28 +215,159 @@ export function RepCounter({
         >
           {pl.done}
         </Button>
-        <button
-          type="button"
-          aria-label={pl.moreReps}
+        <WorkoutStepperButton
+          ariaLabel={pl.moreReps}
           disabled={disabled || actual >= maxReps}
-          className={cn(
-            'flex h-14 w-14 items-center justify-center rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] text-[var(--sr-text-primary)] transition-all hover:border-[var(--sr-border-strong)] hover:bg-[var(--sr-bg-elevated)] active:scale-95 disabled:opacity-50 disabled:active:scale-100',
-            FOCUS_RING,
-          )}
           onClick={() => onActualChange(Math.min(maxReps, actual + 1))}
         >
           <Plus size={24} />
-        </button>
+        </WorkoutStepperButton>
       </div>
     </div>
   )
 }
 
-function SetStatusIcon({ state }: { state: 'pending' | 'active' | 'done' | 'failed' }) {
+export type SetRowState = 'pending' | 'active' | 'done' | 'partial' | 'failed'
+
+function SetStatusIcon({ state }: { state: SetRowState }) {
   if (state === 'done') return <Check size={16} className="text-[var(--sr-success)] animate-check-in" />
+  if (state === 'partial') return <TrendingUp size={14} className="text-[var(--sr-warning)]" />
   if (state === 'failed') return <X size={16} className="text-[var(--sr-error)]" />
   if (state === 'active') return <ChevronRight size={16} className="text-[var(--sr-brand-primary)]" />
   return <span className="inline-block h-4 w-4" />
+}
+
+export type SetRowChip = {
+  text: string
+  ariaLabel?: string
+  title?: string
+  tone?: 'brand' | 'warning'
+}
+
+/** Presentational set row — one visual implementation shared by the builtin
+ *  SetRow and the custom-plan CustomSetRow. Callers pass already-formatted
+ *  labels (they own the domain formatting) plus a signed delta. */
+export function SetRowView({
+  setNumber,
+  state,
+  valueLabel,
+  delta = null,
+  editable,
+  onClick,
+  leftBadge,
+  rightChips = [],
+}: {
+  setNumber: number
+  state: SetRowState
+  /** Formatted right-side value, e.g. "8 / 10" or the plain target. */
+  valueLabel: string
+  /** Signed delta vs the previous session — rendered as a pill when non-null. */
+  delta?: number | null
+  editable?: boolean
+  onClick?: () => void
+  /** Small muted suffix after the set label (e.g. the "extra set" badge). */
+  leftBadge?: string
+  rightChips?: SetRowChip[]
+}) {
+  const canPress = Boolean(onClick) && (state !== 'done' || editable)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!canPress}
+      data-active-set={state === 'active' ? 'true' : undefined}
+      aria-label={
+        editable
+          ? `${pl.setColumn} ${setNumber} — ${pl.editPreviousSet}`
+          : leftBadge
+            ? `${pl.setColumn} ${setNumber} (${leftBadge})`
+            : undefined
+      }
+      className={cn(
+        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] border px-3 py-2.5 text-left transition-all active:scale-[0.99]',
+        FOCUS_RING,
+        state === 'active' && 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] shadow-[inset_3px_0_0_0_var(--sr-brand-primary)]',
+        state === 'done' && 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
+        state === 'partial' && 'border-[var(--sr-warning)]/40 bg-[var(--sr-warning-muted)]',
+        state === 'failed' && 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]',
+        state === 'pending' && 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] hover:border-[var(--sr-border-strong)]',
+        editable && 'ring-1 ring-inset ring-[var(--sr-brand-primary)]/40',
+      )}
+    >
+      <span
+        className={cn(
+          'flex min-w-0 items-center gap-2 font-medium',
+          state === 'done' && 'text-[var(--sr-success)]',
+          state === 'partial' && 'text-[var(--sr-warning)]',
+          state === 'failed' && 'text-[var(--sr-error)]',
+          state === 'pending' && 'text-[var(--sr-text-secondary)]',
+          state === 'active' && 'text-[var(--sr-text-primary)]',
+        )}
+      >
+        <SetStatusIcon state={state} />
+        <span className="truncate">
+          {pl.setColumn} {setNumber}
+          {leftBadge ? (
+            <span className="ml-1.5 sr-text-caption font-normal text-[var(--sr-text-muted)]">
+              {leftBadge}
+            </span>
+          ) : null}
+        </span>
+      </span>
+      <span className="flex items-center gap-2">
+        <span
+          className={cn(
+            'shrink-0 tabular-nums text-base font-semibold',
+            state === 'done' && 'text-[var(--sr-text-primary)]',
+            state === 'partial' && 'text-[var(--sr-warning)]',
+            state === 'failed' && 'text-[var(--sr-error)]',
+            state === 'pending' && 'text-[var(--sr-text-primary)]',
+            state === 'active' && 'text-[var(--sr-text-primary)]',
+          )}
+        >
+          {valueLabel}
+        </span>
+        {delta !== null && (
+          <span
+            className={cn(
+              'shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums',
+              delta > 0 && 'bg-[var(--sr-success-muted)] text-[var(--sr-success)]',
+              delta < 0 && 'bg-[var(--sr-error-muted)] text-[var(--sr-error)]',
+              delta === 0 && 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
+            )}
+            aria-label={
+              delta > 0
+                ? pl.setDeltaUp(delta)
+                : delta < 0
+                  ? pl.setDeltaDown(Math.abs(delta))
+                  : pl.setDeltaEqual
+            }
+          >
+            {delta > 0
+              ? pl.setDeltaUp(delta)
+              : delta < 0
+                ? pl.setDeltaDown(Math.abs(delta))
+                : pl.setDeltaEqual}
+          </span>
+        )}
+        {rightChips.map((chip, i) => (
+          <span
+            key={i}
+            title={chip.title}
+            aria-label={chip.ariaLabel}
+            className={cn(
+              'shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums',
+              chip.tone === 'warning'
+                ? 'bg-[var(--sr-warning-muted)] text-[var(--sr-warning)]'
+                : 'bg-[var(--sr-brand-primary-muted)] font-semibold text-[var(--sr-brand-primary)]',
+            )}
+          >
+            {chip.text}
+          </span>
+        ))}
+      </span>
+    </button>
+  )
 }
 
 export function SetRow({
@@ -230,98 +395,40 @@ export function SetRow({
   /** RIR for this set (optional, shown as badge when present). */
   rir?: number
 }) {
-  const canPress = Boolean(onClick) && (state !== 'done' || editable)
   // Delta vs previous session — only show for completed sets with data
   const showDelta =
     state === 'done' &&
     actual !== undefined &&
     previousActual !== undefined &&
     previousActual > 0
-  const delta = showDelta ? actual - previousActual : 0
+  const valueLabel =
+    state === 'done' && actual !== undefined
+      ? editable
+        ? `${actual} / ${formatSetTarget(target)} · ${pl.editShort}`
+        : `${actual} / ${formatSetTarget(target)}`
+      : state === 'failed' && actual !== undefined
+        ? `${actual} / ${formatSetTarget(target)}`
+        : formatSetTarget(target)
+  const rpeChip: SetRowChip[] =
+    (rpe != null || rir != null) && state !== 'pending'
+      ? [
+          {
+            text: rpe != null ? pl.setLogDetailsRpeChip(rpe) : pl.setLogDetailsRirChip(rir!),
+            ariaLabel:
+              rpe != null ? pl.setLogDetailsRpeChip(rpe) : pl.setLogDetailsRirChip(rir!),
+          },
+        ]
+      : []
   return (
-    <button
-      type="button"
+    <SetRowView
+      setNumber={setNumber}
+      state={state}
+      valueLabel={valueLabel}
+      delta={showDelta ? actual - previousActual : null}
+      editable={editable}
       onClick={onClick}
-      disabled={!canPress}
-      data-active-set={state === 'active' ? 'true' : undefined}
-      aria-label={
-        editable
-          ? `${pl.setColumn} ${setNumber} — ${pl.editPreviousSet}`
-          : undefined
-      }
-      className={cn(
-        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] border px-3 py-2.5 text-left transition-all active:scale-[0.99]',
-        FOCUS_RING,
-        state === 'active' && 'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] shadow-[inset_3px_0_0_0_var(--sr-brand-primary)]',
-        state === 'done' && 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
-        state === 'failed' && 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]',
-        state === 'pending' && 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] hover:border-[var(--sr-border-strong)]',
-        editable && 'ring-1 ring-inset ring-[var(--sr-brand-primary)]/40',
-      )}
-    >
-      <span
-        className={cn(
-          'flex items-center gap-2 font-medium',
-          state === 'done' && 'text-[var(--sr-success)]',
-          state === 'failed' && 'text-[var(--sr-error)]',
-          state === 'pending' && 'text-[var(--sr-text-secondary)]',
-          state === 'active' && 'text-[var(--sr-text-primary)]',
-        )}
-      >
-        <SetStatusIcon state={state} />
-        {pl.setColumn} {setNumber}
-      </span>
-      <span className="flex items-center gap-2">
-        <span
-          className={cn(
-            'tabular-nums text-base font-semibold',
-            state === 'done' && 'text-[var(--sr-text-primary)]',
-            state === 'failed' && 'text-[var(--sr-error)]',
-            state === 'pending' && 'text-[var(--sr-text-primary)]',
-            state === 'active' && 'text-[var(--sr-text-primary)]',
-          )}
-        >
-          {state === 'done' && actual !== undefined
-            ? editable
-              ? `${actual} / ${formatSetTarget(target)} · ${pl.editShort}`
-              : `${actual} / ${formatSetTarget(target)}`
-            : state === 'failed' && actual !== undefined
-              ? `${actual} / ${formatSetTarget(target)}`
-              : formatSetTarget(target)}
-        </span>
-        {showDelta && (
-          <span
-            className={cn(
-              'shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums',
-              delta > 0 && 'bg-[var(--sr-success-muted)] text-[var(--sr-success)]',
-              delta < 0 && 'bg-[var(--sr-error-muted)] text-[var(--sr-error)]',
-              delta === 0 && 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
-            )}
-            aria-label={
-              delta > 0
-                ? pl.setDeltaUp(delta)
-                : delta < 0
-                  ? pl.setDeltaDown(Math.abs(delta))
-                  : pl.setDeltaEqual
-            }
-          >
-            {delta > 0
-              ? pl.setDeltaUp(delta)
-              : delta < 0
-                ? pl.setDeltaDown(Math.abs(delta))
-                : pl.setDeltaEqual}
-          </span>
-        )}
-        {(rpe != null || rir != null) && state !== 'pending' && (
-          <span
-            className="shrink-0 rounded-full bg-[var(--sr-brand-primary-muted)] px-1.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-brand-primary)]"
-            aria-label={rpe != null ? pl.setLogDetailsRpeChip(rpe) : pl.setLogDetailsRirChip(rir!)}
-          >
-            {rpe != null ? pl.setLogDetailsRpeChip(rpe) : pl.setLogDetailsRirChip(rir!)}
-          </span>
-        )}
-      </span>
-    </button>
+      rightChips={rpeChip}
+    />
   )
 }
 

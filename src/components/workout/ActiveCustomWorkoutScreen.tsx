@@ -1,6 +1,6 @@
-import { ArrowLeft, BarChart2, ListOrdered, Minus, MoreVertical, Plus, Repeat, TrendingUp } from 'lucide-react'
+import { ArrowLeft, BarChart2, ListOrdered, Minus, MoreVertical, Plus, Repeat } from 'lucide-react'
 import { useEffect, useState, type RefObject, ReactNode } from 'react'
-import { Check, ChevronDown, ChevronRight, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { ErrorBanner } from '@/components/ux/Feedback'
@@ -8,7 +8,8 @@ import {
   ConfirmSheet,
   RestTimerExpanded,
   RestTimerPill,
-  WorkoutFailRetryRow,
+  SetRowView,
+  WorkoutStepperButton,
 } from '@/components/workout/WorkoutComponents'
 import { CustomPreviousResultHint } from '@/components/workout/CustomPreviousResultHint'
 import { SetLogDetails } from '@/components/workout/SetLogDetails'
@@ -55,38 +56,9 @@ import { cn } from '@/lib/utils'
 import { kgToDisplay, displayToKg, weightUnitLabel } from '@/lib/weight-units'
 import { NumericDraftInput } from '@/components/ui/NumericDraftInput'
 
-const WORKOUT_STEPPER_BTN =
-  'flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-primary)] transition-colors hover:bg-[var(--sr-bg-elevated)] active:scale-95 disabled:opacity-40 disabled:active:scale-100'
-
-function WorkoutStepperButton({
-  ariaLabel,
-  disabled,
-  onClick,
-  children,
-  elevated = false,
-}: {
-  ariaLabel: string
-  disabled?: boolean
-  onClick: () => void
-  children: ReactNode
-  elevated?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={ariaLabel}
-      disabled={disabled}
-      className={cn(
-        WORKOUT_STEPPER_BTN,
-        elevated ? 'bg-[var(--sr-bg-elevated)]' : 'bg-[var(--sr-bg-surface)]',
-        FOCUS_RING,
-      )}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  )
-}
+// Same chrome as the builtin RepCounter steppers (h-14, bordered) — the two
+// WorkoutStepperButton — wspólny chrome steppera (−/+) dla builtin RepCounter
+// i custom counterów; import z WorkoutComponents.
 
 /**
  * Collapsible panel for set count + rest adjustment (session-only).
@@ -99,6 +71,7 @@ function SetRestAdjustPanel({
   showSetAdjust,
   restBetweenSetsSec,
   setsCount,
+  doneCount,
   canAddSet,
   canRemoveSet,
   onAddSet,
@@ -110,6 +83,9 @@ function SetRestAdjustPanel({
   showSetAdjust: boolean
   restBetweenSetsSec: number
   setsCount: number
+  /** Completed sets — shown as a progress chip so "Serie X/Y" never disappears
+   *  when the adjust panel replaces the checklist header. */
+  doneCount: number
   canAddSet: boolean
   canRemoveSet: boolean
   onAddSet?: () => void
@@ -133,6 +109,12 @@ function SetRestAdjustPanel({
       >
         <span className="min-w-0 flex-1 break-words sr-text-body-sm font-medium text-[var(--sr-text-secondary)]">
           {summary}
+        </span>
+        <span
+          className="mt-0.5 inline-flex shrink-0 items-center rounded-full bg-[var(--sr-bg-surface)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--sr-text-muted)]"
+          aria-label={pl.customWorkoutProgressAria(doneCount, setsCount)}
+        >
+          {doneCount}/{setsCount}
         </span>
         <ChevronDown
           size={16}
@@ -301,14 +283,6 @@ function WorkoutMetricColumn({
   )
 }
 
-function SetStatusIcon({ state }: { state: 'pending' | 'active' | 'done' | 'partial' | 'failed' }) {
-  if (state === 'done') return <Check size={16} className="animate-check-in text-[var(--sr-success)]" />
-  if (state === 'partial') return <TrendingUp size={14} className="text-[var(--sr-warning)]" />
-  if (state === 'failed') return <X size={16} className="text-[var(--sr-error)]" />
-  if (state === 'active') return <ChevronRight size={16} className="text-[var(--sr-brand-primary)]" />
-  return <span className="inline-block h-4 w-4" />
-}
-
 function CustomSetRow({
   setNumber,
   prescription,
@@ -335,7 +309,6 @@ function CustomSetRow({
   weightUnit?: 'kg' | 'lb'
   durationUnit?: DurationUnit
 }) {
-  const canPress = Boolean(onClick) && (state !== 'done' || editable)
   const targetLabel = formatPrescriptionTarget(prescription, metric, weightUnit, durationUnit)
   const actualLabel =
     result != null ? formatSetActualDisplay(result.actual, metric, weightUnit, durationUnit) : null
@@ -364,89 +337,26 @@ function CustomSetRow({
           : targetLabel
 
   return (
-    <button
-      type="button"
+    <SetRowView
+      setNumber={setNumber}
+      state={state}
+      valueLabel={completedLabel}
+      delta={showDelta && delta !== null ? delta : null}
+      editable={editable}
       onClick={onClick}
-      disabled={!canPress}
-      data-active-set={state === 'active' ? 'true' : undefined}
-      aria-label={
-        editable
-          ? `${pl.setColumn} ${setNumber} — ${pl.editPreviousSet}`
-          : isExtra
-            ? `${pl.setColumn} ${setNumber} (${pl.customWorkoutSetExtraBadge})`
-            : undefined
+      leftBadge={isExtra ? pl.customWorkoutSetExtraBadge : undefined}
+      rightChips={
+        state === 'partial'
+          ? [
+              {
+                text: pl.customWorkoutSetVolumeProgressShort,
+                title: pl.customWorkoutSetVolumeProgressHint,
+                tone: 'warning',
+              },
+            ]
+          : []
       }
-      className={cn(
-        'flex w-full items-center justify-between rounded-[var(--sr-radius-md)] border px-3 py-2.5 text-left transition-all active:scale-[0.99]',
-        FOCUS_RING,
-        state === 'active' &&
-          'border-[var(--sr-brand-primary)] bg-[var(--sr-brand-primary-muted)] shadow-[inset_3px_0_0_0_var(--sr-brand-primary)]',
-        state === 'done' && 'border-[var(--sr-success)]/30 bg-[var(--sr-success-muted)]',
-        state === 'partial' && 'border-[var(--sr-warning)]/40 bg-[var(--sr-warning-muted)]',
-        state === 'failed' && 'border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)]',
-        state === 'pending' && 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] hover:border-[var(--sr-border-strong)]',
-        editable && 'ring-1 ring-inset ring-[var(--sr-brand-primary)]/40',
-      )}
-    >
-      <span
-        className={cn(
-          'flex min-w-0 items-center gap-2 font-medium',
-          state === 'done' && 'text-[var(--sr-success)]',
-          state === 'partial' && 'text-[var(--sr-warning)]',
-          state === 'failed' && 'text-[var(--sr-error)]',
-          state === 'pending' && 'text-[var(--sr-text-secondary)]',
-          state === 'active' && 'text-[var(--sr-text-primary)]',
-        )}
-      >
-        <SetStatusIcon state={state} />
-        <span className="truncate">
-          {pl.setColumn} {setNumber}
-          {isExtra ? (
-            <span className="ml-1.5 sr-text-caption font-normal text-[var(--sr-text-muted)]">
-              {pl.customWorkoutSetExtraBadge}
-            </span>
-          ) : null}
-        </span>
-      </span>
-      <span className="flex items-center gap-2">
-        <span
-          className={cn(
-            'shrink-0 tabular-nums text-base font-semibold',
-            state === 'done' && 'text-[var(--sr-text-primary)]',
-            state === 'partial' && 'text-[var(--sr-warning)]',
-            state === 'failed' && 'text-[var(--sr-error)]',
-            state === 'pending' && 'text-[var(--sr-text-primary)]',
-            state === 'active' && 'text-[var(--sr-text-primary)]',
-          )}
-        >
-          {completedLabel}
-        </span>
-        {showDelta && delta !== null && (
-          <span
-            className={cn(
-              'shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums',
-              delta > 0 && 'bg-[var(--sr-success-muted)] text-[var(--sr-success)]',
-              delta < 0 && 'bg-[var(--sr-error-muted)] text-[var(--sr-error)]',
-              delta === 0 && 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)]',
-            )}
-          >
-            {delta > 0
-              ? pl.setDeltaUp(delta)
-              : delta < 0
-                ? pl.setDeltaDown(Math.abs(delta))
-                : pl.setDeltaEqual}
-          </span>
-        )}
-        {state === 'partial' && (
-          <span
-            className="shrink-0 rounded-full bg-[var(--sr-warning-muted)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--sr-warning)]"
-            title={pl.customWorkoutSetVolumeProgressHint}
-          >
-            {pl.customWorkoutSetVolumeProgressShort}
-          </span>
-        )}
-      </span>
-    </button>
+    />
   )
 }
 
@@ -470,7 +380,6 @@ function CustomSetChecklist({
   metric,
   currentIndex,
   results,
-  failedIndex,
   baselineSetCount,
   onEditLastSet,
   weightUnit = 'kg',
@@ -481,7 +390,6 @@ function CustomSetChecklist({
   metric: PrimaryMetric
   currentIndex: number
   results: SetLog[]
-  failedIndex?: number
   /** Sets at/after this 0-based index are session extras (index >= baseline). */
   baselineSetCount?: number
   onEditLastSet?: () => void
@@ -505,7 +413,6 @@ function CustomSetChecklist({
           // that volume >= target volume) — mark amber instead of red.
           state = isVolumeProgress(prescription, result.actual, metric) ? 'partial' : 'failed'
         }
-        else if (failedIndex === i) state = 'failed'
         else if (i === currentIndex) state = 'active'
         const editable =
           Boolean(onEditLastSet) &&
@@ -939,16 +846,6 @@ function CustomMetricCounter({
           </span>
         )}
       </div>
-      {previousResult && (
-        <CustomPreviousResultHint
-          result={previousResult}
-          metric={metric}
-          currentDayNumber={dayNumber}
-          currentCycleAttempt={cycleAttempt}
-          durationUnit={durationUnit}
-        />
-      )}
-
       {!isRepsWeight && (
         <div className="flex items-baseline gap-2">
           <NumericDraftInput
@@ -976,10 +873,6 @@ function CustomMetricCounter({
             </span>
           )}
         </div>
-      )}
-
-      {disabled && disabledHint && (
-        <p className="text-center text-sm text-[var(--sr-text-secondary)]">{disabledHint}</p>
       )}
 
       {isRepsWeight && (
@@ -1025,6 +918,22 @@ function CustomMetricCounter({
             </p>
           )}
         </WorkoutControlSurface>
+      )}
+
+      {/* Prev-session result sits under the counter value — same slot as the
+          builtin RepCounter's PreviousResultBadge. */}
+      {previousResult && (
+        <CustomPreviousResultHint
+          result={previousResult}
+          metric={metric}
+          currentDayNumber={dayNumber}
+          currentCycleAttempt={cycleAttempt}
+          durationUnit={durationUnit}
+        />
+      )}
+
+      {disabled && disabledHint && (
+        <p className="text-center text-sm text-[var(--sr-text-secondary)]">{disabledHint}</p>
       )}
 
       {isDuration && (
@@ -1119,13 +1028,11 @@ export type ActiveCustomWorkoutScreenProps = {
   previousResult?: PreviousCustomSetResult
   /** Map of setNumber → previous result, for SetChecklist delta indicators. */
   previousResults?: Map<number, { reps?: number; durationSec?: number; weightKg?: number }>
-  failedIndex?: number
   showHint: boolean
   showMenu: boolean
   showCancelConfirm: boolean
   showLeaveConfirm: boolean
   showPlanSheet: boolean
-  failedRetryVisible: boolean
   pulseFlash?: boolean
   saveError?: string | null
   /** Re-attempt the failed set persist (taps "Zrobione" again). */
@@ -1157,8 +1064,6 @@ export type ActiveCustomWorkoutScreenProps = {
   onToggleTimer: () => void
   onDone: () => void
   onEditPreviousSet?: () => void
-  onRetry: () => void
-  onFinishDayEarly: () => void
   onExpandTimer: () => void
   onAddRest15: () => void
   onAddRest30: () => void
@@ -1217,13 +1122,11 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     actual,
     previousResult,
     previousResults,
-    failedIndex,
     showHint,
     showMenu,
     showCancelConfirm,
     showLeaveConfirm,
     showPlanSheet,
-    failedRetryVisible,
     pulseFlash,
     saveError,
     onRetrySave,
@@ -1246,8 +1149,6 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
     onToggleTimer,
     onDone,
     onEditPreviousSet,
-    onRetry,
-    onFinishDayEarly,
     onExpandTimer,
     onAddRest15,
     onAddRest30,
@@ -1349,34 +1250,35 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             <ArrowLeft size={22} />
           </button>
           <div className="min-w-0 flex-1 px-1 text-center">
+            {/* Two fixed lines: exercise name (truncated) + a single muted
+                meta line (set/round · group · plan · position · elapsed).
+                Previously the name could wrap to 2 lines and the meta block
+                to another 2, pushing the counter below the fold on 375px. */}
             {onExerciseStats ? (
               <button
                 type="button"
                 onClick={onExerciseStats}
-                className="mx-auto flex max-w-full min-h-12 items-start justify-center gap-1.5 rounded-[var(--sr-radius-sm)] px-2 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
+                className="mx-auto flex max-w-full min-h-11 items-center justify-center gap-1.5 rounded-[var(--sr-radius-sm)] px-2 transition-colors hover:bg-[var(--sr-bg-surface)] active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sr-brand-primary)]"
                 aria-label={pl.exerciseDetailOpenFor(exerciseDef.name)}
               >
-                <span className="break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+                <span className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
                   {exerciseDef.name}
                 </span>
                 <BarChart2 size={15} className="shrink-0 text-[var(--sr-brand-primary)]" aria-hidden />
               </button>
             ) : (
-              <p className="break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
+              <p className="truncate sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
                 {exerciseDef.name}
               </p>
             )}
-            <p className="break-words sr-text-body-sm font-medium text-[var(--sr-text-primary)]">{setLine}</p>
-            {(groupBadge || headerSub || sessionStartedAt) && (
-              <div className="mt-0.5 flex min-w-0 items-start justify-center gap-x-1.5">
-                {(groupBadge || headerSub) && (
-                  <p className="min-w-0 break-words sr-text-caption text-[var(--sr-text-muted)]">
-                    {[groupBadge, headerSub].filter(Boolean).join(' · ')}
-                  </p>
-                )}
-                {sessionStartedAt && <SessionElapsedLabel startedAt={sessionStartedAt} />}
-              </div>
-            )}
+            <div className="flex min-w-0 items-center justify-center gap-x-1.5">
+              <p className="min-w-0 truncate sr-text-caption text-[var(--sr-text-muted)]">
+                {[setLine, groupBadge, headerSub].filter(Boolean).join(' · ')}
+              </p>
+              {sessionStartedAt && (
+                <SessionElapsedLabel startedAt={sessionStartedAt} className="shrink-0" />
+              )}
+            </div>
           </div>
           <button
             type="button"
@@ -1406,11 +1308,6 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           />
         </div>
       </header>
-
-      {/* Collapsible exercise demo — thumbnail by default, expand on tap */}
-      <div className="px-4 pt-2">
-        <ExerciseDemo exercise={exerciseDef} collapsible hideNameWhenCollapsed showControls={false} />
-      </div>
 
       {saveError && onRetrySave && (
         <div className="mx-4 mt-3 mb-1">
@@ -1523,12 +1420,6 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
         </div>
       )}
 
-      {failedRetryVisible && (
-        <div className="mx-4 mt-3 mb-1 flex items-start gap-2 rounded-[var(--sr-radius-md)] border border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)] px-3 py-2.5 text-sm text-[var(--sr-error)]">
-          {pl.customFailBannerHint}
-        </div>
-      )}
-
       <div className="flex-shrink-0 px-4 pt-3">
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {pl.customWorkoutHeaderAria(
@@ -1590,14 +1481,11 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             {pl.editPreviousSet}
           </Button>
         )}
-        {failedRetryVisible && (
-          <WorkoutFailRetryRow
-            onRetry={onRetry}
-            onFinishEarly={onFinishDayEarly}
-            finishLabel={pl.customFailEndLabel}
-            finishVariant="secondary"
-          />
-        )}
+        {/* Collapsible exercise demo — reference material, lives below the
+            counter so the rep stepper stays in the first viewport. */}
+        <div className="mt-3">
+          <ExerciseDemo exercise={exerciseDef} collapsible hideNameWhenCollapsed showControls={false} />
+        </div>
       </div>
 
       <div ref={checklistRef} className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-28">
@@ -1608,6 +1496,7 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
             showSetAdjust={showSetAdjust}
             restBetweenSetsSec={planned.restBetweenSetsSec}
             setsCount={(checklistSets ?? planned.sets).length}
+            doneCount={setResults.length}
             canAddSet={canAddSet}
             canRemoveSet={canRemoveSet}
             onAddSet={onAddSet}
@@ -1632,7 +1521,6 @@ export function ActiveCustomWorkoutScreen(props: ActiveCustomWorkoutScreenProps)
           metric={exerciseDef.primaryMetric}
           currentIndex={positionSetIndex ?? setIndex}
           results={setResults}
-          failedIndex={failedIndex}
           baselineSetCount={baselineSetCount}
           onEditLastSet={canEditPreviousSet ? onEditPreviousSet : undefined}
           weightUnit={weightUnit}

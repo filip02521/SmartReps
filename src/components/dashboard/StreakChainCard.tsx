@@ -9,6 +9,7 @@ import { useFrozenWeeks } from '@/lib/streak-freeze'
 import type { LocalWorkoutSession } from '@/lib/db'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
+import { StatusPill } from '@/components/ui/StatusPill'
 import { StreakDetailSheet } from './StreakDetailSheet'
 
 /** Count-up animation hook — animates from previous value to new value. */
@@ -276,9 +277,7 @@ export function StreakChainCard({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {isNewRecord ? (
-            <span className="rounded-[var(--sr-radius-full)] bg-[var(--sr-success-muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--sr-success)]">
-              {pl.streakChainNewRecord}
-            </span>
+            <StatusPill tone="success">{pl.streakChainNewRecord}</StatusPill>
           ) : bestStreak > 0 ? (
             <span className="sr-text-caption text-[var(--sr-text-muted)]">
               {pl.streakChainBest(bestStreak)}

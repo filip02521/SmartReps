@@ -291,11 +291,6 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
         </div>
       )}
 
-      {/* Collapsible exercise demo — thumbnail by default, expand on tap */}
-      <div className="px-4 pt-2">
-        <ExerciseDemo exercise={builtinExercise} collapsible hideNameWhenCollapsed showControls={false} />
-      </div>
-
       {cycleVariant === 'negative' && <NegativeBanner />}
       {preparingNegative && (
         <NegativeCountdown seconds={negativeCountdown!} />
@@ -364,6 +359,11 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
             finishLabel={pl.finishDay}
           />
         )}
+        {/* Collapsible exercise demo — reference material, lives below the
+            counter so the rep stepper stays in the first viewport. */}
+        <div className="mt-3">
+          <ExerciseDemo exercise={builtinExercise} collapsible hideNameWhenCollapsed showControls={false} />
+        </div>
       </div>
 
       <div ref={checklistRef} className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-28">

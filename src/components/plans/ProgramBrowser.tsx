@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, MoreVertical } from 'lucide-react'
 import { Card, Badge } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Sheet } from '@/components/ui/Sheet'
 import { ProgramIcon } from '@/components/ui/ProgramIcon'
 import { pl } from '@/i18n/pl'
+import { getCycleById } from '@/data/plans'
+import { getStatusLabel, getStatusTone } from '@/lib/program-service'
 import { getCycleName, getProgramLabel, getProgramGoalLabel, getProgramUnit, getProgramAccentVar } from '@/lib/plan-resolver'
 import { getTargetReps } from '@/lib/progress-engine'
 import { getCycleTier, selectCycleByTest, type CycleTier } from '@/lib/cycle-selector'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import type { Cycle, Program } from '@/data/plans/types'
+import type { LocalProgramProgress } from '@/lib/db'
 import { CycleDetailSheet } from './CycleDetailSheet'
 
 type TierMeta = {
@@ -29,6 +34,15 @@ function tierMeta(tier: CycleTier): TierMeta {
 }
 
 const TIER_ORDER: CycleTier[] = ['beginner', 'intermediate', 'advanced']
+
+function toneToBadge(
+  tone: ReturnType<typeof getStatusTone>,
+): 'success' | 'warning' | 'error' | 'info' {
+  if (tone === 'success') return 'success'
+  if (tone === 'warning') return 'warning'
+  if (tone === 'error') return 'error'
+  return 'info'
+}
 
 function tierRepsRange(cycles: Cycle[]): { min: number; max: number | null } {
   const sorted = [...cycles].sort((a, b) => a.level - b.level)
@@ -58,6 +72,15 @@ function peakDay(cycle: Cycle): { dayNumber: number; total: number } {
   )
 }
 
+export type ProgramManageActions = {
+  canDisable: boolean
+  onSetupOnTraining: () => void
+  onChangeLevel: () => void
+  onRetest: () => void
+  onTogglePause: () => void
+  onDisable: () => void
+}
+
 export function ProgramBrowser({
   program,
   cycles,
@@ -69,6 +92,8 @@ export function ProgramBrowser({
   highlightCycleId,
   onEnableProgram,
   onHighlightConsumed,
+  progress,
+  manage,
 }: {
   program: Program
   cycles: Cycle[]
@@ -80,6 +105,11 @@ export function ProgramBrowser({
   highlightCycleId?: string | null
   onEnableProgram: (program: Program) => void
   onHighlightConsumed?: () => void
+  /** Full progress row — powers the status badge + "cycle · day X/Y" line in
+      the header so the program isn't summarized twice on the screen. */
+  progress?: LocalProgramProgress
+  /** Per-program management actions rendered inside the ⋯ menu sheet. */
+  manage?: ProgramManageActions
 }) {
   // Rekomendowany cykl z ostatniego testu — używa selectCycleByTest (z edge case 5 pompek)
   const recommendedCycleId = useMemo(
@@ -100,6 +130,7 @@ export function ProgramBrowser({
     return 'beginner'
   })
   const [detailCycleId, setDetailCycleId] = useState<string | null>(null)
+  const [showMenu, setShowMenu] = useState(false)
 
   // Deep-link z Dashboardu (?highlight=cycleId) → otwórz sheet i rozwiń tier
   useEffect(() => {
@@ -130,9 +161,24 @@ export function ProgramBrowser({
     ? cycles.find((c) => c.id === detailCycleId) ?? null
     : null
 
+  // Merged per-program header: status badge + "cycle · day X/Y" line live here
+  // instead of a separate settings card rendering the same program twice.
+  const activeCycle = progress ? getCycleById(progress.cycleId) : null
+  const paused = progress?.status === 'paused'
+  const statusBadge = programEnabled
+    ? progress
+      ? { label: getStatusLabel(progress), variant: toneToBadge(getStatusTone(progress)) }
+      : { label: pl.notConfigured, variant: 'info' as const }
+    : null
+
+  const closeThen = (fn: () => void) => {
+    setShowMenu(false)
+    fn()
+  }
+
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-start gap-2.5">
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] ring-1"
           style={{
@@ -145,12 +191,64 @@ export function ProgramBrowser({
         >
           <ProgramIcon program={program} size={22} />
         </span>
-        <div className="min-w-0">
-          <p className="font-semibold text-[var(--sr-text-primary)]">
-            {getProgramLabel(program)}
-          </p>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold text-[var(--sr-text-primary)]">
+              {getProgramLabel(program)}
+            </h3>
+            {statusBadge && <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>}
+          </div>
           <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">{goalLabel}</p>
+          {programEnabled && progress && activeCycle && (
+            <p className="mt-0.5 sr-text-body-sm text-[var(--sr-text-secondary)]">
+              {activeCycle.nameShort} ·{' '}
+              {pl.dayOfTotal(progress.currentDay, activeCycle.days.length)}
+              {progress.cycleAttempt > 1
+                ? ` · ${pl.attemptLabel(progress.cycleAttempt)}`
+                : ''}
+            </p>
+          )}
+          {programEnabled && !progress && (
+            <p className="mt-0.5 sr-text-body-sm text-[var(--sr-text-muted)]">
+              {pl.profileUnconfiguredHint}
+            </p>
+          )}
+          {/* Setup is the primary action for an enabled-but-unconfigured
+              program — it stays visible instead of hiding in the ⋯ menu. */}
+          {programEnabled && !progress && manage && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-2"
+              onClick={manage.onSetupOnTraining}
+            >
+              {pl.profileSetupOnTraining}
+            </Button>
+          )}
         </div>
+        {programEnabled && manage ? (
+          <button
+            type="button"
+            className={cn(
+              'flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-elevated)] hover:text-[var(--sr-text-primary)] active:scale-95',
+              FOCUS_RING,
+            )}
+            aria-label={pl.menuProgram}
+            aria-expanded={showMenu}
+            onClick={() => setShowMenu(true)}
+          >
+            <MoreVertical size={20} />
+          </button>
+        ) : !programEnabled ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="mt-0.5 shrink-0"
+            onClick={() => onEnableProgram(program)}
+          >
+            {pl.addProgram}
+          </Button>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-3">
@@ -194,6 +292,62 @@ export function ProgramBrowser({
           lastTestReps={lastTestReps}
           onEnableProgram={onEnableProgram}
         />
+      )}
+
+      {manage && (
+        <Sheet
+          open={showMenu}
+          onClose={() => setShowMenu(false)}
+          title={getProgramLabel(program)}
+          showClose
+        >
+          <div className="flex flex-col gap-2.5">
+            {progress ? (
+              <>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  fullWidth
+                  className="justify-start px-4"
+                  onClick={() => closeThen(manage.onChangeLevel)}
+                >
+                  {pl.menuChangeLevel}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  fullWidth
+                  className="justify-start px-4"
+                  onClick={() => closeThen(manage.onRetest)}
+                >
+                  {pl.menuRetest}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  fullWidth
+                  className="justify-start px-4 text-[var(--sr-text-secondary)]"
+                  onClick={() => closeThen(manage.onTogglePause)}
+                >
+                  {paused ? pl.resumeProgram : pl.pauseProgram}
+                </Button>
+              </>
+            ) : null}
+            {manage.canDisable && (
+              <div className="border-t border-[var(--sr-border-subtle)] pt-2">
+                <Button
+                  variant="ghost"
+                  size="md"
+                  fullWidth
+                  className="justify-start px-4 text-[var(--sr-error)] hover:text-[var(--sr-error)]"
+                  onClick={() => closeThen(manage.onDisable)}
+                >
+                  {pl.disableProgram}
+                </Button>
+              </div>
+            )}
+          </div>
+        </Sheet>
       )}
     </section>
   )
@@ -279,10 +433,10 @@ function TierCard({
           <span
             className={cn(
               'shrink-0 text-[var(--sr-text-muted)] transition-transform duration-200',
-              isOpen && 'rotate-90',
+              isOpen && 'rotate-180',
             )}
           >
-            <ChevronRight size={20} />
+            <ChevronDown size={20} />
           </span>
         </button>
 
@@ -354,7 +508,7 @@ function CycleCard({
         </span>
       </span>
       <span className="mt-1 shrink-0 text-[var(--sr-text-muted)]" aria-hidden>
-        <ChevronDown size={18} />
+        <ChevronRight size={18} />
       </span>
     </button>
   )

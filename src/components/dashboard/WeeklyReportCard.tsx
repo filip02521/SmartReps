@@ -23,7 +23,7 @@ import {
   Layers,
 } from 'lucide-react'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
-import { parseCoachBody } from '@/lib/coach-body'
+import { coachBodyPreview, parseCoachBody } from '@/lib/coach-body'
 import { format, formatDistanceToNow } from 'date-fns'
 import { dateFnsLocale } from '@/lib/date-locale'
 
@@ -236,13 +236,11 @@ export function WeeklyReportCard({
 
   const parsed = parseCoachBody(insight.body)
 
-  // Header subtitle: deterministic for metric-bearing reports, body teaser
-  // only for legacy rows saved before metricsJson existed.
+  // Header subtitle: a qualitative teaser of the coach's summary — the exact
+  // numbers already live in the glance hero below, repeating them read as noise.
   const headerSubtitle = isEmptyWeek
     ? pl.coachWeeklyReportEmpty
-    : metrics
-      ? pl.coachWeeklyReportSessions(metrics.sessions, metrics.totalReps)
-      : teaser(insight.body)
+    : teaser(coachBodyPreview(insight.body))
 
   const headerTitle = weekRange ?? insight.title
   const toggleAriaLabel = isNew

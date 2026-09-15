@@ -331,7 +331,7 @@ describe('WorkoutCelebrationOverlay', () => {
     expect(onDismiss).not.toHaveBeenCalled()
   })
 
-  it('auto-dismisses after 2s (default duration)', () => {
+  it('auto-dismisses after the default 6s duration', () => {
     const onDismiss = vi.fn()
     render(
       <WorkoutCelebrationOverlay
@@ -340,12 +340,31 @@ describe('WorkoutCelebrationOverlay', () => {
         stats={[{ icon: Flame, value: 50, label: 'reps', animate: true }]}
       />,
     )
-    // Should not dismiss before 2s
-    vi.advanceTimersByTime(1999)
+    // Should not dismiss before the 6s default
+    vi.advanceTimersByTime(5999)
     expect(onDismiss).not.toHaveBeenCalled()
-    // Should dismiss at 2s
+    // Should dismiss at 6s
     vi.advanceTimersByTime(1)
     expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops auto-dismiss once the user targets Share', () => {
+    const onDismiss = vi.fn()
+    render(
+      <WorkoutCelebrationOverlay
+        active={true}
+        onDismiss={onDismiss}
+        onShare={vi.fn()}
+        durationMs={2000}
+        stats={[{ icon: Flame, value: 50, label: 'reps', animate: true }]}
+      />,
+    )
+    // Focus/press the Share button -> the 2s timer must be cancelled so the
+    // overlay can't vanish under the native share sheet.
+    const shareBtn = screen.getByRole('button')
+    fireEvent.pointerDown(shareBtn)
+    vi.advanceTimersByTime(5000)
+    expect(onDismiss).not.toHaveBeenCalled()
   })
 
   it('plays celebration sound when activated', () => {

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Flame, TrendingUp, Trophy, Calendar, AlertTriangle, Sparkles, Snowflake, Lock } from 'lucide-react'
+import { Flame, Trophy, AlertTriangle, Sparkles, Snowflake, Lock } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
+import { NestedStat } from '@/components/ui/NestedStat'
+import { StatusPill } from '@/components/ui/StatusPill'
 import { StreakHeatmap } from '@/components/progress/StreakHeatmap'
 import { ProTeaser } from '@/components/ux/ProTeaser'
 import { pl } from '@/i18n/pl'
@@ -25,39 +27,7 @@ function milestoneReached(current: number): number[] {
   return MILESTONES.filter((m) => current >= m)
 }
 
-/** Stat card — compact metric with label. */
-function StatCard({
-  icon: Icon,
-  value,
-  label,
-  accent,
-}: {
-  icon: typeof Flame
-  value: string | number
-  label: string
-  accent?: boolean
-}) {
-  return (
-    <div
-      className={cn(
-        'flex flex-col items-center gap-1 rounded-[var(--sr-radius-md)] border p-3',
-        accent
-          ? 'border-[color-mix(in_srgb,var(--sr-brand-primary)_30%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-brand-primary)_8%,var(--sr-bg-surface))]'
-          : 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',
-      )}
-    >
-      <Icon
-        size={18}
-        className={accent ? 'text-[var(--sr-brand-primary)]' : 'text-[var(--sr-text-muted)]'}
-        aria-hidden
-      />
-      <span className="text-2xl font-bold tabular-nums leading-none text-[var(--sr-text-primary)]">
-        {value}
-      </span>
-      <span className="sr-text-caption text-center text-[var(--sr-text-secondary)]">{label}</span>
-    </div>
-  )
-}
+
 
 /** Milestone pill — shows reached vs upcoming milestones. */
 function MilestoneRow({ current }: { current: number }) {
@@ -71,18 +41,15 @@ function MilestoneRow({ current }: { current: number }) {
         {MILESTONES.map((m) => {
           const done = reached.includes(m)
           return (
-            <span
+            <StatusPill
               key={m}
-              className={cn(
-                'inline-flex items-center gap-1 rounded-[var(--sr-radius-full)] px-2.5 py-1 text-xs font-semibold tabular-nums',
-                done
-                  ? 'bg-[var(--sr-brand-primary)] text-white'
-                  : 'bg-[var(--sr-bg-surface)] text-[var(--sr-text-muted)] border border-[var(--sr-border-subtle)]',
-              )}
+              tone={done ? 'brand-solid' : 'outline'}
+              size="md"
+              icon={done ? <Trophy size={11} aria-hidden /> : undefined}
+              className="tabular-nums"
             >
-              {done && <Trophy size={11} aria-hidden />}
               {m} {pl.streakSheetWeeksShort}
-            </span>
+            </StatusPill>
           )
         })}
       </div>
@@ -162,13 +129,14 @@ export function StreakDetailSheet({
             {/* Milestone preview — show what's achievable */}
             <div className="mt-1 flex flex-wrap justify-center gap-1.5">
               {MILESTONES.map((m) => (
-                <span
+                <StatusPill
                   key={m}
-                  className="inline-flex items-center gap-1 rounded-[var(--sr-radius-full)] bg-[var(--sr-bg-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--sr-text-muted)] border border-[var(--sr-border-subtle)]"
+                  tone="outline"
+                  size="md"
+                  icon={<Trophy size={11} aria-hidden />}
                 >
-                  <Trophy size={11} aria-hidden />
                   {m} {pl.streakSheetWeeksShort}
-                </span>
+                </StatusPill>
               ))}
             </div>
           </div>
@@ -239,9 +207,9 @@ export function StreakDetailSheet({
                   </span>
                 </div>
                 {isNewRecord ? (
-                  <span className="mt-1.5 inline-block rounded-[var(--sr-radius-full)] bg-[var(--sr-success-muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--sr-success)]">
+                  <StatusPill tone="success" className="mt-1.5">
                     {pl.streakChainNewRecord}
-                  </span>
+                  </StatusPill>
                 ) : bestStreak > 0 ? (
                   <p className="mt-1 sr-text-caption text-[var(--sr-text-muted)]">
                     {pl.streakChainBest(bestStreak)}
@@ -250,17 +218,9 @@ export function StreakDetailSheet({
               </div>
             </div>
 
-            {/* Stats grid */}
-            <div className="grid grid-cols-3 gap-2">
-              <StatCard
-                icon={Flame}
-                value={streak}
-                label={pl.streakSheetCurrent}
-                accent={streak > 0}
-              />
-              <StatCard icon={TrendingUp} value={bestStreak} label={pl.streakSheetBest} />
-              <StatCard icon={Calendar} value={totalSessions} label={pl.streakSheetTotal} />
-            </div>
+            {/* Stats — the hero already shows current + best streak, so only
+                the metric that isn't duplicated stays: total sessions. */}
+            <NestedStat size="md" overline={pl.streakSheetTotal} value={totalSessions} />
 
             {/* Heatmap — full 12-week view */}
             <div>

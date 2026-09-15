@@ -126,8 +126,8 @@ export function SessionCompare({
               <th className="pb-3 font-semibold">{pl.setColumn}</th>
               <th className="pb-3 font-semibold">{pl.targetColumn}</th>
               <th className="pb-3 font-semibold text-[var(--sr-text-primary)]">{pl.youColumn}</th>
-              <th className="pb-3 font-semibold">{pl.prevColumn}</th>
-              <th className="pb-3 font-semibold text-center">{pl.rpeLabel}/{pl.rirLabel}</th>
+              <th className="hidden pb-3 font-semibold sm:table-cell">{pl.prevColumn}</th>
+              <th className="hidden pb-3 font-semibold text-center sm:table-cell">{pl.rpeLabel}/{pl.rirLabel}</th>
             </tr>
           </thead>
           <tbody>
@@ -178,7 +178,7 @@ export function SessionCompare({
                       )}
                     </span>
                   </td>
-                  <td className="py-3 tabular-nums text-[var(--sr-text-muted)]">
+                  <td className="hidden py-3 tabular-nums text-[var(--sr-text-muted)] sm:table-cell">
                     {prev ? (
                       <span className="inline-flex items-center gap-1">
                         {prev.actual}

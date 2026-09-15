@@ -32,7 +32,9 @@ function streakBadgeTier(weeks: number): 'none' | 'warm' | 'hot' | 'legendary' {
  * - Animated check icon (scale-in + pulse)
  * - Count-up stats animation
  * - Gradient background with brand colors
- * - Auto-dismiss after 3.5s or on tap
+ * - Auto-dismiss after durationMs or on tap; Escape always dismisses,
+ *   Enter only when the overlay itself is focused (never steals Enter
+ *   from the Share button)
  * - Haptic feedback (vibration) on supported devices
  */
 export function WorkoutCelebrationOverlay({
@@ -48,7 +50,7 @@ export function WorkoutCelebrationOverlay({
   streakWeeks = 0,
   streakIncreased = false,
   streakMilestoneReached = null,
-  durationMs = 2000,
+  durationMs = 6000,
 }: {
   active: boolean
   onDismiss: () => void
@@ -86,6 +88,15 @@ export function WorkoutCelebrationOverlay({
 
   const handleDismiss = useCallback(() => {
     onDismissRef.current()
+  }, [])
+
+  // Gdy user celuje w Share, auto-dismiss nie może zamknąć overlaya
+  // spod natywnego arkusza udostępniania — timer zatrzymywany na dobre.
+  const cancelAutoDismiss = useCallback(() => {
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current)
+      dismissTimerRef.current = undefined
+    }
   }, [])
 
   useEffect(() => {
@@ -139,7 +150,9 @@ export function WorkoutCelebrationOverlay({
       aria-label={headline}
       onClick={handleDismiss}
       onKeyDown={(e) => {
-        if (e.key === 'Escape' || e.key === 'Enter') {
+        // Escape always dismisses; Enter only when the overlay itself is
+        // the target — Enter on the Share button must fire share, not close.
+        if (e.key === 'Escape' || (e.key === 'Enter' && e.target === e.currentTarget)) {
           e.preventDefault()
           handleDismiss()
         }
@@ -358,6 +371,8 @@ export function WorkoutCelebrationOverlay({
                 e.stopPropagation()
                 onShare()
               }}
+              onFocus={cancelAutoDismiss}
+              onPointerDown={cancelAutoDismiss}
               className={cn(
                 FOCUS_RING,
                 'flex items-center gap-2 rounded-full px-5 py-2.5',

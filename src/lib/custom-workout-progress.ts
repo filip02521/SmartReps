@@ -171,11 +171,9 @@ export function canUndoCustomSet(
   currentExerciseIndex: number,
   currentSetIndex: number,
   restTimer: RestTimerState | null | undefined,
-  failedIndex: number | undefined,
   amrapEndAt: number | null,
 ): boolean {
   if (restTimer && restTimer.mode !== 'idle') return false
-  if (failedIndex === currentSetIndex) return false
   const last = findLastLoggedSet(exerciseLogs)
   if (!last) return false
   const log = exerciseLogs[last.exerciseIndex]

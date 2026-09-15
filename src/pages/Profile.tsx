@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
 import { useAppStore } from '@/stores/app-store'
 import { Button } from '@/components/ui/Button'
@@ -81,6 +81,7 @@ export default function ProfilePage() {
   const [showImportSheet, setShowImportSheet] = useState(false)
   const [clearingLocal, setClearingLocal] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [settingsSection, setSettingsSection] = useState<'ai' | null>(null)
   const [proTeaserFeature, setProTeaserFeature] = useState<ProFeature | null>(null)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [showFollowersSheet, setShowFollowersSheet] = useState(false)
@@ -111,6 +112,25 @@ export default function ProfilePage() {
   useEffect(() => {
     void getAllUnlocks().then(setTitleUnlocks).catch(() => undefined)
   }, [])
+
+  // Deep links — ?settings=ai otwiera ustawienia z sekcją Trenera AI;
+  // ?edit=profile otwiera arkusz edycji profilu publicznego (nazwa). Oba
+  // trafiają prosto na właściwą akcję zamiast zostawiać usera na gołej stronie.
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    const wantsAi = searchParams.get('settings') === 'ai'
+    const wantsEdit = searchParams.get('edit') === 'profile'
+    if (!wantsAi && !wantsEdit) return
+    if (wantsAi) {
+      setSettingsSection('ai')
+      setShowSettings(true)
+    }
+    if (wantsEdit) setShowProfileEdit(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete('settings')
+    next.delete('edit')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     applyTheme(settings.theme)
@@ -412,12 +432,14 @@ export default function ProfilePage() {
       {showSettings && (
       <SettingsSheet
         open={showSettings}
-        onClose={() => setShowSettings(false)}
+        onClose={() => {
+          setShowSettings(false)
+          setSettingsSection(null)
+        }}
+        openSection={settingsSection}
         syncing={syncing}
         online={online}
         showLogout={isSupabaseConfigured && !!email}
-        onSyncNow={handleSyncNow}
-        onLogin={() => navigate('/setup/login', { state: { returnTo: '/profile' } })}
         onLogout={() => setShowLogoutConfirm(true)}
         settings={settings}
         pushDescription={pushDescription}

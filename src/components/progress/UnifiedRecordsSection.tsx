@@ -91,7 +91,7 @@ export function UnifiedRecordsSection({
       <div id="progress-records">
         {/* Programy wbudowane — po jednej sekcji per program */}
         {validProgramEntries.map((entry) => {
-          const { program, records, stats } = entry
+          const { program, records } = entry
           const label =
             program === 'pushups'
               ? pl.pushupsProgram
@@ -136,13 +136,11 @@ export function UnifiedRecordsSection({
                       : undefined
                   }
                 />
+                {/* Łączna liczba powtórzeń lives in the volume grid above —
+                    the records section keeps only actual records. */}
                 <NestedStat
                   size="md"
-                  overline={pl.totalRepsLabel}
-                  value={stats.totalRepsAllTime ?? pl.noValue}
-                />
-                <NestedStat
-                  size="md"
+                  className="col-span-2"
                   overline={pl.recordHighestCycle}
                   value={records.highestCycleName ?? pl.noValue}
                 />

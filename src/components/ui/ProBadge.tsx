@@ -1,11 +1,13 @@
 import { cn } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
+import { StatusPill } from '@/components/ui/StatusPill'
 
 /**
  * "PRO" badge — marks Pro-only features in the UI.
  * Uses brand gradient to stand out from regular badges.
  *
  * Shown next to Pro-gated features; the surrounding control opens ProTeaser.
+ * Chrome comes from the shared StatusPill system.
  */
 export function ProBadge({
   className,
@@ -15,16 +17,17 @@ export function ProBadge({
   size?: 'sm' | 'md'
 }) {
   return (
-    <span
+    <StatusPill
+      tone="brand"
+      size={size === 'md' ? 'md' : 'xs'}
+      ariaLabel={pl.proBadge}
       className={cn(
-        'inline-flex items-center rounded-[var(--sr-radius-full)] bg-[var(--sr-brand-primary-muted)] px-2 py-0.5 font-bold uppercase tracking-wide text-[var(--sr-brand-primary-hover)]',
+        'font-bold uppercase tracking-wide text-[var(--sr-brand-primary-hover)]',
         size === 'sm' && 'text-[0.625rem] leading-none',
-        size === 'md' && 'text-xs leading-tight',
         className,
       )}
-      aria-label={pl.proBadge}
     >
       {pl.proBadge}
-    </span>
+    </StatusPill>
   )
 }

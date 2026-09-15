@@ -9,17 +9,19 @@ const accentVar: Record<Program, string> = {
   squats: 'var(--sr-squats-accent)',
 }
 
-export function ProgramAccentCard({
-  program,
+/** Shared home-card chrome: accent left border, gradient tint, corner glow.
+ *  One shell for builtin program cards and custom plan cards so both read
+ *  as the same visual object on the dashboard. */
+export function AccentCard({
+  accent,
   className,
   children,
   style,
   ...props
 }: HTMLAttributes<HTMLDivElement> & {
-  program: Program
+  accent: string
   children: ReactNode
 }) {
-  const accent = accentVar[program]
   return (
     <Card
       {...props}
@@ -48,6 +50,16 @@ export function ProgramAccentCard({
       {children}
     </Card>
   )
+}
+
+export function ProgramAccentCard({
+  program,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & {
+  program: Program
+  children: ReactNode
+}) {
+  return <AccentCard accent={accentVar[program]} {...props} />
 }
 
 export function programAccentColor(program: Program): string {
