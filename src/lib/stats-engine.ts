@@ -149,6 +149,30 @@ export function getWeekKey(d: Date): string {
  * consumed streak freeze — they count as trained. Callers that don't care
  * about freezes can omit it.
  */
+/** Weekly-streak milestone thresholds shared by streak UI components. */
+export const STREAK_MILESTONES = [4, 8, 12, 26, 52] as const
+
+export function nextStreakMilestone(current: number): number | null {
+  for (const m of STREAK_MILESTONES) {
+    if (current < m) return m
+  }
+  return null
+}
+
+export function reachedStreakMilestones(current: number): number[] {
+  return STREAK_MILESTONES.filter((m) => current >= m)
+}
+
+export function justReachedStreakMilestone(
+  prevStreak: number,
+  newStreak: number,
+): number | null {
+  for (const m of STREAK_MILESTONES) {
+    if (prevStreak < m && newStreak >= m) return m
+  }
+  return null
+}
+
 export function computeStreakWeeks(
   passedSessions: LocalWorkoutSession[],
   now = new Date(),

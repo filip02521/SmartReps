@@ -3,7 +3,7 @@ import { Flame, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { dateFnsLocale } from '@/lib/date-locale'
 import { pl } from '@/i18n/pl'
-import { startOfLocalWeek, getWeekKey, computeStreakWeeks } from '@/lib/stats-engine'
+import { startOfLocalWeek, getWeekKey, computeStreakWeeks, nextStreakMilestone } from '@/lib/stats-engine'
 import { computeBestStreakWeeks } from '@/lib/weekly-recap'
 import { useFrozenWeeks } from '@/lib/streak-freeze'
 import type { LocalWorkoutSession } from '@/lib/db'
@@ -152,15 +152,6 @@ function cellVisual(sessions: number, isPartOfStreak: boolean, isFrozen: boolean
   }
 }
 
-const MILESTONES = [4, 8, 12, 26, 52]
-
-function nextMilestone(current: number): number | null {
-  for (const m of MILESTONES) {
-    if (current < m) return m
-  }
-  return null
-}
-
 export function StreakChainCard({
   sessions,
   compact = false,
@@ -189,7 +180,7 @@ export function StreakChainCard({
   const currentWeekHasSessions = (cells[cells.length - 1]?.sessions ?? 0) > 0
   const isAtRisk = streak > 0 && !currentWeekHasSessions
   const isNewRecord = streak > 0 && streak >= bestStreak && bestStreak > 0
-  const milestone = nextMilestone(streak)
+  const milestone = nextStreakMilestone(streak)
   const weeksToMilestone = milestone ? milestone - streak : 0
 
   if (!hasAnyTraining) {

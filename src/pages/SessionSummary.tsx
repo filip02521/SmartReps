@@ -62,7 +62,6 @@ export default function SessionSummary() {
   const failed = searchParams.get('failed') === '1'
   const sessionId = searchParams.get('session')
   const navigate = useNavigate()
-  const setResults = useWorkoutStore((s) => s.setResults)
   const hasSeenLoginCloudPrompt = useAppStore((s) => s.hasSeenLoginCloudPrompt)
   const setHasSeenLoginCloudPrompt = useAppStore((s) => s.setHasSeenLoginCloudPrompt)
   const processedRef = useRef(false)
@@ -390,7 +389,7 @@ export default function SessionSummary() {
     )
   }
 
-  const rows = current?.setResults ?? setResults
+  const rows = current?.setResults ?? []
   const totalReps = current?.totalReps ?? rows.reduce((s, r) => s + r.actual, 0)
   // Ukończony cykl — z sesji (current.cycleId), NIE z progress (który po
   // level-up wskazuje już na nowy cykl). Używany w celebration i result card.

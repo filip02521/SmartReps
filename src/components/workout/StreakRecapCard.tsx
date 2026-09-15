@@ -1,27 +1,16 @@
 import { useMemo } from 'react'
 import { Flame, TrendingUp, ShieldCheck } from 'lucide-react'
 import { pl } from '@/i18n/pl'
-import { computeStreakWeeks, getWeekKey } from '@/lib/stats-engine'
+import {
+  computeStreakWeeks,
+  getWeekKey,
+  nextStreakMilestone,
+  justReachedStreakMilestone,
+} from '@/lib/stats-engine'
 import { computeBestStreakWeeks } from '@/lib/weekly-recap'
 import { useFrozenWeeks } from '@/lib/streak-freeze'
 import type { LocalWorkoutSession } from '@/lib/db'
 import { cn } from '@/lib/utils'
-
-const MILESTONES = [4, 8, 12, 26, 52]
-
-function nextMilestone(current: number): number | null {
-  for (const m of MILESTONES) {
-    if (current < m) return m
-  }
-  return null
-}
-
-function milestoneJustReached(prevStreak: number, newStreak: number): number | null {
-  for (const m of MILESTONES) {
-    if (prevStreak < m && newStreak >= m) return m
-  }
-  return null
-}
 
 /**
  * Detect "streak saved" scenario: before this workout, the user had a streak
@@ -82,9 +71,9 @@ export function StreakRecapCard({
   )
 
   const streakIncreased = newStreak > prevStreak
-  const milestone = milestoneJustReached(prevStreak, newStreak)
+  const milestone = justReachedStreakMilestone(prevStreak, newStreak)
   const isNewRecord = newStreak > 0 && newStreak >= bestStreak && bestStreak > 0
-  const next = nextMilestone(newStreak)
+  const next = nextStreakMilestone(newStreak)
   const weeksToNext = next ? next - newStreak : 0
   const atRiskBefore = wasAtRisk(previousSessions, frozenWeeks)
   // "Streak saved" = user was at-risk (no session this week before) and completed a workout.

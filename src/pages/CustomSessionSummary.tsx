@@ -248,13 +248,6 @@ export default function CustomSessionSummary() {
           const customSuggestion = analyzeCustomProgression(s.exerciseLogs ?? [], recentLogsForTrend)
           setProgressionSuggestion(customSuggestion)
           setSuggestionDismissed(false)
-          // Detect personal records for celebration banner
-          try {
-            const records = await detectPersonalRecords(s)
-            setPrRecords(records)
-          } catch {
-            setPrRecords([])
-          }
           // Proactive coach: load or generate post-workout insight
           void loadOrGenerateCoachInsight(s, comparison.previous, historicalSessions, exercises)
         } else {

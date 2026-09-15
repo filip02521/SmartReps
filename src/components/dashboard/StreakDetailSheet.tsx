@@ -6,7 +6,13 @@ import { StatusPill } from '@/components/ui/StatusPill'
 import { StreakHeatmap } from '@/components/progress/StreakHeatmap'
 import { ProTeaser } from '@/components/ux/ProTeaser'
 import { pl } from '@/i18n/pl'
-import { computeStreakWeeks, getWeekKey } from '@/lib/stats-engine'
+import {
+  computeStreakWeeks,
+  getWeekKey,
+  STREAK_MILESTONES,
+  nextStreakMilestone,
+  reachedStreakMilestones,
+} from '@/lib/stats-engine'
 import { computeBestStreakWeeks } from '@/lib/weekly-recap'
 import { useFrozenWeeks, useFreezeBalance } from '@/lib/streak-freeze'
 import { useProFeatures } from '@/lib/subscription'
@@ -14,31 +20,18 @@ import type { LocalWorkoutSession } from '@/lib/db'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 
-const MILESTONES = [4, 8, 12, 26, 52]
-
-function nextMilestone(current: number): number | null {
-  for (const m of MILESTONES) {
-    if (current < m) return m
-  }
-  return null
-}
-
-function milestoneReached(current: number): number[] {
-  return MILESTONES.filter((m) => current >= m)
-}
-
 
 
 /** Milestone pill — shows reached vs upcoming milestones. */
 function MilestoneRow({ current }: { current: number }) {
-  const reached = milestoneReached(current)
-  const next = nextMilestone(current)
+  const reached = reachedStreakMilestones(current)
+  const next = nextStreakMilestone(current)
   const weeksToNext = next ? next - current : 0
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-1.5">
-        {MILESTONES.map((m) => {
+        {STREAK_MILESTONES.map((m) => {
           const done = reached.includes(m)
           return (
             <StatusPill
@@ -128,7 +121,7 @@ export function StreakDetailSheet({
             </div>
             {/* Milestone preview — show what's achievable */}
             <div className="mt-1 flex flex-wrap justify-center gap-1.5">
-              {MILESTONES.map((m) => (
+              {STREAK_MILESTONES.map((m) => (
                 <StatusPill
                   key={m}
                   tone="outline"

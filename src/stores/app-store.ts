@@ -120,7 +120,7 @@ type AppStore = {
   dismissedHabitMetTip: boolean
   /** Sticky dismiss for welcome card (post-onboarding feature guide). */
   welcomeCardDismissed: boolean
-  /** Last sync failure reason for SyncStatusPanel (A1/A2). */
+  /** Last sync failure reason shown in AccountHero sync diagnostics. */
   lastSyncFailureReason: string | null
   /** Runtime-only: an authenticated sync is currently in flight.
    *  NOT persisted — false after reload. Lets the dashboard show a
