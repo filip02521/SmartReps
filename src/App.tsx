@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { lazyWithChunkRecovery } from '@/lib/chunk-load-recovery'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { AuthBridge } from '@/components/ux/AuthBridge'
@@ -65,6 +65,44 @@ function EagerPage({ children }: { children: React.ReactNode }) {
   return <RouteErrorBoundary>{children}</RouteErrorBoundary>
 }
 
+/**
+ * Language deep-link shim — mounted inside BrowserRouter.
+ *  - `/en/...` path prefix → force language=en, strip the prefix, redirect
+ *    to the bare route (e.g. /en/pro → /pro). Lets external EN links land in
+ *    an English app without duplicating every route.
+ *  - `?lang=en|pl` → set language, strip the param. Used by the /en/ landing
+ *    CTA and shareable links.
+ * Runs once on mount; user can still switch language afterwards in Settings.
+ */
+function LanguageRouteShim() {
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const setSettings = useAppStore.getState().setSettings
+
+    const enPrefix = location.pathname === '/en' || location.pathname.startsWith('/en/')
+    if (enPrefix) {
+      setSettings({ language: 'en' })
+      const bare = location.pathname.replace(/^\/en/, '') || '/'
+      navigate(bare + location.search + location.hash, { replace: true })
+      return
+    }
+
+    const params = new URLSearchParams(location.search)
+    const lang = params.get('lang')
+    if (lang === 'en' || lang === 'pl') {
+      setSettings({ language: lang })
+      params.delete('lang')
+      const qs = params.toString()
+      navigate(location.pathname + (qs ? `?${qs}` : '') + location.hash, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount (deep-link only)
+  }, [])
+
+  return null
+}
+
 export default function App() {
   // Re-render the route tree when language changes — proxy-based i18n needs
   // this to refresh all `pl.foo` references. The key is on a wrapper INSIDE
@@ -72,9 +110,15 @@ export default function App() {
   // AuthBridge, OfflineBar, …) stays mounted and keeps its state.
   const language = useAppStore((s) => s.settings.language ?? 'pl')
 
-  // Keep <html lang> in sync with active language for accessibility + SEO.
+  // Keep <html lang> in sync with active language for accessibility + SEO,
+  // and swap the PWA manifest so EN installs get English name/description/
+  // shortcuts (manifest is read by the browser at install time).
   useEffect(() => {
     document.documentElement.lang = language
+    const manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
+    if (manifestLink) {
+      manifestLink.href = language === 'en' ? '/manifest-en.webmanifest' : '/manifest.webmanifest'
+    }
   }, [language])
 
   return (
@@ -85,6 +129,7 @@ export default function App() {
       <AchievementHost />
       <ResumeWorkoutPrompt />
       <GlobalOfflineBar />
+      <LanguageRouteShim />
       <div key={language}>
         <Routes>
         <Route path="/privacy" element={<EagerPage><PrivacyPage /></EagerPage>} />

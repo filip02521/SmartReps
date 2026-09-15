@@ -674,6 +674,9 @@ export const plDict = {
   seoLoginTitle: 'Logowanie',
   seoLoginDescription:
     'Zaloguj się do SmartReps kodem e-mail OTP. Bez kont Google ani Facebook.',
+  seoCommunityTitle: 'Plan społeczności',
+  seoCommunityDescription:
+    'Plan treningowy z katalogu społeczności SmartReps — zobacz ćwiczenia, dni i progresję, a potem zaimportuj do swoich planów.',
   seoTechniquePushupsTitle: 'Technika pompek',
   seoTechniquePushupsDescription:
     'Prawidłowa technika pompek — pozycja dłoni, łokcie, tempo i najczęstsze błędy. Poradnik dla początkujących.',
@@ -2485,6 +2488,8 @@ export const plDict = {
   communitySortRating: 'Najlepiej oceniane',
   communitySortLabel: 'Sortuj społeczność',
   communityTagFilterLabel: 'Filtruj po tagu',
+  communityLangFilterLabel: 'Filtruj po języku',
+  communityLangAll: 'Wszystkie języki',
   communityRatingCount: (n: number) => (n === 1 ? '1 ocena' : `${n} ocen`),
   communityRatingNoReviews: 'Brak ocen',
   communityRatingAria: (avg: string, count: number) =>

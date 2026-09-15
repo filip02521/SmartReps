@@ -82,7 +82,11 @@ const siteUrl = process.env.SITE_URL || 'https://smart-reps.vercel.app'
 const uriAllowList =
   process.env.URI_ALLOW_LIST ||
   'https://smart-reps.vercel.app/**,http://localhost:5173/**'
-const otpSubject = process.env.MAILER_SUBJECT || 'Kod logowania SmartReps'
+// GoTrue renders the subject through Go templates too — pick PL/EN by
+// user_metadata.language (set by the app via signInWithOtp options.data).
+const otpSubject =
+  process.env.MAILER_SUBJECT ||
+  '{{ if eq .Data.language "en" }}Your SmartReps login code{{ else }}Kod logowania SmartReps{{ end }}'
 
 const body = {
   external_email_enabled: true,

@@ -157,6 +157,8 @@ export function PublishCommunitySheet({ plan, open, onClose, onPublished }: Prop
         snapshot: built.snapshot,
         slug,
         authorDisplayName: authorName,
+        // Content language = author's UI language at publish time.
+        language: useAppStore.getState().settings.language === 'en' ? 'en' : 'pl',
       })
       clearCommunityListCache()
       showToast(isUpdate ? pl.communityPublishUpdated : pl.communityPublishDone, 'success')

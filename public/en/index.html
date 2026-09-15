@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/brand/favicon-48.png" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+
+    <meta name="theme-color" content="#6366F1" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#FAFAFA" media="(prefers-color-scheme: light)" />
+    <meta name="color-scheme" content="dark light" />
+
+    <title>SmartReps — home & gym workouts | Plan and track your progress</title>
+    <meta name="description" content="SmartReps — plan and track workouts at home and at the gym. Ready-made push-up and pull-up programs plus your own training plans. Works offline, no Google or Facebook accounts." />
+    <meta name="keywords" content="workout, home workout, push-ups, pull-ups, training plan, progress tracking, gym, exercises, PWA, offline, workout calendar, training log" />
+    <meta name="author" content="SmartReps" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="application-name" content="SmartReps" />
+    <link rel="canonical" href="https://smart-reps.vercel.app/en/" />
+
+    <!-- Language alternates -->
+    <link rel="alternate" hreflang="pl" href="https://smart-reps.vercel.app/" />
+    <link rel="alternate" hreflang="en" href="https://smart-reps.vercel.app/en/" />
+    <link rel="alternate" hreflang="x-default" href="https://smart-reps.vercel.app/" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="SmartReps — home & gym workouts" />
+    <meta property="og:description" content="Plan and track workouts at home and at the gym — ready-made push-up and pull-up programs plus your own plans. Works offline." />
+    <meta property="og:image" content="https://smart-reps.vercel.app/brand/icon-512.png" />
+    <meta property="og:image:alt" content="SmartReps logo — workout app" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:url" content="https://smart-reps.vercel.app/en/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="pl_PL" />
+    <meta property="og:site_name" content="SmartReps" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SmartReps — home & gym workouts" />
+    <meta name="twitter:description" content="Plan and track workouts at home and at the gym — ready-made programs plus your own plans. Works offline." />
+    <meta name="twitter:image" content="https://smart-reps.vercel.app/brand/icon-512.png" />
+    <meta name="twitter:image:alt" content="SmartReps logo — workout app" />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": ["WebApplication", "SoftwareApplication"],
+      "name": "SmartReps",
+      "url": "https://smart-reps.vercel.app/en/",
+      "description": "Plan and track workouts at home and at the gym — ready-made push-up and pull-up programs plus custom training plans. Works offline.",
+      "applicationCategory": "HealthApplication",
+      "operatingSystem": "Web",
+      "inLanguage": "en-US",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Ready-made push-up and pull-up programs",
+        "Custom training plans",
+        "Progress and stats tracking",
+        "Workout calendar",
+        "Body-weight log",
+        "Community plan catalog",
+        "Works offline",
+        "Workout reminders"
+      ]
+    }
+    </script>
+
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        background: #09090b; color: #fafafa;
+        min-height: 100vh; display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        padding: 2rem 1.25rem; text-align: center;
+      }
+      .mark { margin-bottom: 1.25rem; }
+      .wordmark {
+        font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em;
+        margin-bottom: 0.5rem;
+      }
+      .wordmark .accent {
+        background: linear-gradient(135deg, #6366f1, #22d3ee);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      h1 {
+        font-size: clamp(1.6rem, 5vw, 2.4rem); font-weight: 700;
+        line-height: 1.15; letter-spacing: -0.02em; max-width: 34rem;
+        margin-bottom: 0.75rem;
+      }
+      .sub {
+        color: #a1a1aa; font-size: 1rem; line-height: 1.6;
+        max-width: 30rem; margin-bottom: 2rem;
+      }
+      .cta {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
+        color: #fff; font-weight: 600; font-size: 1rem;
+        padding: 0.9rem 1.75rem; border-radius: 0.9rem;
+        text-decoration: none;
+        box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .cta:hover { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(99, 102, 241, 0.45); }
+      .cta:focus-visible { outline: 2px solid #22d3ee; outline-offset: 3px; }
+      .features {
+        display: grid; gap: 0.5rem; margin-top: 2.5rem;
+        color: #a1a1aa; font-size: 0.9rem; list-style: none;
+      }
+      .features li::before { content: "✓ "; color: #22d3ee; font-weight: 700; }
+      .lang {
+        position: fixed; top: 1rem; right: 1rem;
+        color: #71717a; font-size: 0.85rem; text-decoration: none;
+        padding: 0.4rem 0.75rem; border: 1px solid #27272a; border-radius: 0.6rem;
+      }
+      .lang:hover { color: #fafafa; border-color: #3f3f46; }
+    </style>
+  </head>
+  <body>
+    <a class="lang" href="/" hreflang="pl">Polski 🇵🇱</a>
+    <svg class="mark" width="72" height="72" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="g" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#6366F1"/>
+          <stop offset="0.55" stop-color="#6366F1"/>
+          <stop offset="1" stop-color="#22D3EE"/>
+        </linearGradient>
+      </defs>
+      <rect width="64" height="64" rx="16" fill="url(#g)"/>
+      <rect x="13" y="37" width="9" height="8" rx="3" fill="white"/>
+      <rect x="27.5" y="29" width="9" height="16" rx="3" fill="white"/>
+      <rect x="42" y="19" width="9" height="26" rx="3" fill="white"/>
+    </svg>
+    <div class="wordmark">Smart<span class="accent">Reps</span></div>
+    <h1>Workouts at home and at the gym — planned, tracked, offline-first</h1>
+    <p class="sub">
+      Ready-made push-up, pull-up and squat programs, your own training plans,
+      progress stats and a community plan catalog. No Google or Facebook account —
+      just an email code.
+    </p>
+    <a class="cta" href="/?lang=en">Open SmartReps →</a>
+    <ul class="features">
+      <li>Works offline — your data stays on the device</li>
+      <li>Sync across devices with a free account</li>
+      <li>Built-in programs for push-ups, pull-ups and squats</li>
+      <li>Create and share your own plans</li>
+    </ul>
+  </body>
+</html>

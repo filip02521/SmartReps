@@ -49,13 +49,27 @@ function applyPersistedUi(settings: ReturnType<typeof useAppStore.getState>['set
 }
 
 applyPersistedUi(useAppStore.getState().settings)
-useAppStore.persist.onFinishHydration((state) => {
-  // Auto-detect browser language on first run (no persisted language yet)
-  if (!state.settings.language) {
-    const detected = detectBrowserLang()
-    if (detected !== 'pl') {
-      useAppStore.getState().setSettings({ language: detected })
+useAppStore.persist.onFinishHydration(() => {
+  // Auto-detect browser language on first run. The merged state always has
+  // `settings.language` (defaultSettings = 'pl'), so inspect the RAW persisted
+  // payload — absent key means the user never picked a language.
+  const rawPersisted = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('smartreps-app') ?? '{}') as {
+        state?: { settings?: { language?: string } }
+      }
+    } catch {
+      return {}
     }
+  })()
+  if (!rawPersisted.state?.settings?.language) {
+    const detected = detectBrowserLang()
+    const browserLang = navigator.language.toLowerCase()
+    useAppStore.getState().setSettings({
+      language: detected,
+      // US customary units for en-US; elsewhere keep kg (en-GB etc. use kg)
+      weightUnit: browserLang === 'en-us' ? 'lb' : 'kg',
+    })
   }
   applyPersistedUi(useAppStore.getState().settings)
 })

@@ -24,6 +24,8 @@ export type CommunityPublicationRow = {
   review_count: number
   content_version: number
   status: CommunityPublicationStatus
+  /** Content language — set from the author's UI language at publish time. */
+  language: 'pl' | 'en'
   published_at: string | null
   first_published_at: string | null
   updated_at: string
@@ -58,6 +60,7 @@ function mapRow(row: Record<string, unknown>): CommunityPublicationRow {
     review_count: Number(row.review_count ?? 0),
     content_version: Number(row.content_version ?? 1),
     status: row.status as CommunityPublicationStatus,
+    language: (row.language as string) === 'en' ? 'en' : 'pl',
     published_at: (row.published_at as string | null) ?? null,
     first_published_at: (row.first_published_at as string | null) ?? null,
     updated_at: String(row.updated_at),
@@ -65,11 +68,13 @@ function mapRow(row: Record<string, unknown>): CommunityPublicationRow {
 }
 
 const LIST_SELECT =
-  'id, author_id, source_custom_plan_id, slug, title, description, tags, snapshot_json, author_display_name, like_count, import_count, trained_count, avg_rating, review_count, content_version, status, published_at, first_published_at, updated_at'
+  'id, author_id, source_custom_plan_id, slug, title, description, tags, snapshot_json, author_display_name, like_count, import_count, trained_count, avg_rating, review_count, content_version, status, language, published_at, first_published_at, updated_at'
 
 export async function listCommunityPublications(opts: {
   sort: CommunitySort
   tag?: CommunityTag | null
+  /** 'pl' | 'en' filters to that language; undefined/null shows all. */
+  language?: 'pl' | 'en' | null
   limit?: number
 }): Promise<CommunityPublicationRow[]> {
   let q = supabase
@@ -80,6 +85,9 @@ export async function listCommunityPublications(opts: {
 
   if (opts.tag) {
     q = q.contains('tags', [opts.tag])
+  }
+  if (opts.language) {
+    q = q.eq('language', opts.language)
   }
 
   if (opts.sort === 'popular') {
@@ -160,6 +168,7 @@ export async function publishCommunityPlan(args: {
   snapshot: CommunitySnapshot
   slug: string
   authorDisplayName: string
+  language: 'pl' | 'en'
 }): Promise<CommunityPublicationRow> {
   const { data, error } = await supabase.rpc('publish_community_plan', {
     p_source_custom_plan_id: args.sourceCustomPlanId,
@@ -169,6 +178,7 @@ export async function publishCommunityPlan(args: {
     p_snapshot_json: args.snapshot,
     p_slug: args.slug,
     p_author_display_name: args.authorDisplayName,
+    p_language: args.language,
   })
   if (error) throw error
   const row = mapRow(data as Record<string, unknown>)

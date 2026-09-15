@@ -36,8 +36,12 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
   const online = useOnline()
   const navigate = useNavigate()
   const onboardingComplete = useAppStore((s) => s.settings.onboardingComplete)
+  const uiLang = useAppStore((s) => s.settings.language)
   const [sort, setSort] = useState<CommunitySort>('popular')
   const [tag, setTag] = useState<CommunityTag | null>(null)
+  // Shared catalog, language-filtered by default to the viewer's UI language.
+  const [langFilter, setLangFilter] = useState<'ui' | 'all'>('ui')
+  const lang = langFilter === 'all' ? null : (uiLang === 'en' ? 'en' : 'pl')
   const [rows, setRows] = useState<CommunityPublicationRow[]>([])
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [userId, setUserId] = useState<string | null>(null)
@@ -53,10 +57,10 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
     if (!online) {
       setLoading(false)
       setError(null)
-      setRows(getCommunityListCache(sort, tag) ?? [])
+      setRows(getCommunityListCache(sort, tag, lang) ?? [])
       return
     }
-    const cached = getCommunityListCache(sort, tag)
+    const cached = getCommunityListCache(sort, tag, lang)
     if (cached) {
       setRows(cached)
       setLoading(false)
@@ -65,8 +69,8 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
     }
     setError(null)
     try {
-      const data = await listCommunityPublications({ sort, tag })
-      setCommunityListCache(sort, tag, data)
+      const data = await listCommunityPublications({ sort, tag, language: lang })
+      setCommunityListCache(sort, tag, data, lang)
       setRows(data)
       const { data: auth } = await supabase.auth.getUser()
       const uid = auth.user?.id ?? null
@@ -83,7 +87,7 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [online, sort, tag])
+  }, [online, sort, tag, lang])
 
   useEffect(() => {
     void load()
@@ -205,6 +209,19 @@ export function CommunityCatalogPanel({ showMyLink }: Props) {
         options={[
           { value: 'all' as const, label: pl.communityFilterAll },
           ...COMMUNITY_TAGS.map((t) => ({ value: t, label: communityTagLabel(t) })),
+        ]}
+      />
+
+      <ChipRail
+        ariaLabel={pl.communityLangFilterLabel}
+        value={langFilter}
+        onChange={(v) => setLangFilter(v)}
+        options={[
+          {
+            value: 'ui' as const,
+            label: uiLang === 'en' ? 'English' : 'Polski',
+          },
+          { value: 'all' as const, label: pl.communityLangAll },
         ]}
       />
 

@@ -6,6 +6,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { CommunityPlanCard } from '@/components/community/CommunityPlanCard'
 import { SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
+import { useAppStore } from '@/stores/app-store'
 import { useOnline } from '@/hooks/useOnline'
 import {
   listCommunityPublications,
@@ -29,6 +30,8 @@ function withoutOwn(
 export function CommunityHomeTeaser() {
   const online = useOnline()
   const navigate = useNavigate()
+  const uiLang = useAppStore((s) => s.settings.language)
+  const lang = uiLang === 'en' ? 'en' : 'pl'
   const [rows, setRows] = useState<CommunityPublicationRow[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -51,17 +54,18 @@ export function CommunityHomeTeaser() {
       }
 
       if (!online) {
-        apply(getCommunityListCache('popular', null) ?? [])
+        apply(getCommunityListCache('popular', null, lang) ?? [])
         return
       }
 
-      const cached = getCommunityListCache('popular', null)
+      const cached = getCommunityListCache('popular', null, lang)
       if (cached?.length) apply(cached)
 
       try {
         const data = await listCommunityPublications({
           sort: 'popular',
           limit: FETCH_LIMIT,
+          language: lang,
         })
         apply(data)
       } catch {
@@ -71,7 +75,7 @@ export function CommunityHomeTeaser() {
           setLoadError(true)
           setLoading(false)
         } else {
-          apply(getCommunityListCache('popular', null) ?? [])
+          apply(getCommunityListCache('popular', null, lang) ?? [])
         }
       }
     }
@@ -80,7 +84,7 @@ export function CommunityHomeTeaser() {
     return () => {
       cancelled = true
     }
-  }, [online, reloadTick])
+  }, [online, reloadTick, lang])
 
   if (rows.length === 0 && !loading && !loadError) return null
 

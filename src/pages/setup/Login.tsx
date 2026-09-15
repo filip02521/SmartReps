@@ -9,6 +9,7 @@ import { TextField } from '@/components/ui/TextField'
 import { OtpInput } from '@/components/ui/OtpInput'
 import { PageLoader } from '@/components/ux/Feedback'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
+import { useAppStore } from '@/stores/app-store'
 import { isSafeReturnPath, resolvePostAuthNavigation } from '@/lib/post-auth-navigation'
 import {
   completeSignInFlow,
@@ -221,7 +222,12 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithOtp({
       email: trimmed,
       // Code-only login: do not attach a magic-link redirect. OTP arrives as {{ .Token }}.
-      options: { shouldCreateUser: true },
+      // `data.language` localizes the OTP email template for NEW users —
+      // for existing accounts the metadata refreshes after verify (below).
+      options: {
+        shouldCreateUser: true,
+        data: { language: useAppStore.getState().settings.language ?? 'pl' },
+      },
     })
     setLoading(false)
     if (error) {
@@ -264,6 +270,14 @@ export default function Login() {
         return
       }
       track(AnalyticsEvents.otpVerifyOk)
+      // Keep user_metadata.language in sync with the UI language so future
+      // OTP emails use the right template variant (options.data above only
+      // applies at user creation).
+      void supabase.auth
+        .updateUser({
+          data: { language: useAppStore.getState().settings.language ?? 'pl' },
+        })
+        .catch(() => {})
       await completeSignInFlow(navigate, {
         returnTo: effectiveReturnTo() ?? consumeAuthReturnTo(),
         showSuccessToast: true,

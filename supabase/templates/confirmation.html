@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="{{ if eq .Data.language "en" }}en{{ else }}pl{{ end }}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Kod logowania SmartReps</title>
+    <title>{{ if eq .Data.language "en" }}Your SmartReps login code{{ else }}Kod logowania SmartReps{{ end }}</title>
   </head>
   <body style="margin:0;padding:0;background:#0f1115;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e8eaed;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0f1115;padding:32px 16px;">
@@ -13,18 +13,18 @@
             <tr>
               <td>
                 <p style="margin:0 0 8px;font-size:13px;letter-spacing:0.04em;text-transform:uppercase;color:#9aa3b2;">SmartReps</p>
-                <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#ffffff;font-weight:700;">Twój kod logowania</h1>
+                <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#ffffff;font-weight:700;">{{ if eq .Data.language "en" }}Your login code{{ else }}Twój kod logowania{{ end }}</h1>
                 <p style="margin:0 0 20px;font-size:15px;line-height:1.5;color:#c5cad3;">
-                  Wpisz ten 6-cyfrowy kod w aplikacji SmartReps:
+                  {{ if eq .Data.language "en" }}Enter this 6-digit code in the SmartReps app:{{ else }}Wpisz ten 6-cyfrowy kod w aplikacji SmartReps:{{ end }}
                 </p>
                 <p style="margin:0 0 24px;text-align:center;font-size:36px;line-height:1.2;font-weight:700;letter-spacing:0.28em;color:#ffffff;font-variant-numeric:tabular-nums;">
                   {{ .Token }}
                 </p>
                 <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#9aa3b2;">
-                  Kod jest ważny przez godzinę i działa tylko raz. Jeśli to nie Ty prosiłeś o logowanie — zignoruj tę wiadomość.
+                  {{ if eq .Data.language "en" }}The code is valid for one hour and works only once. If you didn't request this login — ignore this message.{{ else }}Kod jest ważny przez godzinę i działa tylko raz. Jeśli to nie Ty prosiłeś o logowanie — zignoruj tę wiadomość.{{ end }}
                 </p>
                 <p style="margin:16px 0 0;font-size:12px;line-height:1.5;color:#6b7380;">
-                  Nadawca: SmartReps · SR@ontime.mikran.pl
+                  {{ if eq .Data.language "en" }}Sender: SmartReps · SR@ontime.mikran.pl{{ else }}Nadawca: SmartReps · SR@ontime.mikran.pl{{ end }}
                 </p>
               </td>
             </tr>

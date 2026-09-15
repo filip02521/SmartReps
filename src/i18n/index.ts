@@ -80,8 +80,8 @@ export function detectBrowserLang(): Lang {
   if (typeof navigator === 'undefined') return 'pl'
   const browserLang = navigator.language.toLowerCase()
   if (browserLang.startsWith('pl')) return 'pl'
-  if (browserLang.startsWith('en')) return 'en'
-  return 'pl'
+  // English is the international fallback — non-PL browsers get 'en'.
+  return 'en'
 }
 
 // Backward compatibility — re-export pl for gradual migration

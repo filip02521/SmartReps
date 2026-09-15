@@ -12,10 +12,20 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const PROGRAM_LABELS: Record<string, string> = {
-  pushups: 'Pompki',
-  pullups: 'Podciąganie',
-  squats: 'Przysiady',
+const PROGRAM_LABELS: Record<string, Record<string, string>> = {
+  pl: { pushups: 'Pompki', pullups: 'Podciąganie', squats: 'Przysiady' },
+  en: { pushups: 'Pushups', pullups: 'Pull-ups', squats: 'Squats' },
+}
+
+const PUSH_COPY: Record<string, { body: (day: number) => string }> = {
+  pl: { body: (day) => `Dzień ${day} jest dostępny — czas trenować.` },
+  en: { body: (day) => `Day ${day} is available — time to train.` },
+}
+
+/** Per-user UI language (profiles.language), filled for due users. */
+const userLang = new Map<string, 'pl' | 'en'>()
+function langFor(userId: string): 'pl' | 'en' {
+  return userLang.get(userId) ?? 'pl'
 }
 
 /** Local hour 0–23 for an IANA timezone at the given instant. */
@@ -278,7 +288,7 @@ Deno.serve(async (req) => {
     const dueUserIds = [...new Set(due.map((s) => s.user_id as string))]
     const { data: proProfiles } = await supabase
       .from('profiles')
-      .select('id, subscription_status, subscription_expires_at')
+      .select('id, subscription_status, subscription_expires_at, language')
       .in('id', dueUserIds)
 
     const proUserIds = new Set<string>()
@@ -291,6 +301,7 @@ Deno.serve(async (req) => {
       ) {
         proUserIds.add(p.id as string)
       }
+      userLang.set(p.id as string, (p.language as string | null) === 'en' ? 'en' : 'pl')
     }
     const before = due.length
     due = due.filter((s) => proUserIds.has(s.user_id as string))
@@ -396,15 +407,16 @@ Deno.serve(async (req) => {
     let url: string
     let program: string | null = null
 
+    const lang = langFor(userId)
     if (chosen.kind === 'builtin') {
-      const label = PROGRAM_LABELS[chosen.program] ?? chosen.program
+      const label = PROGRAM_LABELS[lang][chosen.program] ?? chosen.program
       title = `SmartReps — ${label}`
-      body = `Dzień ${chosen.currentDay} jest dostępny — czas trenować.`
+      body = PUSH_COPY[lang].body(chosen.currentDay)
       url = `/?program=${chosen.program}`
       program = chosen.program
     } else {
       title = `SmartReps — ${chosen.planName}`
-      body = `Dzień ${chosen.currentDay} jest dostępny — czas trenować.`
+      body = PUSH_COPY[lang].body(chosen.currentDay)
       url = `/workout/custom/${chosen.customPlanId}`
       program = 'custom'
     }

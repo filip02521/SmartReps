@@ -36,6 +36,7 @@ const sample = (
     import_count: 0,
     content_version: 1,
     status: 'published',
+    language: 'pl',
     published_at: '2026-01-01T00:00:00.000Z',
     first_published_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
@@ -51,6 +52,18 @@ describe('community list cache', () => {
     setCommunityListCache('popular', 'home', [sample('1')])
     expect(getCommunityListCache('popular', 'home')?.map((r) => r.id)).toEqual(['1'])
     expect(getCommunityListCache('newest', 'home')).toBeNull()
+  })
+
+  it('separates entries by language filter', () => {
+    setCommunityListCache('popular', null, [sample('pl1')], 'pl')
+    setCommunityListCache('popular', null, [sample('en1', { language: 'en' })], 'en')
+    setCommunityListCache('popular', null, [sample('all1'), sample('all2')])
+    expect(getCommunityListCache('popular', null, 'pl')?.map((r) => r.id)).toEqual(['pl1'])
+    expect(getCommunityListCache('popular', null, 'en')?.map((r) => r.id)).toEqual(['en1'])
+    expect(getCommunityListCache('popular', null)?.map((r) => r.id)).toEqual([
+      'all1',
+      'all2',
+    ])
   })
 
   it('clears all entries', () => {

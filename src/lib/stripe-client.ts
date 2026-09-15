@@ -3,6 +3,7 @@
 // changes happen exclusively via the stripe-webhook function, never here.
 
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
+import { useAppStore } from '@/stores/app-store'
 import type { ProPlanId } from '@/components/pro/PricingCards'
 
 export type BillingResult =
@@ -51,7 +52,11 @@ async function callBillingFunction(
 
 /** Redirect the browser to Stripe Checkout for the selected plan. */
 export async function redirectToCheckout(plan: ProPlanId): Promise<BillingResult> {
-  const result = await callBillingFunction('stripe-checkout', { plan })
+  // language → currency mapping happens server-side (en → USD prices).
+  const result = await callBillingFunction('stripe-checkout', {
+    plan,
+    language: useAppStore.getState().settings.language ?? 'pl',
+  })
   if (result.ok) window.location.assign(result.url)
   return result
 }

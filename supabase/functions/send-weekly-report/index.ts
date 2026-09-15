@@ -145,11 +145,29 @@ type ReportPayload = {
   recommendation?: string
 }
 
-// Polish-first: the report prompt is intentionally PL (matches existing
-// PROGRAM_LABELS/push copy convention — Edge Functions can't use frontend i18n).
-const REPORT_SYSTEM_PROMPT = `Jesteś trenerem personalnym SmartReps. Na podstawie statystyk tygodnia użytkownika napisz krótki, konkretny raport treningowy po polsku. Odpowiedz WYŁĄCZNIE poprawnym JSON-em:
+// Edge Functions can't use frontend i18n — prompt + title are duplicated
+// per language here, keyed by profiles.language.
+const REPORT_SYSTEM_PROMPT: Record<string, string> = {
+  pl: `Jesteś trenerem personalnym SmartReps. Na podstawie statystyk tygodnia użytkownika napisz krótki, konkretny raport treningowy po polsku. Odpowiedz WYŁĄCZNIE poprawnym JSON-em:
 {"summary":"1-2 zdania oceny tygodnia","strengths":["mocna strona 1","mocna strona 2"],"improvements":["obszar do poprawy"],"recommendation":"konkretna rekomendacja na kolejny tydzień"}
-Bądź bezpośredni i motywujący, jak prawdziwy trener. Nie używaj ogólników — odwołuj się do liczb.`
+Bądź bezpośredni i motywujący, jak prawdziwy trener. Nie używaj ogólników — odwołuj się do liczb.`,
+  en: `You are a SmartReps personal trainer. Based on the user's weekly stats, write a short, concrete training report in English. Reply with ONLY valid JSON:
+{"summary":"1-2 sentence assessment of the week","strengths":["strength 1","strength 2"],"improvements":["area to improve"],"recommendation":"a concrete recommendation for next week"}
+Be direct and motivating, like a real coach. No filler — reference the numbers.`,
+}
+
+const REPORT_TITLE: Record<string, string> = {
+  pl: 'Raport tygodnia',
+  en: 'Weekly report',
+}
+
+const PUSH_TITLE: Record<string, string> = {
+  pl: 'Trener SmartReps',
+  en: 'SmartReps Coach',
+}
+
+/** Per-user UI language (profiles.language), filled for due users. */
+const userLang = new Map<string, 'pl' | 'en'>()
 
 async function generateWeeklyReport(
   supabase: ReturnType<typeof createClient>,
@@ -157,6 +175,7 @@ async function generateWeeklyReport(
   userId: string,
   now: Date,
   timeZone: string,
+  lang: 'pl' | 'en' = 'pl',
 ): Promise<string | null> {
   const apiKey = cfg('AI_API_KEY', dbCfg)
   if (!apiKey) return null
@@ -260,7 +279,7 @@ async function generateWeeklyReport(
       body: JSON.stringify({
         model,
         messages: [
-          { role: 'system', content: REPORT_SYSTEM_PROMPT },
+          { role: 'system', content: REPORT_SYSTEM_PROMPT[lang] ?? REPORT_SYSTEM_PROMPT.pl },
           { role: 'user', content: userPrompt },
         ],
         response_format: { type: 'json_object' },
@@ -289,7 +308,7 @@ async function generateWeeklyReport(
       user_id: userId,
       type: 'weekly_report',
       week_key: weekKey,
-      title: 'Raport tygodnia',
+      title: REPORT_TITLE[lang] ?? REPORT_TITLE.pl,
       body,
       tone: 'insight',
       source: 'ai',
@@ -382,7 +401,7 @@ Deno.serve(async (req) => {
     const dueUserIds = [...new Set(dueSubs.map((s) => s.user_id as string))]
     const { data: proProfiles } = await supabase
       .from('profiles')
-      .select('id, subscription_status, subscription_expires_at')
+      .select('id, subscription_status, subscription_expires_at, language')
       .in('id', dueUserIds)
 
     const proUserIds = new Set<string>()
@@ -395,6 +414,7 @@ Deno.serve(async (req) => {
       ) {
         proUserIds.add(p.id as string)
       }
+      userLang.set(p.id as string, (p.language as string | null) === 'en' ? 'en' : 'pl')
     }
     dueSubs = dueSubs.filter((s) => proUserIds.has(s.user_id as string))
   }
@@ -415,17 +435,20 @@ Deno.serve(async (req) => {
   for (const sub of dueSubs) {
     const tz = sub.timezone || 'Europe/Warsaw'
     const userId = sub.user_id as string
+    const lang = userLang.get(userId) ?? 'pl'
 
     // Ensure the weekly report exists (server-side AI generation) and grab
     // its headline for the push body.
-    const headline = await generateWeeklyReport(supabase, dbCfg, userId, now, tz)
+    const headline = await generateWeeklyReport(supabase, dbCfg, userId, now, tz, lang)
     if (headline) reports += 1
 
     const payload = JSON.stringify({
-      title: 'Trener SmartReps',
+      title: PUSH_TITLE[lang] ?? PUSH_TITLE.pl,
       body: headline
         ? `${headline}${headline.length >= 120 ? '…' : ''}`
-        : 'Twoje podsumowanie tygodnia jest gotowe — sprawdź, jak poszło!',
+        : lang === 'en'
+          ? 'Your weekly summary is ready — see how it went!'
+          : 'Twoje podsumowanie tygodnia jest gotowe — sprawdź, jak poszło!',
       url: '/?weekly_report=1',
       tag: 'weekly-report',
     })

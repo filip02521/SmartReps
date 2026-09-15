@@ -45,9 +45,19 @@ setCatchHandler(async ({ request }) => {
   const cache = await caches.open('sr-navigations')
   const cached = await cache.match(request, { ignoreSearch: true })
   if (cached) return cached
-  // Inline offline page
+  // Inline offline page — bilingual (SW has no access to i18n/store).
+  // Primary text follows the browser's Accept-Language when it clearly
+  // prefers English; both languages are shown so neither user is lost.
+  const acceptLang = request.headers.get('accept-language')?.toLowerCase() ?? ''
+  const preferEn = acceptLang.startsWith('en')
+  const plText =
+    'Jesteś offline. Twoje dane treningowe są zapisane lokalnie i będą ' +
+    'zsynchronizowane po przywróceniu połączenia.'
+  const enText =
+    'You are offline. Your workout data is stored locally and will sync ' +
+    'when you are back online.'
   return new Response(
-    `<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8">` +
+    `<!DOCTYPE html><html lang="${preferEn ? 'en' : 'pl'}"><head><meta charset="utf-8">` +
       `<meta name="viewport" content="width=device-width,initial-scale=1">` +
       `<title>SmartReps — Offline</title>` +
       `<style>*{margin:0;padding:0;box-sizing:border-box}` +
@@ -56,10 +66,11 @@ setCatchHandler(async ({ request }) => {
       `.card{text-align:center;max-width:400px}` +
       `h1{font-size:1.5rem;margin-bottom:0.5rem}` +
       `p{color:#999;font-size:0.95rem;line-height:1.5}` +
+      `.alt{margin-top:0.75rem;opacity:0.7}` +
       `</style></head><body><div class="card">` +
       `<h1>🏋️ SmartReps</h1>` +
-      `<p>Jesteś offline. Twoje dane treningowe są zapisane lokalnie i będą ` +
-      `zsynchronizowane po przywróceniu połączenia.</p>` +
+      `<p>${preferEn ? enText : plText}</p>` +
+      `<p class="alt">${preferEn ? plText : enText}</p>` +
       `</div></body></html>`,
     {
       status: 503,

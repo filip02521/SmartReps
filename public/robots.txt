@@ -18,5 +18,13 @@ Disallow: /setup/cycle/
 Disallow: /setup/start/
 Disallow: /not-found
 Disallow: /demo-preview
+# Same private areas under the /en/ prefix
+Disallow: /en/workout/
+Disallow: /en/profile
+Disallow: /en/setup/test/
+Disallow: /en/setup/cycle/
+Disallow: /en/setup/start/
+Disallow: /en/not-found
+Disallow: /en/demo-preview
 
 Sitemap: https://smart-reps.vercel.app/sitemap.xml

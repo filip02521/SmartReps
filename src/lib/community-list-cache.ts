@@ -14,18 +14,23 @@ const DETAIL_TTL_MS = 10 * 60_000
 const cache = new Map<CacheKey, CacheEntry>()
 const detailBySlug = new Map<string, { row: CommunityPublicationRow; at: number }>()
 
-function key(sort: CommunitySort, tag: CommunityTag | null | undefined): CacheKey {
-  return `${sort}::${tag ?? ''}`
+function key(
+  sort: CommunitySort,
+  tag: CommunityTag | null | undefined,
+  lang: 'pl' | 'en' | null | undefined,
+): CacheKey {
+  return `${sort}::${tag ?? ''}::${lang ?? ''}`
 }
 
 export function getCommunityListCache(
   sort: CommunitySort,
   tag?: CommunityTag | null,
+  lang?: 'pl' | 'en' | null,
 ): CommunityPublicationRow[] | null {
-  const entry = cache.get(key(sort, tag))
+  const entry = cache.get(key(sort, tag, lang))
   if (!entry) return null
   if (Date.now() - entry.at > TTL_MS) {
-    cache.delete(key(sort, tag))
+    cache.delete(key(sort, tag, lang))
     return null
   }
   return entry.rows
@@ -35,9 +40,10 @@ export function setCommunityListCache(
   sort: CommunitySort,
   tag: CommunityTag | null | undefined,
   rows: CommunityPublicationRow[],
+  lang?: 'pl' | 'en' | null,
 ): void {
   const sorted = sortCommunityRows(rows, sort)
-  cache.set(key(sort, tag), { rows: sorted, at: Date.now() })
+  cache.set(key(sort, tag, lang), { rows: sorted, at: Date.now() })
   for (const row of sorted) {
     setCommunityDetailCache(row)
   }

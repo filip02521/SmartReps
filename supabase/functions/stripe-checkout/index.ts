@@ -4,11 +4,14 @@
 //   gateway verification is the first auth layer, getUser() the second.)
 // Auth: user JWT (Authorization: Bearer <access_token>)
 // Secrets:
-//   STRIPE_SECRET_KEY       — sk_live_... / sk_test_...
-//   STRIPE_PRICE_MONTHLY    — price_... for the monthly subscription
-//   STRIPE_PRICE_ANNUAL     — price_... for the annual subscription
-//   STRIPE_PRICE_LIFETIME   — price_... for the one-time lifetime payment
-//   APP_BASE_URL            — e.g. https://smartreps.app (success/cancel URLs)
+//   STRIPE_SECRET_KEY         — sk_live_... / sk_test_...
+//   STRIPE_PRICE_MONTHLY      — price_... PLN monthly subscription
+//   STRIPE_PRICE_ANNUAL       — price_... PLN annual subscription
+//   STRIPE_PRICE_LIFETIME     — price_... PLN one-time lifetime payment
+//   STRIPE_PRICE_MONTHLY_USD  — price_... USD monthly subscription
+//   STRIPE_PRICE_ANNUAL_USD   — price_... USD annual subscription
+//   STRIPE_PRICE_LIFETIME_USD — price_... USD one-time lifetime payment
+//   APP_BASE_URL              — e.g. https://smartreps.app (success/cancel URLs)
 //
 // Creates a Stripe Checkout Session for the authenticated user and returns
 // the hosted-page URL. The user's identity is bound via client_reference_id
@@ -32,14 +35,18 @@ function json(status: number, body: Record<string, unknown>): Response {
 
 type PlanId = 'monthly' | 'annual' | 'lifetime'
 
-function priceForPlan(plan: PlanId): string | null {
+// Currency follows the user's UI language: EN users pay in USD, PL in PLN.
+// If a USD price env is missing the PLN price is used as a safe fallback —
+// the user still checks out, just in PLN (never silently free).
+function priceForPlan(plan: PlanId, lang: 'pl' | 'en'): string | null {
+  const suffix = lang === 'en' ? '_USD' : ''
   switch (plan) {
     case 'monthly':
-      return Deno.env.get('STRIPE_PRICE_MONTHLY') ?? null
+      return Deno.env.get(`STRIPE_PRICE_MONTHLY${suffix}`) ?? Deno.env.get('STRIPE_PRICE_MONTHLY') ?? null
     case 'annual':
-      return Deno.env.get('STRIPE_PRICE_ANNUAL') ?? null
+      return Deno.env.get(`STRIPE_PRICE_ANNUAL${suffix}`) ?? Deno.env.get('STRIPE_PRICE_ANNUAL') ?? null
     case 'lifetime':
-      return Deno.env.get('STRIPE_PRICE_LIFETIME') ?? null
+      return Deno.env.get(`STRIPE_PRICE_LIFETIME${suffix}`) ?? Deno.env.get('STRIPE_PRICE_LIFETIME') ?? null
   }
 }
 
@@ -75,7 +82,7 @@ Deno.serve(async (req) => {
   const userId = userData.user.id
 
   // ── Parse + validate plan ──
-  let body: { plan?: unknown }
+  let body: { plan?: unknown; language?: unknown }
   try {
     body = await req.json()
   } catch {
@@ -85,7 +92,8 @@ Deno.serve(async (req) => {
   if (plan !== 'monthly' && plan !== 'annual' && plan !== 'lifetime') {
     return json(400, { error: 'unknown_plan' })
   }
-  const priceId = priceForPlan(plan)
+  const lang: 'pl' | 'en' = body.language === 'en' ? 'en' : 'pl'
+  const priceId = priceForPlan(plan, lang)
   if (!priceId) {
     console.error(`stripe-checkout: price env for ${plan} missing`)
     return json(503, { error: 'billing_not_configured' })
@@ -145,6 +153,7 @@ Deno.serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       mode: plan === 'lifetime' ? 'payment' : 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
+      locale: lang,
       // Identity binding — the webhook resolves the profile from this.
       client_reference_id: userId,
       customer: existingCustomer ?? undefined,

@@ -1,0 +1,213 @@
+-- Community publications: content language for the shared catalog.
+-- EN users publish English plans, PL users Polish ones; the catalog filters
+-- by the viewer's UI language with an option to show everything.
+--
+-- publish_community_plan gains an 8th arg p_language. Postgres can't
+-- CREATE OR REPLACE a changed arg list, so the new signature is created and
+-- the old 7-arg one becomes a thin wrapper → older app builds keep working.
+
+alter table community_publications
+  add column if not exists language text not null default 'pl';
+
+-- ── New signature (8 args) ──
+create or replace function publish_community_plan(
+  p_source_custom_plan_id uuid,
+  p_title text,
+  p_description text,
+  p_tags text[],
+  p_snapshot_json jsonb,
+  p_slug text,
+  p_author_display_name text,
+  p_language text
+)
+returns community_publications
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uid uuid := community_assert_authenticated();
+  existing community_publications%rowtype;
+  result community_publications%rowtype;
+  write_count int;
+  tags_norm text[] := coalesce(p_tags, '{}');
+  snap_bytes int;
+  profile_is_public boolean;
+  author_is_pro boolean;
+  published_count int;
+  lang_norm text := case when p_language = 'en' then 'en' else 'pl' end;
+begin
+  if p_source_custom_plan_id is null then
+    raise exception 'invalid_source';
+  end if;
+  if char_length(trim(coalesce(p_title, ''))) < 1 or char_length(p_title) > 80 then
+    raise exception 'invalid_title';
+  end if;
+  if char_length(coalesce(p_description, '')) > 1500 then
+    raise exception 'invalid_description';
+  end if;
+  if char_length(trim(coalesce(p_author_display_name, ''))) < 1 then
+    raise exception 'invalid_display_name';
+  end if;
+  if char_length(trim(coalesce(p_slug, ''))) < 3 or char_length(p_slug) > 120 then
+    raise exception 'invalid_slug';
+  end if;
+  if cardinality(tags_norm) > 3 then
+    raise exception 'too_many_tags';
+  end if;
+  if not (tags_norm <@ array['home', 'gym', 'bodyweight', 'weights', 'short_cycle', 'long_cycle']::text[]) then
+    raise exception 'invalid_tags';
+  end if;
+  if p_snapshot_json is null or jsonb_typeof(p_snapshot_json) <> 'object' then
+    raise exception 'invalid_snapshot';
+  end if;
+  if coalesce((p_snapshot_json->>'schemaVersion')::int, 0) <> 1 then
+    raise exception 'invalid_snapshot';
+  end if;
+  if jsonb_typeof(p_snapshot_json->'days') <> 'array'
+     or jsonb_array_length(p_snapshot_json->'days') < 1 then
+    raise exception 'invalid_snapshot';
+  end if;
+  if jsonb_typeof(p_snapshot_json->'exercises') <> 'array'
+     or jsonb_array_length(p_snapshot_json->'exercises') < 1 then
+    raise exception 'invalid_snapshot';
+  end if;
+  snap_bytes := octet_length(p_snapshot_json::text);
+  if snap_bytes > 524288 then
+    raise exception 'snapshot_too_large';
+  end if;
+
+  -- Require public profile to publish
+  select is_public into profile_is_public
+  from public_profiles where user_id = uid;
+
+  if profile_is_public is null or profile_is_public = false then
+    raise exception 'public_profile_required';
+  end if;
+
+  -- Rate limit: max 5 publications per 24 hours
+  select count(*) into write_count
+  from community_publications
+  where author_id = uid
+    and last_publish_write_at > now() - interval '24 hours';
+  if write_count >= 5 then
+    raise exception 'rate_limited';
+  end if;
+
+  -- Lock existing row to prevent race conditions
+  select * into existing
+  from community_publications
+  where author_id = uid and source_custom_plan_id = p_source_custom_plan_id
+  for update;
+
+  -- Free-tier cap: max 3 'published' plans per author (mirrors
+  -- FREE_PUBLICATION_LIMIT in src/lib/feature-gating.ts). Pro/trial/lifetime
+  -- are unlimited. Re-publishing an already-published row does not grow the
+  -- count, so the caller's own row is excluded via existing.id.
+  select (
+    subscription_status = 'lifetime'
+    or (subscription_status in ('pro', 'trial')
+        and (subscription_expires_at is null or subscription_expires_at > now()))
+  ) into author_is_pro
+  from profiles
+  where id = uid;
+
+  if not coalesce(author_is_pro, false) then
+    select count(*) into published_count
+    from community_publications
+    where author_id = uid
+      and status = 'published'
+      and id is distinct from existing.id;
+    if published_count >= 3 then
+      raise exception 'publication_limit';
+    end if;
+  end if;
+
+  if found then
+    update community_publications set
+      title = trim(p_title),
+      description = coalesce(p_description, ''),
+      tags = tags_norm,
+      snapshot_json = p_snapshot_json,
+      author_display_name = trim(p_author_display_name),
+      language = lang_norm,
+      content_version = content_version + 1,
+      status = 'published',
+      published_at = now(),
+      first_published_at = coalesce(first_published_at, now()),
+      last_publish_write_at = now(),
+      updated_at = now()
+    where id = existing.id
+    returning * into result;
+  else
+    insert into community_publications (
+      author_id,
+      source_custom_plan_id,
+      slug,
+      title,
+      description,
+      tags,
+      snapshot_json,
+      author_display_name,
+      language,
+      status,
+      published_at,
+      first_published_at,
+      last_publish_write_at,
+      updated_at
+    ) values (
+      uid,
+      p_source_custom_plan_id,
+      lower(trim(p_slug)),
+      trim(p_title),
+      coalesce(p_description, ''),
+      tags_norm,
+      p_snapshot_json,
+      trim(p_author_display_name),
+      lang_norm,
+      'published',
+      now(),
+      now(),
+      now(),
+      now()
+    )
+    returning * into result;
+  end if;
+
+  -- Sync display name to profiles table
+  update profiles
+    set display_name = trim(p_author_display_name)
+    where id = uid
+      and (display_name is distinct from trim(p_author_display_name));
+
+  return result;
+end;
+$$;
+
+-- ── Backwards-compat wrapper: old 7-arg signature delegates with 'pl' ──
+create or replace function publish_community_plan(
+  p_source_custom_plan_id uuid,
+  p_title text,
+  p_description text,
+  p_tags text[],
+  p_snapshot_json jsonb,
+  p_slug text,
+  p_author_display_name text
+)
+returns community_publications
+language sql
+security definer
+set search_path = public
+as $$
+  select publish_community_plan(
+    p_source_custom_plan_id, p_title, p_description, p_tags,
+    p_snapshot_json, p_slug, p_author_display_name, 'pl'
+  );
+$$;
+
+revoke all on function publish_community_plan(uuid, text, text, text[], jsonb, text, text, text) from public, anon;
+grant execute on function publish_community_plan(uuid, text, text, text[], jsonb, text, text, text) to authenticated;
+
+-- Index for the catalog's language filter (published rows only).
+create index if not exists community_publications_language_idx
+  on community_publications (language, status);

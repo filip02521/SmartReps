@@ -644,6 +644,9 @@ export const en: Translation = {
   seoLoginTitle: 'Login',
   seoLoginDescription:
     'Log in to SmartReps with an email OTP code. No Google or Facebook accounts.',
+  seoCommunityTitle: 'Community plan',
+  seoCommunityDescription:
+    'A training plan from the SmartReps community catalog — see exercises, days and progression, then import it into your plans.',
   seoTechniquePushupsTitle: 'Pushup technique',
   seoTechniquePushupsDescription:
     'Proper pushup technique — hand placement, elbows, tempo and common mistakes. A guide for beginners.',
@@ -2433,6 +2436,8 @@ export const en: Translation = {
   communitySortRating: 'Top rated',
   communitySortLabel: 'Sort community',
   communityTagFilterLabel: 'Filter by tag',
+  communityLangFilterLabel: 'Filter by language',
+  communityLangAll: 'All languages',
   communityRatingCount: (n: number) => (n === 1 ? '1 review' : `${n} reviews`),
   communityRatingNoReviews: 'No reviews',
   communityRatingAria: (avg: string, count: number) =>
@@ -3661,12 +3666,12 @@ Write in English. Be specific and encouraging.`,
   proValAuto: 'Automatic',
   proValAutoManual: 'Auto + manual pick',
   proBestValue: 'Best value',
-  proPriceMonthly: '19,99 zł',
-  proPriceAnnual: '79,99 zł',
-  proPriceAnnualFuture: '99,99 zł',
+  proPriceMonthly: '$4.99',
+  proPriceAnnual: '$19.99',
+  proPriceAnnualFuture: '$24.99',
   proPriceAnnualPromo: 'Launch price',
-  proPriceLifetime: '299,99 zł',
-  proPriceAnnualMonthly: '~6,67 zł/mo',
+  proPriceLifetime: '$79.99',
+  proPriceAnnualMonthly: '~$1.67/mo',
   proLaunchOfferNote:
     'Launch offer — the annual plan will soon cost 99,99 zł. Buy now and keep the lower price forever.',
   proPerYear: '/ year',
