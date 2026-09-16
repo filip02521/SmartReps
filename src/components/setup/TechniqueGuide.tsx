@@ -83,7 +83,11 @@ export function TechniqueGuide({ program }: { program: Program }) {
         : '/setup/test/pushups'
 
   const goBack = () => {
-    if (window.history.length > 1) navigate(-1)
+    // history.state.idx is React Router's in-app index — a deep-linked page
+    // opened in a fresh tab reports idx 0 even though window.history.length
+    // can be >1, so plain length would navigate out of the app.
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
+    if (idx > 0) navigate(-1)
     else navigate(fromWorkout ? '/' : defaultBack)
   }
 

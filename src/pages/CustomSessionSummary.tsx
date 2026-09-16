@@ -440,7 +440,7 @@ export default function CustomSessionSummary() {
   if (
     !session ||
     session.status !== 'completed' ||
-    (planId && session.customPlanId && session.customPlanId !== planId)
+    (planId && session.customPlanId !== planId)
   ) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
@@ -902,7 +902,7 @@ export default function CustomSessionSummary() {
             {pl.backHome}
           </Button>
         )}
-        <Button variant="ghost" fullWidth onClick={() => navigate('/progress?tab=custom&view=history')}>
+        <Button variant="ghost" fullWidth onClick={() => navigate('/progress?tab=history')}>
           {pl.customSummaryViewProgress}
         </Button>
       </div>

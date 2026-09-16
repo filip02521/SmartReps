@@ -86,7 +86,7 @@ const uriAllowList =
 // user_metadata.language (set by the app via signInWithOtp options.data).
 const otpSubject =
   process.env.MAILER_SUBJECT ||
-  '{{ if eq .Data.language "en" }}Your SmartReps login code{{ else }}Kod logowania SmartReps{{ end }}'
+  '{{ if eq (printf "%v" .Data.language) "en" }}Your SmartReps login code{{ else }}Kod logowania SmartReps{{ end }}'
 
 const body = {
   external_email_enabled: true,

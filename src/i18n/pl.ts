@@ -1063,6 +1063,7 @@ export const plDict = {
   planResume: 'Wznów plan',
   planPaused: 'Wstrzymany',
   planEditBlockedActive: 'Zakończ lub anuluj trwający trening tego planu przed edycją.',
+  planEditNotFound: 'Ten plan już nie istnieje.',
   customSummaryBackToPlan: 'Wróć do planu',
   customSummaryViewProgress: 'Zobacz postępy',
   customSummaryRecSuccess: 'Zrób zaplanowaną przerwę — wróć, gdy będziesz gotowy.',

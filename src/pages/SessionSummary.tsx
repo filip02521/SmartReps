@@ -98,6 +98,9 @@ export default function SessionSummary() {
   const frozenWeeks = useFrozenWeeks()
   const [progressionSuggestion, setProgressionSuggestion] = useState<ProgressionSuggestion | null>(null)
   const [suggestionDismissed, setSuggestionDismissed] = useState(false)
+  /** Fail state derived from the loaded session — history deep-links carry
+      no ?failed=1 param, so a failed day must not render as a success. */
+  const [sessionFailed, setSessionFailed] = useState(false)
   const achievementQueue = useAchievementUiStore((s) => s.queue)
   const clearQueue = useAchievementUiStore((s) => s.clearQueue)
   const setSummaryMode = useAchievementUiStore((s) => s.setSummaryMode)
@@ -155,55 +158,58 @@ export default function SessionSummary() {
       ])
       setCurrent(comparison.current)
       setPrevious(comparison.previous)
-      if (comparison.current) {
-        currentSessionIdRef.current = comparison.current.id
-        // Streak data: all sessions (including this one) + sessions before this one
-        setAllSessionsForStreak(allCompleted)
-        setPreviousSessionsForStreak(
-          allCompleted.filter((s) => s.id !== comparison.current?.id),
-        )
-        // Detect personal records for celebration banner
-        let records: PersonalRecord[] = []
-        try {
-          records = await detectPersonalRecords(comparison.current)
-          setPrRecords(records)
-        } catch {
-          setPrRecords([])
-        }
-        // Trigger celebration overlay on successful completion:
-        // - Always for first 3 workouts (onboarding honeymoon)
-        // - After that: only when PR, new achievement, or cycle level-up makes it special
-        if (!failed) {
-          const cycleLevelUp =
-            !!comparison.current &&
-            !!prog &&
-            comparison.current.cycleId !== prog.cycleId
-          const isSpecial =
-            records.length > 0 || achievementQueue.length > 0 || cycleLevelUp
-          const isEarlyWorkout = totalCompletedCount <= 3
-          setShowCelebration(isSpecial || isEarlyWorkout)
-        }
-        setInsights(
-          computeBuiltinSessionInsights({
-            current: comparison.current,
-            previous: comparison.previous,
-            historicalSessions,
-          }),
-        )
-        // RPE/RIR progression suggestion (builtin = info-only, cannot modify fixed plans)
-        const recentSetsForTrend = historicalSessions
-          .filter((s) => s.program === program && s.dayNumber === comparison.current?.dayNumber && s.id !== comparison.current.id)
-          .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-          .slice(0, 2)
-          .map((s) => s.setResults)
-        const suggestion = analyzeBuiltinProgression(comparison.current.setResults, recentSetsForTrend)
-        setProgressionSuggestion(suggestion)
-        setSuggestionDismissed(false)
-        // Proactive coach: load or generate post-workout insight
-        void loadOrGenerateCoachInsight(comparison.current, comparison.previous, historicalSessions)
-      } else {
-        setInsights(undefined)
+      const isFailed = failed || comparison.current?.passed === false
+      setSessionFailed(isFailed)
+      if (!comparison.current) {
+        // Stale/mismatched deep-link (?session=<gone-or-other-program>) —
+        // without this we'd render an empty "day complete" summary.
+        setError(pl.missingSession)
+        return
       }
+      const currentSession = comparison.current
+      currentSessionIdRef.current = currentSession.id
+      // Streak data: all sessions (including this one) + sessions before this one
+      setAllSessionsForStreak(allCompleted)
+      setPreviousSessionsForStreak(
+        allCompleted.filter((s) => s.id !== currentSession.id),
+      )
+      // Detect personal records for celebration banner
+      let records: PersonalRecord[] = []
+      try {
+        records = await detectPersonalRecords(currentSession)
+        setPrRecords(records)
+      } catch {
+        setPrRecords([])
+      }
+      // Trigger celebration overlay on successful completion:
+      // - Always for first 3 workouts (onboarding honeymoon)
+      // - After that: only when PR, new achievement, or cycle level-up makes it special
+      if (!isFailed) {
+        const cycleLevelUp =
+          !!prog && currentSession.cycleId !== prog.cycleId
+        const isSpecial =
+          records.length > 0 || achievementQueue.length > 0 || cycleLevelUp
+        const isEarlyWorkout = totalCompletedCount <= 3
+        setShowCelebration(isSpecial || isEarlyWorkout)
+      }
+      setInsights(
+        computeBuiltinSessionInsights({
+          current: currentSession,
+          previous: comparison.previous,
+          historicalSessions,
+        }),
+      )
+      // RPE/RIR progression suggestion (builtin = info-only, cannot modify fixed plans)
+      const recentSetsForTrend = historicalSessions
+        .filter((s) => s.program === program && s.dayNumber === currentSession.dayNumber && s.id !== currentSession.id)
+        .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+        .slice(0, 2)
+        .map((s) => s.setResults)
+      const suggestion = analyzeBuiltinProgression(currentSession.setResults, recentSetsForTrend)
+      setProgressionSuggestion(suggestion)
+      setSuggestionDismissed(false)
+      // Proactive coach: load or generate post-workout insight
+      void loadOrGenerateCoachInsight(currentSession, comparison.previous, historicalSessions)
     } catch {
       setError(pl.errorLoadSummary)
     } finally {
@@ -328,12 +334,16 @@ export default function SessionSummary() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when summary identity changes
   }, [program, sessionId, failed])
 
+  // Failed state: URL hint (?failed=1) or the loaded session's own flag —
+  // history links carry no param, so the DB record is the source of truth.
+  const displayFailed = failed || sessionFailed
+
   const showLoginPrompt =
     !loading &&
     !error &&
     email !== undefined &&
     shouldShowLoginCloudPrompt({
-      passed: !failed,
+      passed: !displayFailed,
       email,
       hasSeenLoginCloudPrompt,
     })
@@ -397,14 +407,14 @@ export default function SessionSummary() {
   const daysLeft = daysUntilWorkout(
     progress?.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
   )
-  const summaryActions = getSummaryActions({ failed, progress, program })
+  const summaryActions = getSummaryActions({ failed: displayFailed, progress, program })
   const dismissLoginPrompt = () => setHasSeenLoginCloudPrompt(true)
 
   // Detekcja przejścia na wyższy cykl: sesja zaliczona, cycleId w progress
   // różni się od cycleId w sesji (completeWorkoutDay ustawił nowy cykl).
   const newCycle = progress ? getCycleById(progress.cycleId) : undefined
   const cycleLevelUp =
-    !failed &&
+    !displayFailed &&
     !!current &&
     !!cycle &&
     !!newCycle &&
@@ -481,16 +491,16 @@ export default function SessionSummary() {
       {/* WorkoutResultCard is the single status header — the h1 stays for
           screen readers only so the "day completed" message isn't repeated. */}
       <h1 className="sr-only">
-        {failed ? pl.dayFailed : pl.dayComplete(current?.dayNumber ?? 1)}
+        {displayFailed ? pl.dayFailed : pl.dayComplete(current?.dayNumber ?? 1)}
       </h1>
 
       {/* Unified workout result card — status + PR + AI + CTA in one cohesive unit */}
       <WorkoutResultCard
         className="mb-6"
-        failed={failed}
-        title={failed ? pl.summaryHeroFail : pl.summaryHeroSuccess}
+        failed={displayFailed}
+        title={displayFailed ? pl.summaryHeroFail : pl.summaryHeroSuccess}
         subtitle={`${getProgramLabel(program)}${cycle ? ` · ${cycle.nameShort}` : ''} · ${pl.attemptShort(current?.cycleAttempt ?? progress?.cycleAttempt ?? 1)}${
-          !failed && progress && progress.status !== 'test_pending'
+          !displayFailed && progress && progress.status !== 'test_pending'
             ? ` · ${pl.nextWorkoutIn(daysLeft)}`
             : ''
         }`}
@@ -530,7 +540,7 @@ export default function SessionSummary() {
       />
 
       {/* Streak recap — celebrate streak increase after workout */}
-      {!failed && (
+      {!displayFailed && (
         <StreakRecapCard
           sessions={allSessionsForStreak}
           previousSessions={previousSessionsForStreak}
@@ -538,7 +548,7 @@ export default function SessionSummary() {
       )}
 
       {/* Challenge progress recap — show how this workout contributed */}
-      {!failed && <ChallengeProgressRecap program={program} session={current ?? null} />}
+      {!displayFailed && <ChallengeProgressRecap program={program} session={current ?? null} />}
 
       {/* Achievements — celebration moment, keep near result card */}
       {newAchievements.length > 0 && (
@@ -579,7 +589,7 @@ export default function SessionSummary() {
       )}
 
       {/* Cycle complete card with icon */}
-      {!failed && progress?.status === 'test_pending' && (
+      {!displayFailed && progress?.status === 'test_pending' && (
         <Card className="mb-6 border border-[var(--sr-brand-primary)]/40 bg-[var(--sr-brand-primary-muted)] p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-brand-primary)]/15 text-[var(--sr-brand-primary)]" aria-hidden>
@@ -611,7 +621,7 @@ export default function SessionSummary() {
       )}
 
       {/* Failed info card with icon */}
-      {failed && (
+      {displayFailed && (
         <Card className="mb-6 border border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)] p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] bg-[var(--sr-error)]/15 text-[var(--sr-error)]" aria-hidden>
@@ -645,7 +655,7 @@ export default function SessionSummary() {
       </div>
 
       {/* RPE/RIR progression suggestion (builtin = info-only) */}
-      {progressionSuggestion && !suggestionDismissed && !failed && (
+      {progressionSuggestion && !suggestionDismissed && !displayFailed && (
         <ProgressionSuggestionPanel
           suggestion={progressionSuggestion}
           canApply={false}

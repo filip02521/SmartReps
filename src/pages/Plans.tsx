@@ -40,6 +40,7 @@ import { showToast } from '@/stores/toast-store'
 import {
   deleteCustomPlan,
   duplicateCustomPlan,
+  getCustomPlan,
   getOrCreateCustomProgress,
   hasActiveCustomWorkout,
   importCustomPlanFromJson,
@@ -246,6 +247,12 @@ export default function PlansPage() {
 
   async function openEditor(planId: string | null, opts?: { dayNumber?: number }) {
     if (planId) {
+      // Deep-link ?edit=<id> can point at a deleted plan — the editor would
+      // silently open a blank "new plan" draft instead. Fail loudly.
+      if (!(await getCustomPlan(planId))) {
+        showToast(pl.planEditNotFound, 'error')
+        return
+      }
       const activeDay = await getActiveCustomWorkoutDay(planId)
       setEditorActiveDay(activeDay)
       if (activeDay != null && opts?.dayNumber != null && activeDay === opts.dayNumber) {
@@ -404,11 +411,19 @@ export default function PlansPage() {
 
   useEffect(() => {
     if (highlightId) {
+      // Stale deep-link (cycle removed/renamed): without this the param stays
+      // in the URL and this effect forces 'programs' forever — tab lock.
+      if (!allCycles.some((c) => c.id === highlightId)) {
+        const next = new URLSearchParams(searchParams)
+        next.delete('highlight')
+        setSearchParams(next, { replace: true })
+        return
+      }
       setTab('programs')
       return
     }
     setTab(parsePlansTab(tabParam, libraryParam))
-  }, [tabParam, libraryParam, highlightId])
+  }, [tabParam, libraryParam, highlightId, searchParams, setSearchParams])
 
   useEffect(() => {
     if (libraryParam !== '1') return

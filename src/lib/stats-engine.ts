@@ -144,11 +144,6 @@ export function getWeekKey(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-/**
- * `frozenWeeks` is a set of week keys (local Monday, YYYY-MM-DD) covered by a
- * consumed streak freeze — they count as trained. Callers that don't care
- * about freezes can omit it.
- */
 /** Weekly-streak milestone thresholds shared by streak UI components. */
 export const STREAK_MILESTONES = [4, 8, 12, 26, 52] as const
 
@@ -173,6 +168,11 @@ export function justReachedStreakMilestone(
   return null
 }
 
+/**
+ * `frozenWeeks` is a set of week keys (local Monday, YYYY-MM-DD) covered by a
+ * consumed streak freeze — they count as trained. Callers that don't care
+ * about freezes can omit it.
+ */
 export function computeStreakWeeks(
   passedSessions: LocalWorkoutSession[],
   now = new Date(),

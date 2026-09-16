@@ -436,7 +436,11 @@ export async function getSessionComparison(
   sessionId: string,
 ): Promise<{ current: LocalWorkoutSession | undefined; previous: LocalWorkoutSession | undefined }> {
   const current = await db.workoutSessions.get(sessionId)
-  if (!current) return { current: undefined, previous: undefined }
+  // Wrong-program or custom session under a builtin summary route — the URL
+  // :program must match the session, otherwise we'd render a mismatched recap.
+  if (!current || current.program !== program) {
+    return { current: undefined, previous: undefined }
+  }
 
   // First try: same day + same cycle attempt (most relevant comparison)
   const sameCycle = await db.workoutSessions
