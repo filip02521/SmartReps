@@ -83,6 +83,8 @@ describe('isSafeReturnPath', () => {
     expect(isSafeReturnPath('/plans?tab=programs')).toBe(true)
     expect(isSafeReturnPath('/progress?tab=history')).toBe(true)
     expect(isSafeReturnPath('/')).toBe(true)
+    expect(isSafeReturnPath('/pro')).toBe(true)
+    expect(isSafeReturnPath('/pro?feature=ai')).toBe(true)
   })
 
   it('allows community publication paths', () => {

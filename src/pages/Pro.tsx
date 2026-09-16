@@ -112,7 +112,7 @@ export default function ProPage() {
       }
       if (result === 'not_authenticated') {
         showToast(pl.proTrialLoginHint, 'info')
-        navigate('/setup/login')
+        navigate('/setup/login?returnTo=%2Fpro')
         return
       }
       if (result === 'already_used' || result === 'already_pro') {
@@ -137,7 +137,7 @@ export default function ProPage() {
         void refreshSubscriptionStatus() // heal a stale local status
       } else if (result.reason === 'auth') {
         showToast(pl.proTrialLoginHint, 'info')
-        navigate('/setup/login')
+        navigate('/setup/login?returnTo=%2Fpro')
       } else {
         showToast(showManage
           ? result.reason === 'no_customer'
@@ -296,7 +296,7 @@ export default function ProPage() {
         <li className="flex items-center gap-1.5 text-xs text-[var(--sr-text-secondary)]">
           <RefreshCw size={15} className="shrink-0 text-[var(--sr-success)]" aria-hidden />
           <Link
-            to="/setup/login"
+            to="/setup/login?returnTo=%2Fpro"
             className="font-medium text-[var(--sr-brand-primary)] underline-offset-4 hover:underline"
           >
             {pl.proAlreadyHave}

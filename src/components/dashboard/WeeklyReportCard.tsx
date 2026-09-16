@@ -25,7 +25,7 @@ import {
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { coachBodyPreview, parseCoachBody } from '@/lib/coach-body'
 import { format, formatDistanceToNow } from 'date-fns'
-import { dateFnsLocale } from '@/lib/date-locale'
+import { dateFnsLocale, dateBcp47 } from '@/lib/date-locale'
 
 type WeeklyMetrics = {
   sessions: number
@@ -75,7 +75,7 @@ function teaser(body: string, maxLen = 120): string {
 /** Compact number formatting (e.g. 12 400 → 12.4k). */
 function formatCompact(value: number): string {
   if (value >= 10000) return `${(value / 1000).toFixed(1)}k`
-  return value.toLocaleString()
+  return value.toLocaleString(dateBcp47())
 }
 
 /** Mon-first 7-day activity chart. Pure visual — meaning carried by the
