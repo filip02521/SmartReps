@@ -50,7 +50,6 @@ export type RestTimerWorkerCallbacks = {
   getState: () => RestTimerState | null
 }
 
-let wakeLock: WakeLockSentinel | null = null
 let worker: Worker | null = null
 let workerIntervalFallback: number | null = null
 
@@ -103,24 +102,5 @@ export function stopRestTimerWorker(): void {
   if (workerIntervalFallback !== null) {
     clearInterval(workerIntervalFallback)
     workerIntervalFallback = null
-  }
-}
-
-export async function requestWakeLock() {
-  try {
-    if (!('wakeLock' in navigator)) return
-    if (wakeLock && !wakeLock.released) return
-    wakeLock = await navigator.wakeLock.request('screen')
-  } catch {
-    // not supported or denied
-  }
-}
-
-export async function releaseWakeLock() {
-  try {
-    await wakeLock?.release()
-    wakeLock = null
-  } catch {
-    // ignore
   }
 }

@@ -23,6 +23,7 @@ export default defineConfig({
         'brand/logo-mark.svg',
         'brand/apple-touch-icon.png',
         'brand/notification-icon.png',
+        'keep-awake.mp4',
       ],
       manifest: {
         id: '/',
