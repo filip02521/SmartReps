@@ -28,13 +28,11 @@ export function ProgramCardPreview({
 }) {
   if (hasResume && resume) {
     return (
-      <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[color-mix(in_srgb,var(--sr-brand-primary)_8%,var(--sr-bg-surface))] px-3.5 py-3">
-        <div className="mb-2 flex items-baseline justify-between gap-2">
-          <p className="sr-text-overline text-[var(--sr-text-muted)]">{pl.statusInProgress}</p>
-          <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
-            {pl.homeInProgressSets(resume.set, resume.total, resume.day)}
-          </p>
-        </div>
+      <div className="mt-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-brand-primary)]/30 bg-[color-mix(in_srgb,var(--sr-brand-primary)_8%,var(--sr-bg-surface))] px-3 py-2.5">
+        {/* No "in progress" overline — the header status badge already says it. */}
+        <p className="mb-1.5 sr-text-caption font-semibold tabular-nums text-[var(--sr-text-primary)]">
+          {pl.homeInProgressSets(resume.set, resume.total, resume.day)}
+        </p>
         <div className="flex gap-1.5" aria-hidden>
           {Array.from({ length: resume.total }, (_, i) => (
             <span
@@ -56,7 +54,7 @@ export function ProgramCardPreview({
   }
   if (bucket === 'paused') {
     return (
-      <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
+      <div className="mt-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2.5">
         <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.homeProgramPaused}</p>
       </div>
     )
@@ -66,7 +64,7 @@ export function ProgramCardPreview({
     if (hideRestPreview) return null
     const waitingRestDays = Math.max(1, daysLeft)
     return (
-      <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
+      <div className="mt-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2.5">
         <p className="sr-text-body-sm font-medium text-[var(--sr-text-primary)]">
           {pl.restPrimaryLabel(stats?.nextWorkoutLabel ?? pl.restIn(daysLeft))}
         </p>
@@ -80,7 +78,7 @@ export function ProgramCardPreview({
   }
   if (bucket === 'ready' && currentDaySets && setsTargetTotal != null) {
     return (
-      <div className="mt-3 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3.5 py-3">
+      <div className="mt-2.5 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-3 py-2.5">
         <div className="mb-2 flex items-baseline justify-between gap-2">
           <p className="sr-text-overline text-[var(--sr-text-muted)]">{pl.homeTodaySession}</p>
           <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
@@ -159,7 +157,7 @@ export function ProgramCardBanner({
 
   if (!message) return null
   return (
-    <div className="mt-2.5">
+    <div className="mt-2">
       <FeedbackBanner
         variant={variant}
         message={message}

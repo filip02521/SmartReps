@@ -23,7 +23,7 @@ export type CardCtaHandlers = {
   onCrossTrain: () => void
 }
 
-/** CTA footer — one bordered-off region, five mutually exclusive variants. */
+/** CTA footer — one hairline-separated region, five mutually exclusive variants. */
 export function ProgramCardCta({
   bucket,
   hasResume,
@@ -46,7 +46,7 @@ export function ProgramCardCta({
   handlers: CardCtaHandlers
 }) {
   return (
-    <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-4">
+    <div className="mt-3 border-t border-[var(--sr-border-subtle)] pt-3">
       {hasResume && resume && (
         <div className="flex flex-col gap-2">
           <Button

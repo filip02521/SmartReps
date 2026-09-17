@@ -123,14 +123,14 @@ export function ProgramHomeCard({
     // otherwise an active program silently disappears from the dashboard.
     return (
       <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <ProgramIconBadge program={program} />
-          <h3 className="min-w-0 flex-1 break-words sr-text-h2 text-[var(--sr-text-primary)]">
+          <h3 className="min-w-0 flex-1 break-words sr-text-h3 text-[var(--sr-text-primary)]">
             {model.label}
           </h3>
         </div>
         <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">{model.loadError}</p>
-        <Button className="mt-4" size="touch" fullWidth onClick={onReload}>
+        <Button className="mt-3" size="touch" fullWidth onClick={onReload}>
           {pl.retry}
         </Button>
       </ProgramAccentCard>
@@ -141,19 +141,21 @@ export function ProgramHomeCard({
     return (
       <ProgramAccentCard program={program} id={`program-${program}`} className="scroll-mt-24">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <ProgramIconBadge program={program} />
             <div className="min-w-0 flex-1">
-              <h3 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
+              <h3 className="min-w-0 break-words sr-text-h3 text-[var(--sr-text-primary)]">
                 {model.label}
               </h3>
             </div>
           </div>
-          <Badge variant="info">{pl.notConfigured}</Badge>
+          <Badge variant="info" size="sm">
+            {pl.notConfigured}
+          </Badge>
         </div>
         <p className="mt-2 sr-text-body-sm text-[var(--sr-text-secondary)]">{pl.notConfiguredHint}</p>
         <Button
-          className="mt-4"
+          className="mt-3"
           size="touch"
           fullWidth
           onClick={() => navigate(`/setup/test/${program}`)}
@@ -176,7 +178,6 @@ export function ProgramHomeCard({
         program={program}
         label={model.label}
         badge={displayBadge}
-        cycleNameShort={model.cycleNameShort}
         progress={progress}
         resume={resume}
         showSkipRest={bucket === 'resting' && !hasResume}

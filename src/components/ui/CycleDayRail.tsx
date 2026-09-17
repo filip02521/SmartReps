@@ -12,15 +12,20 @@ export function CycleDayRail({
   totalDays,
   ariaLabel,
   className,
+  accent,
 }: {
   days: CycleDayRailItem[]
   totalDays: number
   ariaLabel?: string
   className?: string
+  /** Accent color for the current day — defaults to brand; program cards
+   *  pass their program accent so the rail carries program identity. */
+  accent?: string
 }) {
+  const currentColor = accent ?? 'var(--sr-brand-primary)'
   return (
     <div
-      className={cn('flex items-end gap-1.5', className)}
+      className={cn('flex items-end gap-1', className)}
       role="list"
       aria-label={ariaLabel ?? pl.cycleDays}
     >
@@ -41,15 +46,17 @@ export function CycleDayRail({
             }`}
             className={cn(
               'flex-1 rounded-full transition-all duration-200 motion-reduce:transition-none',
-              isCurrent ? 'h-3.5' : 'h-2.5',
-              isCurrent && 'shadow-[0_0_8px_var(--sr-brand-primary-muted)]',
+              isCurrent ? 'h-3' : 'h-2',
             )}
             style={{
               background: isCompleted
                 ? 'var(--sr-success)'
                 : isCurrent
-                  ? 'var(--sr-brand-primary)'
+                  ? currentColor
                   : 'var(--sr-bg-surface)',
+              boxShadow: isCurrent
+                ? `0 0 8px color-mix(in srgb, ${currentColor} 40%, transparent)`
+                : undefined,
             }}
           />
         )

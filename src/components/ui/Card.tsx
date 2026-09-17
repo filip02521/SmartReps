@@ -21,9 +21,11 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 export function Badge({
   className,
   variant = 'default',
+  size = 'md',
   ...props
 }: HTMLAttributes<HTMLSpanElement> & {
   variant?: 'default' | 'success' | 'warning' | 'error' | 'info'
+  size?: 'sm' | 'md'
 }) {
   const toneMap = {
     default: 'brand',
@@ -36,7 +38,7 @@ export function Badge({
   return (
     <StatusPill
       tone={tone}
-      size="md"
+      size={size}
       className={cn(
         'py-0.5 font-medium',
         variant === 'default' && 'text-[var(--sr-brand-primary-hover)]',

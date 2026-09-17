@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Badge } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { getOrCreateCustomProgress, getCustomPlan, setCustomPlanPaused, listExercises } from '@/lib/custom-plan-service'
@@ -11,11 +10,11 @@ import type { CustomPlan, ExerciseDefinition, PlanDay } from '@/lib/exercise-mod
 import type { CustomPlanHomeCardModel, CustomPlanCycleDay } from '@/lib/custom-plan-home-summary'
 import type { CustomCycleDayStatus } from '@/lib/custom-plan-cycle-rail'
 import { cn } from '@/lib/utils'
-import { FOCUS_RING } from '@/lib/ui-chrome'
 import { AccentCard } from '@/components/ui/ProgramAccentCard'
 import { AccentIconBadge } from '@/components/dashboard/program-card/ProgramIconBadge'
 import { pl } from '@/i18n/pl'
-import { Dumbbell, MoreVertical, Play } from 'lucide-react'
+import { HomeCardHeader } from '@/components/dashboard/program-card/HomeCardHeader'
+import { Dumbbell, Play } from 'lucide-react'
 
 // Mini cycle rail — non-interactive dots/bars showing day status.
 // Mirrors the builtin CycleDayRail visual language but with custom plan statuses.
@@ -49,7 +48,7 @@ function MiniCustomCycleRail({ days, totalDays }: { days: CustomPlanCycleDay[]; 
             aria-current={isCurrent ? 'step' : undefined}
             aria-label={`${pl.dayOfTotal(d.dayNumber, totalDays)} — ${ariaLabel[d.status]}`}
             className={cn(
-              'flex h-6 flex-1 items-center justify-center rounded-[var(--sr-radius-sm)] text-[9px] font-semibold tabular-nums leading-none transition-colors',
+              'flex h-5 flex-1 items-center justify-center rounded-[var(--sr-radius-sm)] text-[9px] font-semibold tabular-nums leading-none transition-colors',
               tone[d.status],
               isCurrent && 'ring-2 ring-[var(--sr-brand-primary)]/30',
               d.status === 'passed' && 'text-[var(--sr-text-inverse)]',
@@ -126,36 +125,20 @@ export function CustomPlanHomeCard({
 
   return (
     <AccentCard accent="var(--sr-brand-primary)">
-      {/* Header — same layout as the builtin program card: icon + title +
-          badge inline, menu button right. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+      {/* Header — shared HomeCardHeader row keeps builtin and custom
+          program cards visually identical. */}
+      <HomeCardHeader
+        icon={
           <AccentIconBadge accent="var(--sr-brand-primary)">
-            <Dumbbell size={24} strokeWidth={2.25} />
+            <Dumbbell size={20} strokeWidth={2.25} />
           </AccentIconBadge>
-          <div className="min-w-0 flex-1">
-            <h3 className="min-w-0 break-words sr-text-h2 text-[var(--sr-text-primary)]">
-              {model.planName}
-            </h3>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          <Badge variant={model.badge.variant}>{model.badge.label}</Badge>
-          <button
-            type="button"
-            aria-label={pl.menuCustomPlan}
-            aria-haspopup="dialog"
-            aria-expanded={showMenu}
-            className={cn(
-              'flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
-              FOCUS_RING,
-            )}
-            onClick={() => setShowMenu(true)}
-          >
-            <MoreVertical size={18} />
-          </button>
-        </div>
-      </div>
+        }
+        title={model.planName}
+        badge={model.badge}
+        menuLabel={pl.menuCustomPlan}
+        menuExpanded={showMenu}
+        onMenu={() => setShowMenu(true)}
+      />
 
       <Sheet open={showMenu} onClose={() => setShowMenu(false)} title={pl.menuCustomPlan}>
         <div className="flex flex-col gap-1 pb-2">
@@ -210,12 +193,12 @@ export function CustomPlanHomeCard({
         </div>
       </Sheet>
 
-      {/* Progress bar + cycle rail — same metrics line + h-2 bar as the
-          builtin card. */}
+      {/* Metrics row + mini cycle rail — same pattern as the builtin card
+          (caption metrics + pct right, rail shows progress, no extra bar). */}
       {model.totalDays > 0 && (
-        <div className="mt-3">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+        <div className="mt-2.5">
+          <div className="mb-1.5 flex items-baseline justify-between gap-2">
+            <p className="sr-text-caption text-[var(--sr-text-secondary)]">
               {model.isCycleComplete
                 ? pl.homeCustomStatusCycleComplete
                 : pl.homeCustomDayOf(
@@ -229,21 +212,9 @@ export function CustomPlanHomeCard({
                 </>
               )}
             </p>
-            <p className="sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
+            <p className="shrink-0 sr-text-caption font-semibold tabular-nums text-[var(--sr-text-primary)]">
               {model.pct}%
             </p>
-          </div>
-          <div
-            className="mb-2.5 h-2 overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
-            role="progressbar"
-            aria-valuenow={model.pct}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          >
-            <div
-              className="h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none"
-              style={{ width: `${model.pct}%`, background: 'var(--sr-brand-primary)' }}
-            />
           </div>
           {model.cycleDays && (
             <MiniCustomCycleRail days={model.cycleDays} totalDays={model.totalDays} />
@@ -259,7 +230,7 @@ export function CustomPlanHomeCard({
       )}
 
       {/* CTA — same touch size + divider spacing as the builtin card. */}
-      <div className="mt-4 border-t border-[var(--sr-border-subtle)] pt-4">
+      <div className="mt-3 border-t border-[var(--sr-border-subtle)] pt-3">
         <Button
           type="button"
           size="touch"

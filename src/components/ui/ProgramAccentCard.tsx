@@ -9,9 +9,10 @@ const accentVar: Record<Program, string> = {
   squats: 'var(--sr-squats-accent)',
 }
 
-/** Shared home-card chrome: accent left border, gradient tint, corner glow.
+/** Shared home-card chrome: thin accent edge + faint accent gradient.
  *  One shell for builtin program cards and custom plan cards so both read
- *  as the same visual object on the dashboard. */
+ *  as the same visual object on the dashboard. Chrome stays quiet — the
+ *  accent carries program identity (edge, icon badge, current rail day). */
 export function AccentCard({
   accent,
   className,
@@ -25,28 +26,19 @@ export function AccentCard({
   return (
     <Card
       {...props}
-      className={cn(
-        'relative overflow-hidden border-l-4 transition-all hover:border-l-[var(--sr-border-strong)] hover:shadow-[var(--sr-shadow-elevated)]',
-        className,
-      )}
+      className={cn('border-l-[3px] p-4', className)}
       style={
         {
           ...style,
           borderLeftColor: accent,
           backgroundImage: `linear-gradient(
             135deg,
-            color-mix(in srgb, ${accent} 10%, var(--sr-bg-elevated)) 0%,
-            var(--sr-bg-elevated) 50%
+            color-mix(in srgb, ${accent} 7%, var(--sr-bg-elevated)) 0%,
+            var(--sr-bg-elevated) 45%
           )`,
         } as CSSProperties
       }
     >
-      {/* Subtle accent glow in top-right corner */}
-      <div
-        className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-20 blur-2xl"
-        style={{ background: accent }}
-        aria-hidden
-      />
       {children}
     </Card>
   )
