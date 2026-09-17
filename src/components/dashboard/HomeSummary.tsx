@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Play } from 'lucide-react'
 import type { HomeLoadResult, QuickCta } from '@/lib/home-summary'
 import { getGreetingKey } from '@/lib/home-summary'
 import { Button } from '@/components/ui/Button'
@@ -20,11 +20,9 @@ export function HomeStatusHeader({
 }) {
   const greetingKey = getGreetingKey()
   const cta = summary.quickCta
-  // Actionable kinds ('workout', 'workout-force', 'setup') are not rendered
-  // here on purpose — the first program card directly below offers the exact
-  // same action, and two stacked pulsing CTAs competed in the first viewport.
-  // Only 'scroll' stays: jumping to a card is something no card button does.
-  const showCta = cta?.kind === 'scroll' && !!onQuickCta
+  // Primary action at the top: when a workout is due today the user should
+  // reach it without scanning cards — the card CTA below stays as fallback.
+  const showCta = !!cta && !!onQuickCta
   return (
     <header className="mb-5">
       {/* Date + greeting — compact eyebrow; plan chip stays glued to the name
@@ -55,7 +53,7 @@ export function HomeStatusHeader({
           {summary.statusSubtitle}
         </p>
       )}
-      {/* Scroll CTA — jump to the card that needs attention */}
+      {/* Quick CTA — today's action without hunting through cards */}
       {showCta && cta && onQuickCta && (
         <Button
           size="touch"
@@ -64,7 +62,11 @@ export function HomeStatusHeader({
           onClick={() => onQuickCta(cta)}
         >
           <span className="flex items-center justify-center gap-2">
-            <ChevronDown size={18} aria-hidden />
+            {cta.kind === 'scroll' ? (
+              <ChevronDown size={18} aria-hidden />
+            ) : (
+              <Play size={18} className="fill-current" aria-hidden />
+            )}
             {cta.label}
           </span>
         </Button>
