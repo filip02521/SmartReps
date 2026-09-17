@@ -20,6 +20,7 @@ import { pl } from '@/i18n/pl'
 import { buildActivityInsights } from '@/lib/weekly-recap'
 import { useFrozenWeeks } from '@/lib/streak-freeze'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
+import { formatNumber } from '@/lib/date-locale'
 import type { LocalProgramProgress, LocalWorkoutSession } from '@/lib/db'
 import type {
   ProgramStats,
@@ -112,12 +113,12 @@ function ProgramSection({
       <MetricStrip
         metrics={[
           {
-            value: rangeStats.sessions,
+            value: formatNumber(rangeStats.sessions),
             label: pl.rangeSessions,
             hint: pl.rangeDaysLabel(rangeDays),
           },
           {
-            value: rangeStats.totalReps,
+            value: formatNumber(rangeStats.totalReps),
             label: pl.rangeTotalReps,
             hint: pl.rangeDaysLabel(rangeDays),
           },
@@ -127,7 +128,7 @@ function ProgramSection({
         <NestedStat
           size="sm"
           overline={pl.recordTest}
-          value={stats.maxTestRecord ?? pl.noValue}
+          value={stats.maxTestRecord != null ? formatNumber(stats.maxTestRecord) : pl.noValue}
         />
         <NestedStat
           size="sm"
@@ -141,7 +142,7 @@ function ProgramSection({
         <NestedStat
           size="sm"
           overline={pl.sessionsTotal}
-          value={stats.passedSessionCount}
+          value={formatNumber(stats.passedSessionCount)}
         />
       </div>
       {showTrend && (
@@ -213,17 +214,17 @@ function ProgramSection({
           <NestedStat
             size="md"
             overline={pl.progressTotalRepsAllTime}
-            value={stats.totalRepsAllTime}
+            value={formatNumber(stats.totalRepsAllTime)}
           />
           <NestedStat
             size="md"
             overline={pl.progressAvgPerSession}
-            value={volumeStats.avgRepsPerSession ?? pl.noValue}
+            value={volumeStats.avgRepsPerSession != null ? formatNumber(volumeStats.avgRepsPerSession) : pl.noValue}
           />
           <NestedStat
             size="md"
             overline={pl.progressAvgSessionsPerWeek}
-            value={volumeStats.avgSessionsPerWeek ?? pl.noValue}
+            value={volumeStats.avgSessionsPerWeek != null ? formatNumber(volumeStats.avgSessionsPerWeek, 1) : pl.noValue}
           />
           <NestedStat
             size="md"
@@ -437,17 +438,17 @@ export function OverviewPanel({
       <MetricStrip
         metrics={[
           {
-            value: customOverviewStats.totalSessions,
+            value: formatNumber(customOverviewStats.totalSessions),
             label: pl.sessionsTotal,
             hint: pl.progressCustomStatsHint,
           },
           {
-            value: customOverviewStats.exercisesTrained,
+            value: formatNumber(customOverviewStats.exercisesTrained),
             label: pl.progressCustomExercisesTrained,
             hint: pl.progressCustomStatsHint,
           },
           {
-            value: customOverviewStats.totalVolume,
+            value: formatNumber(customOverviewStats.totalVolume),
             label: pl.progressCustomVolumeTotal,
             hint: pl.progressCustomStatsHint,
           },
@@ -458,7 +459,7 @@ export function OverviewPanel({
           <NestedStat
             size="md"
             overline={pl.progressVolume14d}
-            value={customVolumeStats.volume14d}
+            value={formatNumber(customVolumeStats.volume14d)}
             hint={
               customVolumeStats.volumeChangePct != null
                 ? customVolumeStats.volumeChangePct > 0
@@ -472,7 +473,7 @@ export function OverviewPanel({
           <NestedStat
             size="md"
             overline={pl.progressSessions30d}
-            value={customVolumeStats.sessionsLast30d}
+            value={formatNumber(customVolumeStats.sessionsLast30d)}
           />
         </div>
       )}
@@ -659,7 +660,7 @@ export function OverviewPanel({
 
           {/* Cele i prognozy — regresja na historii (Pro) */}
           {allSessions.length > 0 && (
-            <ProgressSection icon={Target} title={pl.forecastTitle}>
+            <ProgressSection icon={Target} title={pl.forecastTitle} hint={pro ? pl.forecastHint : undefined}>
               {pro ? (
                 <ForecastSection
                   sessions={allSessions}

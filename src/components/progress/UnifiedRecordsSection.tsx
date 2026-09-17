@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { useAppStore } from '@/stores/app-store'
 import { kgToDisplay, weightUnitLabel } from '@/lib/weight-units'
+import { formatNumber } from '@/lib/date-locale'
 import { formatDurationDisplay } from '@/lib/custom-prescription-format'
 import type { ExercisePr } from '@/lib/custom-stats'
 import type { ExerciseTrend } from '@/lib/custom-exercise-stats'
@@ -36,11 +37,13 @@ function trendDotClass(trend: ExerciseTrend): string | null {
 function formatExercisePrLine(pr: ExercisePr, weightUnit: 'kg' | 'lb' = 'kg'): string {
   return (
     [
-      pr.maxReps != null ? `${pr.maxReps} ${pl.repsUnit}` : null,
+      pr.maxReps != null ? `${formatNumber(pr.maxReps)} ${pl.repsUnit}` : null,
       pr.maxDurationSec != null
         ? formatDurationDisplay(pr.maxDurationSec, pr.durationDisplayUnit ?? 'min')
         : null,
-      pr.maxWeightKg != null ? `${kgToDisplay(pr.maxWeightKg, weightUnit)} ${weightUnitLabel(weightUnit)}` : null,
+      pr.maxWeightKg != null
+        ? `${formatNumber(kgToDisplay(pr.maxWeightKg, weightUnit), weightUnit === 'kg' ? 1 : 0)} ${weightUnitLabel(weightUnit)}`
+        : null,
     ]
       .filter(Boolean)
       .join(' · ') || pl.noValue

@@ -39,11 +39,13 @@ export function computeMuscleBalance(
   }
 
   const setsByGroup = new Map<MuscleGroup, number>()
+  let earliestInWindow = Number.POSITIVE_INFINITY
 
   for (const s of sessions) {
     if (s.status !== 'completed') continue
     const t = new Date(s.startedAt).getTime()
     if (t < now - windowMs) continue
+    if (t < earliestInWindow) earliestInWindow = t
 
     if (isCustomWorkoutSession(s)) {
       // Custom session — use exercise logs
@@ -51,9 +53,12 @@ export function computeMuscleBalance(
         for (const log of s.exerciseLogs) {
           const mg = exerciseMuscleMap.get(log.exerciseId)
           const sets = log.sets.length
-          if (mg && mg !== 'other') {
-            setsByGroup.set(mg, (setsByGroup.get(mg) ?? 0) + sets)
-          }
+          // Cardio sets are time blocks, not strength volume — excluded.
+          // Exercises without a group (or deleted) keep their sets under
+          // 'other' so performed work never vanishes from the balance.
+          if (mg === 'cardio') continue
+          const bucket = mg ?? 'other'
+          setsByGroup.set(bucket, (setsByGroup.get(bucket) ?? 0) + sets)
         }
       }
     } else {
@@ -66,9 +71,20 @@ export function computeMuscleBalance(
     }
   }
 
-  return DISPLAY_GROUPS.map((mg) => {
+  // Normalize by the observed span (min 1 week, max `weeks`) — dividing a
+  // new user's first-week volume by 4 would understate their weekly rate
+  // and flag 'minimal' even after a heavy week.
+  const spanWeeks =
+    earliestInWindow === Number.POSITIVE_INFINITY
+      ? weeks
+      : Math.min(weeks, Math.max(1, Math.ceil((now - earliestInWindow) / (7 * 86400000))))
+
+  const groups = [...DISPLAY_GROUPS]
+  if ((setsByGroup.get('other') ?? 0) > 0) groups.push('other')
+
+  return groups.map((mg) => {
     const totalSets = setsByGroup.get(mg) ?? 0
-    const weeklySets = Math.round((totalSets / weeks) * 10) / 10
+    const weeklySets = Math.round((totalSets / spanWeeks) * 10) / 10
     let status: MuscleBalance['status'] = 'none'
     if (weeklySets >= 10) status = 'optimal'
     else if (weeklySets >= 5) status = 'low'

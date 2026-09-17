@@ -32,7 +32,7 @@ function buildWeekCells(
   const weekMap = new Map<string, { sessions: number; reps: number }>()
   for (const s of sessions) {
     if (s.status !== 'completed') continue
-    const key = getWeekKey(new Date(s.startedAt))
+    const key = getWeekKey(new Date(s.completedAt ?? s.startedAt))
     const existing = weekMap.get(key) ?? { sessions: 0, reps: 0 }
     existing.sessions += 1
     existing.reps += s.totalReps ?? 0

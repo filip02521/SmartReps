@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { pl } from '@/i18n/pl'
+import { dateBcp47 } from '@/lib/date-locale'
 import { db, type LocalWorkoutSession } from '@/lib/db'
 import type { ExerciseDefinition, MuscleGroup } from '@/lib/exercise-model'
 import { computeMuscleBalance, type MuscleBalance } from '@/lib/muscle-balance'
@@ -29,6 +30,19 @@ function statusTextColor(status: MuscleBalance['status']): string {
       return 'text-[var(--sr-warning)]'
     case 'none':
       return 'text-[var(--sr-text-muted)]'
+  }
+}
+
+function statusLabel(status: MuscleBalance['status']): string {
+  switch (status) {
+    case 'optimal':
+      return pl.muscleBalanceOptimal
+    case 'low':
+      return pl.muscleBalanceLow
+    case 'minimal':
+      return pl.muscleBalanceMinimal
+    case 'none':
+      return pl.muscleBalanceNone
   }
 }
 
@@ -74,8 +88,12 @@ export function MuscleBalanceHeatmap({
   )
 
   const hasData = balance.some((b) => b.weeklySets > 0)
+  // Warn only about groups that are trained but thin ('minimal'). Groups at
+  // 'none' are listed below — they can't trigger the warning because builtin
+  // programs cover only chest/back/legs, so every builtin-only user would
+  // see a permanent, unactionable warning.
   const undertrainedGroups = balance.filter(
-    (b) => b.weeklySets > 0 && (b.status === 'minimal' || b.status === 'none'),
+    (b) => b.status === 'minimal' && b.muscleGroup !== 'other',
   )
   const missingGroups = balance.filter((b) => b.weeklySets === 0)
 
@@ -88,19 +106,26 @@ export function MuscleBalanceHeatmap({
   }
 
   return (
-    <div role="img" aria-label={pl.muscleBalanceAria}>
+    <div>
       {undertrainedGroups.length >= 1 && (
         <p className="mb-3 sr-text-body-sm text-[var(--sr-warning)]">
-          {pl.muscleBalanceWarning}
+          {pl.muscleBalanceWarningNamed(
+            undertrainedGroups.map((b) => muscleGroupShortLabel(b.muscleGroup)).join(', '),
+          )}
         </p>
       )}
 
-      {/* Trained groups — sorted by volume (from computeMuscleBalance) */}
-      <ul className="space-y-2.5">
+      {/* Trained groups — sorted by volume (from computeMuscleBalance).
+          Semantic <ul> + labeled rows — readable by screen readers (the old
+          role="img" wrapper made every value invisible to AT). */}
+      <ul className="space-y-2.5" aria-label={pl.muscleBalanceAria}>
         {balance
           .filter((b) => b.weeklySets > 0)
           .map((b) => {
             const pct = Math.min(100, (b.weeklySets / OPTIMAL_SETS) * 100)
+            const setsText = pl.muscleBalanceWeeklySets(
+              b.weeklySets.toLocaleString(dateBcp47(), { maximumFractionDigits: 1 }),
+            )
             return (
               <li key={b.muscleGroup}>
                 <div className="mb-1 flex items-center justify-between gap-2">
@@ -108,10 +133,16 @@ export function MuscleBalanceHeatmap({
                     {muscleGroupShortLabel(b.muscleGroup)}
                   </span>
                   <span className={cn('sr-text-body-sm font-semibold tabular-nums', statusTextColor(b.status))}>
-                    {pl.muscleBalanceWeeklySets(b.weeklySets)}
+                    {setsText}
+                    <span className="font-normal text-[var(--sr-text-muted)]">
+                      {' '}· {statusLabel(b.status)}
+                    </span>
                   </span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--sr-bg-surface)]">
+                <div
+                  className="h-2 w-full overflow-hidden rounded-full bg-[var(--sr-bg-surface)]"
+                  role="presentation"
+                >
                   <div
                     className={cn('h-full rounded-full transition-all', statusColor(b.status))}
                     style={{ width: `${pct}%` }}

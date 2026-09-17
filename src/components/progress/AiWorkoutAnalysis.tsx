@@ -6,6 +6,7 @@ import { BrandLoader } from '@/components/ui/BrandLoader'
 import { FeedbackBanner } from '@/components/ux/Feedback'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { pl } from '@/i18n/pl'
+import { dateBcp47 } from '@/lib/date-locale'
 import { useAppStore } from '@/stores/app-store'
 import { listExercises } from '@/lib/custom-plan-service'
 import { analyzeWorkouts, type AnalysisResult } from '@/lib/ai/workout-analyzer'
@@ -375,7 +376,9 @@ export function AiWorkoutAnalysis() {
                           {label}
                         </span>
                         <span className={cn('shrink-0 text-right text-xs font-semibold', statusColor)}>
-                          {pl.muscleBalanceWeeklySets(v.weeklySets)} — {statusText}
+                          {pl.muscleBalanceWeeklySets(
+                            v.weeklySets.toLocaleString(dateBcp47(), { maximumFractionDigits: 1 }),
+                          )} — {statusText}
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-[var(--sr-text-muted)]">

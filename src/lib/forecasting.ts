@@ -10,7 +10,8 @@
 //   dokładnej daty, tylko orientacyjny termin.
 
 import { estimate1rm } from '@/lib/exercise-model'
-import { programLabel } from '@/lib/home-summary'
+import { localDayKey, programLabel } from '@/lib/home-summary'
+import { pl } from '@/i18n/pl'
 import type { Program } from '@/data/plans/types'
 import type { LocalWorkoutSession } from '@/lib/db'
 
@@ -135,7 +136,7 @@ export function buildForecastSeries(
       let entry = customPoints.get(log.exerciseId)
       if (!entry) {
         entry = {
-          name: exerciseMap.get(log.exerciseId)?.name ?? log.exerciseId,
+          name: exerciseMap.get(log.exerciseId)?.name ?? pl.exerciseFallbackName,
           byMetric: { e1rm: [], reps: [], duration: [] },
         }
         customPoints.set(log.exerciseId, entry)
@@ -267,7 +268,10 @@ function forecastSeries(series: Series): ExerciseForecast {
   // Dni od ostatniego punktu do milestone'u na prostej regresji.
   const xLast = xs[xs.length - 1]!
   const daysToGoal = (milestone - (intercept + slope * xLast)) / slope
-  if (!Number.isFinite(daysToGoal) || daysToGoal < 0 || daysToGoal > FORECAST_MAX_HORIZON_DAYS) {
+  // daysToGoal < 0 → trend line already crossed the milestone (goal not yet
+  // logged as a weekly max). That's "imminent", not 'flat' — predict the
+  // earliest sensible date via the clamp below.
+  if (!Number.isFinite(daysToGoal) || daysToGoal > FORECAST_MAX_HORIZON_DAYS) {
     return { ...base, slopePerDay: slope, r2, confidence, status: 'flat' }
   }
 
@@ -275,17 +279,17 @@ function forecastSeries(series: Series): ExerciseForecast {
   // mathematically due but not yet logged) — clamp to tomorrow so the UI
   // never shows a date that already passed.
   const predictedMs = Math.max(
-    tLast + Math.ceil(daysToGoal) * DAY_MS,
+    tLast + Math.ceil(Math.max(0, daysToGoal)) * DAY_MS,
     Date.now() + DAY_MS,
   )
-  const predicted = new Date(predictedMs)
   return {
     ...base,
     slopePerDay: slope,
     r2,
     confidence,
     status: 'ok',
-    predictedDate: predicted.toISOString().slice(0, 10),
+    // Local date — toISOString() is UTC and can shift the day for +X zones.
+    predictedDate: localDayKey(new Date(predictedMs)),
   }
 }
 

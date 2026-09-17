@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from 'recharts'
 import { Activity } from 'lucide-react'
+import { format } from 'date-fns'
+import { dateFnsLocale } from '@/lib/date-locale'
 import { pl } from '@/i18n/pl'
 import { AccessibleChart } from '@/components/ui/AccessibleChart'
 import { ProgressSection } from '@/components/progress/ProgressSection'
@@ -115,7 +117,9 @@ export function RpeTrendPanel() {
   const chartData = useMemo(() => {
     if (groups.length === 0) return []
     return (groups[0]?.points ?? []).map((p) => ({
-      date: p.date,
+      // p.date is ISO (YYYY-MM-DD) — format for display; raw ISO tick labels
+      // like "2025-01-14" are unreadable on a narrow chart.
+      date: format(new Date(`${p.date}T12:00:00`), 'd MMM', { locale: dateFnsLocale() }),
       rpe: p.avgRpe,
       rir: p.avgRir,
       sets: p.setCount,

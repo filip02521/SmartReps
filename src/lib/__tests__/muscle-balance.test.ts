@@ -126,4 +126,82 @@ describe('computeMuscleBalance', () => {
     const balance = computeMuscleBalance(sessions, exercises, 4)
     expect(balance.every((b) => b.status === 'none')).toBe(true)
   })
+
+  it('counts exercises without a muscleGroup under other', () => {
+    exercises.push({
+      id: 'ex1',
+      name: 'Custom move',
+      primaryMetric: 'reps',
+      archived: false,
+    } as ExerciseDefinition)
+    const now = new Date().toISOString()
+    sessions.push({
+      id: 's1',
+      program: 'custom',
+      programKind: 'custom',
+      customPlanId: 'p1',
+      cycleId: 'c1',
+      dayNumber: 1,
+      cycleAttempt: 1,
+      status: 'completed',
+      startedAt: now,
+      completedAt: now,
+      passed: true,
+      exerciseLogs: [
+        { exerciseId: 'ex1', order: 0, sets: [{ setNumber: 1, actual: { reps: 10 }, passed: true, prescription: { reps: { kind: 'fixed', value: 10 } } }] },
+      ],
+      setResults: [],
+    })
+    const balance = computeMuscleBalance(sessions, exercises, 4)
+    const other = balance.find((b) => b.muscleGroup === 'other')
+    expect(other).toBeDefined()
+    expect(other!.weeklySets).toBeGreaterThan(0)
+  })
+
+  it('normalizes the weekly rate over the observed span for new users', () => {
+    // First-ever session 3 days ago: 15 chest sets must not be divided by 4.
+    const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString()
+    sessions.push({
+      id: 's1',
+      program: 'pushups',
+      cycleId: 'c1',
+      dayNumber: 1,
+      cycleAttempt: 1,
+      status: 'completed',
+      startedAt: threeDaysAgo,
+      completedAt: threeDaysAgo,
+      passed: true,
+      totalReps: 150,
+      setResults: setDrafts([30, 30, 30, 30, 30]),
+    })
+    const balance = computeMuscleBalance(sessions, exercises, 4)
+    const chest = balance.find((b) => b.muscleGroup === 'chest')
+    expect(chest!.weeklySets).toBe(5)
+  })
+
+  it('keeps the full window divisor once history spans it', () => {
+    // Sessions spanning 3+ weeks: 20 chest sets → 20 / ceil(span) — still
+    // uses the observed span, capped at `weeks`.
+    const twentyDaysAgo = new Date(Date.now() - 20 * 86400000).toISOString()
+    const now = new Date().toISOString()
+    for (const [i, startedAt] of [twentyDaysAgo, now].entries()) {
+      sessions.push({
+        id: `s${i}`,
+        program: 'pushups',
+        cycleId: 'c1',
+        dayNumber: 1,
+        cycleAttempt: 1,
+        status: 'completed',
+        startedAt,
+        completedAt: startedAt,
+        passed: true,
+        totalReps: 100,
+        setResults: setDrafts([25, 25, 25, 25]),
+      })
+    }
+    const balance = computeMuscleBalance(sessions, exercises, 4)
+    const chest = balance.find((b) => b.muscleGroup === 'chest')
+    // span = 20 days → 3 weeks → 8 sets / 3 ≈ 2.7
+    expect(chest!.weeklySets).toBeCloseTo(2.7, 1)
+  })
 })

@@ -27,9 +27,16 @@ describe('estimate1rm', () => {
     expect(estimate1rm(80, 5)).toBe(93)
   })
 
-  it('uses Brzycki for 11-36 reps', () => {
+  it('uses Brzycki for 11-20 reps', () => {
     // Brzycki: 60 * 36 / (37 - 12) = 60 * 36 / 25 = 86.4 → 86
     expect(estimate1rm(60, 12)).toBe(86)
+  })
+
+  it('uses Epley beyond 20 reps — Brzycki diverges to fantasy numbers', () => {
+    // Brzycki at 36 reps: 20 * 36 / (37 - 36) = 720 — absurd.
+    // Epley: 20 * (1 + 36/30) = 44
+    expect(estimate1rm(20, 36)).toBe(44)
+    expect(estimate1rm(20, 36)).toBeLessThan(100)
   })
 
   it('falls back to Epley for reps > 36 (Brzycki would divide by zero)', () => {

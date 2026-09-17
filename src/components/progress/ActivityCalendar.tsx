@@ -49,7 +49,9 @@ export function ActivityCalendar({
     const map = new Map<string, LocalWorkoutSession[]>()
     for (const s of sessions) {
       if (s.status !== 'completed') continue
-      const dateKey = format(parseISO(s.startedAt), 'yyyy-MM-dd')
+      // completedAt over startedAt — a session crossing midnight belongs to
+      // the day it actually finished.
+      const dateKey = format(parseISO(s.completedAt ?? s.startedAt), 'yyyy-MM-dd')
       const arr = map.get(dateKey) ?? []
       arr.push(s)
       map.set(dateKey, arr)
@@ -96,7 +98,10 @@ export function ActivityCalendar({
           size="sm"
           className="min-h-12 min-w-12"
           aria-label={pl.calendarPrevMonth}
-          onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
+          onClick={() => {
+            setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))
+            setSelectedDate(null)
+          }}
         >
           <ChevronLeft size={18} />
         </Button>
@@ -115,7 +120,10 @@ export function ActivityCalendar({
           size="sm"
           className="min-h-12 min-w-12"
           aria-label={pl.calendarNextMonth}
-          onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
+          onClick={() => {
+            setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))
+            setSelectedDate(null)
+          }}
         >
           <ChevronRight size={18} />
         </Button>
@@ -133,11 +141,9 @@ export function ActivityCalendar({
           const key = format(day, 'yyyy-MM-dd')
           const daySessions = sessionsByDay.get(key) ?? []
           const hasCompleted = daySessions.length > 0
-          const hasFailed = daySessions.some((s) => s.passed === false)
-          const hasPassed = daySessions.some((s) => s.passed === true)
           const isToday = isSameDay(day, new Date())
           const isSelected = selectedDate && isSameDay(day, selectedDate)
-          const dotCount = Math.min(daySessions.length, 3)
+          const dotSessions = daySessions.slice(0, 3)
           const hasMore = daySessions.length > 3
           return (
             <button
@@ -169,16 +175,12 @@ export function ActivityCalendar({
               </span>
               {hasCompleted && (
                 <span className="mt-0.5 flex items-center gap-0.5">
-                  {Array.from({ length: dotCount }, (_, i) => (
+                  {dotSessions.map((ds, i) => (
                     <span
                       key={i}
                       className={cn(
                         'h-1.5 w-1.5 rounded-full',
-                        hasFailed && !hasPassed && i === 0
-                          ? 'bg-[var(--sr-error)]'
-                          : hasFailed && i === 0
-                            ? 'bg-[var(--sr-error)]'
-                            : 'bg-[var(--sr-brand-primary)]',
+                        ds.passed === false ? 'bg-[var(--sr-error)]' : 'bg-[var(--sr-brand-primary)]',
                       )}
                     />
                   ))}

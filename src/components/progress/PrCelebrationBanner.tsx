@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import { Trophy, X } from 'lucide-react'
 import { pl } from '@/i18n/pl'
+import { useAppStore } from '@/stores/app-store'
+import { kgToDisplay, weightUnitLabel } from '@/lib/weight-units'
+import { formatNumber } from '@/lib/date-locale'
 import type { PersonalRecord } from '@/lib/pr-detector'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { cn } from '@/lib/utils'
 
-function formatValue(value: number, unit: 'reps' | 'kg' | 's'): string {
-  const unitLabel =
-    unit === 'reps'
-      ? pl.prCelebrationRepsUnit
-      : unit === 'kg'
-        ? pl.prCelebrationWeightUnit
-        : pl.prCelebrationDurationUnit
-  return `${value} ${unitLabel}`
+function formatValue(value: number, unit: 'reps' | 'kg' | 's', weightUnit: 'kg' | 'lb'): string {
+  if (unit === 'kg')
+    return `${formatNumber(kgToDisplay(value, weightUnit), weightUnit === 'kg' ? 1 : 0)} ${weightUnitLabel(weightUnit)}`
+  const unitLabel = unit === 'reps' ? pl.prCelebrationRepsUnit : pl.prCelebrationDurationUnit
+  return `${formatNumber(value)} ${unitLabel}`
 }
 
 function recordLabel(record: PersonalRecord): string {
@@ -32,6 +32,7 @@ function recordLabel(record: PersonalRecord): string {
 
 export function PrCelebrationBanner({ records }: { records: PersonalRecord[] }) {
   const [dismissed, setDismissed] = useState(false)
+  const weightUnit = useAppStore((s) => s.settings.weightUnit)
   if (dismissed || records.length === 0) return null
 
   const visible = records.slice(0, 3)
@@ -93,13 +94,13 @@ export function PrCelebrationBanner({ records }: { records: PersonalRecord[] }) 
               <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
                 {pl.prCelebrationPrevious(
                   record.previousValue != null
-                    ? formatValue(record.previousValue, record.unit)
+                    ? formatValue(record.previousValue, record.unit, weightUnit)
                     : '—',
                 )}
               </p>
             </div>
             <p className="shrink-0 sr-text-h3 text-[var(--sr-brand-primary)]">
-              {formatValue(record.value, record.unit)}
+              {formatValue(record.value, record.unit, weightUnit)}
             </p>
           </li>
         ))}

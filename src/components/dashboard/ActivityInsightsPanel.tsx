@@ -51,6 +51,7 @@ function TrendBadge({
   if (trend === 'new') {
     return (
       <span
+        role="img"
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
         style={{ background: chrome.muted, color: chrome.accent }}
         aria-label={label}
@@ -63,6 +64,7 @@ function TrendBadge({
   if (trend === 'same') {
     return (
       <span
+        role="img"
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]"
         style={{ color: chrome.accent }}
         aria-label={label}
@@ -75,6 +77,7 @@ function TrendBadge({
   const compact = pct !== null && Math.abs(pct) >= 100
   return (
     <span
+      role="img"
       className={cn(
         'flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-full font-bold tabular-nums',
         compact ? 'text-[10px]' : 'text-xs',

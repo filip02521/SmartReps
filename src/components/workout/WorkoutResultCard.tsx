@@ -3,19 +3,21 @@ import { CheckCircle2, XCircle, Trophy, Share2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { pl } from '@/i18n/pl'
+import { useAppStore } from '@/stores/app-store'
+import { kgToDisplay, weightUnitLabel } from '@/lib/weight-units'
+import { formatNumber } from '@/lib/date-locale'
 import type { PersonalRecord } from '@/lib/pr-detector'
 import type { LocalAiInsight } from '@/lib/db'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
 import { Button } from '@/components/ui/Button'
 
-function formatPrValue(value: number, unit: 'reps' | 'kg' | 's'): string {
-  const unitLabel =
-    unit === 'reps'
-      ? pl.prCelebrationRepsUnit
-      : unit === 'kg'
-        ? pl.prCelebrationWeightUnit
-        : pl.prCelebrationDurationUnit
-  return `${value} ${unitLabel}`
+function formatPrValue(value: number, unit: 'reps' | 'kg' | 's', weightUnit: 'kg' | 'lb'): string {
+  // Stored values are kg — convert for lb users (hardcoded "kg" mislabeled
+  // them) and localize decimals/separators.
+  if (unit === 'kg')
+    return `${formatNumber(kgToDisplay(value, weightUnit), weightUnit === 'kg' ? 1 : 0)} ${weightUnitLabel(weightUnit)}`
+  const unitLabel = unit === 'reps' ? pl.prCelebrationRepsUnit : pl.prCelebrationDurationUnit
+  return `${formatNumber(value)} ${unitLabel}`
 }
 
 function prRecordLabel(record: PersonalRecord): string {
@@ -65,6 +67,7 @@ export function WorkoutResultCard({
   className,
   children,
 }: WorkoutResultCardProps) {
+  const weightUnit = useAppStore((s) => s.settings.weightUnit)
   const hasPr = prRecords.length > 0
   const hasInsight = !!coachInsight
   const hasExtra = !!children
@@ -134,12 +137,12 @@ export function WorkoutResultCard({
                   </p>
                   <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
                     {pl.prCelebrationPrevious(
-                      record.previousValue != null ? formatPrValue(record.previousValue, record.unit) : '—',
+                      record.previousValue != null ? formatPrValue(record.previousValue, record.unit, weightUnit) : '—',
                     )}
                   </p>
                 </div>
                 <p className="shrink-0 sr-text-h3 text-[var(--sr-brand-primary)]">
-                  {formatPrValue(record.value, record.unit)}
+                  {formatPrValue(record.value, record.unit, weightUnit)}
                 </p>
               </li>
             ))}

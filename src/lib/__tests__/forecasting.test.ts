@@ -6,6 +6,7 @@ import {
   nextMilestone,
 } from '@/lib/forecasting'
 import type { LocalWorkoutSession } from '@/lib/db'
+import { pl } from '@/i18n/pl'
 
 const DAY = 86_400_000
 // Anchor relative to now — forecasts refuse stale data (>45 dni bez sesji),
@@ -95,6 +96,13 @@ describe('buildForecastSeries', () => {
     expect(series).toHaveLength(0)
   })
 
+  it('uses a fallback name for exercises missing from the map', () => {
+    // Deleted exercise — user must never see a raw exerciseId in the UI.
+    const series = buildForecastSeries([customSession(0, 'gone-ex', 8)], new Map())
+    const gone = series.find((s) => s.key === 'custom:gone-ex')
+    expect(gone?.name).toBe(pl.exerciseFallbackName)
+  })
+
   it('picks e1rm for custom exercises with weight, reps for bodyweight', () => {
     const sessions = [
       customSession(0, 'bench', 5, 60),
@@ -149,6 +157,21 @@ describe('computeForecasts', () => {
     const f = computeForecasts(sessions, new Map()).find((x) => x.key === 'builtin:pushups')
     expect(f?.status).toBe('insufficient')
     expect(f?.predictedDate).toBeNull()
+  })
+
+  it('predicts soon when the trend line already crossed the milestone', () => {
+    // Decelerating but still positive slope: regression at last point sits
+    // above the next milestone → daysToGoal < 0. Must be 'ok' (imminent),
+    // not 'flat'.
+    const sessions = [
+      builtinSession(0, 5),
+      builtinSession(7, 18),
+      builtinSession(14, 19),
+      builtinSession(21, 19),
+    ]
+    const f = computeForecasts(sessions, new Map()).find((x) => x.key === 'builtin:pushups')
+    expect(f?.status).toBe('ok')
+    expect(f?.predictedDate).not.toBeNull()
   })
 
   it('caps unrealistic horizons as flat', () => {

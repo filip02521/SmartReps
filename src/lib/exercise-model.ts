@@ -448,13 +448,17 @@ export function estimate1rmBrzycki(weightKg: number, reps: number): number {
   return Math.round((weightKg * 36) / (37 - reps))
 }
 
-/** Best 1RM estimate — uses Epley for reps <= 10, Brzycki for 11-36, Epley fallback for >36. */
+/** Best 1RM estimate — Epley for reps ≤ 10, Brzycki for 11–20, Epley above
+ *  that. Brzycki's hyperbola diverges badly at high reps (20kg × 36 → "720kg",
+ *  20kg × 30 → "103kg"), so it must not be trusted past ~20 reps. */
 export function estimate1rm(weightKg: number, reps: number): number {
   if (weightKg <= 0 || reps <= 0) return 0
   if (reps <= 10) return estimate1rmEpley(weightKg, reps)
-  const brzycki = estimate1rmBrzycki(weightKg, reps)
-  // Brzycki returns 0 for reps >= 37 (division by zero) — fall back to Epley
-  return brzycki > 0 ? brzycki : estimate1rmEpley(weightKg, reps)
+  if (reps <= 20) {
+    const brzycki = estimate1rmBrzycki(weightKg, reps)
+    if (brzycki > 0) return brzycki
+  }
+  return estimate1rmEpley(weightKg, reps)
 }
 
 /** Volume for a single set: reps * weightKg (0 if no weight). */

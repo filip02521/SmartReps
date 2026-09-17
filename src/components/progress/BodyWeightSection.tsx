@@ -6,6 +6,7 @@ import { Plus, Trash2, Scale, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ProgressSection } from '@/components/progress/ProgressSection'
 import { Sheet } from '@/components/ui/Sheet'
+import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
 import { SkeletonCard } from '@/components/ux/Feedback'
 import { AccessibleChart } from '@/components/ui/AccessibleChart'
 import { FOCUS_RING } from '@/lib/ui-chrome'
@@ -26,12 +27,16 @@ import { ProLockedCard } from '@/components/pro/ProLockedCard'
 import { useProFeatures } from '@/lib/subscription'
 import { useAppStore } from '@/stores/app-store'
 import { kgToDisplay, displayToKg, weightUnitLabel } from '@/lib/weight-units'
+import { formatNumber } from '@/lib/date-locale'
 
 export function BodyWeightSection() {
   const [entries, setEntries] = useState<BodyWeightEntry[]>([])
   const [correlation, setCorrelation] = useState<BodyWeightCorrelation | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [weightInput, setWeightInput] = useState('')
   const [noteInput, setNoteInput] = useState('')
   const weightUnit = useAppStore((s) => s.settings.weightUnit)
@@ -62,7 +67,9 @@ export function BodyWeightSection() {
   }, [load])
 
   async function handleAdd() {
-    const value = Number(weightInput)
+    if (saving) return
+    // PL users type "75,5" — Number() rejects commas, normalize first.
+    const value = Number(weightInput.replace(',', '.'))
     if (!value || value <= 0) {
       showToast(pl.bodyWeightInvalid, 'error')
       return
@@ -72,17 +79,28 @@ export function BodyWeightSection() {
       showToast(pl.bodyWeightOutOfRange, 'error')
       return
     }
-    await addBodyWeightEntry(kg, noteInput)
-    setShowAdd(false)
-    setWeightInput('')
-    setNoteInput('')
-    await load()
-    showToast(pl.bodyWeightSaved, 'success')
+    setSaving(true)
+    try {
+      await addBodyWeightEntry(kg, noteInput)
+      setShowAdd(false)
+      setWeightInput('')
+      setNoteInput('')
+      await load()
+      showToast(pl.bodyWeightSaved, 'success')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleDelete(id: string) {
-    await deleteBodyWeightEntry(id)
-    await load()
+    if (deleting) return
+    setDeleting(true)
+    try {
+      await deleteBodyWeightEntry(id)
+      await load()
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const chartData = entries
@@ -130,7 +148,7 @@ export function BodyWeightSection() {
               </span>
               {delta != null && delta !== 0 && (
                 <span className="ml-2 text-sm font-medium text-[var(--sr-text-muted)]">
-                  {delta > 0 ? '+' : ''}{delta}
+                  {delta > 0 ? '+' : '−'}{formatNumber(Math.abs(delta), 1)}
                 </span>
               )}
             </p>
@@ -194,7 +212,7 @@ export function BodyWeightSection() {
                 <button
                   type="button"
                   className={`flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-sm)] text-[var(--sr-text-muted)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-error)] active:scale-95 ${FOCUS_RING}`}
-                  onClick={() => void handleDelete(e.id)}
+                  onClick={() => setConfirmDeleteId(e.id)}
                   aria-label={pl.bodyWeightDelete}
               >
                 <Trash2 size={16} />
@@ -240,11 +258,27 @@ export function BodyWeightSection() {
               className={`mt-2 w-full rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] px-4 py-3 text-base text-[var(--sr-text-primary)] ${FOCUS_RING}`}
             />
           </div>
-          <Button size="touch" fullWidth onClick={() => void handleAdd()}>
+          <Button size="touch" fullWidth disabled={saving} onClick={() => void handleAdd()}>
             {pl.bodyWeightSave}
           </Button>
         </div>
       </Sheet>
+
+      {/* Delete confirmation — instant-delete on a stray tap loses synced data */}
+      {confirmDeleteId && (
+        <ConfirmSheet
+          title={pl.bodyWeightDeleteConfirmTitle}
+          message={pl.bodyWeightDeleteConfirm}
+          confirmLabel={pl.bodyWeightDelete}
+          variant="danger"
+          onConfirm={async () => {
+            const id = confirmDeleteId
+            setConfirmDeleteId(null)
+            await handleDelete(id)
+          }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
 
       {/* Body weight × performance correlation — Pro advanced analytics.
           Free users see a locked teaser instead (feature stays visible). */}

@@ -18,3 +18,9 @@ export function dateFnsLocale(): Locale {
 export function dateBcp47(): string {
   return currentLang() === 'en' ? 'en-US' : 'pl-PL'
 }
+
+/** Locale-aware number formatting — PL "12 345,5", EN "12,345.5". */
+export function formatNumber(v: number, maxFrac = 0): string {
+  if (!Number.isFinite(v)) return '0'
+  return v.toLocaleString(dateBcp47(), { maximumFractionDigits: maxFrac })
+}
