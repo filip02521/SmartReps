@@ -760,9 +760,7 @@ export const plDict = {
   prCelebrationPrevious: (prev: number | string) => `Poprzedni: ${prev}`,
   prCelebrationMore: (count: number) => `+${count} więcej`,
   prCelebrationRepsUnit: 'powt.',
-  prCelebrationWeightUnit: 'kg',
   prCelebrationDurationUnit: 's',
-  prCelebrationDismiss: 'OK',
 
   // Workout celebration overlay — full-screen reward on session summary
   celebrationHeadlineDefault: 'Trening ukończony!',
@@ -808,6 +806,7 @@ export const plDict = {
   changeLevelActiveWarning:
     'Masz niedokończoną sesję treningu. Zmiana poziomu usunie tę sesję. Kontynuować?',
   prevColumn: 'Poprz.',
+  summaryCompareSource: (day: number, date: string) => `Porównanie z: Dzień ${day} · ${date}`,
 
   // Units
   pushups: 'pompek',

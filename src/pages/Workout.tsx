@@ -27,6 +27,7 @@ import {
   ensureWorkoutSessionPersisted,
   getPreviousSetActual,
   getMostRecentSetActual,
+  getLastCompletedSession,
   hasAnyCompletedSessions,
 } from '@/lib/session-service'
 import { trackError } from '@/lib/analytics'
@@ -85,6 +86,8 @@ export default function WorkoutPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [showPlanSheet, setShowPlanSheet] = useState(false)
+  const [showLastWorkout, setShowLastWorkout] = useState(false)
+  const [lastSession, setLastSession] = useState<LocalWorkoutSession | null>(null)
   const [negativeCountdown, setNegativeCountdown] = useState<number | null>(null)
   const negativePrepForSetRef = useRef<number | null>(null)
   const [showStaleConfirm, setShowStaleConfirm] = useState(false)
@@ -127,14 +130,15 @@ export default function WorkoutPage() {
   )
 
   const loadPreviousActual = useCallback(
-    async (setIndex: number, cycleAttempt: number, dayNumber: number) => {
-      const prev = await getPreviousSetActual(program, dayNumber, cycleAttempt, setIndex + 1)
+    async (setIndex: number, dayNumber: number) => {
+      const prev = await getPreviousSetActual(program, dayNumber, setIndex + 1)
       setLastActual(prev)
     },
     [program],
   )
 
-  /** Load previous session's set results for all sets of the current day (for delta indicators). */
+  /** Load previous session's set results for all sets of the current day (for delta indicators).
+   *  Same dayNumber, any cycle — "the last time you did this day". */
   const loadAllPreviousResults = useCallback(
     async (dayNumber: number, totalSets: number, excludeSessionId?: string) => {
       const map = new Map<number, number>()
@@ -325,8 +329,9 @@ export default function WorkoutPage() {
       // Reset RPE/RIR and note for the current set (not yet logged)
       setRpeRirValue(null)
       setSetNote(undefined)
-      await loadPreviousActual(setIdx, prog.cycleAttempt, prog.currentDay)
+      await loadPreviousActual(setIdx, prog.currentDay)
       void loadAllPreviousResults(prog.currentDay, d.sets.length, session.id)
+      void getLastCompletedSession(program, session.id).then((s) => setLastSession(s ?? null))
       setInitialized(true)
 
       const { settings: appSettings, setSettings: patchSettings } = useAppStore.getState()
@@ -537,7 +542,7 @@ export default function WorkoutPage() {
     const editIndex = useWorkoutStore.getState().currentSetIndex
     try {
       await persistState()
-      await loadPreviousActual(editIndex, progress.cycleAttempt, progress.currentDay)
+      await loadPreviousActual(editIndex, progress.currentDay)
     } catch (err) {
       trackError(err, 'workout.editPreviousSet')
       setSaveError(pl.errorSaveSet)
@@ -645,9 +650,9 @@ export default function WorkoutPage() {
       } catch (err) {
         trackError(err, 'workout.persistState')
       }
-      await loadPreviousActual(nextSetIndex, progress.cycleAttempt, progress.currentDay)
-      // Smart rest suggestion — compare next set target with most recent session actual
-      // (regardless of cycle attempt, to show progress across cycles)
+      await loadPreviousActual(nextSetIndex, progress.currentDay)
+      // Smart rest suggestion — compare next set target with the last actual
+      // for this exact day ("the last time you did this day", any cycle).
       const prevActual = await getMostRecentSetActual(program, progress.currentDay, nextSetIndex + 1)
       // If no history for this specific set+day, check if user has ANY completed
       // sessions for this program — to distinguish "first time ever" from "new day/set"
@@ -793,6 +798,8 @@ export default function WorkoutPage() {
       showCancelConfirm={showCancelConfirm}
       showLeaveConfirm={showLeaveConfirm}
       showPlanSheet={showPlanSheet}
+      showLastWorkout={showLastWorkout}
+      lastSession={lastSession}
       negativeCountdown={negativeCountdown}
       failedRetryVisible={failedIndex === currentSetIndex}
       pulseFlash={pulseFlash}
@@ -817,6 +824,8 @@ export default function WorkoutPage() {
       }}
       onToggleMenu={() => setShowMenu((v) => !v)}
       onShowPlan={() => { setShowPlanSheet(true); setShowMenu(false) }}
+      onShowLastWorkout={() => { setShowLastWorkout(true); setShowMenu(false) }}
+      onCloseLastWorkout={() => setShowLastWorkout(false)}
       onShowTechnique={() => {
         void persistState().finally(() => {
           navigate(techniqueLinkForProgram(program, 'workout'))

@@ -3,6 +3,7 @@ import { useMemo, type RefObject } from 'react'
 import type { Program } from '@/data/plans/types'
 import type { SetTarget } from '@/data/plans/types'
 import type { SetResultDraft } from '@/lib/progress-engine'
+import type { LocalWorkoutSession } from '@/lib/db'
 import type { RestTimerState } from '@/lib/rest-timer'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
 import { ExerciseDemo } from '@/components/exercise-demos/ExerciseDemo'
@@ -20,6 +21,7 @@ import {
   NegativeCountdown,
   ConfirmSheet,
   DayPlanSheet,
+  LastWorkoutSheet,
   WorkoutFailRetryRow,
 } from '@/components/workout/WorkoutComponents'
 import { WarmupPanel } from '@/components/workout/WarmupPanel'
@@ -51,6 +53,10 @@ export type ActiveWorkoutScreenProps = {
   showCancelConfirm: boolean
   showLeaveConfirm: boolean
   showPlanSheet: boolean
+  showLastWorkout: boolean
+  /** Last completed session for this program — enables the "last workout"
+   *  peek in the menu. Null/undefined hides the menu item. */
+  lastSession?: LocalWorkoutSession | null
   negativeCountdown: number | null
   failedRetryVisible: boolean
   pulseFlash?: boolean
@@ -84,6 +90,8 @@ export type ActiveWorkoutScreenProps = {
   onDismissLeave: () => void
   onClosePlan: () => void
   onCloseMenu: () => void
+  onShowLastWorkout: () => void
+  onCloseLastWorkout: () => void
   saveError?: string | null
   /** Re-attempt the failed set persist (taps "Zrobione" again). */
   onRetrySave?: () => void
@@ -115,6 +123,8 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     showCancelConfirm,
     showLeaveConfirm,
     showPlanSheet,
+    showLastWorkout,
+    lastSession,
     negativeCountdown,
     failedRetryVisible,
     pulseFlash,
@@ -147,6 +157,8 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
     onDismissLeave,
     onClosePlan,
     onCloseMenu,
+    onShowLastWorkout,
+    onCloseLastWorkout,
     saveError,
     onRetrySave,
     rpeRirValue = null,
@@ -255,6 +267,16 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
             <Button variant="ghost" fullWidth className="justify-start px-3" onClick={onShowPlan}>
               {pl.previewDayPlan}
             </Button>
+            {lastSession != null && (
+              <Button
+                variant="ghost"
+                fullWidth
+                className="justify-start px-3"
+                onClick={onShowLastWorkout}
+              >
+                {pl.lastWorkout}
+              </Button>
+            )}
             {showTechniqueLink && (
               <Button variant="ghost" fullWidth className="justify-start px-3" onClick={onShowTechnique}>
                 {techniqueMenuLabel(program)}
@@ -441,6 +463,10 @@ export function ActiveWorkoutScreen(props: ActiveWorkoutScreenProps) {
 
       {showPlanSheet && (
         <DayPlanSheet sets={day.sets} restSec={day.restBetweenSetsSec} onClose={onClosePlan} />
+      )}
+
+      {showLastWorkout && lastSession && (
+        <LastWorkoutSheet session={lastSession} onClose={onCloseLastWorkout} />
       )}
     </div>
   )

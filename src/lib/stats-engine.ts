@@ -42,9 +42,16 @@ function getMaxSetTrend(passed: LocalWorkoutSession[]): {
   }
 
   const lastSession = passed[0]
+  // Same dayNumber, pure recency — "the last two times you did this day",
+  // regardless of cycle. Never a different day: positional set values
+  // across days would be a meaningless comparison.
   const sameDaySessions = passed
     .filter((s) => s.dayNumber === lastSession.dayNumber)
-    .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+    .sort(
+      (a, b) =>
+        new Date(b.completedAt ?? b.startedAt).getTime() -
+        new Date(a.completedAt ?? a.startedAt).getTime(),
+    )
 
   const currentSession = sameDaySessions[0]
   const previousSession = sameDaySessions[1]

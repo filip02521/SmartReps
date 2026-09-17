@@ -88,7 +88,9 @@ describe('computeBuiltinSessionInsights', () => {
     expect(result.setInsights.get(1)?.deltaVsPrevious).toBeNull()
   })
 
-  it('ignores a previous session from a different cycle (same day number)', () => {
+  it('computes per-set deltas against a different-cycle session of the same day', () => {
+    // "Last time you did day 1" may live in a previous cycle — the delta is
+    // still the user's real comparison (8 now vs 15 last time → down).
     const current = builtinSession({
       id: 'cur',
       cycleId: 'cycle-hard',
@@ -108,8 +110,32 @@ describe('computeBuiltinSessionInsights', () => {
       previous,
       historicalSessions: [previous],
     })
-    expect(result.setInsights.get(1)?.kind).toBe('none')
-    expect(result.setInsights.get(1)?.deltaVsPrevious).toBeNull()
+    expect(result.setInsights.get(1)?.kind).toBe('down')
+    expect(result.setInsights.get(1)?.deltaVsPrevious).toBe(-7)
+  })
+
+  it('counts a cross-cycle same-day session as a set-PR baseline', () => {
+    // 16 on set 1 beats the previous cycle's day-1 best of 15 → PR.
+    const current = builtinSession({
+      id: 'cur',
+      cycleId: 'cycle-hard',
+      setResults: [
+        { setNumber: 1, target: { kind: 'fixed', reps: 8 }, actual: 16, passed: true },
+      ],
+    })
+    const previous = builtinSession({
+      id: 'prev',
+      cycleId: 'cycle-easy',
+      setResults: [
+        { setNumber: 1, target: { kind: 'fixed', reps: 8 }, actual: 15, passed: true },
+      ],
+    })
+    const result = computeBuiltinSessionInsights({
+      current,
+      previous,
+      historicalSessions: [previous],
+    })
+    expect(result.setInsights.get(1)?.kind).toBe('pr')
   })
 })
 

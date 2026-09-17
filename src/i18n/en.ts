@@ -730,9 +730,7 @@ export const en: Translation = {
   prCelebrationPrevious: (prev: number | string) => `Previous: ${prev}`,
   prCelebrationMore: (count: number) => `+${count} more`,
   prCelebrationRepsUnit: 'reps',
-  prCelebrationWeightUnit: 'kg',
   prCelebrationDurationUnit: 's',
-  prCelebrationDismiss: 'OK',
 
   // Workout celebration overlay — full-screen reward on session summary
   celebrationHeadlineDefault: 'Workout complete!',
@@ -778,6 +776,7 @@ export const en: Translation = {
   changeLevelActiveWarning:
     'You have a workout session in progress. Changing the level will delete this session. Continue?',
   prevColumn: 'Prev.',
+  summaryCompareSource: (day: number, date: string) => `Compared to: Day ${day} · ${date}`,
 
   // Units
   pushups: 'pushups',

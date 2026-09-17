@@ -137,54 +137,41 @@ export async function saveWorkoutSession(session: LocalWorkoutSession): Promise<
   }
 }
 
-export async function getLastPassedSession(
-  program: Program,
-  dayNumber: number,
-  cycleAttempt: number,
-): Promise<LocalWorkoutSession | undefined> {
-  const sessions = await db.workoutSessions
-    .where('program')
-    .equals(program)
-    .filter(
-      (s) =>
-        s.status === 'completed' &&
-        s.passed === true &&
-        s.dayNumber === dayNumber &&
-        s.cycleAttempt === cycleAttempt,
-    )
-    .toArray()
-  sessions.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-  return sessions[0]
-}
-
-export async function getPreviousSetActual(
-  program: Program,
-  dayNumber: number,
-  cycleAttempt: number,
-  setNumber: number,
-): Promise<number | undefined> {
-  // Use same fallback strategy as getSessionComparison — try same cycle first,
-  // then any cycle for the same day, then any completed session.
-  const sessions = await db.workoutSessions
-    .where('program')
-    .equals(program)
-    .filter(
-      (s) =>
-        s.status === 'completed' &&
-        s.dayNumber === dayNumber &&
-        s.cycleAttempt === cycleAttempt,
-    )
-    .toArray()
-  sessions.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-  const session = sessions[0]
-  return session?.setResults.find((r) => r.setNumber === setNumber)?.actual
+/** Newest completion instant of a session — "when you last did it". */
+function sessionDoneAt(s: LocalWorkoutSession): number {
+  return new Date(s.completedAt ?? s.startedAt).getTime()
 }
 
 /**
- * Get the most recent completed set actual for a given day+set,
- * regardless of cycle attempt or whether the session was "passed".
- * Used for smart rest suggestions where we want to compare with the
- * user's latest performance, not just successful sessions.
+ * Last actual for a given day+set — literally "the last time you did this
+ * day": the most recent completed session with the same dayNumber, from any
+ * cycle. Cycle doesn't matter here — day N is the same program slot and the
+ * user compares against their real last performance. No cross-day lookup:
+ * set N on a different day has a different target, so its actual would be a
+ * meaningless number.
+ */
+export async function getPreviousSetActual(
+  program: Program,
+  dayNumber: number,
+  setNumber: number,
+): Promise<number | undefined> {
+  const sessions = await db.workoutSessions
+    .where('program')
+    .equals(program)
+    .filter((s) => s.status === 'completed' && s.dayNumber === dayNumber)
+    .toArray()
+  sessions.sort((a, b) => sessionDoneAt(b) - sessionDoneAt(a))
+  return sessions[0]?.setResults.find((r) => r.setNumber === setNumber)?.actual
+}
+
+/**
+ * Most recent completed set actual for a given day+set — "the last time you
+ * did this day", regardless of whether that session was passed or which
+ * cycle it belonged to. Used for "last time" badges, per-set deltas and
+ * smart rest suggestions. No cross-day fallback: set N on a different day
+ * has a different target, so its actual produced garbage numbers (e.g. a
+ * max set's 30 next to a target of 8) when a new cycle restarted
+ * dayNumber at 1.
  */
 export async function getMostRecentSetActual(
   program: Program,
@@ -192,8 +179,7 @@ export async function getMostRecentSetActual(
   setNumber: number,
   excludeSessionId?: string,
 ): Promise<number | undefined> {
-  // First try to find a session for the same day (most relevant comparison)
-  const sameDaySessions = await db.workoutSessions
+  const sessions = await db.workoutSessions
     .where('program')
     .equals(program)
     .filter(
@@ -203,24 +189,27 @@ export async function getMostRecentSetActual(
         s.id !== excludeSessionId,
     )
     .toArray()
-  sameDaySessions.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-  const sameDayRecent = sameDaySessions[0]
-  const sameDayActual = sameDayRecent?.setResults.find((r) => r.setNumber === setNumber)?.actual
-  if (sameDayActual !== undefined) {
-    return sameDayActual
-  }
+  sessions.sort((a, b) => sessionDoneAt(b) - sessionDoneAt(a))
+  return sessions[0]?.setResults.find((r) => r.setNumber === setNumber)?.actual
+}
 
-  // Fallback: find the most recent completed session for this program (any day)
-  // and the same set number. This gives a useful comparison even when doing
-  // a new day for the first time.
-  const anyDaySessions = await db.workoutSessions
+/**
+ * Most recent completed session for a program — the "last workout" a user
+ * can peek at mid-workout. Any day/cycle is fine here: this is an
+ * informational view labelled with the day and date, not a per-set
+ * comparison (that path is scoped by getMostRecentSetActual).
+ */
+export async function getLastCompletedSession(
+  program: Program,
+  excludeSessionId?: string,
+): Promise<LocalWorkoutSession | undefined> {
+  const sessions = await db.workoutSessions
     .where('program')
     .equals(program)
     .filter((s) => s.status === 'completed' && s.id !== excludeSessionId)
     .toArray()
-  anyDaySessions.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-  const mostRecent = anyDaySessions[0]
-  return mostRecent?.setResults.find((r) => r.setNumber === setNumber)?.actual
+  sessions.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+  return sessions[0]
 }
 
 /**
@@ -442,46 +431,18 @@ export async function getSessionComparison(
     return { current: undefined, previous: undefined }
   }
 
-  // First try: same day + same cycle attempt (most relevant comparison)
-  const sameCycle = await db.workoutSessions
-    .where('program')
-    .equals(program)
-    .filter(
-      (s) =>
-        s.status === 'completed' &&
-        s.dayNumber === current.dayNumber &&
-        s.cycleAttempt === current.cycleAttempt &&
-        s.id !== current.id,
-    )
-    .toArray()
-  sameCycle.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-  if (sameCycle[0]) {
-    return { current, previous: sameCycle[0] }
-  }
-
-  // Second try: same day, any cycle attempt
-  const sameDay = await db.workoutSessions
-    .where('program')
-    .equals(program)
-    .filter(
-      (s) =>
-        s.status === 'completed' &&
-        s.dayNumber === current.dayNumber &&
-        s.id !== current.id,
-    )
-    .toArray()
-  sameDay.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-  if (sameDay[0]) {
-    return { current, previous: sameDay[0] }
-  }
-
-  // Third try: most recent completed session for this program (any day)
-  // Gives some context even when doing a new day for the first time
-  const anyDay = await db.workoutSessions
+  // Previous = literally the most recent completed session of this program —
+  // "your last workout", which is what the user compares against. It may be
+  // a different day or a different cycle; the summary labels the source
+  // ("Porównanie z: Dzień N · data") so it's never misleading. Scoping to
+  // the same dayNumber picked an OLDER session over the real last workout —
+  // e.g. the previous cycle's day 1 instead of yesterday's day 7 — which
+  // showed inflated deltas (+5) when the user actually did fewer reps.
+  const prior = await db.workoutSessions
     .where('program')
     .equals(program)
     .filter((s) => s.status === 'completed' && s.id !== current.id)
     .toArray()
-  anyDay.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-  return { current, previous: anyDay[0] }
+  prior.sort((a, b) => sessionDoneAt(b) - sessionDoneAt(a))
+  return { current, previous: prior[0] }
 }

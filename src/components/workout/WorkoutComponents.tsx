@@ -1,5 +1,7 @@
 import { cn, formatRestTime, vibrate } from '@/lib/utils'
 import { pl } from '@/i18n/pl'
+import { formatHomeDate } from '@/lib/home-summary'
+import type { LocalWorkoutSession } from '@/lib/db'
 import { Check, ChevronDown, ChevronRight, ChevronUp, Minus, Plus, TrendingUp, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { BrandLoader } from '@/components/ui/BrandLoader'
@@ -739,6 +741,65 @@ export function DayPlanSheet({
         {pl.restBetweenSets(restSec)}
       </p>
       <SetTargetsRow sets={sets} size="md" />
+    </Sheet>
+  )
+}
+
+/** Peek at the last completed workout mid-session — day + date context line,
+ *  per-set target/actual table, total. Informational only: the previous
+ *  session may be a different day or cycle, so it is shown as a labelled
+ *  recap rather than a per-set comparison. */
+export function LastWorkoutSheet({
+  session,
+  onClose,
+}: {
+  session: LocalWorkoutSession
+  onClose: () => void
+}) {
+  const at = new Date(session.completedAt ?? session.startedAt)
+  const total = session.totalReps ?? session.setResults.reduce((s, r) => s + r.actual, 0)
+  return (
+    <Sheet open onClose={onClose} title={pl.lastWorkout}>
+      <div className="mb-3 flex items-center gap-2">
+        <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
+          {pl.dayLabel(session.dayNumber)} · {formatHomeDate(at)}
+        </p>
+        {session.passed === false && (
+          <span className="inline-flex items-center rounded-full border border-[var(--sr-error)]/30 bg-[var(--sr-error-muted)] px-2 py-0.5 text-xs font-medium text-[var(--sr-error)]">
+            {pl.calendarLegendFailed}
+          </span>
+        )}
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left sr-text-overline text-[var(--sr-text-muted)]">
+            <th className="pb-2 font-semibold">{pl.setColumn}</th>
+            <th className="pb-2 font-semibold">{pl.targetColumn}</th>
+            <th className="pb-2 font-semibold text-[var(--sr-text-primary)]">{pl.youColumn}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {session.setResults.map((r) => (
+            <tr key={r.setNumber} className="border-t border-[var(--sr-border-subtle)]">
+              <td className="py-2 font-medium text-[var(--sr-text-secondary)]">{r.setNumber}</td>
+              <td className="py-2 tabular-nums text-[var(--sr-text-secondary)]">
+                {formatSetTarget(r.target)}
+              </td>
+              <td
+                className={cn(
+                  'py-2 font-semibold tabular-nums',
+                  r.passed ? 'text-[var(--sr-text-primary)]' : 'text-[var(--sr-error)]',
+                )}
+              >
+                {r.actual}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-3 border-t border-[var(--sr-border-subtle)] pt-3 sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
+        {pl.totalReps}: {total}
+      </p>
     </Sheet>
   )
 }

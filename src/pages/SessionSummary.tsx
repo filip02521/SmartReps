@@ -648,6 +648,8 @@ export default function SessionSummary() {
           previousRows={previous?.setResults}
           totalReps={totalReps}
           previousTotalReps={previous?.totalReps ?? null}
+          previousDayNumber={previous?.dayNumber}
+          previousAt={previous ? (previous.completedAt ?? previous.startedAt) : undefined}
           insights={insights}
           startedAt={current?.startedAt}
           completedAt={current?.completedAt}

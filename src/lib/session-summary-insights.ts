@@ -41,15 +41,17 @@ export function primarySetValue(set: SetLog, metric: PrimaryMetric): number {
   return set.actual.reps ?? 0
 }
 
-/** True when two sessions are the same training day of the same cycle/plan —
- *  only then is a per-set rep/volume comparison meaningful. A "previous"
- *  session from a different day or cycle has different targets, so delta
- *  values derived from it would be garbage. */
+/** True when two sessions are the same training day of the same plan —
+ *  only then is a per-set rep/volume comparison meaningful. For builtin
+ *  programs, day N is the same program slot in every cycle, so "the last
+ *  time you did this day" crosses cycle boundaries (same semantic as
+ *  getSessionComparison). A different dayNumber has different targets, so
+ *  delta values derived from it would be garbage. */
 export function sameTrainingDay(a: LocalWorkoutSession, b: LocalWorkoutSession): boolean {
   const aCustom = isCustomWorkoutSession(a)
   if (aCustom !== isCustomWorkoutSession(b)) return false
   if (aCustom) return a.customPlanId === b.customPlanId && a.dayNumber === b.dayNumber
-  return a.program === b.program && a.cycleId === b.cycleId && a.dayNumber === b.dayNumber
+  return a.program === b.program && a.dayNumber === b.dayNumber
 }
 
 function logVolumeKg(log: ExerciseLog): number {
@@ -78,9 +80,8 @@ export function computeBuiltinSessionInsights(params: {
   historicalSessions: LocalWorkoutSession[]
 }): BuiltinSessionInsights {
   const { current, historicalSessions } = params
-  // `previous` may be a different day/cycle (getSessionComparison falls back
-  // to "most recent session of this program") — per-set deltas are only
-  // meaningful against the same training day.
+  // `previous` may come from a different day (or plan) — per-set deltas are
+  // only meaningful against the same training day.
   const previous = params.previous && sameTrainingDay(params.previous, current)
     ? params.previous
     : undefined
@@ -88,14 +89,18 @@ export function computeBuiltinSessionInsights(params: {
   const totalReps = current.totalReps ?? rows.reduce((sum, row) => sum + row.actual, 0)
   const prior = historicalSessions.filter((s) => s.id !== current.id)
 
+  // Same program day across ALL cycles — set-level PRs compare the same set
+  // position on "the last times you did this day".
   const sameDayPrior = prior.filter(
     (s) =>
       s.dayNumber === current.dayNumber &&
       !isCustomWorkoutSession(s) &&
-      s.program === current.program &&
-      s.cycleId === current.cycleId,
+      s.program === current.program,
   )
-  const priorTotals = sameDayPrior.map(
+  // Session-total PR stays same-cycle: different cycles have different set
+  // counts per day, so a cross-cycle total comparison is meaningless.
+  const sameCycleDayPrior = sameDayPrior.filter((s) => s.cycleId === current.cycleId)
+  const priorTotals = sameCycleDayPrior.map(
     (s) => s.totalReps ?? s.setResults.reduce((sum, row) => sum + row.actual, 0),
   )
   const sessionTotalPr =

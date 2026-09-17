@@ -11,6 +11,7 @@ import {
 } from '@/lib/session-summary-insights'
 import { formatSessionElapsed, sessionCompletedWallClockSec } from '@/lib/session-elapsed'
 import { pl } from '@/i18n/pl'
+import { formatHomeDate } from '@/lib/home-summary'
 import type { SetResultDraft } from '@/lib/progress-engine'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +20,8 @@ export function SessionCompare({
   previousRows,
   totalReps,
   previousTotalReps,
+  previousDayNumber,
+  previousAt,
   insights,
   startedAt,
   completedAt,
@@ -27,6 +30,9 @@ export function SessionCompare({
   previousRows?: SetResultDraft[]
   totalReps: number
   previousTotalReps?: number | null
+  /** Context for the "Poprz." column — which session the comparison uses. */
+  previousDayNumber?: number
+  previousAt?: string
   insights?: BuiltinSessionInsights
   startedAt?: string
   completedAt?: string | null
@@ -118,6 +124,12 @@ export function SessionCompare({
       <h3 className="mb-2 sr-text-overline font-semibold uppercase tracking-wide text-[var(--sr-text-muted)]">
         {pl.summarySectionSets}
       </h3>
+
+      {previousDayNumber != null && previousAt != null && (
+        <p className="mb-2 sr-text-caption text-[var(--sr-text-muted)]">
+          {pl.summaryCompareSource(previousDayNumber, formatHomeDate(new Date(previousAt)))}
+        </p>
+      )}
 
       <Card className="overflow-x-auto p-4">
         <table className="w-full text-sm">
