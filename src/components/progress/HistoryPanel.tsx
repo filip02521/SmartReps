@@ -31,7 +31,7 @@ import {
 } from '@/lib/custom-session-stats'
 import { formatExerciseSetSummary } from '@/lib/custom-exercise-stats'
 import { useAppStore } from '@/stores/app-store'
-import { deleteWorkoutSession } from '@/lib/session-service'
+import { deleteWorkoutSession, getSessionComparison } from '@/lib/session-service'
 import { db } from '@/lib/db'
 import type { ExerciseDefinition } from '@/lib/exercise-model'
 import { isVolumeProgress } from '@/lib/exercise-model'
@@ -93,6 +93,7 @@ export function HistoryPanel({
   const [limit, setLimit] = useState(PAGE_SIZE)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [selectedSession, setSelectedSession] = useState<LocalWorkoutSession | null>(null)
+  const [prevSession, setPrevSession] = useState<LocalWorkoutSession | null>(null)
   const [detailExercises, setDetailExercises] = useState<Map<string, ExerciseDefinition>>(new Map())
   const [allExercises, setAllExercises] = useState<Map<string, ExerciseDefinition>>(new Map())
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -124,6 +125,33 @@ export function HistoryPanel({
     } else {
       setDetailExercises(new Map())
     }
+
+    // Comparison context: the session immediately BEFORE the viewed one —
+    // builtin: last completed session of that program; custom: last session
+    // of the same plan (sets are matched per exercise).
+    const doneAt = new Date(s.completedAt ?? s.startedAt).getTime()
+    let prev: LocalWorkoutSession | undefined
+    if (isCustomSession(s)) {
+      const priors = await db.workoutSessions
+        .where('customPlanId')
+        .equals(s.customPlanId ?? '')
+        .filter(
+          (x) =>
+            x.status === 'completed' &&
+            x.id !== s.id &&
+            new Date(x.completedAt ?? x.startedAt).getTime() < doneAt,
+        )
+        .toArray()
+      priors.sort(
+        (a, b) =>
+          new Date(b.completedAt ?? b.startedAt).getTime() -
+          new Date(a.completedAt ?? a.startedAt).getTime(),
+      )
+      prev = priors[0]
+    } else {
+      prev = (await getSessionComparison(s.program as Program, s.id)).previous
+    }
+    setPrevSession(prev ?? null)
   }
 
   // All completed sessions (builtin + custom) — dedup by id as safeguard.
@@ -460,29 +488,49 @@ export function HistoryPanel({
                 ? customSessionSummary(selectedSession)
                 : (getCycleById(selectedSession.cycleId) ? getCycleName(getCycleById(selectedSession.cycleId)!) : selectedSession.cycleId)}
             </p>
+            {prevSession && (
+              <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
+                {pl.summaryCompareSource(
+                  prevSession.dayNumber,
+                  format(new Date(prevSession.completedAt ?? prevSession.startedAt), 'd MMM yyyy', {
+                    locale: dateFnsLocale(),
+                  }),
+                )}
+              </p>
+            )}
 
             {/* Builtin sessions — set results list */}
             {!isCustomSession(selectedSession) && selectedSession.setResults.length > 0 && (
               <ul className="mt-4 divide-y divide-[var(--sr-border-subtle)]">
-                {selectedSession.setResults.map((r) => (
-                  <li
-                    key={r.setNumber}
-                    className="flex items-center justify-between gap-3 py-2.5 sr-text-body-sm"
-                  >
-                    <span className="text-[var(--sr-text-secondary)]">
-                      {pl.setColumn} {r.setNumber}
-                    </span>
-                    <span
-                      className={cn(
-                        'font-semibold tabular-nums',
-                        r.passed ? 'text-[var(--sr-text-primary)]' : 'text-[var(--sr-error)]',
-                      )}
+                {selectedSession.setResults.map((r) => {
+                  const prev = prevSession?.setResults.find((p) => p.setNumber === r.setNumber)
+                  return (
+                    <li
+                      key={r.setNumber}
+                      className="flex items-center justify-between gap-3 py-2.5 sr-text-body-sm"
                     >
-                      {r.actual} {pl.repsUnit}
-                      {!r.passed && ` · ${pl.failedShort}`}
-                    </span>
-                  </li>
-                ))}
+                      <span className="text-[var(--sr-text-secondary)]">
+                        {pl.setColumn} {r.setNumber}
+                      </span>
+                      <span className="inline-flex items-baseline gap-1.5 tabular-nums">
+                        {prev != null && (
+                          <span className="sr-text-caption text-[var(--sr-text-muted)]">
+                            {pl.prevColumn} {prev.actual}
+                          </span>
+                        )}
+                        <span
+                          className={cn(
+                            'font-semibold',
+                            r.passed ? 'text-[var(--sr-text-primary)]' : 'text-[var(--sr-error)]',
+                          )}
+                        >
+                          {r.actual} {pl.repsUnit}
+                          {!r.passed && ` · ${pl.failedShort}`}
+                        </span>
+                      </span>
+                    </li>
+                  )
+                })}
               </ul>
             )}
 
@@ -499,29 +547,42 @@ export function HistoryPanel({
                         {name}
                       </p>
                       <ul className="divide-y divide-[var(--sr-border-subtle)]">
-                        {log.sets.map((set) => (
-                          <li
-                            key={set.setNumber}
-                            className="flex items-center justify-between gap-3 py-2 sr-text-body-sm"
-                          >
-                            <span className="text-[var(--sr-text-secondary)]">
-                              {pl.setColumn} {set.setNumber}
-                            </span>
-                            <span
-                              className={cn(
-                                'font-semibold tabular-nums',
-                                set.passed
-                                  ? 'text-[var(--sr-text-primary)]'
-                                  : isVolumeProgress(set.prescription, set.actual, metric)
-                                    ? 'text-[var(--sr-warning)]'
-                                    : 'text-[var(--sr-error)]',
-                              )}
+                        {log.sets.map((set) => {
+                          const prevSet = prevSession?.exerciseLogs
+                            ?.find((l) => l.exerciseId === log.exerciseId)
+                            ?.sets.find((s) => s.setNumber === set.setNumber)
+                          return (
+                            <li
+                              key={set.setNumber}
+                              className="flex items-center justify-between gap-3 py-2 sr-text-body-sm"
                             >
-                              {formatExerciseSetSummary(metric, set, weightUnit, def?.durationDisplayUnit ?? 'min')}
-                              {!set.passed && !isVolumeProgress(set.prescription, set.actual, metric) && ` · ${pl.failedShort}`}
-                            </span>
-                          </li>
-                        ))}
+                              <span className="text-[var(--sr-text-secondary)]">
+                                {pl.setColumn} {set.setNumber}
+                              </span>
+                              <span className="inline-flex items-baseline gap-1.5 tabular-nums">
+                                {prevSet != null && (
+                                  <span className="sr-text-caption text-[var(--sr-text-muted)]">
+                                    {pl.prevColumn}{' '}
+                                    {formatExerciseSetSummary(metric, prevSet, weightUnit, def?.durationDisplayUnit ?? 'min')}
+                                  </span>
+                                )}
+                                <span
+                                  className={cn(
+                                    'font-semibold',
+                                    set.passed
+                                      ? 'text-[var(--sr-text-primary)]'
+                                      : isVolumeProgress(set.prescription, set.actual, metric)
+                                        ? 'text-[var(--sr-warning)]'
+                                        : 'text-[var(--sr-error)]',
+                                  )}
+                                >
+                                  {formatExerciseSetSummary(metric, set, weightUnit, def?.durationDisplayUnit ?? 'min')}
+                                  {!set.passed && !isVolumeProgress(set.prescription, set.actual, metric) && ` · ${pl.failedShort}`}
+                                </span>
+                              </span>
+                            </li>
+                          )
+                        })}
                       </ul>
                     </div>
                   )

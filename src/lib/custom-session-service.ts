@@ -78,7 +78,10 @@ export async function cleanupEmptyCustomInProgress(planId: string): Promise<void
       completedAt: now,
     }
     await db.workoutSessions.put(abandoned)
-    // Abandoned sessions are local-only — don't sync to cloud
+    // Custom in_progress rows ARE pushed (persistCustomActive) — the abandoned
+    // marker must propagate too, or the cloud + other devices keep a resumable
+    // zombie in_progress session forever.
+    await enqueueSync('workout_sessions', 'update', abandoned)
   }
 
   const activeAfter = await db.activeCustomWorkout.get(planId)
@@ -251,12 +254,19 @@ export async function finalizeCustomDay(params: {
   try {
     let alreadyCompleted = false
     let existingPassed = false
+    let abandonedSession = false
     await db.transaction('rw', db.workoutSessions, async () => {
       const existing = await db.workoutSessions.get(session.id)
       if (!existing) return
       if (existing.status === 'completed') {
         alreadyCompleted = true
         existingPassed = existing.passed === true
+        return
+      }
+      if (existing.status === 'abandoned') {
+        // Deliberately discarded — a late finalize must not resurrect it nor
+        // advance custom progress.
+        abandonedSession = true
         return
       }
       if (finalizedCustomSessions.has(session.id)) {
@@ -283,6 +293,10 @@ export async function finalizeCustomDay(params: {
       await db.workoutSessions.put(completed)
     })
 
+    if (abandonedSession) {
+      finalizedCustomSessions.delete(session.id)
+      return { passed: false, hitTargets: false }
+    }
     if (alreadyCompleted) {
       return { passed: existingPassed, hitTargets: existingPassed }
     }
@@ -465,7 +479,9 @@ export async function abandonCustomWorkout(planId: string, sessionId: string) {
       completedAt: new Date().toISOString(),
     }
     await db.workoutSessions.put(abandoned)
-    // Abandoned sessions are local-only — don't sync to cloud
+    // Custom in_progress rows ARE pushed (persistCustomActive) — propagate the
+    // abandoned marker or the cloud + other devices keep a zombie in_progress.
+    await enqueueSync('workout_sessions', 'update', abandoned)
   }
   await clearActiveCustomWorkout(planId)
 }

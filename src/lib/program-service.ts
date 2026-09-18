@@ -74,20 +74,19 @@ export async function updateProgramProgress(
 
 /** Mark program ready/active when user starts a day after rest / cycle_failed. */
 export async function markProgramActiveIfReady(program: Program): Promise<void> {
-  // Use a transaction with re-check to prevent race condition where two
-  // concurrent calls both read status !== 'active' and both write 'active'.
-  // The transaction ensures atomic read-modify-write.
-  await db.transaction('rw', db.programProgress, async () => {
-    const progress = await getProgramProgress(program)
-    if (!progress) return
-    if (progress.status === 'test_pending' || progress.status === 'paused') return
-    const available = isWorkoutAvailable(
-      progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
-    )
-    if (!available) return
-    if (progress.status === 'active') return
-    await updateProgramProgress(program, { status: 'active' })
-  })
+  // No transaction: updateProgramProgress enqueues a sync write (syncQueue
+  // table), which cannot run inside a programProgress-scoped transaction —
+  // Dexie throws NotInTransactionError and the sync item is silently lost.
+  // Writing 'active' twice is idempotent, so a plain check-then-write is safe.
+  const progress = await getProgramProgress(program)
+  if (!progress) return
+  if (progress.status === 'test_pending' || progress.status === 'paused') return
+  const available = isWorkoutAvailable(
+    progress.nextWorkoutAfter ? new Date(progress.nextWorkoutAfter) : null,
+  )
+  if (!available) return
+  if (progress.status === 'active') return
+  await updateProgramProgress(program, { status: 'active' })
 }
 
 export async function completeWorkoutDay(
@@ -97,77 +96,90 @@ export async function completeWorkoutDay(
   sessionId?: string,
   sessionDayNumber?: number,
 ) {
-  if (sessionId && advancedBySession.has(`${program}:${sessionId}`)) return
+  // Claim the session key BEFORE any await — the previous check→await→add
+  // order let two concurrent calls both pass the check and double-advance.
+  // The key is released if the day was NOT actually advanced (missing
+  // progress/cycle or a failed write) so reconcileProgressFromSessions can retry.
+  const advKey = sessionId ? `${program}:${sessionId}` : null
+  if (advKey && advancedBySession.has(advKey)) return
+  if (advKey) advancedBySession.add(advKey)
 
-  const progress = await getProgramProgress(program)
-  if (!progress) return
+  let advanced = false
+  try {
+    const progress = await getProgramProgress(program)
+    if (!progress) return
 
-  const cycle = getCycleById(progress.cycleId)
-  if (!cycle) return
+    const cycle = getCycleById(progress.cycleId)
+    if (!cycle) return
 
-  if (sessionId) advancedBySession.add(`${program}:${sessionId}`)
+    // Use the session's dayNumber if provided — this ensures we advance from
+    // the day the session was actually for, not from progress.currentDay which
+    // may have been changed by a concurrent call or stale state.
+    const effectiveDay = sessionDayNumber ?? progress.currentDay
 
-  // Use the session's dayNumber if provided — this ensures we advance from
-  // the day the session was actually for, not from progress.currentDay which
-  // may have been changed by a concurrent call or stale state.
-  const effectiveDay = sessionDayNumber ?? progress.currentDay
+    const day = cycle.days.find((d) => d.dayNumber === effectiveDay)
+    const restDays = day?.restAfterDay ?? 1
 
-  const day = cycle.days.find((d) => d.dayNumber === effectiveDay)
-  const restDays = day?.restAfterDay ?? 1
-
-  if (!passed) {
-    // Restart policy: same as post-test block (recovery before attempt N+1)
-    const restartDate = getNextWorkoutDate(new Date(), getTestBlockDays())
-    await updateProgramProgress(program, {
-      status: 'cycle_failed',
-      currentDay: 1,
-      cycleAttempt: progress.cycleAttempt + 1,
-      lastWorkoutAt: new Date().toISOString(),
-      nextWorkoutAfter: restartDate.toISOString(),
-    })
-    return
-  }
-
-  const { nextDay, cycleComplete } = advanceAfterDayPassed(
-    effectiveDay,
-    cycle.days.length,
-  )
-
-  if (cycleComplete) {
-    // Automatyczne przejście na wyższy cykl (level + 1) bez testu maksymalnego.
-    // Gdy bieżący cykl jest ostatnim poziomem, zostaw test_pending (retest).
-    const nextCycle = getNextHigherCycle(program, progress.cycleId)
-    if (nextCycle) {
-      // Rest po ostatnim dniu ukończonego cyklu, potem nowy cykl od dnia 1.
-      const restDate = getNextWorkoutDate(new Date(), restDays)
+    if (!passed) {
+      // Restart policy: same as post-test block (recovery before attempt N+1)
+      const restartDate = getNextWorkoutDate(new Date(), getTestBlockDays())
       await updateProgramProgress(program, {
-        cycleId: nextCycle.id,
-        status: 'rest',
+        status: 'cycle_failed',
         currentDay: 1,
-        cycleAttempt: 1,
+        cycleAttempt: progress.cycleAttempt + 1,
         lastWorkoutAt: new Date().toISOString(),
-        nextWorkoutAfter: restDate.toISOString(),
+        nextWorkoutAfter: restartDate.toISOString(),
       })
+      advanced = true
       return
     }
-    // Ostatni poziom — zachowaj test_pending (retest dla utrzymania / weryfikacji).
-    const testDate = getNextWorkoutDate(new Date(), getTestBlockDays())
-    await updateProgramProgress(program, {
-      status: 'test_pending',
-      currentDay: 1,
-      lastWorkoutAt: new Date().toISOString(),
-      nextWorkoutAfter: testDate.toISOString(),
-    })
-    return
-  }
 
-  const nextDate = getNextWorkoutDate(new Date(), restDays)
-  await updateProgramProgress(program, {
-    status: 'rest',
-    currentDay: nextDay,
-    lastWorkoutAt: new Date().toISOString(),
-    nextWorkoutAfter: nextDate.toISOString(),
-  })
+    const { nextDay, cycleComplete } = advanceAfterDayPassed(
+      effectiveDay,
+      cycle.days.length,
+    )
+
+    if (cycleComplete) {
+      // Automatyczne przejście na wyższy cykl (level + 1) bez testu maksymalnego.
+      // Gdy bieżący cykl jest ostatnim poziomem, zostaw test_pending (retest).
+      const nextCycle = getNextHigherCycle(program, progress.cycleId)
+      if (nextCycle) {
+        // Rest po ostatnim dniu ukończonego cyklu, potem nowy cykl od dnia 1.
+        const restDate = getNextWorkoutDate(new Date(), restDays)
+        await updateProgramProgress(program, {
+          cycleId: nextCycle.id,
+          status: 'rest',
+          currentDay: 1,
+          cycleAttempt: 1,
+          lastWorkoutAt: new Date().toISOString(),
+          nextWorkoutAfter: restDate.toISOString(),
+        })
+        advanced = true
+        return
+      }
+      // Ostatni poziom — zachowaj test_pending (retest dla utrzymania / weryfikacji).
+      const testDate = getNextWorkoutDate(new Date(), getTestBlockDays())
+      await updateProgramProgress(program, {
+        status: 'test_pending',
+        currentDay: 1,
+        lastWorkoutAt: new Date().toISOString(),
+        nextWorkoutAfter: testDate.toISOString(),
+      })
+      advanced = true
+      return
+    }
+
+    const nextDate = getNextWorkoutDate(new Date(), restDays)
+    await updateProgramProgress(program, {
+      status: 'rest',
+      currentDay: nextDay,
+      lastWorkoutAt: new Date().toISOString(),
+      nextWorkoutAfter: nextDate.toISOString(),
+    })
+    advanced = true
+  } finally {
+    if (!advanced && advKey) advancedBySession.delete(advKey)
+  }
 }
 
 /**
@@ -340,6 +352,9 @@ export async function setProgramPaused(program: Program, paused: boolean) {
 export async function skipRestDay(program: Program) {
   const progress = await getProgramProgress(program)
   if (!progress) return
+  // Only meaningful during scheduled rest — never unpause or clear a pending
+  // test just because a skip-rest action fired.
+  if (progress.status === 'paused' || progress.status === 'test_pending') return
   await updateProgramProgress(program, {
     status: 'active',
     nextWorkoutAfter: null,

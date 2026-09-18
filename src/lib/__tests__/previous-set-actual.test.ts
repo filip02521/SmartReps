@@ -155,8 +155,8 @@ describe('getSessionComparison', () => {
   it('uses the most recent session from a previous cycle', async () => {
     // New cycle, day 1 — "last workout" is the previous cycle's last session.
     sessions = [
-      session({ id: 'old-cycle-day1', cycleId: 'pushups-0-5', dayNumber: 1, setResults: sets([3, 3, 3]) }),
-      session({ id: 'current', cycleId: 'pushups-6-10', dayNumber: 1, setResults: sets([8, 8, 8]) }),
+      session({ id: 'old-cycle-day1', cycleId: 'pushups-0-5', dayNumber: 1, startedAt: '2026-01-01T10:00:00.000Z', setResults: sets([3, 3, 3]) }),
+      session({ id: 'current', cycleId: 'pushups-6-10', dayNumber: 1, startedAt: '2026-02-01T10:00:00.000Z', setResults: sets([8, 8, 8]) }),
     ]
     const { previous } = await getSessionComparison('pushups', 'current')
     expect(previous?.id).toBe('old-cycle-day1')
@@ -192,5 +192,17 @@ describe('getSessionComparison', () => {
     ]
     const { previous } = await getSessionComparison('pushups', 'current')
     expect(previous).toBeUndefined()
+  })
+
+  it('never compares a historical session against a NEWER one', async () => {
+    // Opening an old session's summary from history: "previous" must be the
+    // session right before it, not the latest workout overall.
+    sessions = [
+      session({ id: 'older', dayNumber: 3, startedAt: '2026-01-01T10:00:00.000Z', setResults: sets([5, 5, 5]) }),
+      session({ id: 'viewed', dayNumber: 1, startedAt: '2026-01-10T10:00:00.000Z', setResults: sets([8, 8, 8]) }),
+      session({ id: 'newest', dayNumber: 7, startedAt: '2026-02-01T10:00:00.000Z', setResults: sets([20, 20, 20]) }),
+    ]
+    const { previous } = await getSessionComparison('pushups', 'viewed')
+    expect(previous?.id).toBe('older')
   })
 })

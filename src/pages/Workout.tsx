@@ -219,22 +219,43 @@ export default function WorkoutPage() {
       let session: LocalWorkoutSession
 
       if (!active) {
-        const existingInProgress = await db.workoutSessions
+        // Fallback when no activeWorkout row exists (e.g. deleted or never
+        // written): adopt an in_progress session ONLY if it belongs to the
+        // current cycle+day+attempt. reconcileActiveWorkout already enforces
+        // this for active rows — the fallback must not bypass it, or a stale
+        // session from another day would load wrong-day setResults and
+        // finalize incorrectly. Stale/empty leftovers are abandoned: with
+        // mismatched progress they can never be resumed again.
+        const inProgress = await db.workoutSessions
           .where('program')
           .equals(program)
           .filter((s) => s.status === 'in_progress')
-          .first()
-        if (existingInProgress && existingInProgress.setResults.length > 0) {
+          .toArray()
+        const resumable = inProgress
+          .filter(
+            (s) =>
+              s.setResults.length > 0 &&
+              s.cycleId === prog.cycleId &&
+              s.dayNumber === prog.currentDay &&
+              s.cycleAttempt === prog.cycleAttempt,
+          )
+          .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())[0]
+        const stale = inProgress.filter((s) => s.id !== resumable?.id)
+        if (stale.length > 0) {
+          const now = new Date().toISOString()
+          for (const s of stale) {
+            await db.workoutSessions.put({ ...s, status: 'abandoned', completedAt: now })
+          }
+        }
+        if (resumable) {
           active = {
             program,
-            sessionId: existingInProgress.id,
-            currentSetIndex: existingInProgress.setResults.length,
-            setResults: existingInProgress.setResults,
+            sessionId: resumable.id,
+            currentSetIndex: resumable.setResults.length,
+            setResults: resumable.setResults,
             restTimerJson: null,
             updatedAt: new Date().toISOString(),
           }
-        } else if (existingInProgress) {
-          await cleanupEmptyInProgressSessions(program)
         }
       }
 
@@ -256,11 +277,21 @@ export default function WorkoutPage() {
           active.setResults.length >= d.sets.length
         if (setsDone) {
           const existing = await db.workoutSessions.get(active.sessionId)
+          // Route by the recorded outcomes, not by position — a persisted
+          // failed set must not finalize as a passed day.
+          const allPassed = active.setResults.every((r) => r.passed)
           if (existing?.status === 'in_progress') {
-            await finalizeSuccessfulDay(existing, active.setResults)
+            if (allPassed) {
+              await finalizeSuccessfulDay(existing, active.setResults)
+            } else {
+              await finalizeFailedDay(existing.id, program, active.setResults)
+            }
           }
           await clearActiveWorkout(program)
-          navigate(`/workout/${program}/summary?session=${active.sessionId}`, { replace: true })
+          navigate(
+            `/workout/${program}/summary?session=${active.sessionId}${allPassed ? '' : '&failed=1'}`,
+            { replace: true },
+          )
           return
         }
 
@@ -443,6 +474,9 @@ export default function WorkoutPage() {
       void persistState().catch((err) => trackError(err, 'workout.visibility'))
     }
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Nothing logged yet — no data to protect, no leave prompt either
+      // (a peek-and-leave must not nag with "are you sure?").
+      if (useWorkoutStore.getState().setResults.length === 0) return
       // Best-effort persist — async, may not complete before unload
       void persistState().catch((err) => trackError(err, 'workout.beforeunload'))
       // Prompt user to confirm leaving (browser-native)
@@ -586,7 +620,9 @@ export default function WorkoutPage() {
         setFailedIndex(workout.currentSetIndex)
         if (!workout.failedRetryUsed) {
           workout.setFailedRetryUsed(true)
-          void persistState()
+          // Await — a fire-and-forget persist could land AFTER the retry's
+          // ensure write and regress the active row's index/results.
+          await persistState()
           finishingRef.current = false
           return
         }
@@ -663,6 +699,33 @@ export default function WorkoutPage() {
       finishingRef.current = false
     } catch (err) {
       trackError(err, 'workout.handleDone')
+      finishingRef.current = false
+      setSaveError(pl.errorSaveSet)
+    }
+  }
+
+  /** Retry finalization when the last set persisted but finalize failed —
+   *  without this the user would sit on an endless PageLoader with the
+   *  saveError hidden (dayCompletePending swallows the workout screen). */
+  const retryFinalizeDay = async () => {
+    if (!sessionMeta || finishingRef.current) return
+    finishingRef.current = true
+    setSaveError(null)
+    try {
+      const s = useWorkoutStore.getState()
+      const allPassed = s.setResults.every((r) => r.passed)
+      if (allPassed) {
+        await finalizeSuccessfulDay(sessionMeta, s.setResults)
+      } else {
+        await finalizeFailedDay(sessionMeta.id, program, s.setResults)
+      }
+      s.reset()
+      navigate(
+        `/workout/${program}/summary?session=${sessionMeta.id}${allPassed ? '' : '&failed=1'}`,
+        { replace: true },
+      )
+    } catch (err) {
+      trackError(err, 'workout.retryFinalize')
       finishingRef.current = false
       setSaveError(pl.errorSaveSet)
     }
@@ -750,6 +813,19 @@ export default function WorkoutPage() {
   }
 
   if (dayCompletePending) {
+    if (saveError) {
+      return (
+        <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
+          <PageHeader title={pl.errorSaveSet} />
+          <div className="mt-6">
+            <ErrorBanner message={saveError} onRetry={() => void retryFinalizeDay()} />
+          </div>
+          <Button variant="ghost" className="mt-4" fullWidth onClick={() => navigate('/', { replace: true })}>
+            {pl.backHome}
+          </Button>
+        </div>
+      )
+    }
     return (
       <div className="mx-auto max-w-lg px-4 py-8 safe-top">
         <PageLoader message={pl.loading} />

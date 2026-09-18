@@ -173,6 +173,26 @@ export default function SessionSummary() {
       setPreviousSessionsForStreak(
         allCompleted.filter((s) => s.id !== currentSession.id),
       )
+      // Two comparison baselines:
+      // - comparison.previous = the user's actual LAST workout (any day) —
+      //   shown in the "Poprz." table column.
+      // - previousSameDay = last session of THIS program day — the only
+      //   baseline where per-set deltas and "improved/down" verdicts are
+      //   meaningful. Coach messages use this so "first recorded result"
+      //   only fires when the day was genuinely never trained.
+      const curDoneAt = new Date(currentSession.completedAt ?? currentSession.startedAt).getTime()
+      const previousSameDay = historicalSessions
+        .filter(
+          (s) =>
+            s.id !== currentSession.id &&
+            s.dayNumber === currentSession.dayNumber &&
+            new Date(s.completedAt ?? s.startedAt).getTime() < curDoneAt,
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.completedAt ?? b.startedAt).getTime() -
+            new Date(a.completedAt ?? a.startedAt).getTime(),
+        )[0]
       // Detect personal records for celebration banner
       let records: PersonalRecord[] = []
       try {
@@ -195,13 +215,23 @@ export default function SessionSummary() {
       setInsights(
         computeBuiltinSessionInsights({
           current: currentSession,
+          // Badges share the table's baseline (comparison.previous) — the
+          // internal sameTrainingDay guard suppresses them when that
+          // session is a different day, so a badge delta never contradicts
+          // the arrow beside it.
           previous: comparison.previous,
           historicalSessions,
         }),
       )
       // RPE/RIR progression suggestion (builtin = info-only, cannot modify fixed plans)
       const recentSetsForTrend = historicalSessions
-        .filter((s) => s.program === program && s.dayNumber === currentSession.dayNumber && s.id !== currentSession.id)
+        .filter(
+          (s) =>
+            s.program === program &&
+            s.dayNumber === currentSession.dayNumber &&
+            s.id !== currentSession.id &&
+            new Date(s.completedAt ?? s.startedAt).getTime() < curDoneAt,
+        )
         .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
         .slice(0, 2)
         .map((s) => s.setResults)
@@ -209,7 +239,7 @@ export default function SessionSummary() {
       setProgressionSuggestion(suggestion)
       setSuggestionDismissed(false)
       // Proactive coach: load or generate post-workout insight
-      void loadOrGenerateCoachInsight(currentSession, comparison.previous, historicalSessions)
+      void loadOrGenerateCoachInsight(currentSession, previousSameDay, historicalSessions)
     } catch {
       setError(pl.errorLoadSummary)
     } finally {

@@ -56,6 +56,15 @@ export function sessionHasProgress(setResults: SetResultDraft[]): boolean {
   return setResults.length > 0
 }
 
+/** Keep the LAST entry per setNumber — resume-after-crash can leave both the
+ *  failed attempt and the retried result for the same set, which would
+ *  otherwise persist duplicate rows and inflate totalReps. */
+function dedupeSetResults(results: SetResultDraft[]): SetResultDraft[] {
+  const bySet = new Map<number, SetResultDraft>()
+  for (const r of results) bySet.set(r.setNumber, r)
+  return [...bySet.values()].sort((a, b) => a.setNumber - b.setNumber)
+}
+
 /** Drop in_progress rows with zero completed sets — peek-and-leave should not leave resume ghosts. */
 export async function cleanupEmptyInProgressSessions(program: Program): Promise<void> {
   const orphans = await db.workoutSessions
@@ -96,17 +105,22 @@ export async function ensureWorkoutSessionPersisted(
   if (!sessionHasProgress(state.setResults)) return
 
   try {
-    const existing = await db.workoutSessions.get(session.id)
-    const row: LocalWorkoutSession = {
-      ...session,
-      status: 'in_progress',
-      setResults: state.setResults,
-    }
-    if (!existing) {
-      await saveWorkoutSession(row)
-    } else if (existing.status === 'in_progress') {
-      await saveWorkoutSession({ ...existing, setResults: state.setResults })
-    } else {
+    // Atomic read-modify-write: a concurrent abandon (cancel / "start fresh"
+    // on another device or tab) must not be overwritten back to in_progress.
+    // saveWorkoutSession is transaction-safe here — it only enqueues sync for
+    // 'completed' rows and never touches the sync queue for in_progress.
+    const outcome = await db.transaction('rw', db.workoutSessions, async () => {
+      const existing = await db.workoutSessions.get(session.id)
+      if (existing && existing.status !== 'in_progress') return 'terminal'
+      const base = existing ?? session
+      await saveWorkoutSession({
+        ...base,
+        status: 'in_progress',
+        setResults: state.setResults,
+      })
+      return 'ok'
+    })
+    if (outcome === 'terminal') {
       // Session is already completed or abandoned — don't overwrite it or
       // re-activate the program. This prevents flipping a rest/cycle_failed
       // progress back to 'active' based on a stale/completed session.
@@ -208,7 +222,7 @@ export async function getLastCompletedSession(
     .equals(program)
     .filter((s) => s.status === 'completed' && s.id !== excludeSessionId)
     .toArray()
-  sessions.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+  sessions.sort((a, b) => sessionDoneAt(b) - sessionDoneAt(a))
   return sessions[0]
 }
 
@@ -242,34 +256,49 @@ export async function finalizeSuccessfulDay(
     // Two concurrent calls could both observe status === 'in_progress' and both
     // write 'completed'. The transaction + re-check ensures only one wins.
     let alreadyCompleted = false
+    let abandoned = false
+    let existingPassed = false
     let totalReps = 0
     await db.transaction('rw', db.workoutSessions, async () => {
       const existing = await db.workoutSessions.get(session.id)
       if (existing?.status === 'completed') {
         alreadyCompleted = true
+        existingPassed = existing.passed === true
         totalReps = existing.totalReps ?? 0
         return
       }
-      totalReps = setResults.reduce((s, r) => s + sanitizeReps(r.actual), 0)
+      if (existing?.status === 'abandoned') {
+        // The user explicitly discarded this session (cancel / "start fresh").
+        // A late finalize (in-flight persist, stale tab, another device) must
+        // not resurrect it as completed nor advance/regress progress.
+        abandoned = true
+        return
+      }
+      const deduped = dedupeSetResults(setResults)
+      totalReps = deduped.reduce((s, r) => s + sanitizeReps(r.actual), 0)
       const updated: LocalWorkoutSession = {
         ...session,
         status: 'completed',
         completedAt: new Date().toISOString(),
         passed: true,
         totalReps,
-        setResults,
+        setResults: deduped,
       }
       await db.workoutSessions.put(updated)
     })
 
+    if (abandoned) return
+
     if (alreadyCompleted) {
       // Session was already completed by a concurrent call — still advance progress
-      // if not yet done (e.g. after page reload, in-memory guard is empty)
+      // if not yet done (e.g. after page reload, in-memory guard is empty).
+      // Use the STORED outcome, not the caller's assumption — a session that
+      // finished as failed must not be re-advanced as passed.
       if (!finalizedProgressKeys.has(key)) {
-        await completeWorkoutDay(program, true, totalReps, session.id, session.dayNumber)
+        await completeWorkoutDay(program, existingPassed, totalReps, session.id, session.dayNumber)
         finalizedProgressKeys.add(key)
       }
-      markFirstWorkoutAndTrack(true, session.id)
+      markFirstWorkoutAndTrack(existingPassed, session.id)
       void schedulePostWorkoutSync()
       const { scheduleAchievementCheck } = await import('@/lib/achievements/schedule')
       scheduleAchievementCheck()
@@ -303,34 +332,54 @@ export async function finalizeFailedDay(
 
   try {
     let alreadyCompleted = false
+    let missing = false
+    let abandoned = false
+    let existingPassed = false
+    let existingDayNumber: number | undefined
     let totalReps = 0
     await db.transaction('rw', db.workoutSessions, async () => {
       const existing = await db.workoutSessions.get(sessionId)
-      if (!existing) return
+      if (!existing) {
+        // Ghost session — nothing was ever persisted. Advancing progress here
+        // would mark a never-played day as failed (cycle restart!) for free.
+        missing = true
+        return
+      }
       if (existing.status === 'completed') {
         alreadyCompleted = true
+        existingPassed = existing.passed === true
+        existingDayNumber = existing.dayNumber
         totalReps = existing.totalReps ?? 0
         return
       }
-      totalReps = setResults.reduce((s, r) => s + sanitizeReps(r.actual), 0)
+      if (existing.status === 'abandoned') {
+        // Deliberately discarded — a late finalize must not resurrect it nor
+        // regress progress to cycle_failed.
+        abandoned = true
+        return
+      }
+      const deduped = dedupeSetResults(setResults)
+      totalReps = deduped.reduce((s, r) => s + sanitizeReps(r.actual), 0)
       const updated: LocalWorkoutSession = {
         ...existing,
         status: 'completed',
         completedAt: new Date().toISOString(),
         passed: false,
         totalReps,
-        setResults,
+        setResults: deduped,
       }
       await db.workoutSessions.put(updated)
     })
 
+    if (missing || abandoned) return
+
     if (alreadyCompleted) {
       if (!finalizedProgressKeys.has(key)) {
-        const existingForDay = await db.workoutSessions.get(sessionId)
-        await completeWorkoutDay(program, false, totalReps, sessionId, existingForDay?.dayNumber)
+        // Stored outcome is authoritative — don't regress a passed day to failed.
+        await completeWorkoutDay(program, existingPassed, totalReps, sessionId, existingDayNumber)
         finalizedProgressKeys.add(key)
       }
-      markFirstWorkoutAndTrack(false, sessionId)
+      markFirstWorkoutAndTrack(existingPassed, sessionId)
       return
     }
 
@@ -367,13 +416,21 @@ export async function deleteWorkoutSession(sessionId: string): Promise<void> {
       })
       await db.workoutSessions.delete(sessionId)
     })
-    // 3. Clear active workout pointer if it references the deleted session
+    // 3. Clear the active workout pointer only when it references the deleted
+    // session — deleting an old history row must not kill the resume state of
+    // an unrelated in-progress workout.
     if (session.program !== 'custom' && (session.programKind ?? 'builtin') !== 'custom') {
-      const { clearActiveWorkout } = await import('@/lib/program-service')
-      await clearActiveWorkout(session.program as Program)
+      const { getActiveWorkout, clearActiveWorkout } = await import('@/lib/program-service')
+      const active = await getActiveWorkout(session.program as Program)
+      if (active?.sessionId === sessionId) {
+        await clearActiveWorkout(session.program as Program)
+      }
     } else if (session.customPlanId) {
       const { clearActiveCustomWorkout } = await import('@/lib/custom-session-service')
-      await clearActiveCustomWorkout(session.customPlanId)
+      const active = await db.activeCustomWorkout.get(session.customPlanId)
+      if (active?.sessionId === sessionId) {
+        await clearActiveCustomWorkout(session.customPlanId)
+      }
     }
     track(AnalyticsEvents.sessionDeleted, { program: session.program })
     // 4. Re-evaluate achievements — session counts/streaks may have changed
@@ -431,17 +488,22 @@ export async function getSessionComparison(
     return { current: undefined, previous: undefined }
   }
 
-  // Previous = literally the most recent completed session of this program —
-  // "your last workout", which is what the user compares against. It may be
-  // a different day or a different cycle; the summary labels the source
-  // ("Porównanie z: Dzień N · data") so it's never misleading. Scoping to
-  // the same dayNumber picked an OLDER session over the real last workout —
-  // e.g. the previous cycle's day 1 instead of yesterday's day 7 — which
-  // showed inflated deltas (+5) when the user actually did fewer reps.
+  // Previous = the most recent completed session of this program BEFORE the
+  // viewed one — "your last workout before this", which is what the user
+  // compares against. It may be a different day or a different cycle; the
+  // summary labels the source ("Porównanie z: Dzień N · data") so it's never
+  // misleading. The doneAt bound matters when a summary is opened from
+  // history — otherwise an old session would compare against a NEWER one.
+  const currentDoneAt = sessionDoneAt(current)
   const prior = await db.workoutSessions
     .where('program')
     .equals(program)
-    .filter((s) => s.status === 'completed' && s.id !== current.id)
+    .filter(
+      (s) =>
+        s.status === 'completed' &&
+        s.id !== current.id &&
+        sessionDoneAt(s) < currentDoneAt,
+    )
     .toArray()
   prior.sort((a, b) => sessionDoneAt(b) - sessionDoneAt(a))
   return { current, previous: prior[0] }
