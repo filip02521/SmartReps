@@ -557,6 +557,676 @@ describe('calculateChallengeProgress — personal_best', () => {
   })
 })
 
+describe('calculateChallengeProgress — power category', () => {
+  beforeEach(() => {
+    mockWorkoutSessionsWhere.mockReset()
+  })
+
+  it('marathon: best single-session total, not the weekly sum', async () => {
+    const ch = makeChallenge({ challenge_type: 'marathon', target_reps: 45 })
+    setupSessions([
+      makeSession({
+        id: 's-1',
+        startedAt: '2025-01-14T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed', reps: 20 }, actual: 25, passed: true },
+          { setNumber: 2, target: { kind: 'fixed', reps: 20 }, actual: 20, passed: true },
+        ],
+      }),
+      makeSession({
+        id: 's-2',
+        startedAt: '2025-01-16T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed', reps: 30 }, actual: 30, passed: true },
+        ],
+      }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    // Weekly sum would be 75; the marathon metric is the best session (45)
+    expect(result.current).toBe(45)
+    expect(result.achieved).toBe(true)
+  })
+
+  it('max_set: best single set across sessions', async () => {
+    const ch = makeChallenge({ challenge_type: 'max_set', target_reps: 25 })
+    setupSessions([
+      makeSession({
+        id: 's-1',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed', reps: 20 }, actual: 28, passed: true },
+          { setNumber: 2, target: { kind: 'fixed', reps: 20 }, actual: 12, passed: false },
+        ],
+      }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(28)
+    expect(result.achieved).toBe(true)
+  })
+
+  it('grinder: counts total completed sets', async () => {
+    const ch = makeChallenge({ challenge_type: 'grinder', target_reps: 5 })
+    setupSessions([
+      makeSession({
+        id: 's-1',
+        startedAt: '2025-01-14T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed', reps: 10 }, actual: 10, passed: true },
+          { setNumber: 2, target: { kind: 'fixed', reps: 10 }, actual: 10, passed: true },
+          { setNumber: 3, target: { kind: 'fixed', reps: 10 }, actual: 10, passed: true },
+        ],
+      }),
+      makeSession({
+        id: 's-2',
+        startedAt: '2025-01-16T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed', reps: 10 }, actual: 10, passed: true },
+          { setNumber: 2, target: { kind: 'fixed', reps: 10 }, actual: 8, passed: false },
+        ],
+      }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(5)
+    expect(result.achieved).toBe(true)
+  })
+})
+
+describe('calculateChallengeProgress — habit category', () => {
+  beforeEach(() => {
+    mockWorkoutSessionsWhere.mockReset()
+  })
+
+  it('daily: counts distinct local days, ignores empty sessions', async () => {
+    const ch = makeChallenge({ challenge_type: 'daily', target_reps: 3 })
+    setupSessions([
+      makeSession({ id: 's-1', startedAt: '2025-01-14T08:00:00Z' }),
+      makeSession({ id: 's-2', startedAt: '2025-01-14T18:00:00Z' }), // same day
+      makeSession({ id: 's-3', startedAt: '2025-01-16T10:00:00Z' }),
+      makeSession({ id: 's-empty', startedAt: '2025-01-17T10:00:00Z', setResults: [] }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    // 2 distinct trained days (14th + 16th); empty session adds nothing
+    expect(result.current).toBe(2)
+    expect(result.achieved).toBe(false)
+  })
+
+  it('early_bird: session before 9:00 local', async () => {
+    const ch = makeChallenge({ challenge_type: 'early_bird', target_reps: 1 })
+    const before9 = new Date('2025-01-15T07:30:00')
+    setupSessions([
+      makeSession({ id: 's-1', startedAt: before9.toISOString() }),
+      makeSession({ id: 's-2', startedAt: new Date('2025-01-16T15:00:00').toISOString() }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(1)
+    expect(result.achieved).toBe(true)
+  })
+
+  it('early_bird: no session before 9 → 0', async () => {
+    const ch = makeChallenge({ challenge_type: 'early_bird', target_reps: 1 })
+    setupSessions([
+      makeSession({ id: 's-1', startedAt: new Date('2025-01-15T10:00:00').toISOString() }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(0)
+  })
+
+  it('night_owl: session at/after 20:00 local', async () => {
+    const ch = makeChallenge({ challenge_type: 'night_owl', target_reps: 1 })
+    setupSessions([
+      makeSession({ id: 's-1', startedAt: new Date('2025-01-15T21:30:00').toISOString() }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(1)
+  })
+
+  it('weekend: Saturday session counts, weekday does not', async () => {
+    const ch = makeChallenge({ challenge_type: 'weekend', target_reps: 1 })
+    // 2025-01-18 is a Saturday, 2025-01-15 a Wednesday
+    setupSessions([
+      makeSession({ id: 's-mid', startedAt: new Date('2025-01-15T12:00:00').toISOString() }),
+      makeSession({ id: 's-sat', startedAt: new Date('2025-01-18T12:00:00').toISOString() }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(1)
+  })
+
+  it('double: two sessions the same day', async () => {
+    const ch = makeChallenge({ challenge_type: 'double', target_reps: 1 })
+    setupSessions([
+      makeSession({ id: 's-1', startedAt: new Date('2025-01-15T08:00:00').toISOString() }),
+      makeSession({ id: 's-2', startedAt: new Date('2025-01-15T19:00:00').toISOString() }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(1)
+  })
+
+  it('double: sessions on different days → 0', async () => {
+    const ch = makeChallenge({ challenge_type: 'double', target_reps: 1 })
+    setupSessions([
+      makeSession({ id: 's-1', startedAt: new Date('2025-01-15T08:00:00').toISOString() }),
+      makeSession({ id: 's-2', startedAt: new Date('2025-01-16T19:00:00').toISOString() }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(0)
+  })
+})
+
+describe('calculateChallengeProgress — skill + records', () => {
+  beforeEach(() => {
+    mockWorkoutSessionsWhere.mockReset()
+  })
+
+  it('perfect_pair: counts sessions with all sets passed', async () => {
+    const ch = makeChallenge({ challenge_type: 'perfect_pair', target_reps: 2 })
+    const perfect = (id: string, startedAt: string) =>
+      makeSession({
+        id,
+        startedAt,
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed', reps: 20 }, actual: 20, passed: true },
+          { setNumber: 2, target: { kind: 'fixed', reps: 20 }, actual: 22, passed: true },
+        ],
+      })
+    setupSessions([
+      perfect('s-1', '2025-01-14T10:00:00Z'),
+      perfect('s-2', '2025-01-16T10:00:00Z'),
+      makeSession({ id: 's-3', startedAt: '2025-01-17T10:00:00Z' }), // has a failed set
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(2)
+    expect(result.achieved).toBe(true)
+  })
+
+  it('improvement: delta over last week', async () => {
+    const ch = makeChallenge({ challenge_type: 'improvement', target_reps: 15 })
+    const reps = (n: number) => [
+      { setNumber: 1, target: { kind: 'fixed' as const, reps: n }, actual: n, passed: true },
+    ]
+    setupSessions([
+      // Last week: 40 total
+      makeSession({ id: 'p-1', startedAt: '2025-01-08T10:00:00Z', setResults: reps(25) }),
+      makeSession({ id: 'p-2', startedAt: '2025-01-10T10:00:00Z', setResults: reps(15) }),
+      // This week: 55 total → delta 15
+      makeSession({ id: 'w-1', startedAt: '2025-01-14T10:00:00Z', setResults: reps(30) }),
+      makeSession({ id: 'w-2', startedAt: '2025-01-16T10:00:00Z', setResults: reps(25) }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(15)
+    expect(result.achieved).toBe(true)
+  })
+
+  it('improvement: regression floors at 0, no baseline → 0', async () => {
+    const ch = makeChallenge({ challenge_type: 'improvement', target_reps: 10 })
+    const reps = (n: number) => [
+      { setNumber: 1, target: { kind: 'fixed' as const, reps: n }, actual: n, passed: true },
+    ]
+    // Last week 60, this week 30 → negative delta floors to 0
+    setupSessions([
+      makeSession({ id: 'p-1', startedAt: '2025-01-08T10:00:00Z', setResults: reps(60) }),
+      makeSession({ id: 'w-1', startedAt: '2025-01-14T10:00:00Z', setResults: reps(30) }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(0)
+
+    // No last-week sessions at all → nothing to beat
+    setupSessions([
+      makeSession({ id: 'w-1', startedAt: '2025-01-14T10:00:00Z', setResults: reps(50) }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(0)
+  })
+})
+
+describe('calculateChallengeProgress — expanded power pool', () => {
+  beforeEach(() => {
+    mockWorkoutSessionsWhere.mockReset()
+  })
+
+  it('surplus: counts reps above each set target (all target kinds)', async () => {
+    const ch = makeChallenge({ challenge_type: 'surplus', target_reps: 10 })
+    setupSessions([
+      makeSession({
+        id: 's-1',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          // fixed 20 → 25 actual = +5
+          { setNumber: 1, target: { kind: 'fixed' as const, reps: 20 }, actual: 25, passed: true },
+          // max minReps 10 → 14 actual = +4
+          { setNumber: 2, target: { kind: 'max' as const, minReps: 10 }, actual: 14, passed: true },
+          // exact 15 → 15 actual = +0
+          { setNumber: 3, target: { kind: 'exact' as const, reps: 15 }, actual: 15, passed: true },
+          // below target → clamped at 0, no negative
+          { setNumber: 4, target: { kind: 'fixed' as const, reps: 20 }, actual: 10, passed: false },
+        ],
+      }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(9)
+  })
+
+  it('dominator: a set at >=150% of target completes it', async () => {
+    const ch = makeChallenge({ challenge_type: 'dominator', target_reps: 1 })
+    setupSessions([
+      makeSession({
+        id: 's-1',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed' as const, reps: 20 }, actual: 30, passed: true },
+        ],
+      }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(1)
+
+    // 29 < 30 (150% of 20) → not enough
+    setupSessions([
+      makeSession({
+        id: 's-2',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed' as const, reps: 20 }, actual: 29, passed: true },
+        ],
+      }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(0)
+  })
+
+  it('strong_finish / session_starter: edge set must pass', async () => {
+    const finish = makeChallenge({ challenge_type: 'strong_finish', target_reps: 1 })
+    const starter = makeChallenge({ challenge_type: 'session_starter', target_reps: 1 })
+
+    // Last set failed → strong_finish fails even if first passed
+    setupSessions([
+      makeSession({ id: 's-1', startedAt: '2025-01-15T10:00:00Z' }), // default: pass, fail
+    ])
+    expect((await calculateChallengeProgress(finish)).current).toBe(0)
+    expect((await calculateChallengeProgress(starter)).current).toBe(1)
+
+    // Last set passed → strong_finish succeeds
+    setupSessions([
+      makeSession({
+        id: 's-2',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed' as const, reps: 20 }, actual: 10, passed: false },
+          { setNumber: 2, target: { kind: 'fixed' as const, reps: 20 }, actual: 21, passed: true },
+        ],
+      }),
+    ])
+    expect((await calculateChallengeProgress(finish)).current).toBe(1)
+    expect((await calculateChallengeProgress(starter)).current).toBe(0)
+  })
+
+  it('edge-set metrics sort by setNumber, not array order', async () => {
+    const finish = makeChallenge({ challenge_type: 'strong_finish', target_reps: 1 })
+    const starter = makeChallenge({ challenge_type: 'session_starter', target_reps: 1 })
+    // Imported backups can carry unsorted setResults — the metric must read
+    // set 2 (last by setNumber: failed), not the array's last element.
+    setupSessions([
+      makeSession({
+        id: 's-1',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          { setNumber: 2, target: { kind: 'fixed' as const, reps: 20 }, actual: 10, passed: false },
+          { setNumber: 1, target: { kind: 'fixed' as const, reps: 20 }, actual: 21, passed: true },
+        ],
+      }),
+    ])
+    expect((await calculateChallengeProgress(finish)).current).toBe(0)
+    expect((await calculateChallengeProgress(starter)).current).toBe(1)
+  })
+
+  it('bounce_back respects setNumber order in unsorted data', async () => {
+    const ch = makeChallenge({ challenge_type: 'bounce_back', target_reps: 1 })
+    // Unsorted array lists the pass first; by setNumber it's pass→fail,
+    // which is NOT a bounce-back.
+    setupSessions([
+      makeSession({
+        id: 's-1',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          { setNumber: 2, target: { kind: 'fixed' as const, reps: 20 }, actual: 10, passed: false },
+          { setNumber: 1, target: { kind: 'fixed' as const, reps: 20 }, actual: 21, passed: true },
+        ],
+      }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(0)
+  })
+
+  it('big_day: sessions on the same day stack, best day wins', async () => {
+    const ch = makeChallenge({ challenge_type: 'big_day', target_reps: 40 })
+    const reps = (n: number) => [
+      { setNumber: 1, target: { kind: 'fixed' as const, reps: n }, actual: n, passed: true },
+    ]
+    setupSessions([
+      // Same local day: 25 + 20 = 45
+      makeSession({ id: 's-1', startedAt: new Date('2025-01-15T08:00:00').toISOString(), setResults: reps(25) }),
+      makeSession({ id: 's-2', startedAt: new Date('2025-01-15T19:00:00').toISOString(), setResults: reps(20) }),
+      // Other day: 35 alone
+      makeSession({ id: 's-3', startedAt: new Date('2025-01-17T10:00:00').toISOString(), setResults: reps(35) }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(45)
+    expect(result.achieved).toBe(true)
+  })
+})
+
+describe('calculateChallengeProgress — expanded habit pool', () => {
+  beforeEach(() => {
+    mockWorkoutSessionsWhere.mockReset()
+  })
+
+  it('weekday_quest: only sessions on the drawn weekday count', async () => {
+    const { challengeRequiredWeekday } = await import('@/lib/weekly-challenge')
+    const ch = makeChallenge({ challenge_type: 'weekday_quest', target_reps: 1 })
+    const required = challengeRequiredWeekday(ch.starts_at) // ISO 1..7, week of 2025-01-13
+
+    // Week of 2025-01-13 (Monday): ISO day N → Jan (12 + N)
+    const onRequired = new Date(2025, 0, 12 + required, 10).toISOString()
+    const wrongDay = required === 1 ? 2 : 1
+    const onWrong = new Date(2025, 0, 12 + wrongDay, 10).toISOString()
+
+    setupSessions([
+      makeSession({ id: 's-wrong', startedAt: onWrong }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(0)
+
+    setupSessions([
+      makeSession({ id: 's-wrong', startedAt: onWrong }),
+      makeSession({ id: 's-right', startedAt: onRequired }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(1)
+  })
+
+  it('time windows: morning/lunch/evening boundaries are respected', async () => {
+    const morning = makeChallenge({ challenge_type: 'morning_moves', target_reps: 1 })
+    const lunch = makeChallenge({ challenge_type: 'lunch_break', target_reps: 1 })
+    const evening = makeChallenge({ challenge_type: 'evening_shift', target_reps: 1 })
+    const at = (h: number) => new Date(2025, 0, 15, h, 0).toISOString()
+
+    setupSessions([makeSession({ id: 's-1', startedAt: at(8) })])
+    expect((await calculateChallengeProgress(morning)).current).toBe(1)
+    expect((await calculateChallengeProgress(lunch)).current).toBe(0)
+    expect((await calculateChallengeProgress(evening)).current).toBe(0)
+
+    setupSessions([makeSession({ id: 's-1', startedAt: at(13) })])
+    expect((await calculateChallengeProgress(morning)).current).toBe(0)
+    expect((await calculateChallengeProgress(lunch)).current).toBe(1)
+
+    setupSessions([makeSession({ id: 's-1', startedAt: at(14) })])
+    expect((await calculateChallengeProgress(lunch)).current).toBe(0)
+
+    setupSessions([makeSession({ id: 's-1', startedAt: at(19) })])
+    expect((await calculateChallengeProgress(evening)).current).toBe(1)
+
+    setupSessions([makeSession({ id: 's-1', startedAt: at(22) })])
+    expect((await calculateChallengeProgress(evening)).current).toBe(0)
+  })
+
+  it('around_the_clock: needs one early AND one late session (target 2)', async () => {
+    const ch = makeChallenge({ challenge_type: 'around_the_clock', target_reps: 2 })
+    setupSessions([
+      makeSession({ id: 's-1', startedAt: new Date(2025, 0, 15, 7).toISOString() }),
+      makeSession({ id: 's-2', startedAt: new Date(2025, 0, 16, 8).toISOString() }),
+    ])
+    // Two early sessions — the late half is still missing
+    expect((await calculateChallengeProgress(ch)).current).toBe(1)
+
+    setupSessions([
+      makeSession({ id: 's-1', startedAt: new Date(2025, 0, 15, 7).toISOString() }),
+      makeSession({ id: 's-3', startedAt: new Date(2025, 0, 16, 21).toISOString() }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(2)
+    expect(result.achieved).toBe(true)
+  })
+
+  it('sunday_sweat: only Sunday sessions count', async () => {
+    const ch = makeChallenge({ challenge_type: 'sunday_sweat', target_reps: 1 })
+    // 2025-01-19 is Sunday, 2025-01-18 Saturday
+    setupSessions([
+      makeSession({ id: 's-1', startedAt: new Date(2025, 0, 18, 10).toISOString() }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(0)
+
+    setupSessions([
+      makeSession({ id: 's-2', startedAt: new Date(2025, 0, 19, 10).toISOString() }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(1)
+  })
+})
+
+describe('calculateChallengeProgress — expanded skill pool', () => {
+  beforeEach(() => {
+    mockWorkoutSessionsWhere.mockReset()
+  })
+
+  it('hat_trick: three fully-passed sessions required', async () => {
+    const ch = makeChallenge({ challenge_type: 'hat_trick', target_reps: 3 })
+    const perfect = (id: string, day: number) =>
+      makeSession({
+        id,
+        startedAt: `2025-01-${day}T10:00:00Z`,
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed' as const, reps: 20 }, actual: 20, passed: true },
+        ],
+      })
+    setupSessions([perfect('p1', 14), perfect('p2', 15), makeSession({ id: 'f', startedAt: '2025-01-16T10:00:00Z' })])
+    expect((await calculateChallengeProgress(ch)).current).toBe(2)
+
+    setupSessions([perfect('p1', 14), perfect('p2', 15), perfect('p3', 16)])
+    expect((await calculateChallengeProgress(ch)).current).toBe(3)
+  })
+
+  it('flawless_sets: counts individual sets at/above target', async () => {
+    const ch = makeChallenge({ challenge_type: 'flawless_sets', target_reps: 4 })
+    setupSessions([
+      makeSession({
+        id: 's-1',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed' as const, reps: 20 }, actual: 20, passed: true }, // ✓
+          { setNumber: 2, target: { kind: 'max' as const, minReps: 10 }, actual: 15, passed: true }, // ✓ (max floor)
+          { setNumber: 3, target: { kind: 'fixed' as const, reps: 20 }, actual: 19, passed: false }, // ✗
+        ],
+      }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(2)
+  })
+
+  it('sharpshooter: a set landing exactly on target', async () => {
+    const ch = makeChallenge({ challenge_type: 'sharpshooter', target_reps: 1 })
+    // Overshooting does not count — the bullseye is exact
+    setupSessions([
+      makeSession({
+        id: 's-1',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed' as const, reps: 20 }, actual: 21, passed: true },
+        ],
+      }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(0)
+
+    setupSessions([
+      makeSession({
+        id: 's-2',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'exact' as const, reps: 18 }, actual: 18, passed: true },
+        ],
+      }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(1)
+  })
+
+  it('bounce_back: fail followed by pass in the same session', async () => {
+    const ch = makeChallenge({ challenge_type: 'bounce_back', target_reps: 1 })
+    // Default session: pass then FAIL → no recovery
+    setupSessions([makeSession({ id: 's-1', startedAt: '2025-01-15T10:00:00Z' })])
+    expect((await calculateChallengeProgress(ch)).current).toBe(0)
+
+    // Fail then pass → recovered
+    setupSessions([
+      makeSession({
+        id: 's-2',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed' as const, reps: 20 }, actual: 15, passed: false },
+          { setNumber: 2, target: { kind: 'fixed' as const, reps: 20 }, actual: 20, passed: true },
+        ],
+      }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(1)
+  })
+
+  it('metronome: >=3 sets with spread <= 2', async () => {
+    const ch = makeChallenge({ challenge_type: 'metronome', target_reps: 1 })
+    // Spread 5 → fails
+    setupSessions([
+      makeSession({
+        id: 's-1',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed' as const, reps: 15 }, actual: 15, passed: true },
+          { setNumber: 2, target: { kind: 'fixed' as const, reps: 15 }, actual: 17, passed: true },
+          { setNumber: 3, target: { kind: 'fixed' as const, reps: 15 }, actual: 20, passed: true },
+        ],
+      }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(0)
+
+    // Spread 2, three sets → passes
+    setupSessions([
+      makeSession({
+        id: 's-2',
+        startedAt: '2025-01-15T10:00:00Z',
+        setResults: [
+          { setNumber: 1, target: { kind: 'fixed' as const, reps: 15 }, actual: 18, passed: true },
+          { setNumber: 2, target: { kind: 'fixed' as const, reps: 15 }, actual: 17, passed: true },
+          { setNumber: 3, target: { kind: 'fixed' as const, reps: 15 }, actual: 16, passed: true },
+        ],
+      }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(1)
+  })
+})
+
+describe('calculateChallengeProgress — expanded records pool', () => {
+  beforeEach(() => {
+    mockWorkoutSessionsWhere.mockReset()
+  })
+
+  const reps = (n: number) => [
+    { setNumber: 1, target: { kind: 'fixed' as const, reps: n }, actual: n, passed: true },
+  ]
+
+  it('volume_record: this week minus best-ever week total', async () => {
+    const ch = makeChallenge({ challenge_type: 'volume_record', target_reps: 1 })
+    setupSessions([
+      // Best previous week: 40 + 20 = 60
+      makeSession({ id: 'p-1', startedAt: '2025-01-07T10:00:00Z', setResults: reps(40) }),
+      makeSession({ id: 'p-2', startedAt: '2025-01-09T10:00:00Z', setResults: reps(20) }),
+      // Older, weaker week (30) — ignored by the max
+      makeSession({ id: 'p-3', startedAt: '2024-12-30T10:00:00Z', setResults: reps(30) }),
+      // This week: 65 → delta 5
+      makeSession({ id: 'w-1', startedAt: '2025-01-14T10:00:00Z', setResults: reps(65) }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(5)
+    expect(result.achieved).toBe(true)
+  })
+
+  it('volume_record: no prior history → nothing to beat', async () => {
+    const ch = makeChallenge({ challenge_type: 'volume_record', target_reps: 1 })
+    setupSessions([
+      makeSession({ id: 'w-1', startedAt: '2025-01-14T10:00:00Z', setResults: reps(80) }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(0)
+  })
+
+  it('session_record: best session this week minus best-ever session', async () => {
+    const ch = makeChallenge({ challenge_type: 'session_record', target_reps: 1 })
+    setupSessions([
+      // Previous best single session: 45
+      makeSession({ id: 'p-1', startedAt: '2025-01-08T10:00:00Z', setResults: reps(45) }),
+      // This week: 50 and 30 → best 50 → delta 5
+      makeSession({ id: 'w-1', startedAt: '2025-01-14T10:00:00Z', setResults: reps(50) }),
+      makeSession({ id: 'w-2', startedAt: '2025-01-16T10:00:00Z', setResults: reps(30) }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(5)
+  })
+
+  it('day_record: best day this week minus best-ever day', async () => {
+    const ch = makeChallenge({ challenge_type: 'day_record', target_reps: 1 })
+    setupSessions([
+      // Previous best day: two sessions 25 + 25 = 50 on 2025-01-08
+      makeSession({ id: 'p-1', startedAt: '2025-01-08T08:00:00Z', setResults: reps(25) }),
+      makeSession({ id: 'p-2', startedAt: '2025-01-08T19:00:00Z', setResults: reps(25) }),
+      // This week: 55 in one day → delta 5
+      makeSession({ id: 'w-1', startedAt: '2025-01-15T10:00:00Z', setResults: reps(55) }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(5)
+  })
+
+  it('beat_average: week total minus 4-week average of active weeks', async () => {
+    const ch = makeChallenge({ challenge_type: 'beat_average', target_reps: 1 })
+    setupSessions([
+      // Two active weeks in the window: 40 and 60 → avg 50
+      makeSession({ id: 'a-1', startedAt: '2025-01-06T10:00:00Z', setResults: reps(40) }),
+      makeSession({ id: 'a-2', startedAt: '2024-12-30T10:00:00Z', setResults: reps(60) }),
+      // Week outside the 4-week window — must not affect the average
+      makeSession({ id: 'old', startedAt: '2024-12-10T10:00:00Z', setResults: reps(200) }),
+      // This week: 60 → delta 10
+      makeSession({ id: 'w-1', startedAt: '2025-01-15T10:00:00Z', setResults: reps(60) }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(10)
+    expect(result.achieved).toBe(true)
+  })
+
+  it('beat_average: fractional sub-0.5 lead still counts as beaten', async () => {
+    const ch = makeChallenge({ challenge_type: 'beat_average', target_reps: 1 })
+    setupSessions([
+      // Three active weeks: 50, 51, 51 → avg 50.67
+      makeSession({ id: 'a-1', startedAt: '2025-01-06T10:00:00Z', setResults: reps(50) }),
+      makeSession({ id: 'a-2', startedAt: '2024-12-30T10:00:00Z', setResults: reps(51) }),
+      makeSession({ id: 'a-3', startedAt: '2024-12-23T10:00:00Z', setResults: reps(51) }),
+      // This week: 51 > 50.67 — beaten by 0.33; Math.round would zero it
+      makeSession({ id: 'w-1', startedAt: '2025-01-15T10:00:00Z', setResults: reps(51) }),
+    ])
+    const result = await calculateChallengeProgress(ch)
+    expect(result.current).toBe(1)
+    expect(result.achieved).toBe(true)
+  })
+
+  it('beat_average: no history in window → 0', async () => {
+    const ch = makeChallenge({ challenge_type: 'beat_average', target_reps: 1 })
+    setupSessions([
+      makeSession({ id: 'w-1', startedAt: '2025-01-15T10:00:00Z', setResults: reps(100) }),
+    ])
+    expect((await calculateChallengeProgress(ch)).current).toBe(0)
+  })
+})
+
+describe('challenge categories', () => {
+  it('every type maps to a known category and draws cover all four', async () => {
+    const { CHALLENGE_CATEGORY, CHALLENGE_CATEGORY_ORDER, typeCategory, isKnownChallengeType } =
+      await import('@/lib/weekly-challenge')
+    const types = Object.keys(CHALLENGE_CATEGORY)
+    expect(types).toHaveLength(34)
+    for (const cat of CHALLENGE_CATEGORY_ORDER) {
+      expect(types.filter((t) => typeCategory(t as never) === cat).length).toBeGreaterThan(0)
+    }
+    expect(isKnownChallengeType('marathon')).toBe(true)
+    expect(isKnownChallengeType('not_a_type')).toBe(false)
+    // Inherited property names must not pass the guard — a hostile/malformed
+    // row with 'constructor' would otherwise crash icon/category lookups.
+    for (const inherited of ['constructor', 'toString', 'hasOwnProperty', 'valueOf', '__proto__']) {
+      expect(isKnownChallengeType(inherited)).toBe(false)
+      expect(typeCategory(inherited as never)).toBe('power')
+    }
+  })
+})
+
 describe('calculateAllChallengeProgress', () => {
   beforeEach(() => {
     mockWorkoutSessionsWhere.mockReset()

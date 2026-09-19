@@ -24,6 +24,7 @@ import {
   daysUntil,
   programLabel,
   progressLabel,
+  categoryLabel,
   typeTitle,
   TYPE_COLOR,
   TYPE_ICON,
@@ -38,12 +39,18 @@ import {
   calculateAllChallengeProgress,
   autoSubmitChallengeProgress,
   ensureWeeklyChallenge,
-  selectRelevantChallenges,
+  scoreChallenges,
+  pickTopChallenges,
+  isKnownChallengeType,
+  challengeRequiredWeekday,
+  typeCategory,
+  CHALLENGE_CATEGORY_ORDER,
   type WeeklyChallenge,
   type ChallengeProgress,
   type LeaderboardEntry,
   type MonthlyLeaderboardEntry,
   type ScoredChallenge,
+  type ChallengeContext,
 } from '@/lib/weekly-challenge'
 import type { Program } from '@/data/plans/types'
 
@@ -188,7 +195,11 @@ function ChallengeItem({
             )}
           </div>
           <p className="mt-0.5 sr-text-caption text-[var(--sr-text-muted)]">
-            {programLabel(challenge.program)} · {hasEnded ? pl.challengeEnded : pl.challengeEndsInShort(daysLeft)}
+            {programLabel(challenge.program)}
+            {challenge.challenge_type === 'weekday_quest' &&
+              ` · ${pl.progressWeekdayLabels[challengeRequiredWeekday(challenge.starts_at) - 1]}`}
+            {' · '}
+            {hasEnded ? pl.challengeEnded : pl.challengeEndsInShort(daysLeft)}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1 text-right">
@@ -204,7 +215,7 @@ function ChallengeItem({
         className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--sr-bg-elevated)]"
         role="progressbar"
         aria-label={pl.challengeProgressAria(progress.current, progress.target)}
-        aria-valuenow={Math.min(progress.current, progress.target)}
+        aria-valuenow={Math.max(0, Math.min(progress.current, progress.target))}
         aria-valuemin={0}
         aria-valuemax={progress.target}
       >
@@ -231,6 +242,9 @@ export function WeeklyChallengeCard() {
   const [challenges, setChallenges] = useState<WeeklyChallenge[]>([])
   const [progress, setProgress] = useState<ChallengeProgress[]>([])
   const [scoredChallenges, setScoredChallenges] = useState<ScoredChallenge[]>([])
+  /** Context (baseline/difficulty) per challenge id — for the detail sheet
+   *  of every row, not just the top-3 picks. */
+  const [contexts, setContexts] = useState<Map<string, ChallengeContext>>(new Map())
   const [showAll, setShowAll] = useState(false)
   const [leaderboards, setLeaderboards] = useState<Map<string, LeaderboardEntry[]>>(new Map())
   const [participantCounts, setParticipantCounts] = useState<Map<string, number>>(new Map())
@@ -278,8 +292,10 @@ export function WeeklyChallengeCard() {
         }
       }
 
-      // Filter to user's enabled programs
+      // Filter to user's enabled programs + types this client understands
+      // (a newer backend may serve types an old build can't render).
       const relevant = active.filter((ch) => {
+        if (!isKnownChallengeType(ch.challenge_type)) return false
         const prog = ch.program as Program
         return enabledPrograms?.includes(prog) ?? true
       })
@@ -306,10 +322,13 @@ export function WeeklyChallengeCard() {
           if (!mountedRef.current || reqId !== requestIdRef.current) return
           setProgress(prog)
 
-          // Select top 3 most relevant challenges for this user
-          const scored = await selectRelevantChallenges(relevant, prog, 3, allSessions)
+          // Score all challenges, then pick a diversified top 3. Contexts
+          // (baseline average/record, difficulty) are computed for every
+          // challenge — the detail sheet needs them for non-picked rows too.
+          const scoredAll = await scoreChallenges(relevant, prog, allSessions)
           if (!mountedRef.current || reqId !== requestIdRef.current) return
-          setScoredChallenges(scored)
+          setScoredChallenges(pickTopChallenges(scoredAll, 3))
+          setContexts(new Map(scoredAll.map((s) => [s.challenge.id, s.context])))
 
           // Auto-submit progress to server for leaderboard — only challenges
           // whose progress increased since the last successful submit.
@@ -444,7 +463,8 @@ export function WeeklyChallengeCard() {
   const weekKey = challenges[0]?.week_key ?? ''
 
   // Check if all displayed challenges are achieved
-  const displayedChallenges = showAll ? challenges : scoredChallenges.map((s) => s.challenge)
+  const displayedChallenges =
+    showAll || scoredChallenges.length === 0 ? challenges : scoredChallenges.map((s) => s.challenge)
   const allAchieved = displayedChallenges.length > 0 && displayedChallenges.every((ch) => {
     const idx = challenges.indexOf(ch)
     const p = progress[idx]
@@ -548,10 +568,10 @@ export function WeeklyChallengeCard() {
         </div>
       )}
 
-      {/* Challenge list */}
-      {effectiveView === 'challenges' && (
-      <div className="mt-2.5 flex flex-col gap-2">
-        {(showAll ? challenges : scoredChallenges.map((s) => s.challenge)).map((ch) => {
+      {/* Challenge list — top picks flat, "show all" grouped by category
+          (the weekly draw picks one type per category). */}
+      {effectiveView === 'challenges' && (() => {
+        const renderItem = (ch: WeeklyChallenge) => {
           const idx = challenges.indexOf(ch)
           const p = progress[idx] ?? {
             challengeId: ch.id,
@@ -575,9 +595,34 @@ export function WeeklyChallengeCard() {
               recommended={scored?.recommended ?? false}
             />
           )
-        })}
-      </div>
-      )}
+        }
+        if (showAll) {
+          return (
+            <div className="mt-2.5 flex flex-col gap-3">
+              {CHALLENGE_CATEGORY_ORDER.map((cat) => {
+                const items = challenges.filter((ch) => typeCategory(ch.challenge_type) === cat)
+                if (items.length === 0) return null
+                return (
+                  <div key={cat}>
+                    <p className="mb-1.5 sr-text-overline text-[var(--sr-text-muted)]">
+                      {categoryLabel(cat)}
+                    </p>
+                    <div className="flex flex-col gap-2">{items.map(renderItem)}</div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        }
+        // Scoring failure leaves scoredChallenges empty — fall back to the
+        // full list rather than rendering a card with no rows.
+        return (
+          <div className="mt-2.5 flex flex-col gap-2">
+            {(scoredChallenges.length > 0 ? scoredChallenges.map((s) => s.challenge) : challenges)
+              .map(renderItem)}
+          </div>
+        )
+      })()}
 
       {/* All achieved celebration */}
       {effectiveView === 'challenges' && allAchieved && !hasEnded && (
@@ -637,7 +682,7 @@ export function WeeklyChallengeCard() {
             challenge={ch}
             progress={p}
             leaderboard={leaderboards.get(ch.id) ?? []}
-            context={scored?.context ?? null}
+            context={contexts.get(ch.id) ?? scored?.context ?? null}
             currentUserId={currentUserId}
             followingIds={followingIds}
             boardFilter={effectiveBoardFilter}

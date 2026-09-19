@@ -7,7 +7,72 @@ import type { LocalWorkoutSession } from '@/lib/db'
 
 // ── Types ──
 
-export type ChallengeType = 'volume' | 'consistency' | 'precision' | 'personal_best'
+export type ChallengeType =
+  | 'volume' | 'marathon' | 'max_set' | 'grinder' | 'surplus' | 'dominator'
+  | 'strong_finish' | 'session_starter' | 'big_day'
+  | 'consistency' | 'daily' | 'early_bird' | 'night_owl' | 'weekend' | 'double'
+  | 'weekday_quest' | 'morning_moves' | 'lunch_break' | 'evening_shift'
+  | 'around_the_clock' | 'sunday_sweat'
+  | 'precision' | 'perfect_pair' | 'hat_trick' | 'flawless_sets'
+  | 'sharpshooter' | 'bounce_back' | 'metronome'
+  | 'personal_best' | 'improvement' | 'volume_record' | 'session_record'
+  | 'day_record' | 'beat_average'
+
+export type ChallengeCategory = 'power' | 'habit' | 'skill' | 'records'
+
+/** Type → category. The server draws one type per category each week. */
+export const CHALLENGE_CATEGORY: Record<ChallengeType, ChallengeCategory> = {
+  volume: 'power',
+  marathon: 'power',
+  max_set: 'power',
+  grinder: 'power',
+  surplus: 'power',
+  dominator: 'power',
+  strong_finish: 'power',
+  session_starter: 'power',
+  big_day: 'power',
+  consistency: 'habit',
+  daily: 'habit',
+  early_bird: 'habit',
+  night_owl: 'habit',
+  weekend: 'habit',
+  double: 'habit',
+  weekday_quest: 'habit',
+  morning_moves: 'habit',
+  lunch_break: 'habit',
+  evening_shift: 'habit',
+  around_the_clock: 'habit',
+  sunday_sweat: 'habit',
+  precision: 'skill',
+  perfect_pair: 'skill',
+  hat_trick: 'skill',
+  flawless_sets: 'skill',
+  sharpshooter: 'skill',
+  bounce_back: 'skill',
+  metronome: 'skill',
+  personal_best: 'records',
+  improvement: 'records',
+  volume_record: 'records',
+  session_record: 'records',
+  day_record: 'records',
+  beat_average: 'records',
+}
+
+/** Display order for category grouping (matches the server ordering). */
+export const CHALLENGE_CATEGORY_ORDER: ChallengeCategory[] = ['power', 'habit', 'skill', 'records']
+
+export function typeCategory(type: ChallengeType): ChallengeCategory {
+  // hasOwn — an inherited name ('constructor', 'toString'…) would otherwise
+  // resolve to a function instead of a category.
+  return Object.hasOwn(CHALLENGE_CATEGORY, type) ? CHALLENGE_CATEGORY[type] : 'power'
+}
+
+/** Guard for rows produced by a newer backend than this client understands —
+ *  unknown types are skipped instead of crashing icon/label lookups.
+ *  Object.hasOwn (not `in`) so inherited names like 'constructor' can't pass. */
+export function isKnownChallengeType(type: string): type is ChallengeType {
+  return Object.hasOwn(CHALLENGE_CATEGORY, type)
+}
 
 export type WeeklyChallenge = {
   id: string
@@ -241,7 +306,7 @@ async function getAllCompletedSessions(): Promise<LocalWorkoutSession[]> {
   return db.workoutSessions.where('status').equals('completed').toArray()
 }
 
-function sessionsInRange(
+export function sessionsInRange(
   sessions: LocalWorkoutSession[],
   program: Program,
   startsAt: string,
@@ -254,6 +319,70 @@ function sessionsInRange(
     const t = new Date(s.startedAt).getTime()
     return t >= startMs && t < endMs
   })
+}
+
+/** Local calendar day key — distinct-day challenges count by the user's
+ *  local day, not UTC (an evening session must land on the day the user
+ *  experienced). Exported under an unambiguous name for the workout recap
+ *  (home-summary.ts exports its own localDayKey with a different signature). */
+function localDayKey(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+}
+
+export { localDayKey as challengeLocalDayKey }
+
+/** ISO week key (Monday-start) — used to bucket sessions per calendar week. */
+function isoWeekKey(iso: string): string {
+  const d = new Date(iso)
+  const day = d.getDay() === 0 ? 7 : d.getDay()
+  const monday = new Date(d)
+  monday.setDate(d.getDate() - day + 1)
+  return `${monday.getFullYear()}-${monday.getMonth()}-${monday.getDate()}`
+}
+
+/** Sessions that actually trained — recorded sets required, consistent with
+ *  the consistency-type rule (a peeked/abandoned shell carries no signal). */
+function trained(s: LocalWorkoutSession[]): LocalWorkoutSession[] {
+  return s.filter((x) => x.setResults.length > 0)
+}
+
+/** Rep target of a single set — fixed/exact give an exact goal, 'max'
+ *  sets carry a minimum expectation. */
+export function setTargetReps(target: { kind: string; reps?: number; minReps?: number }): number {
+  if (target.kind === 'max') return target.minReps ?? 0
+  return target.reps ?? 0
+}
+
+function sessionRepTotal(s: LocalWorkoutSession): number {
+  let total = 0
+  for (const r of s.setResults) total += Math.max(0, r.actual ?? 0)
+  return total
+}
+
+/** setResults ordered by setNumber — finalize dedupes+sorts, but imported
+ *  backups could carry unsorted arrays. Edge-set metrics (first/last set,
+ *  fail→pass order) must not trust insertion order. */
+export function orderedSets(s: LocalWorkoutSession): LocalWorkoutSession['setResults'] {
+  return [...s.setResults].sort((a, b) => a.setNumber - b.setNumber)
+}
+
+/** Absolute week index from the challenge's Monday — identical math to the
+ *  server's floor(epoch/604800), so derived parameters match globally. */
+export function challengeWeekIndex(startsAt: string): number {
+  return Math.floor(new Date(startsAt).getTime() / 604800000)
+}
+
+/** weekday_quest: the drawn ISO weekday (1=Mon … 7=Sun). Steps by 3 through
+ *  the 7 days (coprime → every day appears before repeating). */
+export function challengeRequiredWeekday(startsAt: string): number {
+  return 1 + ((challengeWeekIndex(startsAt) * 3) % 7 + 7) % 7
+}
+
+/** Local ISO weekday (1=Mon … 7=Sun) of a session. */
+function sessionWeekday(iso: string): number {
+  const d = new Date(iso).getDay()
+  return d === 0 ? 7 : d
 }
 
 /**
@@ -283,10 +412,168 @@ export async function calculateChallengeProgress(
       break
     }
 
+    case 'marathon': {
+      // Best single-session rep total this week
+      for (const s of sessions) {
+        let sessionTotal = 0
+        for (const r of s.setResults) sessionTotal += Math.max(0, r.actual ?? 0)
+        if (sessionTotal > current) current = sessionTotal
+      }
+      break
+    }
+
+    case 'max_set': {
+      // Best single set this week
+      for (const s of sessions) {
+        for (const r of s.setResults) {
+          const actual = Math.max(0, r.actual ?? 0)
+          if (actual > current) current = actual
+        }
+      }
+      break
+    }
+
+    case 'grinder': {
+      // Total completed sets this week
+      for (const s of sessions) current += s.setResults.length
+      break
+    }
+
+    case 'surplus': {
+      // Bonus reps above each set's target — rewards overshooting the plan
+      for (const s of sessions) {
+        for (const r of s.setResults) {
+          current += Math.max(0, (r.actual ?? 0) - setTargetReps(r.target))
+        }
+      }
+      break
+    }
+
+    case 'dominator': {
+      // Any single set at >=150% of its target
+      current = sessions.some((s) =>
+        s.setResults.some((r) => {
+          const tgt = setTargetReps(r.target)
+          return tgt > 0 && (r.actual ?? 0) >= Math.ceil(tgt * 1.5)
+        }),
+      )
+        ? 1
+        : 0
+      break
+    }
+
+    case 'strong_finish': {
+      current = sessions.some((s) => {
+        const sets = orderedSets(s)
+        return !!sets[sets.length - 1]?.passed
+      })
+        ? 1
+        : 0
+      break
+    }
+
+    case 'session_starter': {
+      current = sessions.some((s) => orderedSets(s)[0]?.passed === true) ? 1 : 0
+      break
+    }
+
+    case 'big_day': {
+      // Best single-day rep total (sessions on the same day stack)
+      const perDay = new Map<string, number>()
+      for (const s of sessions) {
+        const key = localDayKey(s.startedAt)
+        perDay.set(key, (perDay.get(key) ?? 0) + sessionRepTotal(s))
+      }
+      for (const total of perDay.values()) {
+        if (total > current) current = total
+      }
+      break
+    }
+
     case 'consistency': {
       // Count completed sessions this week — a session with no recorded
       // sets carries no training signal and must not count.
-      current = sessions.filter((s) => s.setResults.length > 0).length
+      current = trained(sessions).length
+      break
+    }
+
+    case 'daily': {
+      // Sessions on N distinct local days
+      current = new Set(trained(sessions).map((s) => localDayKey(s.startedAt))).size
+      break
+    }
+
+    case 'early_bird': {
+      current = trained(sessions).some((s) => new Date(s.startedAt).getHours() < 9) ? 1 : 0
+      break
+    }
+
+    case 'night_owl': {
+      current = trained(sessions).some((s) => new Date(s.startedAt).getHours() >= 20) ? 1 : 0
+      break
+    }
+
+    case 'weekend': {
+      current = trained(sessions).some((s) => {
+        const day = new Date(s.startedAt).getDay()
+        return day === 0 || day === 6
+      })
+        ? 1
+        : 0
+      break
+    }
+
+    case 'double': {
+      const perDay = new Map<string, number>()
+      for (const s of trained(sessions)) {
+        const key = localDayKey(s.startedAt)
+        perDay.set(key, (perDay.get(key) ?? 0) + 1)
+      }
+      current = [...perDay.values()].some((n) => n >= 2) ? 1 : 0
+      break
+    }
+
+    case 'weekday_quest': {
+      const required = challengeRequiredWeekday(challenge.starts_at)
+      current = trained(sessions).some((s) => sessionWeekday(s.startedAt) === required) ? 1 : 0
+      break
+    }
+
+    case 'morning_moves': {
+      current = trained(sessions).some((s) => new Date(s.startedAt).getHours() < 12) ? 1 : 0
+      break
+    }
+
+    case 'lunch_break': {
+      current = trained(sessions).some((s) => {
+        const h = new Date(s.startedAt).getHours()
+        return h >= 11 && h < 14
+      })
+        ? 1
+        : 0
+      break
+    }
+
+    case 'evening_shift': {
+      current = trained(sessions).some((s) => {
+        const h = new Date(s.startedAt).getHours()
+        return h >= 18 && h < 22
+      })
+        ? 1
+        : 0
+      break
+    }
+
+    case 'around_the_clock': {
+      // Both halves required — progress shows how many are done (target 2)
+      const early = trained(sessions).some((s) => new Date(s.startedAt).getHours() < 9)
+      const late = trained(sessions).some((s) => new Date(s.startedAt).getHours() >= 20)
+      current = (early ? 1 : 0) + (late ? 1 : 0)
+      break
+    }
+
+    case 'sunday_sweat': {
+      current = trained(sessions).some((s) => new Date(s.startedAt).getDay() === 0) ? 1 : 0
       break
     }
 
@@ -295,6 +582,90 @@ export async function calculateChallengeProgress(
       current = sessions.some((s) => s.setResults.length > 0 && allSetsPassed(s.setResults))
         ? 1
         : 0
+      break
+    }
+
+    case 'perfect_pair': {
+      current = sessions.filter((s) => s.setResults.length > 0 && allSetsPassed(s.setResults)).length
+      break
+    }
+
+    case 'hat_trick': {
+      current = sessions.filter((s) => s.setResults.length > 0 && allSetsPassed(s.setResults)).length
+      break
+    }
+
+    case 'flawless_sets': {
+      // Count of individual sets at/above their target — partial credit,
+      // unlike precision which needs the whole session clean.
+      for (const s of sessions) {
+        for (const r of s.setResults) {
+          const tgt = setTargetReps(r.target)
+          if (tgt > 0 && (r.actual ?? 0) >= tgt) current++
+        }
+      }
+      break
+    }
+
+    case 'sharpshooter': {
+      // A set landing exactly on target — only fixed/exact targets qualify
+      // ('max' sets have a floor, not a bullseye).
+      current = sessions.some((s) =>
+        s.setResults.some(
+          (r) => r.target.kind !== 'max' && setTargetReps(r.target) > 0 && (r.actual ?? 0) === setTargetReps(r.target),
+        ),
+      )
+        ? 1
+        : 0
+      break
+    }
+
+    case 'bounce_back': {
+      // Resilience — a failed set followed by a passed one in the same session
+      current = sessions.some((s) => {
+        let sawFail = false
+        for (const r of orderedSets(s)) {
+          if (!r.passed) sawFail = true
+          else if (sawFail) return true
+        }
+        return false
+      })
+        ? 1
+        : 0
+      break
+    }
+
+    case 'metronome': {
+      // Steady output — a session of >=3 sets whose rep spread is <= 2
+      current = sessions.some((s) => {
+        const actuals = s.setResults.map((r) => r.actual ?? 0)
+        if (actuals.length < 3) return false
+        return Math.max(...actuals) - Math.min(...actuals) <= 2
+      })
+        ? 1
+        : 0
+      break
+    }
+
+    case 'improvement': {
+      // This week's total reps minus last week's — the delta is what the
+      // leaderboard compares (a raw total would be incomparable across
+      // users at different levels).
+      let weekTotal = 0
+      for (const s of sessions) {
+        for (const r of s.setResults) weekTotal += Math.max(0, r.actual ?? 0)
+      }
+      const weekStartMs = new Date(challenge.starts_at).getTime()
+      const prevStartMs = weekStartMs - 7 * 86400000
+      let prevTotal = 0
+      for (const s of all) {
+        if (s.program !== program) continue
+        const t = new Date(s.startedAt).getTime()
+        if (t < prevStartMs || t >= weekStartMs) continue
+        for (const r of s.setResults) prevTotal += Math.max(0, r.actual ?? 0)
+      }
+      // No baseline week → nothing to beat; first week establishes it.
+      current = prevTotal > 0 ? Math.max(0, weekTotal - prevTotal) : 0
       break
     }
 
@@ -321,6 +692,88 @@ export async function calculateChallengeProgress(
       // the record instead of auto-completing the challenge (a raw max
       // value on the leaderboard would be incomparable to others' deltas).
       current = prevMax > 0 && maxThisWeek > prevMax ? maxThisWeek - prevMax : 0
+      break
+    }
+
+    case 'volume_record': {
+      // This week's total minus the best-ever weekly total
+      let weekTotal = 0
+      for (const s of sessions) weekTotal += sessionRepTotal(s)
+      const weekStartMs = new Date(challenge.starts_at).getTime()
+      const prevWeeks = new Map<string, number>()
+      for (const s of all) {
+        if (s.program !== program) continue
+        if (new Date(s.startedAt).getTime() >= weekStartMs) continue
+        const key = isoWeekKey(s.startedAt)
+        prevWeeks.set(key, (prevWeeks.get(key) ?? 0) + sessionRepTotal(s))
+      }
+      const prevBest = Math.max(0, ...prevWeeks.values())
+      current = prevBest > 0 ? Math.max(0, weekTotal - prevBest) : 0
+      break
+    }
+
+    case 'session_record': {
+      // Best session this week minus best-ever session total
+      let maxThisWeek = 0
+      for (const s of sessions) {
+        const t = sessionRepTotal(s)
+        if (t > maxThisWeek) maxThisWeek = t
+      }
+      const weekStartMs = new Date(challenge.starts_at).getTime()
+      let prevBest = 0
+      for (const s of all) {
+        if (s.program !== program) continue
+        if (new Date(s.startedAt).getTime() >= weekStartMs) continue
+        const t = sessionRepTotal(s)
+        if (t > prevBest) prevBest = t
+      }
+      current = prevBest > 0 ? Math.max(0, maxThisWeek - prevBest) : 0
+      break
+    }
+
+    case 'day_record': {
+      // Best day this week minus best-ever day total
+      const thisWeekDays = new Map<string, number>()
+      for (const s of sessions) {
+        const key = localDayKey(s.startedAt)
+        thisWeekDays.set(key, (thisWeekDays.get(key) ?? 0) + sessionRepTotal(s))
+      }
+      const maxThisWeek = Math.max(0, ...thisWeekDays.values())
+      const weekStartMs = new Date(challenge.starts_at).getTime()
+      const prevDays = new Map<string, number>()
+      for (const s of all) {
+        if (s.program !== program) continue
+        if (new Date(s.startedAt).getTime() >= weekStartMs) continue
+        const key = localDayKey(s.startedAt)
+        prevDays.set(key, (prevDays.get(key) ?? 0) + sessionRepTotal(s))
+      }
+      const prevBest = Math.max(0, ...prevDays.values())
+      current = prevBest > 0 ? Math.max(0, maxThisWeek - prevBest) : 0
+      break
+    }
+
+    case 'beat_average': {
+      // This week's total minus the user's average week (last 4 active weeks)
+      let weekTotal = 0
+      for (const s of sessions) weekTotal += sessionRepTotal(s)
+      const weekStartMs = new Date(challenge.starts_at).getTime()
+      const fourWeeksAgoMs = weekStartMs - 4 * 7 * 86400000
+      const prevWeeks = new Map<string, number>()
+      for (const s of all) {
+        if (s.program !== program) continue
+        const t = new Date(s.startedAt).getTime()
+        if (t < fourWeeksAgoMs || t >= weekStartMs) continue
+        const key = isoWeekKey(s.startedAt)
+        prevWeeks.set(key, (prevWeeks.get(key) ?? 0) + sessionRepTotal(s))
+      }
+      if (prevWeeks.size > 0) {
+        const total = [...prevWeeks.values()].reduce((a, b) => a + b, 0)
+        const avg = total / prevWeeks.size
+        // Beat = strictly above average. A sub-0.5 positive delta (e.g. avg
+        // 50.67 vs week 51) must not round down to 0 — that would mark the
+        // challenge unachieved despite beating the average.
+        current = avg > 0 && weekTotal > avg ? Math.max(1, Math.round(weekTotal - avg)) : 0
+      }
       break
     }
   }
@@ -446,11 +899,184 @@ export async function getChallengeContext(
       recentAverage = recentSessions.length > 0 ? Math.round(totalReps / divisor) : 0
       break
     }
-    case 'consistency': {
-      // Average weekly sessions over the last 4 weeks with activity
-      recentAverage = recentSessions.length > 0 ? Math.round(recentSessions.length / divisor) : 0
+    case 'marathon': {
+      // Average session rep total — the typical single-workout volume
+      let sessionSum = 0
+      let counted = 0
+      for (const s of recentSessions) {
+        if (s.setResults.length === 0) continue
+        let t = 0
+        for (const r of s.setResults) t += Math.max(0, r.actual ?? 0)
+        sessionSum += t
+        counted++
+      }
+      recentAverage = counted > 0 ? Math.round(sessionSum / counted) : 0
       break
     }
+    case 'max_set': {
+      // Best single set seen recently — shows the bar the target sits above
+      for (const s of recentSessions) {
+        for (const r of s.setResults) {
+          const actual = Math.max(0, r.actual ?? 0)
+          if (actual > recentAverage) recentAverage = actual
+        }
+      }
+      break
+    }
+    case 'grinder': {
+      let totalSets = 0
+      for (const s of recentSessions) totalSets += s.setResults.length
+      recentAverage = totalSets > 0 ? Math.round(totalSets / divisor) : 0
+      break
+    }
+    case 'consistency': {
+      // Average weekly sessions over the last 4 weeks with activity — only
+      // trained sessions count, matching the challenge metric itself.
+      const trainedCount = trained(recentSessions).length
+      recentAverage = trainedCount > 0 ? Math.round(trainedCount / divisor) : 0
+      break
+    }
+    case 'daily': {
+      const days = new Set(trained(recentSessions).map((s) => localDayKey(s.startedAt)))
+      recentAverage = days.size > 0 ? Math.round(days.size / divisor) : 0
+      break
+    }
+    case 'early_bird':
+    case 'night_owl':
+    case 'weekend':
+    case 'double':
+    case 'weekday_quest':
+    case 'morning_moves':
+    case 'lunch_break':
+    case 'evening_shift':
+    case 'around_the_clock':
+    case 'sunday_sweat': {
+      // How often the user already does this per active week — drives the
+      // difficulty chip.
+      const type = challenge.challenge_type
+      const requiredDay = type === 'weekday_quest'
+        ? challengeRequiredWeekday(challenge.starts_at)
+        : -1
+      let matches = 0
+      const doubles = new Map<string, number>()
+      const clockHalves = new Map<string, Set<'early' | 'late'>>()
+      for (const s of trained(recentSessions)) {
+        const h = new Date(s.startedAt).getHours()
+        const d = new Date(s.startedAt).getDay()
+        if (type === 'early_bird') {
+          if (h < 9) matches++
+        } else if (type === 'night_owl') {
+          if (h >= 20) matches++
+        } else if (type === 'weekend') {
+          if (d === 0 || d === 6) matches++
+        } else if (type === 'sunday_sweat') {
+          if (d === 0) matches++
+        } else if (type === 'morning_moves') {
+          if (h < 12) matches++
+        } else if (type === 'lunch_break') {
+          if (h >= 11 && h < 14) matches++
+        } else if (type === 'evening_shift') {
+          if (h >= 18 && h < 22) matches++
+        } else if (type === 'weekday_quest') {
+          if (sessionWeekday(s.startedAt) === requiredDay) matches++
+        } else if (type === 'around_the_clock') {
+          const wk = isoWeekKey(s.startedAt)
+          const set = clockHalves.get(wk) ?? new Set<'early' | 'late'>()
+          if (h < 9) set.add('early')
+          if (h >= 20) set.add('late')
+          clockHalves.set(wk, set)
+        } else {
+          const key = localDayKey(s.startedAt)
+          doubles.set(key, (doubles.get(key) ?? 0) + 1)
+        }
+      }
+      if (type === 'double') {
+        matches = [...doubles.values()].filter((n) => n >= 2).length
+      } else if (type === 'around_the_clock') {
+        matches = [...clockHalves.values()].filter((set) => set.size === 2).length
+      }
+      recentAverage = matches > 0 ? Math.round(matches / divisor) : 0
+      break
+    }
+    case 'surplus': {
+      let total = 0
+      for (const s of recentSessions) {
+        for (const r of s.setResults) {
+          total += Math.max(0, (r.actual ?? 0) - setTargetReps(r.target))
+        }
+      }
+      recentAverage = total > 0 ? Math.round(total / divisor) : 0
+      break
+    }
+    case 'dominator':
+    case 'strong_finish':
+    case 'session_starter':
+    case 'sharpshooter':
+    case 'bounce_back':
+    case 'metronome': {
+      // Binary skill/power feats — count of matching sessions per active week
+      const type = challenge.challenge_type
+      const matches = recentSessions.filter((s) => {
+        if (s.setResults.length === 0) return false
+        switch (type) {
+          case 'dominator':
+            return s.setResults.some((r) => {
+              const tgt = setTargetReps(r.target)
+              return tgt > 0 && (r.actual ?? 0) >= Math.ceil(tgt * 1.5)
+            })
+          case 'strong_finish': {
+            const sets = orderedSets(s)
+            return sets[sets.length - 1]?.passed === true
+          }
+          case 'session_starter':
+            return orderedSets(s)[0]?.passed === true
+          case 'sharpshooter':
+            return s.setResults.some(
+              (r) => r.target.kind !== 'max' && setTargetReps(r.target) > 0 && (r.actual ?? 0) === setTargetReps(r.target),
+            )
+          case 'bounce_back': {
+            let sawFail = false
+            for (const r of orderedSets(s)) {
+              if (!r.passed) sawFail = true
+              else if (sawFail) return true
+            }
+            return false
+          }
+          case 'metronome': {
+            const actuals = s.setResults.map((r) => r.actual ?? 0)
+            return actuals.length >= 3 && Math.max(...actuals) - Math.min(...actuals) <= 2
+          }
+          default:
+            return false
+        }
+      }).length
+      recentAverage = matches > 0 ? Math.round(matches / divisor) : 0
+      break
+    }
+    case 'big_day': {
+      // Average best-day total over recent weeks
+      const perDay = new Map<string, number>()
+      for (const s of recentSessions) {
+        const key = localDayKey(s.startedAt)
+        perDay.set(key, (perDay.get(key) ?? 0) + sessionRepTotal(s))
+      }
+      const best = Math.max(0, ...perDay.values())
+      recentAverage = best > 0 ? best : 0
+      break
+    }
+    case 'flawless_sets': {
+      let total = 0
+      for (const s of recentSessions) {
+        for (const r of s.setResults) {
+          const tgt = setTargetReps(r.target)
+          if (tgt > 0 && (r.actual ?? 0) >= tgt) total++
+        }
+      }
+      recentAverage = total > 0 ? Math.round(total / divisor) : 0
+      break
+    }
+    case 'hat_trick':
+    case 'perfect_pair':
     case 'precision': {
       // Average weekly perfect sessions over the last 4 weeks with activity
       let perfectCount = 0
@@ -458,6 +1084,55 @@ export async function getChallengeContext(
         if (s.setResults.length > 0 && allSetsPassed(s.setResults)) perfectCount++
       }
       recentAverage = perfectCount > 0 ? Math.round(perfectCount / divisor) : 0
+      break
+    }
+    case 'improvement': {
+      // Last week's total reps — the bar to beat this week
+      const prevStartMs = weekStartMs - 7 * 86400000
+      let prevTotal = 0
+      for (const s of allSessions) {
+        const t = new Date(s.startedAt).getTime()
+        if (t < prevStartMs || t >= weekStartMs) continue
+        for (const r of s.setResults) prevTotal += Math.max(0, r.actual ?? 0)
+      }
+      previousMax = prevTotal
+      recentAverage = prevTotal
+      break
+    }
+    case 'volume_record':
+    case 'session_record':
+    case 'day_record':
+    case 'beat_average': {
+      // The bar to beat — shown as "your average" context in the sheet.
+      const type = challenge.challenge_type
+      let bar = 0
+      if (type === 'session_record') {
+        for (const s of allSessions) {
+          if (new Date(s.startedAt).getTime() >= weekStartMs) continue
+          const t = sessionRepTotal(s)
+          if (t > bar) bar = t
+        }
+      } else {
+        const buckets = new Map<string, number>()
+        for (const s of allSessions) {
+          const t = new Date(s.startedAt).getTime()
+          if (t >= weekStartMs) continue
+          if (type === 'beat_average' && t < weekStartMs - 4 * 7 * 86400000) continue
+          const key = type === 'day_record' ? localDayKey(s.startedAt) : isoWeekKey(s.startedAt)
+          buckets.set(key, (buckets.get(key) ?? 0) + sessionRepTotal(s))
+        }
+        if (buckets.size > 0) {
+          const vals = [...buckets.values()]
+          bar = type === 'beat_average'
+            ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+            : Math.max(...vals)
+        }
+      }
+      // Bar to beat lives in previousMax — recentAverage stays 0 so the
+      // sheet shows "your record" instead of mislabeling it an average, and
+      // the difficulty chip stays 'unknown' (record-breaking can't be rated
+      // from a target/average ratio).
+      previousMax = bar
       break
     }
     case 'personal_best': {
@@ -469,7 +1144,6 @@ export async function getChallengeContext(
           if (actual > previousMax) previousMax = actual
         }
       }
-      recentAverage = previousMax
       break
     }
   }
@@ -566,14 +1240,10 @@ export async function scoreChallenges(
  * type (so the top list isn't 3× "volume" across programs); pass 2 fills
  * any remaining slots by score.
  */
-export async function selectRelevantChallenges(
-  challenges: WeeklyChallenge[],
-  progress: ChallengeProgress[],
-  limit = 3,
-  allSessions?: LocalWorkoutSession[],
-): Promise<ScoredChallenge[]> {
-  const scored = await scoreChallenges(challenges, progress, allSessions)
-
+/** Pure pick over a pre-scored list — same type-diversity + recommended
+ *  rules as selectRelevantChallenges, but lets callers keep the full scored
+ *  list (e.g. contexts for every challenge, not just the picked ones). */
+export function pickTopChallenges(scored: ScoredChallenge[], limit = 3): ScoredChallenge[] {
   const picked: ScoredChallenge[] = []
   const seenTypes = new Set<ChallengeType>()
   for (const s of scored) {
@@ -593,4 +1263,13 @@ export async function selectRelevantChallenges(
   if (picked.length > 0) picked[0].recommended = true
 
   return picked
+}
+
+export async function selectRelevantChallenges(
+  challenges: WeeklyChallenge[],
+  progress: ChallengeProgress[],
+  limit = 3,
+  allSessions?: LocalWorkoutSession[],
+): Promise<ScoredChallenge[]> {
+  return pickTopChallenges(await scoreChallenges(challenges, progress, allSessions), limit)
 }

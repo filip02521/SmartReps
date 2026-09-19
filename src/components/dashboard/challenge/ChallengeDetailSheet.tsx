@@ -6,7 +6,15 @@ import { EmptyState } from '@/components/ux/Feedback'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
-import { MEDAL_CLASS, progressLabel, typeDescription, typeTitle } from './challenge-ui'
+import {
+  MEDAL_CLASS,
+  categoryLabel,
+  programLabel,
+  progressLabel,
+  typeDescription,
+  typeTitle,
+} from './challenge-ui'
+import { typeCategory } from '@/lib/weekly-challenge'
 import type {
   ChallengeContext,
   ChallengeProgress,
@@ -18,11 +26,13 @@ import type {
  *  challenge row so the card no longer nests 3 expandable boards). */
 function Leaderboard({
   entries,
+  challenge,
   currentUserId,
   followingIds,
   onSelectUser,
 }: {
   entries: LeaderboardEntry[]
+  challenge: WeeklyChallenge
   currentUserId: string | null
   followingIds: Set<string>
   onSelectUser: (userId: string, name: string) => void
@@ -58,7 +68,7 @@ function Leaderboard({
               )}
             </span>
             <span className="shrink-0 tabular-nums font-semibold text-[var(--sr-text-primary)]">
-              {entry.total_reps}
+              {progressLabel(challenge.challenge_type, entry.total_reps, challenge.target_reps)}
             </span>
           </>
         )
@@ -131,8 +141,11 @@ export function ChallengeDetailSheet({
   return (
     <Sheet open onClose={onClose} title={typeTitle(challenge.challenge_type)} showClose>
       <div className="pb-2">
-        <p className="sr-text-body-sm text-[var(--sr-text-secondary)]">
-          {typeDescription(challenge.challenge_type)}
+        <p className="sr-text-overline text-[var(--sr-text-muted)]">
+          {categoryLabel(typeCategory(challenge.challenge_type))} · {programLabel(challenge.program)}
+        </p>
+        <p className="mt-1 sr-text-body-sm text-[var(--sr-text-secondary)]">
+          {typeDescription(challenge.challenge_type, challenge.target_reps, challenge.starts_at)}
         </p>
         <p className="mt-1.5 sr-text-body-sm font-semibold tabular-nums text-[var(--sr-text-primary)]">
           {progressLabel(challenge.challenge_type, progress.current, progress.target)}
@@ -142,7 +155,7 @@ export function ChallengeDetailSheet({
           className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--sr-bg-elevated)]"
           role="progressbar"
           aria-label={pl.challengeProgressAria(progress.current, progress.target)}
-          aria-valuenow={Math.min(progress.current, progress.target)}
+          aria-valuenow={Math.max(0, Math.min(progress.current, progress.target))}
           aria-valuemin={0}
           aria-valuemax={progress.target}
         >
@@ -152,27 +165,69 @@ export function ChallengeDetailSheet({
           />
         </div>
 
-        {/* Personal context: recent average + difficulty */}
-        {context && context.recentAverage > 0 && (
-          <div className="mt-3 flex items-center gap-2 sr-text-caption text-[var(--sr-text-muted)]">
-            <span>{pl.challengeYourAverage(context.recentAverage)}</span>
-            <span className="text-[var(--sr-text-muted)]">·</span>
-            <span
-              className={cn(
-                'font-medium',
-                context.difficulty === 'easy' && 'text-[var(--sr-success)]',
-                context.difficulty === 'challenging' && 'text-[var(--sr-warning)]',
-                context.difficulty === 'hard' && 'text-[var(--sr-error)]',
-                context.difficulty === 'unknown' && 'text-[var(--sr-text-muted)]',
-              )}
-            >
-              {context.difficulty === 'easy' && pl.challengeDifficultyEasy}
-              {context.difficulty === 'challenging' && pl.challengeDifficultyChallenging}
-              {context.difficulty === 'hard' && pl.challengeDifficultyHard}
-              {context.difficulty === 'unknown' && pl.challengeDifficultyUnknown}
-            </span>
-          </div>
-        )}
+        {/* Personal context: recent average (or the record to beat) + difficulty */}
+        {(() => {
+          if (!context) return null
+          // Record-beat types show the bar with a "record" label — calling it
+          // an average would be misleading. Difficulty chip is hidden too: a
+          // binary record goal can't be rated from a target/average ratio.
+          const isRecordType =
+            challenge.challenge_type === 'personal_best' ||
+            challenge.challenge_type === 'volume_record' ||
+            challenge.challenge_type === 'session_record' ||
+            challenge.challenge_type === 'day_record' ||
+            challenge.challenge_type === 'beat_average'
+          if (isRecordType) {
+            if (context.previousMax <= 0) return null
+            return (
+              <div className="mt-3 sr-text-caption text-[var(--sr-text-muted)]">
+                {challenge.challenge_type === 'beat_average'
+                  ? pl.challengeYourAverage(context.previousMax)
+                  : pl.challengeYourBest(context.previousMax)}
+              </div>
+            )
+          }
+          if (context.recentAverage <= 0 && context.previousMax <= 0) return null
+          // The context value isn't always a weekly average — max_set holds
+          // the best set, big_day the best day, marathon a per-session mean,
+          // improvement last week's total. Label must match the semantics.
+          const contextLabel = (() => {
+            switch (challenge.challenge_type) {
+              case 'max_set':
+                return pl.challengeYourBestSet(context.recentAverage)
+              case 'big_day':
+                return pl.challengeYourBestDay(context.recentAverage)
+              case 'marathon':
+                return pl.challengeYourAvgSession(context.recentAverage)
+              case 'grinder':
+                return pl.challengeYourAvgSets(context.recentAverage)
+              case 'improvement':
+                return pl.challengeYourLastWeek(context.previousMax)
+              default:
+                return pl.challengeYourAverage(context.recentAverage)
+            }
+          })()
+          return (
+            <div className="mt-3 flex items-center gap-2 sr-text-caption text-[var(--sr-text-muted)]">
+              <span>{contextLabel}</span>
+              <span className="text-[var(--sr-text-muted)]">·</span>
+              <span
+                className={cn(
+                  'font-medium',
+                  context.difficulty === 'easy' && 'text-[var(--sr-success)]',
+                  context.difficulty === 'challenging' && 'text-[var(--sr-warning)]',
+                  context.difficulty === 'hard' && 'text-[var(--sr-error)]',
+                  context.difficulty === 'unknown' && 'text-[var(--sr-text-muted)]',
+                )}
+              >
+                {context.difficulty === 'easy' && pl.challengeDifficultyEasy}
+                {context.difficulty === 'challenging' && pl.challengeDifficultyChallenging}
+                {context.difficulty === 'hard' && pl.challengeDifficultyHard}
+                {context.difficulty === 'unknown' && pl.challengeDifficultyUnknown}
+              </span>
+            </div>
+          )
+        })()}
 
         {/* Auto-tracked badge */}
         <div className="mt-3 flex items-center gap-1.5">
@@ -205,6 +260,7 @@ export function ChallengeDetailSheet({
           ) : (
             <Leaderboard
               entries={filteredBoard}
+              challenge={challenge}
               currentUserId={currentUserId}
               followingIds={followingIds}
               onSelectUser={onSelectUser}
