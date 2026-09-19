@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Info } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
 import { useAppStore } from '@/stores/app-store'
@@ -392,7 +393,7 @@ export default function ProfilePage() {
       />
 
       {/* About — redesigned with app identity, legal links, disclaimer */}
-      <PageSection title={pl.profileAboutTitle} className="mt-6">
+      <PageSection title={pl.profileAboutTitle} icon={Info} className="mt-6">
         <ProfileAbout />
       </PageSection>
 

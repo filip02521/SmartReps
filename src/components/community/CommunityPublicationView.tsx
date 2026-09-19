@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Heart, Share2, Flag } from 'lucide-react'
+import { CalendarDays, Heart, Share2, Flag } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
 import { Button } from '@/components/ui/Button'
@@ -507,7 +507,7 @@ export function CommunityPublicationView({ slug, onBack }: Props) {
         )}
       </div>
 
-      <PageSection title={pl.communityDetailDays} className="mt-8">
+      <PageSection title={pl.communityDetailDays} icon={CalendarDays} className="mt-8">
         <ul className="flex flex-col gap-2">
           {row.snapshot_json.days.map((day) => (
             <li

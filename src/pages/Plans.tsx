@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
-import { ChevronRight, Copy, Dumbbell, Download, MoreHorizontal, Pause, Pencil, Play, Plus, Share2, Sparkles, Trash2, Upload } from 'lucide-react'
+import { BookOpen, ChevronRight, Copy, Dumbbell, Download, Info, Layers, ListChecks, MoreHorizontal, Pause, Pencil, Play, Plus, Share2, Sparkles, Trash2, Upload } from 'lucide-react'
 import { allCycles } from '@/data/plans'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { PageSection } from '@/components/ui/PageSection'
@@ -494,6 +494,7 @@ export default function PlansPage() {
         <>
         <PageSection
           title={pl.myPlansTitle}
+          icon={ListChecks}
           hint={customPlans.length > 0 && !customLoading ? pl.myPlansHint : undefined}
         >
           {customLoadError && (
@@ -620,14 +621,14 @@ export default function PlansPage() {
                       isActive
                         ? {
                             backgroundImage:
-                              'linear-gradient(135deg, var(--sr-brand-primary-muted) 0%, var(--sr-bg-elevated) 50%)',
+                              'linear-gradient(135deg, color-mix(in srgb, var(--sr-brand-primary) 7%, var(--sr-bg-elevated)) 0%, var(--sr-bg-elevated) 55%)',
                           }
                         : undefined
                     }
                   >
                     {isActive && (
                       <div
-                        className="absolute inset-y-0 left-0 w-1 bg-[var(--sr-brand-primary)]"
+                        className="absolute inset-y-0 left-0 w-[3px] bg-[var(--sr-brand-primary)]"
                         aria-hidden
                       />
                     )}
@@ -747,6 +748,7 @@ export default function PlansPage() {
         {exercises.length > 0 && (
           <PageSection
             title={pl.myExercisesSectionTitle}
+            icon={Dumbbell}
             hint={pl.myExercisesSectionHint}
             className="mt-6"
           >
@@ -779,6 +781,7 @@ export default function PlansPage() {
       {tab === 'library' && (
         <PageSection
           title={pl.plansTabLibrary}
+          icon={BookOpen}
         >
           <ExerciseLibraryPanel mode="manage" onExercisesChange={() => void reloadCustom()} />
         </PageSection>
@@ -792,7 +795,7 @@ export default function PlansPage() {
             {/* One block per program — the browser header carries the status
                 badge, cycle/day line and ⋯ menu that used to live in a second
                 card rendering the same program again. */}
-            <PageSection title={pl.programs} hint={pl.plansProgramHint}>
+            <PageSection title={pl.programs} icon={Layers} hint={pl.plansProgramHint}>
               {showProgramsLoading ? (
                 <div className="flex flex-col gap-4" aria-busy aria-label={pl.profileProgramsLoading}>
                   <SkeletonCard className="min-h-[7rem]" />
@@ -841,7 +844,7 @@ export default function PlansPage() {
               )}
             </PageSection>
 
-            <PageSection title={pl.resistanceBandsTitle} hint={pl.resistanceBandsIntro} className="mt-6">
+            <PageSection title={pl.resistanceBandsTitle} icon={Info} hint={pl.resistanceBandsIntro} className="mt-6">
               <ul className="list-disc space-y-2 pl-5 sr-text-body-sm text-[var(--sr-text-secondary)]">
                 <li>{pl.resistanceBandsTip1}</li>
                 <li>{pl.resistanceBandsTip2}</li>
