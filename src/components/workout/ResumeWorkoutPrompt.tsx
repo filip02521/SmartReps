@@ -7,6 +7,7 @@ import { pl } from '@/i18n/pl'
 import { db } from '@/lib/db'
 import { reconcileActiveWorkout } from '@/lib/program-service'
 import { getCustomPlanResumeInfo } from '@/lib/custom-plan-resume'
+import { getActiveFreeWorkoutSession, freeWorkoutSetCount } from '@/lib/free-workout-service'
 import { isStaleActiveWorkout } from '@/lib/sync'
 import { resolveBuiltin, getDayPlan } from '@/lib/plan-resolver'
 import { Z_SHEET, FOCUS_RING } from '@/lib/ui-chrome'
@@ -17,6 +18,7 @@ import type { Program } from '@/data/plans/types'
 type ResumeTarget =
   | { kind: 'builtin'; program: Program; day: number; set: number; total: number; stale: boolean }
   | { kind: 'custom'; planId: string; planName: string; day: number; set: number; total: number; stale: boolean }
+  | { kind: 'free'; exercises: number; sets: number; stale: boolean }
 
 const DISMISS_KEY = 'resume-prompt-dismissed-at'
 
@@ -42,8 +44,13 @@ export function ResumeWorkoutPrompt() {
   }, [target])
 
   useEffect(() => {
-    // Don't show on workout pages — user is already in the workout flow
-    if (location.pathname.startsWith('/workout/')) return
+    // Don't show on workout pages — user is already in the workout flow.
+    // Clear a stale target too: navigating from the prompt must not leave the
+    // overlay mounted over the workout screen.
+    if (location.pathname.startsWith('/workout/')) {
+      setTarget(null)
+      return
+    }
 
     let cancelled = false
     void (async () => {
@@ -100,6 +107,22 @@ export function ResumeWorkoutPrompt() {
         })
         return
       }
+
+      // Check the ad-hoc free workout — resumable when exercises were added
+      // (a bare peek with zero structure isn't worth nagging about). The
+      // lookup has write side-effects (stale sweep) — a DB error here must not
+      // kill the whole scan as an unhandled rejection.
+      const freeSession = await getActiveFreeWorkoutSession().catch(() => null)
+      if (freeSession && (freeSession.exerciseLogs?.length ?? 0) > 0) {
+        if (cancelled) return
+        setTarget({
+          kind: 'free',
+          exercises: freeSession.exerciseLogs?.length ?? 0,
+          sets: freeWorkoutSetCount(freeSession.exerciseLogs),
+          stale: isStaleActiveWorkout(freeSession.startedAt),
+        })
+        return
+      }
     })()
     return () => {
       cancelled = true
@@ -111,13 +134,17 @@ export function ResumeWorkoutPrompt() {
   const body =
     target.kind === 'builtin'
       ? pl.resumePromptBodyBuiltin(target.day, target.set, target.total)
-      : pl.resumePromptBodyCustom(target.planName, target.day, target.set, target.total)
+      : target.kind === 'custom'
+        ? pl.resumePromptBodyCustom(target.planName, target.day, target.set, target.total)
+        : pl.resumePromptBodyFree(target.exercises, target.sets)
 
   const onResume = () => {
     if (target.kind === 'builtin') {
       navigate(`/workout/${target.program}`)
-    } else {
+    } else if (target.kind === 'custom') {
       navigate(`/workout/custom/${target.planId}`)
+    } else {
+      navigate('/workout/free')
     }
   }
 

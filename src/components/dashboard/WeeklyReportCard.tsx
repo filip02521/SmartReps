@@ -4,13 +4,13 @@ import { db } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
 import { showToast } from '@/stores/toast-store'
 import { cn } from '@/lib/utils'
+import { StreakFlame, streakFlameColor } from '@/components/dashboard/StreakFlame'
 import type { LocalAiInsight } from '@/lib/db'
 import {
   X,
   Calendar,
   CalendarX,
   Check,
-  Flame,
   TrendingUp,
   TrendingDown,
   ArrowUpRight,
@@ -332,8 +332,11 @@ export function WeeklyReportCard({
                   {pl.coachWeeklyHeroSessions(metrics.sessions)} · {pl.coachWeeklyHeroDays(metrics.trainingDays ?? 0)}
                 </span>
                 {metrics.streakWeeks > 0 && (
-                  <span className="inline-flex items-center gap-1 font-medium text-[var(--sr-warning)]">
-                    <Flame size={12} aria-hidden />
+                  <span
+                    className="inline-flex items-center gap-1 font-medium"
+                    style={{ color: streakFlameColor(metrics.streakWeeks) }}
+                  >
+                    <StreakFlame streak={metrics.streakWeeks} size={12} />
                     {pl.coachWeeklyHeroStreak(metrics.streakWeeks)}
                   </span>
                 )}

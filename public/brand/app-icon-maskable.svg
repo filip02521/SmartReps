@@ -6,8 +6,8 @@
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" fill="#09090B"/>
-  <rect x="128" y="286" width="56" height="48" rx="19" fill="url(#sr-mask-grad)"/>
-  <rect x="228" y="238" width="56" height="96" rx="19" fill="url(#sr-mask-grad)"/>
-  <rect x="328" y="178" width="56" height="156" rx="19" fill="url(#sr-mask-grad)"/>
+  <rect width="512" height="512" fill="url(#sr-mask-grad)"/>
+  <rect x="128" y="286" width="56" height="48" rx="19" fill="#FFFFFF"/>
+  <rect x="228" y="238" width="56" height="96" rx="19" fill="#FFFFFF"/>
+  <rect x="328" y="178" width="56" height="156" rx="19" fill="#FFFFFF"/>
 </svg>

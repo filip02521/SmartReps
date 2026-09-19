@@ -4,12 +4,14 @@ import {
   deriveProgramBucket,
   localDayKey,
   pickTip,
+  resolveNextAction,
   sortPrograms,
   tipSuppressionFrom,
   type ProgramCardModel,
   type ResumeInfo,
 } from '@/lib/home-summary'
-import type { LocalProgramProgress } from '@/lib/db'
+import type { CustomPlanHomeCardModel } from '@/lib/custom-plan-home-summary'
+import type { LocalProgramProgress, LocalWorkoutSession } from '@/lib/db'
 import { pl } from '@/i18n/pl'
 
 function prog(partial: Partial<LocalProgramProgress>): LocalProgramProgress {
@@ -125,8 +127,6 @@ describe('buildStatusDisplay', () => {
     ])
     expect(status.headline).toBe(pl.homeStatusResumeHeadline(pl.pushupsProgram))
     expect(status.subtitle).toBe(pl.homeStatusResumeAndReadySubtitle(pl.pullupsProgram))
-    expect(status.quickCta?.kind).toBe('workout-force')
-    expect(status.quickCta?.program).toBe('pushups')
   })
 
   it('picks soonest nextWorkoutAfter when all resting', () => {
@@ -197,11 +197,9 @@ describe('buildStatusDisplay', () => {
     ])
     expect(status.headline).toBe(pl.homeStatusReadyHeadline(5, 21))
     expect(status.subtitle).toBe(pl.homeStatusReadySubtitle(pl.pushupsProgram))
-    expect(status.quickCta?.kind).toBe('workout')
-    expect(status.quickCta?.program).toBe('pushups')
   })
 
-  it('scroll quickCta when stale resume only', () => {
+  it('resume headline when stale resume only', () => {
     const status = buildStatusDisplay([
       card({
         program: 'pushups',
@@ -212,72 +210,245 @@ describe('buildStatusDisplay', () => {
     ])
     expect(status.headline).toBe(pl.homeStatusResumeHeadline(pl.pushupsProgram))
     expect(status.subtitle).toBe(pl.homeStatusResumeStaleSubtitle)
-    expect(status.quickCta?.kind).toBe('scroll')
   })
 
-  it('setup quickCta when all unconfigured', () => {
+  it('setup headline names the program when a single card is unconfigured', () => {
     const status = buildStatusDisplay([
       card({ program: 'pushups', bucket: 'unconfigured' }),
     ])
+    expect(status.headline).toBe(pl.setupNextProgram(pl.pushupsProgram))
+    expect(status.subtitle).toBe(pl.homeStatusSetupSubtitle)
+  })
+
+  it('setup headline stays generic when multiple cards are unconfigured', () => {
+    const status = buildStatusDisplay([
+      card({ program: 'pushups', bucket: 'unconfigured' }),
+      card({ program: 'pullups', bucket: 'unconfigured' }),
+    ])
     expect(status.headline).toBe(pl.homeStatusSetupHeadline)
     expect(status.subtitle).toBe(pl.homeStatusSetupSubtitle)
-    expect(status.quickCta?.kind).toBe('setup')
-    expect(status.quickCta?.program).toBe('pushups')
+  })
+})
+
+function session(partial: Partial<LocalWorkoutSession>): LocalWorkoutSession {
+  return {
+    id: 's1',
+    program: 'pushups',
+    cycleId: 'pushups-6-10',
+    dayNumber: 1,
+    cycleAttempt: 1,
+    status: 'in_progress',
+    startedAt: new Date().toISOString(),
+    setResults: [],
+    ...partial,
+  }
+}
+
+function customModel(
+  partial: Partial<CustomPlanHomeCardModel>,
+): CustomPlanHomeCardModel {
+  return {
+    planId: 'plan-1',
+    planName: 'Mój plan',
+    badge: { label: 'x', variant: 'default' },
+    dayLine: 'Dzień 1/3',
+    previewLine: '',
+    detailLine: null,
+    resume: null,
+    ctaLabel: 'x',
+    ctaAction: 'train',
+    totalDays: 3,
+    completedDays: 0,
+    pct: 0,
+    cycleDays: null,
+    isPaused: false,
+    isCycleComplete: false,
+    isResting: false,
+    restDaysLeft: 0,
+    cycleAttempt: 1,
+    ...partial,
+  }
+}
+
+describe('resolveNextAction', () => {
+  it('ready builtin → builtin hero', () => {
+    const next = resolveNextAction(
+      [card({ program: 'pushups', bucket: 'ready', progress: prog({}) })],
+      [],
+      [],
+    )
+    expect(next.kind).toBe('builtin')
+    if (next.kind === 'builtin') expect(next.card.program).toBe('pushups')
   })
 
-  it('ready program takes priority when one resting and other ready', () => {
-    const future = new Date()
-    future.setDate(future.getDate() + 2)
-    const status = buildStatusDisplay([
-      card({
-        program: 'pushups',
-        bucket: 'resting',
-        progress: prog({ nextWorkoutAfter: future.toISOString() }),
-        stats: {
-          lastSession: undefined,
-          nextWorkoutLabel: 'za 2 dni',
-          lastTotalReps: null,
-          maxLastSetTrend: { current: 0, previous: null, delta: null },
-          passedSessionCount: 0,
-          totalRepsAllTime: 0,
-          streakWeeks: 0,
-          maxTestRecord: null,
-          completedDaysInCycle: 0,
-          cycleDaysTotal: 12,
-        },
-      }),
-      card({ program: 'pullups', bucket: 'ready', progress: prog({ program: 'pullups' }) }),
-    ])
-    // Ready program takes priority — user can train pullups now
-    expect(status.quickCta?.kind).toBe('workout')
-    expect(status.quickCta?.program).toBe('pullups')
+  it('unconfigured builtin → builtin hero (setup)', () => {
+    const next = resolveNextAction(
+      [card({ program: 'pushups', bucket: 'unconfigured' })],
+      [],
+      [],
+    )
+    expect(next.kind).toBe('builtin')
+    if (next.kind === 'builtin') expect(next.card.bucket).toBe('unconfigured')
   })
 
-  it('train-anyway quickCta when all resting', () => {
+  it('ready wins over resting card', () => {
     const future = new Date()
     future.setDate(future.getDate() + 2)
-    const status = buildStatusDisplay([
-      card({
-        program: 'pushups',
-        bucket: 'resting',
-        progress: prog({ nextWorkoutAfter: future.toISOString() }),
-        stats: {
-          lastSession: undefined,
-          nextWorkoutLabel: 'za 2 dni',
-          lastTotalReps: null,
-          maxLastSetTrend: { current: 0, previous: null, delta: null },
-          passedSessionCount: 0,
-          totalRepsAllTime: 0,
-          streakWeeks: 0,
-          maxTestRecord: null,
-          completedDaysInCycle: 0,
-          cycleDaysTotal: 12,
-        },
-      }),
-    ])
-    expect(status.headline).toBe(pl.homeStatusRestHeadline)
-    expect(status.quickCta?.kind).toBe('workout-force')
-    expect(status.quickCta?.program).toBe('pushups')
+    const next = resolveNextAction(
+      [
+        card({
+          program: 'pushups',
+          bucket: 'resting',
+          progress: prog({ nextWorkoutAfter: future.toISOString() }),
+        }),
+        card({
+          program: 'pullups',
+          bucket: 'ready',
+          progress: prog({ program: 'pullups' }),
+        }),
+      ],
+      [],
+      [],
+    )
+    expect(next.kind).toBe('builtin')
+    if (next.kind === 'builtin') expect(next.card.program).toBe('pullups')
+  })
+
+  it('all resting → rest hero with the soonest return', () => {
+    const later = new Date()
+    later.setDate(later.getDate() + 5)
+    const sooner = new Date()
+    sooner.setDate(sooner.getDate() + 1)
+    const next = resolveNextAction(
+      [
+        card({
+          program: 'pushups',
+          bucket: 'resting',
+          progress: prog({ nextWorkoutAfter: later.toISOString() }),
+        }),
+        card({
+          program: 'pullups',
+          bucket: 'resting',
+          progress: prog({
+            program: 'pullups',
+            nextWorkoutAfter: sooner.toISOString(),
+          }),
+        }),
+      ],
+      [],
+      [],
+    )
+    expect(next.kind).toBe('rest')
+    if (next.kind === 'rest') expect(next.card.program).toBe('pullups')
+  })
+
+  it('in-progress builtin session wins over a ready card', () => {
+    const resumeCard = card({
+      program: 'pushups',
+      bucket: 'resume',
+      resume: resumeFresh,
+      progress: prog({}),
+    })
+    const next = resolveNextAction(
+      [
+        resumeCard,
+        card({
+          program: 'pullups',
+          bucket: 'ready',
+          progress: prog({ program: 'pullups' }),
+        }),
+      ],
+      [],
+      [session({ program: 'pushups' })],
+    )
+    expect(next.kind).toBe('builtin')
+    if (next.kind === 'builtin') expect(next.card.program).toBe('pushups')
+  })
+
+  it('freshest in-progress session wins across sources', () => {
+    const older = new Date(Date.now() - 3600_000).toISOString()
+    const next = resolveNextAction(
+      [
+        card({
+          program: 'pushups',
+          bucket: 'resume',
+          resume: resumeFresh,
+          progress: prog({}),
+        }),
+      ],
+      [
+        customModel({
+          planId: 'plan-1',
+          resume: { day: 1, set: 2, totalSets: 5, stale: false },
+        }),
+      ],
+      [
+        // Builtin session is older — the custom session wins.
+        session({ id: 's-old', program: 'pushups', startedAt: older }),
+        session({
+          id: 's-new',
+          program: 'custom',
+          programKind: 'custom',
+          customPlanId: 'plan-1',
+        }),
+      ],
+    )
+    expect(next.kind).toBe('custom')
+    if (next.kind === 'custom') expect(next.model.planId).toBe('plan-1')
+  })
+
+  it('free session hero when the live session is ad-hoc', () => {
+    const next = resolveNextAction(
+      [
+        card({
+          program: 'pushups',
+          bucket: 'ready',
+          progress: prog({}),
+        }),
+      ],
+      [],
+      [
+        session({
+          id: 's-free',
+          program: 'custom',
+          programKind: 'custom',
+          customPlanId: undefined,
+          cycleId: 'free',
+        }),
+      ],
+    )
+    expect(next.kind).toBe('free')
+  })
+
+  it('trainable custom plan hero when no builtin day is due', () => {
+    const future = new Date()
+    future.setDate(future.getDate() + 2)
+    const next = resolveNextAction(
+      [
+        card({
+          program: 'pushups',
+          bucket: 'resting',
+          progress: prog({ nextWorkoutAfter: future.toISOString() }),
+        }),
+      ],
+      [customModel({ planId: 'plan-1', ctaAction: 'train' })],
+      [],
+    )
+    expect(next.kind).toBe('custom')
+    if (next.kind === 'custom') expect(next.model.planId).toBe('plan-1')
+  })
+
+  it('paused custom plan does not become the hero', () => {
+    const next = resolveNextAction(
+      [],
+      [customModel({ planId: 'plan-1', isPaused: true, ctaAction: 'unpause' })],
+      [],
+    )
+    expect(next.kind).toBe('free')
+  })
+
+  it('nothing configured → free hero', () => {
+    expect(resolveNextAction([], [], []).kind).toBe('free')
   })
 })
 

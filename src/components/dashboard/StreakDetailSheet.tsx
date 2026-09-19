@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Flame, Trophy, AlertTriangle, Sparkles, Snowflake, Lock } from 'lucide-react'
+import { Trophy, AlertTriangle, Sparkles, Snowflake, Lock } from 'lucide-react'
+import { StreakFlame, streakFlameColor, streakFlameTier } from '@/components/dashboard/StreakFlame'
 import { Sheet } from '@/components/ui/Sheet'
 import { NestedStat } from '@/components/ui/NestedStat'
 import { StatusPill } from '@/components/ui/StatusPill'
@@ -8,6 +9,7 @@ import { ProTeaser } from '@/components/ux/ProTeaser'
 import { pl } from '@/i18n/pl'
 import {
   computeStreakWeeks,
+  daysLeftInStreakWeek,
   getWeekKey,
   STREAK_MILESTONES,
   nextStreakMilestone,
@@ -87,8 +89,9 @@ export function StreakDetailSheet({
   )
   const totalSessions = completed.length
   const isNewRecord = streak > 0 && streak >= bestStreak && bestStreak > 0
-  const isLegendary = streak >= 26
-  const isHot = streak >= 12
+  const flameTier = streakFlameTier(streak)
+  const isLegendary = flameTier >= 5
+  const isHot = flameTier >= 4
 
   // Detect current-week status: at-risk (streak > 0 but no session this week)
   const currentWeekKey = getWeekKey(new Date())
@@ -135,9 +138,11 @@ export function StreakDetailSheet({
           </div>
         ) : (
           <>
-            {/* At-risk warning banner */}
+            {/* At-risk warning banner — countdown + explicit loss statement.
+                Pro users with freezes get a reassurance line instead of pure
+                urgency (the freeze may bridge the week automatically). */}
             {isAtRisk && (
-              <div className="flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[color-mix(in_srgb,var(--sr-warning)_35%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-warning)_8%,var(--sr-bg-surface))] p-3">
+              <div className="sr-risk-pulse flex items-center gap-3 rounded-[var(--sr-radius-md)] border border-[color-mix(in_srgb,var(--sr-warning)_35%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-warning)_8%,var(--sr-bg-surface))] p-3">
                 <AlertTriangle
                   size={20}
                   className="shrink-0 text-[var(--sr-warning)]"
@@ -146,10 +151,17 @@ export function StreakDetailSheet({
                 <div className="min-w-0">
                   <p className="sr-text-body-sm font-semibold text-[var(--sr-warning)]">
                     {pl.streakSheetAtRiskTitle}
+                    {' · '}
+                    {pl.streakAtRiskDaysLeft(daysLeftInStreakWeek())}
                   </p>
-                  <p className="mt-0.5 sr-text-caption text-[var(--sr-text-secondary)]">
-                    {pl.streakSheetAtRiskHint}
+                  <p className="mt-0.5 sr-text-caption font-medium text-[var(--sr-text-secondary)]">
+                    {pl.streakAtRiskLoss(streak)}
                   </p>
+                  {pro && freezeBalance.available > 0 && (
+                    <p className="mt-0.5 sr-text-caption text-[var(--sr-info)]">
+                      {pl.streakAtRiskFreezeNote}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -158,30 +170,40 @@ export function StreakDetailSheet({
             <div
               className={cn(
                 'flex items-center gap-4 rounded-[var(--sr-radius-lg)] border p-4',
-                isLegendary
-                  ? 'border-[color-mix(in_srgb,var(--sr-warning)_30%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-warning)_8%,var(--sr-bg-surface))]'
-                  : isHot
-                    ? 'border-[color-mix(in_srgb,var(--sr-brand-primary)_30%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-brand-primary)_8%,var(--sr-bg-surface))]'
-                    : streak > 0
-                      ? 'border-[color-mix(in_srgb,var(--sr-brand-primary)_25%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-brand-primary)_6%,var(--sr-bg-surface))]'
-                      : 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',
+                streak === 0 && 'border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]',
               )}
+              style={
+                streak > 0
+                  ? {
+                      borderColor: `color-mix(in srgb, ${streakFlameColor(streak)} ${isHot ? 30 : 25}%, var(--sr-border-subtle))`,
+                      backgroundColor: `color-mix(in srgb, ${streakFlameColor(streak)} ${isHot ? 8 : 6}%, var(--sr-bg-surface))`,
+                    }
+                  : undefined
+              }
             >
               <div
                 className={cn(
                   'flex h-14 w-14 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]',
-                  isLegendary
-                    ? 'bg-[color-mix(in_srgb,var(--sr-warning)_18%,transparent)] text-[var(--sr-warning)]'
-                    : streak > 0
-                      ? 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)] text-[var(--sr-brand-primary)]'
-                      : 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)]',
+                  streak === 0 && 'bg-[var(--sr-bg-elevated)] text-[var(--sr-text-muted)]',
                 )}
+                style={
+                  streak > 0
+                    ? {
+                        backgroundColor: `color-mix(in srgb, ${streakFlameColor(streak)} 18%, transparent)`,
+                        color: streakFlameColor(streak),
+                      }
+                    : undefined
+                }
                 aria-hidden
               >
-                <Flame
+                <StreakFlame
+                  streak={streak}
                   size={isLegendary ? 32 : 28}
                   strokeWidth={2.25}
-                  className={cn(streak > 0 && 'sr-flame-pulse')}
+                  sparkle
+                  embers
+                  burst
+                  dying={isAtRisk}
                 />
               </div>
               <div className="min-w-0 flex-1">
@@ -189,9 +211,12 @@ export function StreakDetailSheet({
                   <span
                     className={cn(
                       'font-bold tabular-nums leading-none',
-                      isLegendary ? 'text-[var(--sr-warning)]' : 'text-[var(--sr-text-primary)]',
+                      flameTier < 4 && 'text-[var(--sr-text-primary)]',
                     )}
-                    style={{ fontSize: isLegendary ? '2.75rem' : '2.5rem' }}
+                    style={{
+                      fontSize: isLegendary ? '2.75rem' : '2.5rem',
+                      color: flameTier >= 4 ? streakFlameColor(streak) : undefined,
+                    }}
                   >
                     {streak}
                   </span>
@@ -199,7 +224,7 @@ export function StreakDetailSheet({
                     {pl.streakChainWeeks(streak)}
                   </span>
                 </div>
-                {isNewRecord ? (
+                {isNewRecord && !isAtRisk ? (
                   <StatusPill tone="success" className="mt-1.5">
                     {pl.streakChainNewRecord}
                   </StatusPill>

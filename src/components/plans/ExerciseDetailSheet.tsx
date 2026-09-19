@@ -163,7 +163,7 @@ export function ExerciseDetailSheet({
 
           {stats.sessionCount === 0 ? (
             <EmptyState
-              icon={<LogoMark size={48} />}
+              icon={<LogoMark size={48} tone="tonal" />}
               title={pl.exerciseDetailEmpty}
               action={{
                 label: pl.myPlansTitle,

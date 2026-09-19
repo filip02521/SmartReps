@@ -366,13 +366,17 @@ export function CustomPlanEditor({
   const filterExplicit = useAppStore((s) => s.settings.customPlansFilterExplicit)
 
   async function handleActivate() {
-    const hasActive = await hasActiveCustomWorkout(plan.id)
-    if (hasActive && plan.status === 'draft') {
+    // planRef — a fast "edit → click" can fire before the state update
+    // re-renders; the ref always holds the latest plan (same reason
+    // handleClose reads it).
+    const current = planRef.current
+    const hasActive = await hasActiveCustomWorkout(current.id)
+    if (hasActive && current.status === 'draft') {
       showToast(pl.planEditBlockedActive, 'error')
       return
     }
     const byId = new Map(exercises.map((e) => [e.id, e]))
-    const issues = validateCustomPlan(plan, byId)
+    const issues = validateCustomPlan(current, byId)
     if (issues.length) {
       setValidationErrors(issues.map((i) => i.message))
       showToast(pl.planValidationFix, 'error')
@@ -380,20 +384,20 @@ export function CustomPlanEditor({
       return
     }
     setValidationErrors([])
-    const activating = plan.status !== 'active'
+    const activating = current.status !== 'active'
     try {
       if (saveTimer.current) {
         window.clearTimeout(saveTimer.current)
         saveTimer.current = null
       }
       saveGenRef.current += 1
-      await saveCustomPlan(plan, activating ? { activate: true } : undefined)
+      await saveCustomPlan(current, activating ? { activate: true } : undefined)
       setPersisted(true)
       if (activating) {
         showToast(pl.planPublish, 'success', {
           action: {
             label: pl.planTrain,
-            onClick: () => navigate(`/workout/custom/${plan.id}`),
+            onClick: () => navigate(`/workout/custom/${current.id}`),
           },
         })
         if (!filterExplicit) {
@@ -422,7 +426,10 @@ export function CustomPlanEditor({
         saveTimer.current = null
       }
       saveGenRef.current += 1
-      await saveCustomPlan({ ...plan, status: 'draft' }, { skipValidation: true })
+      await saveCustomPlan(
+        { ...planRef.current, status: 'draft' },
+        { skipValidation: true },
+      )
       setPersisted(true)
       showToast(pl.planSaveDraft, 'success')
       onSaved()

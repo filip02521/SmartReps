@@ -20,6 +20,7 @@ import {
 import { navigateToTrain } from '@/lib/setup-flow'
 import { getCycleById } from '@/data/plans'
 import { getCycleName } from '@/lib/plan-resolver'
+import { getPreviousFreeWorkoutSession, isFreeWorkoutSession } from '@/lib/free-workout-service'
 import { exportSessionsCsv, exportCustomSessionsCsv, downloadCsv, mergeSessionCsvExports } from '@/lib/export'
 import { showToast } from '@/stores/toast-store'
 import { cn } from '@/lib/utils'
@@ -63,6 +64,7 @@ function isCustomSession(s: LocalWorkoutSession): boolean {
 
 function sessionSourceLabel(s: LocalWorkoutSession, customPlanNames: Record<string, string>): string {
   if (isCustomSession(s)) {
+    if (isFreeWorkoutSession(s)) return pl.freeWorkoutTitle
     return (s.customPlanId && customPlanNames[s.customPlanId]) || pl.progressSourceCustom
   }
   if (s.program === 'pushups') return pl.pushupsProgram
@@ -131,7 +133,9 @@ export function HistoryPanel({
     // of the same plan (sets are matched per exercise).
     const doneAt = new Date(s.completedAt ?? s.startedAt).getTime()
     let prev: LocalWorkoutSession | undefined
-    if (isCustomSession(s)) {
+    if (isFreeWorkoutSession(s)) {
+      prev = await getPreviousFreeWorkoutSession(s)
+    } else if (isCustomSession(s)) {
       const priors = await db.workoutSessions
         .where('customPlanId')
         .equals(s.customPlanId ?? '')
@@ -296,7 +300,7 @@ export function HistoryPanel({
           historyBase.length === 0 ? (
             <div className="mt-4">
               <EmptyState
-                icon={<LogoMark size={48} />}
+                icon={<LogoMark size={48} tone="tonal" />}
                 title={pl.firstWorkout}
                 description={pl.progressTabHistoryHint}
                 action={{
@@ -308,7 +312,7 @@ export function HistoryPanel({
           ) : (
             <div className="mt-4">
               <EmptyState
-                icon={<LogoMark size={48} />}
+                icon={<LogoMark size={48} tone="tonal" />}
                 title={pl.filterEmptyHistory}
                 description={pl.filterEmptyHistoryHint}
                 action={filtersActive ? { label: pl.clearFilters, onClick: clearFilters } : undefined}
@@ -610,7 +614,9 @@ export function HistoryPanel({
                 const id = selectedSession.id
                 setSelectedSession(null)
                 setDetailExercises(new Map())
-                if (isCustomSession(selectedSession) && selectedSession.customPlanId) {
+                if (isFreeWorkoutSession(selectedSession)) {
+                  navigate(`/workout/free/summary?session=${id}`)
+                } else if (isCustomSession(selectedSession) && selectedSession.customPlanId) {
                   navigate(`/workout/custom/${selectedSession.customPlanId}/summary?session=${id}`)
                 } else {
                   navigate(`/workout/${selectedSession.program}/summary?session=${id}`)

@@ -214,11 +214,15 @@ test.describe('SmartReps routing critical paths', () => {
     await page.getByRole('button', { name: 'Przejdź do Treningu' }).click()
 
     await expect(page).toHaveURL('/', { timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Twój trening, Twoje zasady' })).toBeVisible({
+    // New dashboard: no configured training → free-workout hero + option
+    // rows for creating a plan / enabling a program (one unified layout,
+    // no separate empty state).
+    await expect(page.getByText('Zacznij trening', { exact: true })).toBeVisible({
       timeout: 15_000,
     })
-    await expect(page.getByRole('button', { name: 'Stwórz plan' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Włącz program treningowy' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Trening swobodny' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Nowy plan/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Programy/ })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Rozpocznij konfigurację' })).toHaveCount(0)
   })
 
@@ -238,7 +242,12 @@ test.describe('SmartReps routing critical paths', () => {
     await expect(page.getByText('Zacznij trening', { exact: true })).toBeVisible({
       timeout: 15_000,
     })
-    await expect(page.getByRole('button', { name: 'Rozpocznij konfigurację' })).toHaveCount(2)
+    // Hero card owns the primary CTA for the first program; the second
+    // program surfaces as a compact option row (opens setup on tap).
+    await expect(page.getByRole('button', { name: 'Rozpocznij konfigurację' })).toHaveCount(1)
+    await expect(
+      page.getByRole('button', { name: /Podciąganie/ }).first(),
+    ).toBeVisible()
 
     await page.getByRole('button', { name: 'Rozpocznij konfigurację' }).first().click()
     await expect(page).toHaveURL(/\/setup\/test\/pushups/)
@@ -267,7 +276,11 @@ test.describe('SmartReps routing critical paths', () => {
     await expect(page.getByText('Zacznij trening', { exact: true })).toBeVisible({
       timeout: 15_000,
     })
-    await expect(page.getByRole('button', { name: 'Rozpocznij konfigurację' })).toBeVisible()
+    // Pullups is still pending setup — as a compact option row (the hero
+    // now belongs to the configured program), not a second big card.
+    await expect(
+      page.getByRole('button', { name: /Podciąganie.*Do skonfigurowania/ }),
+    ).toBeVisible()
     await expect(page).not.toHaveURL(/\/setup\/test\/pullups/)
   })
 
@@ -400,7 +413,7 @@ test.describe('SmartReps routing critical paths', () => {
     })
     await expect(page.getByText(/W toku:/)).toHaveCount(0)
     await expect(page.getByRole('button', { name: /Kontynuuj Dzień/ })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: /Rozpocznij Dzień|Trenuję mimo to/ }).first()).toBeVisible({
+    await expect(page.getByRole('button', { name: /Rozpocznij Dzień|Trenuj mimo to/ }).first()).toBeVisible({
       timeout: 15_000,
     })
   })

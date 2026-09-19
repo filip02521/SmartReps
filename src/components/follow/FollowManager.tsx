@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UserPlus, UserCheck, UserX, Loader2, Dumbbell, Flame, Trophy, Heart, Users, Zap } from 'lucide-react'
+import { UserPlus, UserCheck, UserX, Loader2, Dumbbell, Trophy, Heart, Users, Zap } from 'lucide-react'
+import { StreakFlame } from '@/components/dashboard/StreakFlame'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { ConfirmSheet } from '@/components/workout/WorkoutComponents'
@@ -315,7 +316,7 @@ function FolloweeCard({
         </span>
         {profile.current_streak_weeks > 0 && (
           <span className="flex items-center gap-1 tabular-nums">
-            <Flame size={11} aria-hidden className="text-[var(--sr-warning)]" />
+            <StreakFlame streak={profile.current_streak_weeks} size={11} />
             {profile.current_streak_weeks}{pl.followStatsWeeksShort}
           </span>
         )}
@@ -608,7 +609,7 @@ function FollowerCard({ profile }: { profile: FollowerProfile }) {
         </span>
         {profile.current_streak_weeks > 0 && (
           <span className="flex items-center gap-1 tabular-nums">
-            <Flame size={11} aria-hidden className="text-[var(--sr-warning)]" />
+            <StreakFlame streak={profile.current_streak_weeks} size={11} />
             {profile.current_streak_weeks}{pl.followStatsWeeksShort}
           </span>
         )}

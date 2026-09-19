@@ -1,20 +1,18 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSeo } from '@/hooks/useSeo'
-import { LogoFull, LogoMark } from '@/components/brand/Logo'
+import { LogoFull } from '@/components/brand/Logo'
 import { Button } from '@/components/ui/Button'
 import { SectionHeader } from '@/components/ui/SectionHeader'
-import { PageLoader, SkeletonCard, EmptyState, ErrorBanner } from '@/components/ux/Feedback'
-import {
-  HomeStatusHeader,
-  HomeActivitySection,
-} from '@/components/dashboard/HomeSummary'
+import { PageLoader, SkeletonCard, ErrorBanner } from '@/components/ux/Feedback'
+import { HomeStatusHeader } from '@/components/dashboard/HomeSummary'
+import { StreakFlame } from '@/components/dashboard/StreakFlame'
 import { HomeTip } from '@/components/dashboard/HomeTip'
-import { ProgramHomeCard } from '@/components/dashboard/ProgramHomeCard'
-import { CustomPlansHomeSection } from '@/components/dashboard/CustomPlansHomeSection'
+import { HomeTrainingSection } from '@/components/dashboard/HomeTrainingSection'
+import { HomeActivityCard } from '@/components/dashboard/HomeActivityCard'
+import { StreakDetailSheet } from '@/components/dashboard/StreakDetailSheet'
 import { CommunityHomeTeaser } from '@/components/dashboard/CommunityHomeTeaser'
 import { WeeklyChallengeCard } from '@/components/dashboard/WeeklyChallengeCard'
-import { StreakChainCard } from '@/components/dashboard/StreakChainCard'
 import { InstallCoach } from '@/components/ux/InstallCoach'
 import { WeeklyReportCard, WeeklyReportSkeleton } from '@/components/dashboard/WeeklyReportCard'
 import { AiCoachMark } from '@/components/brand/AiCoachMark'
@@ -23,10 +21,15 @@ import { showToast } from '@/stores/toast-store'
 import { cn } from '@/lib/utils'
 import { FOCUS_RING } from '@/lib/ui-chrome'
 import { TAB_PAGE_SHELL } from '@/lib/ui-chrome'
-import { Dumbbell, ChevronRight, Loader2 } from 'lucide-react'
+import {
+  Activity,
+  ChevronRight,
+  Loader2,
+  Users,
+} from 'lucide-react'
 import { useAppStore } from '@/stores/app-store'
 import { useStoreHydrated } from '@/hooks/useStoreHydrated'
-import { beginLevelChange, beginProgramSetup } from '@/lib/setup-flow'
+import { beginLevelChange } from '@/lib/setup-flow'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
 import { db, type LocalAiInsight, type LocalWorkoutSession } from '@/lib/db'
 import { deleteAiInsight, enqueueSync, refreshSubscriptionStatus } from '@/lib/sync'
@@ -44,13 +47,13 @@ import {
   formatCooldownRemaining,
 } from '@/lib/ai/rate-limiter'
 import { listExercises } from '@/lib/custom-plan-service'
-import { getWeekKey, startOfLocalWeek } from '@/lib/stats-engine'
-import { maintainStreakFreezes } from '@/lib/streak-freeze'
+import { computeStreakWeeks, daysLeftInStreakWeek, getWeekKey, startOfLocalWeek } from '@/lib/stats-engine'
+import { computeBestStreakWeeks } from '@/lib/weekly-recap'
+import { maintainStreakFreezes, useFrozenWeeks } from '@/lib/streak-freeze'
 import {
   loadHomeDashboard,
   localDayKey,
   type HomeLoadResult,
-  type QuickCta,
 } from '@/lib/home-summary'
 import type { Program } from '@/data/plans/types'
 
@@ -172,6 +175,8 @@ export default function Dashboard() {
       dismissedHabitMetTip,
       hasCompletedFirstWorkout,
       welcomeCardDismissed,
+      enabledCustomPlanIds: settings.enabledCustomPlanIds,
+      customPlansFilterExplicit: settings.customPlansFilterExplicit,
     })
       .then(async (result) => {
         if (!cancelled) {
@@ -199,6 +204,8 @@ export default function Dashboard() {
   }, [
     hydrated,
     settings.enabledPrograms,
+    settings.enabledCustomPlanIds,
+    settings.customPlansFilterExplicit,
     reloadEpoch,
     lastSyncedAt,
     dismissedHomeTipId,
@@ -458,28 +465,29 @@ export default function Dashboard() {
   // free-tier path until the next mount.
   }, [hydrated, hasCompletedFirstWorkout, reloadEpoch, searchParams, setSearchParams, pro])
 
-  const handleQuickCta = useCallback((cta: QuickCta) => {
-    switch (cta.kind) {
-      case 'workout':
-        if (!hasCompletedFirstWorkout) {
-          track(AnalyticsEvents.firstWorkoutStarted, { program: cta.program, type: 'builtin' })
-        }
-        navigate(`/workout/${cta.program}`)
-        break
-      case 'workout-force':
-        if (!hasCompletedFirstWorkout) {
-          track(AnalyticsEvents.firstWorkoutStarted, { program: cta.program, type: 'builtin' })
-        }
-        navigate(`/workout/${cta.program}?force=1`)
-        break
-      case 'setup':
-        void beginProgramSetup(navigate, cta.program)
-        break
-      case 'scroll':
-        scrollToProgram(cta.program)
-        break
-    }
-  }, [navigate, hasCompletedFirstWorkout])
+  // Streak chip in the top bar — same numbers as the activity card below,
+  // opens the detail sheet directly.
+  const frozenWeeks = useFrozenWeeks()
+  const completedSessions = useMemo(
+    () => heatmapSessions.filter((s) => s.status === 'completed'),
+    [heatmapSessions],
+  )
+  const streak = useMemo(
+    () => computeStreakWeeks(completedSessions, new Date(), frozenWeeks),
+    [completedSessions, frozenWeeks],
+  )
+  const streakAtRisk = useMemo(() => {
+    if (streak === 0) return false
+    const weekKey = getWeekKey(new Date())
+    return !completedSessions.some(
+      (s) => getWeekKey(new Date(s.startedAt)) === weekKey,
+    )
+  }, [streak, completedSessions])
+  const bestStreak = useMemo(
+    () => computeBestStreakWeeks(completedSessions, frozenWeeks),
+    [completedSessions, frozenWeeks],
+  )
+  const [streakSheetOpen, setStreakSheetOpen] = useState(false)
 
   if (!hydrated) {
     return (
@@ -502,8 +510,40 @@ export default function Dashboard() {
 
   return (
     <div className={TAB_PAGE_SHELL}>
-      <header className="mb-5">
-        <LogoFull height={36} />
+      <header className="mb-5 flex items-center justify-between gap-3">
+        {/* Tonal lockup in app chrome — gradient lockup lives in brand
+            moments (splash, login, onboarding). */}
+        <LogoFull height={34} tone="tonal" />
+        {completedSessions.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setStreakSheetOpen(true)}
+            aria-label={
+              streakAtRisk
+                ? pl.streakChainAriaRisk(
+                    streak,
+                    bestStreak,
+                    daysLeftInStreakWeek(),
+                  )
+                : pl.streakChainAria(streak, bestStreak)
+            }
+            className={cn(
+              FOCUS_RING,
+              'flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] px-3 py-1.5 transition-colors hover:bg-[var(--sr-bg-surface)]',
+              streakAtRisk && 'sr-risk-pulse',
+            )}
+          >
+            <StreakFlame streak={streak} size={15} dying={streakAtRisk} />
+            <span className="sr-text-caption font-semibold tabular-nums text-[var(--sr-text-primary)]">
+              {streak}
+            </span>
+            {streakAtRisk && (
+              <span className="rounded-full bg-[color-mix(in_srgb,var(--sr-warning)_15%,transparent)] px-1.5 py-0.5 sr-text-caption font-bold tabular-nums leading-none text-[var(--sr-warning)]">
+                {pl.streakDaysShort(daysLeftInStreakWeek())}
+              </span>
+            )}
+          </button>
+        )}
         <h1 className="sr-only">{pl.navWorkout}</h1>
       </header>
 
@@ -524,15 +564,13 @@ export default function Dashboard() {
 
       {loading && !home ? (
         <div className="space-y-6" aria-busy aria-label={pl.loading}>
-          {/* Status header skeleton (with quick CTA) */}
-          <SkeletonCard className="min-h-[8rem]" />
-          {/* Training cards skeleton */}
-          <SkeletonCard className="min-h-[14rem]" />
-          <SkeletonCard className="min-h-[14rem]" />
-          {/* Motivation section skeleton (challenge + streak) */}
-          <SkeletonCard className="min-h-[10rem]" />
-          {/* Activity metrics skeleton */}
+          {/* Status header skeleton */}
           <SkeletonCard className="min-h-[6rem]" />
+          {/* Training hero + option rows skeleton */}
+          <SkeletonCard className="min-h-[14rem]" />
+          <SkeletonCard className="min-h-[10rem]" />
+          {/* Activity card skeleton */}
+          <SkeletonCard className="min-h-[12rem]" />
           {/* AI report skeleton */}
           <SkeletonCard className="min-h-[8rem]" />
           {/* Community skeleton */}
@@ -564,11 +602,12 @@ export default function Dashboard() {
         </div>
       ) : home ? (
         <>
-          {/* 1. Hero status — date + greeting + contextual headline + quick CTA */}
+          {/* 1. Hero status — date + greeting + contextual headline.
+              The primary action lives in the training hero below — one CTA,
+              not three competing ones. */}
           <HomeStatusHeader
             summary={home.summary}
             displayName={settings.displayName || undefined}
-            onQuickCta={handleQuickCta}
           />
 
           {/* 2. Attention band — InstallCoach XOR HomeTip (per UX wireframe) */}
@@ -603,83 +642,25 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* 3. Training cards — primary action, no scroll needed */}
-          {settings.enabledPrograms.length === 0 ? (
-            <EmptyState
-              icon={<LogoMark size={48} />}
-              title={pl.noProgramsTitle}
-              description={pl.noProgramsDesc}
-              action={{
-                label: pl.noProgramsCreatePlan,
-                onClick: () => navigate('/plans?tab=mine'),
-              }}
-              secondaryAction={{
-                label: pl.noProgramsEnableProgram,
-                onClick: () => navigate('/plans?tab=programs'),
-              }}
-            />
-          ) : (
-            <section aria-label={pl.homeStartTraining} className="mt-6">
-              <SectionHeader icon={Dumbbell} title={pl.homeStartTraining} />
-              <div className="flex flex-col gap-3">
-                <CustomPlansHomeSection embedded />
-                {home.cards.length > 0 && (
-                  <SectionHeader
-                    as="h3"
-                    density="compact"
-                    title={pl.programs}
-                    action={
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => navigate('/plans?tab=programs')}
-                      >
-                        {pl.homeSeeAll}
-                      </Button>
-                    }
-                  />
-                )}
-                {home.cards.map((card) => (
-                  <ProgramHomeCard
-                    key={card.program}
-                    model={card}
-                    allResting={home.summary.allResting}
-                    tipSuppression={tipSuppression}
-                    onReload={reload}
-                  />
-                ))}
-              </div>
-              {settings.enabledPrograms.length === 1 && (
-                <Button
-                  variant="ghost"
-                  fullWidth
-                  className="mt-4"
-                  onClick={() => navigate('/plans?tab=programs')}
-                >
-                  {pl.homeAddSecondProgram}
-                </Button>
-              )}
-            </section>
-          )}
+          {/* 3. Training — one hero card (the resolved next action across
+              builtin programs, custom plans and free workout) plus uniform
+              compact rows for every other way to train. */}
+          <HomeTrainingSection
+            home={home}
+            tipSuppression={tipSuppression}
+            onReload={reload}
+            streak={streak}
+            streakAtRisk={streakAtRisk}
+          />
 
-          {/* Cards only when custom-only — EmptyState above already owns create CTAs */}
-          {settings.enabledPrograms.length === 0 && (
-            <CustomPlansHomeSection hideEmptyDiscover />
-          )}
-
-          {/* 4. Twój tydzień — wyzwanie + seria + metryki aktywności w jednej
-              sekcji (wcześniej dwa osobne landmarki rozbijały scroll). */}
-          <section aria-label={pl.homeThisWeekSectionAria} className="mt-6">
-            <SectionHeader title={pl.homeThisWeekTitle} />
-            <WeeklyChallengeCard />
-            <StreakChainCard sessions={heatmapSessions} compact />
-            <div className="mt-3">
-              <HomeActivitySection summary={home.summary} />
-            </div>
+          {/* 4. Twoja aktywność — streak + 12-week chain + 14-day metrics +
+              trend in a single cohesive card. */}
+          <section aria-label={pl.homeActivitySectionAria} className="mt-6">
+            <SectionHeader icon={Activity} title={pl.homeActivityTitle} />
+            <HomeActivityCard summary={home.summary} sessions={heatmapSessions} />
           </section>
 
-          {/* 6. Proactive coach: weekly report card + CTA gdy AI brak */}
+          {/* 5. Proactive coach: weekly report card + CTA gdy AI brak */}
           <section aria-label={pl.coachWeeklyReportSectionAria} className="mt-6">
             <SectionHeader title={pl.coachWeeklyReportTitle} />
             {weeklyReportGenerating && !weeklyReport && <WeeklyReportSkeleton />}
@@ -736,8 +717,21 @@ export default function Dashboard() {
             />
           </section>
 
-          {/* 7. Community — kompaktowe (1 karta + CTA) */}
-          <CommunityHomeTeaser />
+          {/* 6. Społeczność — weekly challenge + community teaser together
+              at the bottom (social zone, not mixed into personal stats). */}
+          <section aria-label={pl.homeCommunitySectionAria} className="mt-6">
+            <SectionHeader icon={Users} title={pl.homeCommunityTitle} />
+            <WeeklyChallengeCard />
+            <div className="mt-3">
+              <CommunityHomeTeaser />
+            </div>
+          </section>
+
+          <StreakDetailSheet
+            open={streakSheetOpen}
+            onClose={() => setStreakSheetOpen(false)}
+            sessions={heatmapSessions}
+          />
         </>
       ) : null}
     </div>

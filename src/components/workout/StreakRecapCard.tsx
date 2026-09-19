@@ -1,5 +1,11 @@
 import { useMemo } from 'react'
-import { Flame, TrendingUp, ShieldCheck } from 'lucide-react'
+import { TrendingUp, ShieldCheck } from 'lucide-react'
+import {
+  StreakFlame,
+  streakFlameBadgeStyle,
+  streakFlameColor,
+  streakFlameTier,
+} from '@/components/dashboard/StreakFlame'
 import { pl } from '@/i18n/pl'
 import {
   computeStreakWeeks,
@@ -84,8 +90,9 @@ export function StreakRecapCard({
   // Don't show card if nothing celebratory happened
   if (!streakIncreased && !milestone && !streakSaved) return null
 
-  const isLegendary = newStreak >= 26
-  const isHot = newStreak >= 12
+  const flameTier = streakFlameTier(newStreak)
+  const isLegendary = flameTier >= 5
+  const isHot = flameTier >= 4
   // "Saved" uses success green to differentiate from increase (brand) and milestone (gold)
   const isSavedState = streakSaved
 
@@ -98,33 +105,46 @@ export function StreakRecapCard({
           ? 'border-[color-mix(in_srgb,var(--sr-warning)_40%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-warning)_8%,var(--sr-bg-surface))]'
           : isSavedState
             ? 'border-[color-mix(in_srgb,var(--sr-success)_35%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-success)_6%,var(--sr-bg-surface))]'
-            : isLegendary
-              ? 'border-[color-mix(in_srgb,var(--sr-warning)_30%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-warning)_6%,var(--sr-bg-surface))]'
-              : isHot
-                ? 'border-[color-mix(in_srgb,var(--sr-brand-primary)_30%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-brand-primary)_8%,var(--sr-bg-surface))]'
-                : 'border-[color-mix(in_srgb,var(--sr-brand-primary)_25%,var(--sr-border-subtle))] bg-[color-mix(in_srgb,var(--sr-brand-primary)_6%,var(--sr-bg-surface))]',
+            : 'border-[var(--sr-border-subtle)]',
       )}
+      style={
+        !milestone && !isSavedState
+          ? {
+              borderColor: `color-mix(in srgb, ${streakFlameColor(newStreak)} ${isHot ? 30 : 25}%, var(--sr-border-subtle))`,
+              backgroundColor: `color-mix(in srgb, ${streakFlameColor(newStreak)} ${isHot ? 8 : 6}%, var(--sr-bg-surface))`,
+            }
+          : undefined
+      }
     >
-      {/* Icon — ShieldCheck for "saved", Flame for increase/milestone */}
+      {/* Icon — ShieldCheck for "saved", flame for increase/milestone */}
       <div
         className={cn(
           'flex shrink-0 items-center justify-center rounded-[var(--sr-radius-md)]',
-          milestone || isLegendary
+          milestone
             ? 'bg-[color-mix(in_srgb,var(--sr-warning)_15%,transparent)] text-[var(--sr-warning)]'
             : isSavedState
               ? 'bg-[color-mix(in_srgb,var(--sr-success)_15%,transparent)] text-[var(--sr-success)]'
-              : 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_15%,transparent)] text-[var(--sr-brand-primary)]',
+              : 'bg-[var(--sr-bg-elevated)]',
         )}
-        style={{ height: isLegendary ? 56 : 48, width: isLegendary ? 56 : 48 }}
+        style={{
+          height: isLegendary ? 56 : 48,
+          width: isLegendary ? 56 : 48,
+          ...(!milestone && !isSavedState
+            ? streakFlameBadgeStyle(newStreak)
+            : undefined),
+        }}
         aria-hidden
       >
         {isSavedState ? (
           <ShieldCheck size={26} strokeWidth={2.25} />
         ) : (
-          <Flame
+          <StreakFlame
+            streak={newStreak}
             size={isLegendary ? 30 : 24}
             strokeWidth={2.25}
-            className="sr-flame-pulse"
+            sparkle
+            embers
+            burst
           />
         )}
       </div>
@@ -134,14 +154,17 @@ export function StreakRecapCard({
         <div className="flex items-baseline gap-2">
           <span
             className={cn(
-              'font-bold tabular-nums leading-none',
-              milestone || isLegendary
+              'sr-streak-pop font-bold tabular-nums leading-none',
+              milestone
                 ? 'text-[var(--sr-warning)]'
                 : isSavedState
                   ? 'text-[var(--sr-success)]'
-                  : 'text-[var(--sr-brand-primary)]',
+                  : undefined,
             )}
-            style={{ fontSize: isLegendary ? '2rem' : '1.75rem' }}
+            style={{
+              fontSize: isLegendary ? '2rem' : '1.75rem',
+              color: !milestone && !isSavedState ? streakFlameColor(newStreak) : undefined,
+            }}
           >
             {newStreak}
           </span>

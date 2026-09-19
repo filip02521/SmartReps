@@ -11,16 +11,24 @@ export function SplashScreen() {
       aria-live="polite"
       aria-label={pl.loading}
     >
-      <div className="flex flex-col items-center sr-loader-enter">
+      {/* Mark + wordmark render without the enter animation — they sit under
+          the identical HTML boot splash, which fades out on top of them.
+          Only the tagline + loader animate in. */}
+      <div className="flex flex-col items-center">
         <div className="sr-logo-breathe">
           <LogoMark size={88} />
         </div>
-        <p className="mt-6 sr-text-h2 sr-gradient-text tracking-tight">SmartReps</p>
-        <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
-          {pl.splashTagline}
+        <p className="mt-6 sr-text-h2 tracking-tight" aria-hidden>
+          <span className="font-normal text-[var(--sr-text-primary)]">Smart</span>
+          <span className="sr-gradient-text font-bold">Reps</span>
         </p>
-        <div className="mt-8">
-          <BrandLoader size={40} />
+        <div className="flex flex-col items-center sr-loader-enter">
+          <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
+            {pl.splashTagline}
+          </p>
+          <div className="mt-8">
+            <BrandLoader size={40} />
+          </div>
         </div>
       </div>
     </div>

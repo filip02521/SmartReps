@@ -398,7 +398,7 @@ export default function SessionSummary() {
       <div className="mx-auto max-w-lg px-4 py-8 safe-top safe-bottom">
         {missing ? (
           <EmptyState
-            icon={<LogoMark size={48} />}
+            icon={<LogoMark size={48} tone="tonal" />}
             title={pl.sessionSummaryMissingTitle}
             description={pl.missingSessionHint}
             action={{
