@@ -65,6 +65,7 @@ type WeekCell = {
   weekStart: Date
   label: string
   sessions: number
+  reps: number
   isCurrent: boolean
   isPartOfStreak: boolean
   isFrozen: boolean
@@ -79,11 +80,14 @@ function buildWeekCells(
   const currentWeekStart = startOfLocalWeek(now)
   const currentWeekKey = getWeekKey(now)
 
-  const weekMap = new Map<string, number>()
+  const weekMap = new Map<string, { sessions: number; reps: number }>()
   for (const s of sessions) {
     if (s.status !== 'completed') continue
     const key = getWeekKey(new Date(s.startedAt))
-    weekMap.set(key, (weekMap.get(key) ?? 0) + 1)
+    const existing = weekMap.get(key) ?? { sessions: 0, reps: 0 }
+    existing.sessions += 1
+    existing.reps += s.totalReps ?? 0
+    weekMap.set(key, existing)
   }
 
   const cells: WeekCell[] = []
@@ -95,7 +99,8 @@ function buildWeekCells(
       weekKey: key,
       weekStart,
       label: format(weekStart, 'd MMM', { locale: dateFnsLocale() }),
-      sessions: weekMap.get(key) ?? 0,
+      sessions: weekMap.get(key)?.sessions ?? 0,
+      reps: weekMap.get(key)?.reps ?? 0,
       isCurrent: key === currentWeekKey,
       isPartOfStreak: false,
       isFrozen: frozenWeeks.has(key),
@@ -107,7 +112,7 @@ function buildWeekCells(
   const cursor = new Date(currentWeekStart)
   for (let i = 0; i < weeks; i++) {
     const key = getWeekKey(cursor)
-    const hasSessions = (weekMap.get(key) ?? 0) > 0 || frozenWeeks.has(key)
+    const hasSessions = (weekMap.get(key)?.sessions ?? 0) > 0 || frozenWeeks.has(key)
     if (hasSessions) {
       streakSet.add(key)
     } else if (i === 0 && key === currentWeekKey) {
@@ -286,7 +291,7 @@ export function HomeActivityCard({
                 title={
                   cell.isFrozen
                     ? pl.streakFreezeCellTitle(cell.label)
-                    : pl.streakHeatmapCellAria(cell.sessions, 0, cell.label)
+                    : pl.streakHeatmapCellAria(cell.sessions, cell.reps, cell.label)
                 }
                 className={cn(
                   'h-7 flex-1 rounded-[var(--sr-radius-sm)] border transition-colors',
