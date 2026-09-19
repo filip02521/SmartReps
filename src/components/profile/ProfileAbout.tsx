@@ -15,7 +15,7 @@ export function ProfileAbout({ className }: { className?: string }) {
     <div className={cn('flex flex-col gap-3', className)}>
       {/* App identity */}
       <div className="flex items-center gap-3 rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)] p-4">
-        <LogoMark size={40} />
+        <LogoMark size={40} tone="tonal" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-[var(--sr-text-primary)]">
             {pl.appName}

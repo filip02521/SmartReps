@@ -80,7 +80,7 @@ export function UnifiedRecordsSection({
     return (
       <ProgressSection first={first} icon={icon} title={pl.progressRecordsSectionTitle}>
         <EmptyState
-          icon={<LogoMark size={40} />}
+          icon={<LogoMark size={40} tone="tonal" />}
           title={pl.progressRecordsEmpty}
           description={pl.progressRecordsEmptyHint}
           action={{ label: pl.progressRecordsEmptyCta, onClick: () => navigate('/') }}

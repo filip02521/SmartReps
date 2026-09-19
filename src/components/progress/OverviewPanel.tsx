@@ -602,7 +602,7 @@ export function OverviewPanel({
           {showEmptyState && (
             <ProgressSection first icon={BarChart3} title={pl.progressEmptyTitle}>
               <EmptyState
-                icon={<LogoMark size={48} />}
+                icon={<LogoMark size={48} tone="tonal" />}
                 title={pl.firstWorkout}
                 description={pl.progressEmptyHint}
                 action={{
@@ -751,7 +751,7 @@ export function OverviewPanel({
       {showEmptyState && (scope === 'pushups' || scope === 'pullups' || scope === 'squats') && (
         <ProgressSection first icon={BarChart3} title={pl.progressEmptyTitle}>
           <EmptyState
-            icon={<LogoMark size={48} />}
+            icon={<LogoMark size={48} tone="tonal" />}
             title={pl.firstWorkout}
             description={pl.progressEmptyHint}
             action={{

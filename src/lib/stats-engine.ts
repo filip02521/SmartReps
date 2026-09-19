@@ -151,6 +151,14 @@ export function getWeekKey(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
+/**
+ * Days left in the current streak week (Mon-start): Monday → 7, Sunday → 1.
+ * Used by at-risk streak UI — "X days left or your streak breaks".
+ */
+export function daysLeftInStreakWeek(now = new Date()): number {
+  return 7 - ((now.getDay() + 6) % 7)
+}
+
 /** Weekly-streak milestone thresholds shared by streak UI components. */
 export const STREAK_MILESTONES = [4, 8, 12, 26, 52] as const
 

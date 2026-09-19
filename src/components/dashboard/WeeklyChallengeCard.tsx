@@ -169,7 +169,7 @@ function ChallengeItem({
           <Icon size={16} style={{ color }} aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-1.5">
+          <div className="flex flex-wrap items-start gap-1.5">
             <p className="break-words sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
               {title}
             </p>
@@ -188,7 +188,7 @@ function ChallengeItem({
             )}
           </div>
           <p className="mt-0.5 sr-text-caption text-[var(--sr-text-muted)]">
-            {programLabel(challenge.program)} · {hasEnded ? pl.challengeEnded : pl.challengeEndsIn(daysLeft)}
+            {programLabel(challenge.program)} · {hasEnded ? pl.challengeEnded : pl.challengeEndsInShort(daysLeft)}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1 text-right">

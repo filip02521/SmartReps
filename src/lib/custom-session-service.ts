@@ -131,6 +131,12 @@ export async function createCustomSession(params: {
     setResults: [],
     exerciseLogs: [],
   }
+  if (!useAppStore.getState().hasCompletedFirstWorkout) {
+    track(AnalyticsEvents.firstWorkoutStarted, {
+      program: 'custom',
+      type: 'custom',
+    })
+  }
   return session
 }
 

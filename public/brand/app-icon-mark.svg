@@ -1,12 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <defs>
-    <linearGradient id="sr-aim-grad" x1="40" y1="40" x2="472" y2="472" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#6366F1"/>
-      <stop offset="0.55" stop-color="#6366F1"/>
-      <stop offset="1" stop-color="#22D3EE"/>
-    </linearGradient>
-  </defs>
-  <rect x="104" y="296" width="72" height="64" rx="24" fill="url(#sr-aim-grad)"/>
-  <rect x="220" y="232" width="72" height="128" rx="24" fill="url(#sr-aim-grad)"/>
-  <rect x="336" y="152" width="72" height="208" rx="24" fill="url(#sr-aim-grad)"/>
+  <rect x="104" y="296" width="72" height="64" rx="24" fill="#FFFFFF"/>
+  <rect x="220" y="232" width="72" height="128" rx="24" fill="#FFFFFF"/>
+  <rect x="336" y="152" width="72" height="208" rx="24" fill="#FFFFFF"/>
 </svg>

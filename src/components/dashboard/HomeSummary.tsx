@@ -1,10 +1,6 @@
-import { ChevronDown, Play } from 'lucide-react'
-import type { HomeLoadResult, QuickCta } from '@/lib/home-summary'
+import type { HomeLoadResult } from '@/lib/home-summary'
 import { getGreetingKey } from '@/lib/home-summary'
-import { Button } from '@/components/ui/Button'
-import { MetricStrip } from '@/components/ui/MetricStrip'
 import { UserPlanBadge } from '@/components/pro/UserPlanBadge'
-import { ActivityInsightsPanel } from '@/components/dashboard/ActivityInsightsPanel'
 import { pl } from '@/i18n/pl'
 
 type Summary = HomeLoadResult['summary']
@@ -12,17 +8,11 @@ type Summary = HomeLoadResult['summary']
 export function HomeStatusHeader({
   summary,
   displayName,
-  onQuickCta,
 }: {
   summary: Summary
   displayName?: string
-  onQuickCta?: (cta: QuickCta) => void
 }) {
   const greetingKey = getGreetingKey()
-  const cta = summary.quickCta
-  // Primary action at the top: when a workout is due today the user should
-  // reach it without scanning cards — the card CTA below stays as fallback.
-  const showCta = !!cta && !!onQuickCta
   return (
     <header className="mb-5">
       {/* Date + greeting — compact eyebrow; plan chip stays glued to the name
@@ -53,66 +43,6 @@ export function HomeStatusHeader({
           {summary.statusSubtitle}
         </p>
       )}
-      {/* Quick CTA — today's action without hunting through cards */}
-      {showCta && cta && onQuickCta && (
-        <Button
-          size="touch"
-          fullWidth
-          className="mt-3"
-          onClick={() => onQuickCta(cta)}
-        >
-          <span className="flex items-center justify-center gap-2">
-            {cta.kind === 'scroll' ? (
-              <ChevronDown size={18} aria-hidden />
-            ) : (
-              <Play size={18} className="fill-current" aria-hidden />
-            )}
-            {cta.label}
-          </span>
-        </Button>
-      )}
     </header>
-  )
-}
-
-/** Activity metrics fragment — renders inside the merged "Twój tydzień"
- *  section on the dashboard, so it has no own header/landmark. */
-export function HomeActivitySection({
-  summary,
-}: {
-  summary: Summary
-}) {
-  return (
-    <>
-      <MetricStrip
-        metrics={[
-          {
-            value: summary.sessions14d,
-            label: pl.homeSessions14d,
-            hint: pl.homeSessions14dHint,
-          },
-          {
-            value: summary.reps14d,
-            label: pl.homeReps14d,
-            hint: pl.homeReps14dHint,
-          },
-          {
-            value: summary.sessions14d > 0 ? Math.round(summary.reps14d / summary.sessions14d) : pl.noValue,
-            label: pl.homeAvgPerSession,
-            hint: pl.homeAvgPerSessionHint,
-          },
-        ]}
-        goal={{
-          label: pl.homeGoalNin14(summary.goalTarget),
-          current: summary.sessions14d,
-          max: summary.goalTarget,
-        }}
-      />
-      <ActivityInsightsPanel
-        insights={summary.activity}
-        compact
-        customLastWorkout={summary.customLastWorkout}
-      />
-    </>
   )
 }

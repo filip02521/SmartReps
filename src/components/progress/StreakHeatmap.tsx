@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Flame } from 'lucide-react'
+import { StreakFlame } from '@/components/dashboard/StreakFlame'
 import { format } from 'date-fns'
 import { dateFnsLocale } from '@/lib/date-locale'
 import { pl } from '@/i18n/pl'
@@ -107,7 +107,7 @@ export function StreakHeatmap({
       <div>
         {showHeader && (
           <div className="flex items-center gap-2">
-            <Flame size={16} className="text-[var(--sr-text-muted)]" />
+            <StreakFlame streak={0} size={16} />
             <p className="sr-text-body-sm font-semibold text-[var(--sr-text-primary)]">
               {pl.streakHeatmapTitle}
             </p>
@@ -126,7 +126,7 @@ export function StreakHeatmap({
         <>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Flame size={compact ? 14 : 16} className="text-[var(--sr-brand-primary)]" />
+              <StreakFlame streak={streak} size={compact ? 14 : 16} />
               <p className={cn('font-semibold text-[var(--sr-text-primary)]', compact ? 'text-xs' : 'sr-text-body-sm')}>
                 {pl.streakHeatmapTitle}
               </p>

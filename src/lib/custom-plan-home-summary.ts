@@ -1,9 +1,14 @@
 import type { CustomPlan, CustomProgramProgress, ExerciseDefinition } from '@/lib/exercise-model'
-import type { CustomPlanResumeInfo } from '@/lib/custom-plan-resume'
-import type { LocalWorkoutSession } from '@/lib/db'
+import { getCustomPlanResumeInfo, type CustomPlanResumeInfo } from '@/lib/custom-plan-resume'
+import { db, type LocalWorkoutSession } from '@/lib/db'
 import type { CustomCycleDayStatus } from '@/lib/custom-plan-cycle-rail'
 import { resolveCustomCycleDayStatus } from '@/lib/custom-plan-cycle-rail'
 import { daysUntilWorkout, isWorkoutAvailable } from '@/lib/progress-engine'
+import { listCustomPlans, listExercises } from '@/lib/custom-plan-service'
+import {
+  countHiddenHomeCustomPlans,
+  resolveHomeCustomPlans,
+} from '@/lib/enabled-custom-plans'
 import { pl } from '@/i18n/pl'
 
 export type CustomPlanHomeBadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'default'
@@ -164,5 +169,50 @@ export function buildCustomPlanHomeCardModel(params: {
     isResting,
     restDaysLeft,
     cycleAttempt: attempt,
+  }
+}
+
+/** Loads home-card models for the user's visible custom plans — the single
+ *  source for the dashboard training section (previously duplicated in
+ *  CustomPlansHomeSection). Accepts preloaded sessions so callers that already
+ *  scanned workoutSessions (e.g. loadHomeDashboard) avoid a query per plan. */
+export async function loadCustomHomeCards(opts: {
+  enabledCustomPlanIds: string[]
+  customPlansFilterExplicit: boolean
+  sessions: LocalWorkoutSession[]
+}): Promise<{
+  models: CustomPlanHomeCardModel[]
+  extraPlanCount: number
+  activePlanCount: number
+}> {
+  const all = (await listCustomPlans()).filter((p) => p.status === 'active')
+  const plans = resolveHomeCustomPlans(all, {
+    enabledCustomPlanIds: opts.enabledCustomPlanIds,
+    customPlansFilterExplicit: opts.customPlansFilterExplicit,
+  })
+  const exercises = await listExercises()
+  const models = await Promise.all(
+    plans.map(async (plan) => {
+      const [progress, resume] = await Promise.all([
+        db.customProgramProgress.where('customPlanId').equals(plan.id).first(),
+        getCustomPlanResumeInfo(plan.id),
+      ])
+      const planSessions = opts.sessions.filter((s) => s.customPlanId === plan.id)
+      return buildCustomPlanHomeCardModel({
+        plan,
+        progress: progress ?? null,
+        resume,
+        exercises,
+        sessions: planSessions,
+      })
+    }),
+  )
+  return {
+    models,
+    extraPlanCount: countHiddenHomeCustomPlans(all, {
+      enabledCustomPlanIds: opts.enabledCustomPlanIds,
+      customPlansFilterExplicit: opts.customPlansFilterExplicit,
+    }),
+    activePlanCount: all.length,
   }
 }

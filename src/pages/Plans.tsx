@@ -141,6 +141,10 @@ export default function PlansPage() {
   const online = useOnline()
   const communityMine = searchParams.get('mine') === '1'
   const importInputRef = useRef<HTMLInputElement>(null)
+  // Generation guard for reloadCustom: concurrent calls (mount, lastSyncedAt
+  // re-run, onSaved) can interleave — without it a stale pre-write snapshot
+  // may land last and hide a just-saved plan (flaky under load).
+  const reloadGenRef = useRef(0)
   const pushups = useMemo(() => allCycles.filter((c) => c.program === 'pushups'), [])
   const pullups = useMemo(() => allCycles.filter((c) => c.program === 'pullups'), [])
   const squats = useMemo(() => allCycles.filter((c) => c.program === 'squats'), [])
@@ -163,6 +167,7 @@ export default function PlansPage() {
   }
 
   async function reloadCustom() {
+    const gen = ++reloadGenRef.current
     setCustomLoading(true)
     setCustomLoadError(null)
     try {
@@ -170,7 +175,7 @@ export default function PlansPage() {
       // (one-time fix for AI-generated plans with mismatched metrics)
       try {
         const repaired = await repairPlanSetMetrics()
-        if (repaired.fixedPlans > 0) {
+        if (repaired.fixedPlans > 0 && gen === reloadGenRef.current) {
           showToast(
             pl.plansRepairedToast(repaired.fixedPlans, repaired.fixedSets),
             'success',
@@ -181,8 +186,11 @@ export default function PlansPage() {
       }
 
       const plans = await listCustomPlans()
+      // A newer reload started while we awaited — its fresher snapshot wins.
+      if (gen !== reloadGenRef.current) return
       setCustomPlans(plans)
       setExercises(await listExercises())
+      if (gen !== reloadGenRef.current) return
       const resumeMap: Record<string, CustomPlanResumeInfo | null> = {}
       const progressMap: Record<string, CustomProgramProgress | null> = {}
       for (const plan of plans.filter((p) => p.status === 'active')) {
@@ -190,12 +198,13 @@ export default function PlansPage() {
         progressMap[plan.id] =
           (await db.customProgramProgress.where('customPlanId').equals(plan.id).first()) ?? null
       }
+      if (gen !== reloadGenRef.current) return
       setCustomResume(resumeMap)
       setCustomProgress(progressMap)
     } catch {
-      setCustomLoadError(pl.errorLoadPlans)
+      if (gen === reloadGenRef.current) setCustomLoadError(pl.errorLoadPlans)
     } finally {
-      setCustomLoading(false)
+      if (gen === reloadGenRef.current) setCustomLoading(false)
     }
   }
 
@@ -545,7 +554,7 @@ export default function PlansPage() {
               {/* No CTAs here — the creation buttons above stay visible and
                   the starter cards below are the actionable content. */}
               <EmptyState
-                icon={<LogoMark size={48} />}
+                icon={<LogoMark size={48} tone="tonal" />}
                 title={pl.myPlansEmpty}
                 description={pl.myPlansHint}
               />
@@ -777,7 +786,7 @@ export default function PlansPage() {
 
       {tab === 'programs' &&
         (allCycles.length === 0 ? (
-          <EmptyState icon={<LogoMark size={48} />} title={pl.noPlans} />
+          <EmptyState icon={<LogoMark size={48} tone="tonal" />} title={pl.noPlans} />
         ) : (
           <>
             {/* One block per program — the browser header carries the status

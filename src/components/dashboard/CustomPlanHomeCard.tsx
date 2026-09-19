@@ -5,7 +5,7 @@ import { Sheet } from '@/components/ui/Sheet'
 import { getOrCreateCustomProgress, getCustomPlan, setCustomPlanPaused, listExercises } from '@/lib/custom-plan-service'
 import { getCustomPlanDisplayDay } from '@/lib/custom-plan-home-summary'
 import { CustomWorkoutPreviewSheet } from '@/components/workout/WorkoutPreviewSheet'
-import { CustomPlanCycleRail } from '@/components/progress/CustomPlanCycleRail'
+import { CustomPlanMapSheet } from '@/components/dashboard/CustomPlanMapSheet'
 import type { CustomPlan, ExerciseDefinition, PlanDay } from '@/lib/exercise-model'
 import type { CustomPlanHomeCardModel, CustomPlanCycleDay } from '@/lib/custom-plan-home-summary'
 import type { CustomCycleDayStatus } from '@/lib/custom-plan-cycle-rail'
@@ -80,13 +80,7 @@ export function CustomPlanHomeCard({
     dayNumber: number
     exercises: Map<string, ExerciseDefinition>
   } | null>(null)
-  const [planMap, setPlanMap] = useState<{
-    plan: CustomPlan
-    progress: import('@/lib/exercise-model').CustomProgramProgress | null
-    exercises: Map<string, ExerciseDefinition>
-    sessions: import('@/lib/db').LocalWorkoutSession[]
-  } | null>(null)
-  const [planMapDay, setPlanMapDay] = useState<number | null>(null)
+  const [planMapOpen, setPlanMapOpen] = useState(false)
 
   async function openPreview() {
     const plan = await getCustomPlan(model.planId)
@@ -103,24 +97,6 @@ export function CustomPlanHomeCard({
   function handleStart() {
     setPreview(null)
     navigate(`/workout/custom/${model.planId}`)
-  }
-
-  async function openPlanMap() {
-    const plan = await getCustomPlan(model.planId)
-    if (!plan) return
-    // Read-only — don't create progress just by viewing the map.
-    const { db } = await import('@/lib/db')
-    const progress = await db.customProgramProgress
-      .where('customPlanId')
-      .equals(model.planId)
-      .first()
-    const planSessions = await db.workoutSessions
-      .where('customPlanId')
-      .equals(model.planId)
-      .toArray()
-    const exList = await listExercises()
-    const exMap = new Map(exList.map((e) => [e.id, e]))
-    setPlanMap({ plan, progress: progress ?? null, exercises: exMap, sessions: planSessions })
   }
 
   return (
@@ -148,7 +124,7 @@ export function CustomPlanHomeCard({
             className="justify-start px-3"
             onClick={() => {
               setShowMenu(false)
-              void openPlanMap()
+              setPlanMapOpen(true)
             }}
           >
             {pl.menuPlanMap}
@@ -271,63 +247,12 @@ export function CustomPlanHomeCard({
         />
       )}
 
-      {planMap && (
-        <Sheet
-          open
-          onClose={() => {
-            setPlanMap(null)
-            setPlanMapDay(null)
-          }}
-          title={planMap.plan.name.trim() || model.planName}
-        >
-          <div className="pb-2">
-            <p className="mb-3 sr-text-body-sm text-[var(--sr-text-secondary)]">
-              {pl.progressCustomPlanDayProgress(
-                getCustomPlanDisplayDay(planMap.plan, planMap.progress),
-                planMap.plan.days.length,
-              )}
-            </p>
-            <CustomPlanCycleRail
-              plan={planMap.plan}
-              progress={planMap.progress}
-              sessions={planMap.sessions}
-              selectedDay={planMapDay ?? getCustomPlanDisplayDay(planMap.plan, planMap.progress)}
-              onDayClick={setPlanMapDay}
-            />
-
-            {(() => {
-              const detailDay = planMapDay ?? getCustomPlanDisplayDay(planMap.plan, planMap.progress)
-              const day = planMap.plan.days.find((d) => d.dayNumber === detailDay)
-              if (!day) return null
-              return (
-                <div className="mt-4 rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-elevated)] p-3">
-                  <p className="sr-text-overline text-[var(--sr-text-muted)]">
-                    {pl.dayLabel(detailDay)}
-                  </p>
-                  <ul className="mt-2 space-y-1.5">
-                    {day.exercises.map((ex, idx) => {
-                      const def = planMap.exercises.get(ex.exerciseId)
-                      const name = def?.name ?? pl.progressCustomExerciseFallback
-                      return (
-                        <li
-                          key={`${ex.exerciseId}-${idx}`}
-                          className="flex items-baseline justify-between gap-2"
-                        >
-                          <span className="min-w-0 break-words sr-text-body-sm text-[var(--sr-text-primary)]">
-                            {name}
-                          </span>
-                          <span className="shrink-0 sr-text-caption text-[var(--sr-text-muted)]">
-                            {pl.progressCustomDaySets(ex.sets.length)}
-                          </span>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              )
-            })()}
-          </div>
-        </Sheet>
+      {planMapOpen && (
+        <CustomPlanMapSheet
+          planId={model.planId}
+          fallbackTitle={model.planName}
+          onClose={() => setPlanMapOpen(false)}
+        />
       )}
     </AccentCard>
   )

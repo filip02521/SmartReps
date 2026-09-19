@@ -1,4 +1,4 @@
-import { db, type LocalProgramProgress, type ActiveWorkoutState } from '@/lib/db'
+import { db, type LocalProgramProgress, type ActiveWorkoutState, type LocalWorkoutSession } from '@/lib/db'
 import { getCycleById } from '@/data/plans'
 import type { Program, SetTarget } from '@/data/plans/types'
 import { getCompletedDaysInCycle } from '@/lib/cycle-progress'
@@ -17,6 +17,14 @@ import { currentLang } from '@/i18n'
 import { buildActivityInsights, daysSinceLastPassedSession, type ActivityInsights } from '@/lib/weekly-recap'
 import { isCustomWorkoutSession } from '@/lib/custom-session-utils'
 import { detectPlateau } from '@/lib/ai/proactive-coach'
+import {
+  loadCustomHomeCards,
+  type CustomPlanHomeCardModel,
+} from '@/lib/custom-plan-home-summary'
+import {
+  getActiveFreeWorkoutSession,
+  isFreeWorkoutSession,
+} from '@/lib/free-workout-service'
 
 export type ProgramBucket =
   | 'resume_stale'
@@ -131,7 +139,6 @@ export type HomeLoadResult = {
     goalTarget: number
     statusHeadline: string
     statusSubtitle?: string
-    quickCta?: QuickCta
     allResting: boolean
     dateLabel: string
     programs: HomeProgramBar[]
@@ -141,6 +148,24 @@ export type HomeLoadResult = {
   cards: ProgramCardModel[]
   tip: HomeTipModel | null
   tipSuppression: TipSuppression
+  training: HomeTraining
+}
+
+/** The single "what now" hero on the dashboard, resolved across all training
+ *  sources. `builtin`/`custom` render the full card; `rest` renders the rest
+ *  hero; `free` renders the free-workout hero (idle or resume). */
+export type HomeNextAction =
+  | { kind: 'builtin'; card: ProgramCardModel }
+  | { kind: 'custom'; model: CustomPlanHomeCardModel }
+  | { kind: 'rest'; card: ProgramCardModel }
+  | { kind: 'free' }
+
+export type HomeTraining = {
+  next: HomeNextAction
+  customCards: CustomPlanHomeCardModel[]
+  extraPlanCount: number
+  activePlanCount: number
+  freeSession: LocalWorkoutSession | null
 }
 
 const BUCKET_ORDER: ProgramBucket[] = [
@@ -274,18 +299,9 @@ export function isAllResting(cards: ProgramCardModel[]): boolean {
   )
 }
 
-export type QuickCtaKind = 'workout' | 'workout-force' | 'setup' | 'scroll'
-
-export type QuickCta = {
-  label: string
-  program: Program
-  kind: QuickCtaKind
-}
-
 export type HomeStatusDisplay = {
   headline: string
   subtitle?: string
-  quickCta?: QuickCta
 }
 
 export function buildStatusDisplay(cards: ProgramCardModel[]): HomeStatusDisplay {
@@ -319,41 +335,18 @@ export function buildStatusDisplay(cards: ProgramCardModel[]): HomeStatusDisplay
       return {
         headline: pl.homeStatusResumeHeadline(programLabel),
         subtitle: pl.homeStatusResumeAndReadySubtitle(otherLabel),
-        quickCta: resumeCard
-          ? {
-              label: isStaleOnly
-                ? pl.homeQuickCtaScroll
-                : resumeCard.resume
-                  ? pl.homeQuickCtaResume(programLabel, resumeCard.resume.set, resumeCard.resume.total)
-                  : pl.homeQuickCtaResume(programLabel, 1, 1),
-              program: resumeCard.program,
-              kind: isStaleOnly ? 'scroll' : 'workout-force',
-            }
-          : undefined,
       }
     }
     if (isStaleOnly) {
       return {
         headline: pl.homeStatusResumeHeadline(programLabel),
         subtitle: pl.homeStatusResumeStaleSubtitle,
-        quickCta: resumeCard
-          ? { label: pl.homeQuickCtaScroll, program: resumeCard.program, kind: 'scroll' }
-          : undefined,
       }
     }
     return {
       headline: pl.homeStatusResumeHeadline(programLabel),
       subtitle: resumeCard?.resume
         ? pl.homeStatusResumeSubtitle(resumeCard.resume.set, resumeCard.resume.total)
-        : undefined,
-      quickCta: resumeCard
-        ? {
-            label: resumeCard.resume
-              ? pl.homeQuickCtaResume(programLabel, resumeCard.resume.set, resumeCard.resume.total)
-              : pl.homeQuickCtaResume(programLabel, 1, 1),
-            program: resumeCard.program,
-            kind: 'workout-force',
-          }
         : undefined,
     }
   }
@@ -362,9 +355,6 @@ export function buildStatusDisplay(cards: ProgramCardModel[]): HomeStatusDisplay
     return {
       headline: pl.homeStatusTestReadyHeadline,
       subtitle: testCard ? pl.homeStatusTestReadySubtitle(testCard.label) : undefined,
-      quickCta: testCard
-        ? { label: pl.homeQuickCtaTest(testCard.label), program: testCard.program, kind: 'setup' }
-        : undefined,
     }
   }
   if (testRest) {
@@ -381,13 +371,6 @@ export function buildStatusDisplay(cards: ProgramCardModel[]): HomeStatusDisplay
     return {
       headline: pl.homeStatusReadyHeadline(day, total),
       subtitle: readyCard ? pl.homeStatusReadySubtitle(readyCard.label) : undefined,
-      quickCta: readyCard
-        ? {
-            label: pl.homeQuickCtaStart(readyCard.label, day),
-            program: readyCard.program,
-            kind: 'workout',
-          }
-        : undefined,
     }
   }
   if (allResting) {
@@ -404,19 +387,6 @@ export function buildStatusDisplay(cards: ProgramCardModel[]): HomeStatusDisplay
     }
     const next = soonest?.stats?.nextWorkoutLabel ?? pl.today
 
-    // If all resting but user can train anyway (force), offer it for the soonest program.
-    if (soonest) {
-      return {
-        headline: pl.homeStatusRestHeadline,
-        subtitle: pl.homeStatusRestSubtitle(next),
-        quickCta: {
-          label: pl.homeQuickCtaTrainAnyway(soonest.label),
-          program: soonest.program,
-          kind: 'workout-force',
-        },
-      }
-    }
-
     return {
       headline: pl.homeStatusRestHeadline,
       subtitle: pl.homeStatusRestSubtitle(next),
@@ -424,13 +394,12 @@ export function buildStatusDisplay(cards: ProgramCardModel[]): HomeStatusDisplay
   }
   if (allPaused) return { headline: pl.homeStatusAllPaused, subtitle: pl.homeStatusAllPausedSubtitle }
   if (allUnconfigured) {
-    const firstCard = cards[0]
+    // Single program waiting for setup → name it in the headline so the
+    // status reads "Skonfiguruj Pompki" instead of a generic prompt.
+    const only = cards.length === 1 ? cards[0] : null
     return {
-      headline: pl.homeStatusSetupHeadline,
+      headline: only ? pl.setupNextProgram(only.label) : pl.homeStatusSetupHeadline,
       subtitle: pl.homeStatusSetupSubtitle,
-      quickCta: firstCard
-        ? { label: pl.homeQuickCtaSetup(firstCard.label), program: firstCard.program, kind: 'setup' }
-        : undefined,
     }
   }
   if (setupOnly) return { headline: pl.homeStatusSetupMixedHeadline }
@@ -682,13 +651,73 @@ async function loadCustomLastWorkoutInsight(): Promise<{
         new Date(a.completedAt ?? a.startedAt).getTime(),
     )
   const last = custom[0]
-  if (!last?.customPlanId) return null
-  const plan = await db.customPlans.get(last.customPlanId)
+  if (!last) return null
+  const plan = last.customPlanId ? await db.customPlans.get(last.customPlanId) : undefined
   const when = new Date(last.completedAt ?? last.startedAt)
   return {
-    planName: plan?.name?.trim() || pl.planDash,
+    // customPlanId-less sessions are free (ad-hoc) workouts — label them as such
+    // instead of dropping the insight when the latest custom session is a free one.
+    planName: plan?.name?.trim() || (last.customPlanId ? pl.planDash : pl.freeWorkoutTitle),
     whenLabel: when.toLocaleDateString(currentLang() === 'en' ? 'en-US' : 'pl-PL', { day: 'numeric', month: 'short' }),
   }
+}
+
+/** Picks the single "next action" hero for the dashboard across all training
+ *  sources — freshest resumable session (builtin/custom/free) → scheduled
+ *  builtin day → trainable custom plan → builtin setup → rest → free workout. */
+export function resolveNextAction(
+  cards: ProgramCardModel[],
+  customCards: CustomPlanHomeCardModel[],
+  inProgressSessions: LocalWorkoutSession[],
+): HomeNextAction {
+  // 1. Freshest resumable session wins — whichever workout is live right now.
+  // Sorted defensively: the loader already sorts, but the priority contract
+  // must hold for any caller.
+  const sortedSessions = [...inProgressSessions].sort(
+    (a, b) =>
+      new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+  )
+  for (const s of sortedSessions) {
+    if (isFreeWorkoutSession(s)) return { kind: 'free' }
+    if (s.customPlanId) {
+      const model = customCards.find((m) => m.planId === s.customPlanId && m.resume)
+      if (model) return { kind: 'custom', model }
+      continue
+    }
+    const card = cards.find((c) => c.program === s.program && c.resume)
+    if (card) return { kind: 'builtin', card }
+  }
+
+  // 2. Scheduled builtin day (due today or a pending placement test).
+  const scheduled = cards.find(
+    (c) => c.bucket === 'test_pending_ready' || c.bucket === 'ready',
+  )
+  if (scheduled) return { kind: 'builtin', card: scheduled }
+
+  // 3. A custom plan that can be trained right now.
+  const trainable = customCards.find((m) => !m.isPaused && m.ctaAction === 'train')
+  if (trainable) return { kind: 'custom', model: trainable }
+
+  // 4. An enabled program that still needs setup.
+  const unconfigured = cards.find((c) => c.bucket === 'unconfigured')
+  if (unconfigured) return { kind: 'builtin', card: unconfigured }
+
+  // 5. Everything is resting — show the soonest return.
+  const resting = cards
+    .filter(
+      (c) =>
+        c.progress?.nextWorkoutAfter &&
+        (c.bucket === 'resting' || c.bucket === 'test_pending_rest'),
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.progress!.nextWorkoutAfter!).getTime() -
+        new Date(b.progress!.nextWorkoutAfter!).getTime(),
+    )[0]
+  if (resting) return { kind: 'rest', card: resting }
+
+  // 6. Nothing scheduled — free workout is always actionable.
+  return { kind: 'free' }
 }
 
 export async function loadHomeDashboard(
@@ -700,6 +729,8 @@ export async function loadHomeDashboard(
     dismissedHabitMetTip?: boolean
     hasCompletedFirstWorkout?: boolean
     welcomeCardDismissed?: boolean
+    enabledCustomPlanIds?: string[]
+    customPlansFilterExplicit?: boolean
   },
 ): Promise<HomeLoadResult> {
   const allSessions = await db.workoutSessions.toArray()
@@ -909,6 +940,23 @@ export async function loadHomeDashboard(
   const status = buildStatusDisplay(cards)
   const customLastWorkout = await loadCustomLastWorkoutInsight()
 
+  // Training zone — custom plan cards + free session share the loader so the
+  // hero resolver sees every source at once (previously each section loaded
+  // independently and the top CTA only knew about builtin programs).
+  const custom = await loadCustomHomeCards({
+    enabledCustomPlanIds: opts?.enabledCustomPlanIds ?? [],
+    customPlansFilterExplicit: opts?.customPlansFilterExplicit ?? false,
+    sessions: allSessions,
+  })
+  const freeSession = await getActiveFreeWorkoutSession()
+  const inProgressSessions = allSessions
+    .filter((s) => s.status === 'in_progress')
+    .sort(
+      (a, b) =>
+        new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+    )
+  const next = resolveNextAction(cards, custom.models, inProgressSessions)
+
   return {
     summary: {
       sessions14d,
@@ -918,7 +966,6 @@ export async function loadHomeDashboard(
       goalTarget,
       statusHeadline: status.headline,
       statusSubtitle: status.subtitle,
-      quickCta: status.quickCta,
       allResting: isAllResting(cards),
       dateLabel: formatHomeDate(),
       programs,
@@ -928,5 +975,12 @@ export async function loadHomeDashboard(
     cards,
     tip,
     tipSuppression: tipSuppressionFrom(tip),
+    training: {
+      next,
+      customCards: custom.models,
+      extraPlanCount: custom.extraPlanCount,
+      activePlanCount: custom.activePlanCount,
+      freeSession,
+    },
   }
 }

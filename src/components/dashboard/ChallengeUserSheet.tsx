@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Dumbbell, Flame, Loader2, Zap } from 'lucide-react'
+import { Dumbbell, Loader2, Zap } from 'lucide-react'
+import { StreakFlame } from '@/components/dashboard/StreakFlame'
 import { Sheet } from '@/components/ui/Sheet'
 import { Avatar, FollowButton } from '@/components/follow/FollowManager'
 import { ProfileTitleChip } from '@/components/achievements/ProfileTitleChip'
@@ -104,11 +105,7 @@ export function ChallengeUserSheet({
           </span>
           {profile.current_streak_weeks > 0 && (
             <span className="flex items-center gap-1 tabular-nums">
-              <Flame
-                size={11}
-                aria-hidden
-                className="text-[var(--sr-warning)]"
-              />
+              <StreakFlame streak={profile.current_streak_weeks} size={11} />
               {profile.current_streak_weeks}
               {pl.followStatsWeeksShort}
             </span>

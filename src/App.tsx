@@ -12,6 +12,8 @@ import WorkoutPage from '@/pages/Workout'
 import SessionSummary from '@/pages/SessionSummary'
 import CustomWorkoutPage from '@/pages/CustomWorkout'
 import CustomSessionSummary from '@/pages/CustomSessionSummary'
+import FreeWorkoutPage from '@/pages/FreeWorkout'
+import FreeWorkoutSummary from '@/pages/FreeWorkoutSummary'
 import Onboarding from '@/pages/setup/Onboarding'
 import MaxTest from '@/pages/setup/MaxTest'
 import CyclePicker from '@/pages/setup/CyclePicker'
@@ -192,6 +194,8 @@ export default function App() {
           </Route>
           <Route path="/workout/custom/:planId" element={<EagerPage><CustomWorkoutPage /></EagerPage>} />
           <Route path="/workout/custom/:planId/summary" element={<EagerPage><CustomSessionSummary /></EagerPage>} />
+          <Route path="/workout/free" element={<EagerPage><FreeWorkoutPage /></EagerPage>} />
+          <Route path="/workout/free/summary" element={<EagerPage><FreeWorkoutSummary /></EagerPage>} />
         </Route>
         <Route path="/not-found" element={<EagerPage><NotFound /></EagerPage>} />
         {import.meta.env.DEV && (

@@ -30,7 +30,7 @@ import {
   getLastCompletedSession,
   hasAnyCompletedSessions,
 } from '@/lib/session-service'
-import { trackError } from '@/lib/analytics'
+import { track, trackError, AnalyticsEvents } from '@/lib/analytics'
 import { getRestNextSetLabel } from '@/lib/workout-rest-label'
 import { getSmartRestSuggestion } from '@/lib/ai/proactive-coach'
 import { getProgramProgress, reconcileActiveWorkout, clearActiveWorkout } from '@/lib/program-service'
@@ -350,6 +350,12 @@ export default function WorkoutPage() {
           dayNumber: prog.currentDay,
           cycleAttempt: prog.cycleAttempt,
         })
+        if (!useAppStore.getState().hasCompletedFirstWorkout) {
+          track(AnalyticsEvents.firstWorkoutStarted, {
+            program,
+            type: 'builtin',
+          })
+        }
       }
 
       if (generation !== initGenerationRef.current) return

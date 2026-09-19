@@ -9,53 +9,46 @@ mkdirSync(brand, { recursive: true })
 
 const markSvg = readFileSync(join(brand, 'app-icon-mark.svg'))
 const fullSvg = readFileSync(join(brand, 'app-icon.svg'))
+const maskableSvg = readFileSync(join(brand, 'app-icon-maskable.svg'))
 const faviconSvg = readFileSync(join(brand, 'favicon.svg'))
 
-/** Matches PWA manifest background_color */
-const APP_BG = { r: 9, g: 9, b: 11, alpha: 1 }
+async function fromSvg(svg, size, name) {
+  await sharp(svg).resize(size, size).png().toFile(join(brand, name))
+  console.log(`Generated ${name}`)
+}
 
-async function compositeMark(size, markScale, bg = APP_BG) {
-  const markSize = Math.round(size * markScale)
+/** White-bars silhouette on transparent — Android tints notification icons. */
+async function notificationMark(size, name) {
+  const markSize = Math.round(size * 0.62)
   const mark = await sharp(markSvg).resize(markSize, markSize).png().toBuffer()
-  return sharp({
+  await sharp({
     create: {
       width: size,
       height: size,
       channels: 4,
-      background: bg,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
     },
-  }).composite([{ input: mark, gravity: 'center' }])
-}
-
-async function fromFullSvg(size, name) {
-  await sharp(fullSvg).resize(size, size).png().toFile(join(brand, name))
+  })
+    .composite([{ input: mark, gravity: 'center' }])
+    .png()
+    .toFile(join(brand, name))
   console.log(`Generated ${name}`)
 }
 
-async function fromFaviconSvg(size, name) {
-  await sharp(faviconSvg).resize(size, size).png().toFile(join(brand, name))
-  console.log(`Generated ${name}`)
-}
+// Home screen / PWA — the brand tile itself (gradient + white bars),
+// same mark as favicon.svg, LogoMark, and the splash screen.
+await fromSvg(fullSvg, 512, 'icon-512.png')
+await fromSvg(fullSvg, 192, 'icon-192.png')
 
-async function fromMark(size, name, markScale) {
-  const pipeline = await compositeMark(size, markScale)
-  await pipeline.png().toFile(join(brand, name))
-  console.log(`Generated ${name}`)
-}
+// Maskable — full-bleed gradient, bars centered in the 80% safe zone.
+await fromSvg(maskableSvg, 512, 'icon-512-maskable.png')
 
-// Home screen / PWA — dark canvas, mark ~58% for legibility at 48px+
-await fromMark(512, 'icon-512.png', 0.58)
-await fromMark(192, 'icon-192.png', 0.58)
+// Apple touch — full-bleed; iOS applies its own squircle mask.
+await fromSvg(maskableSvg, 180, 'apple-touch-icon.png')
 
-// Maskable — mark ~50% fits Android/iOS safe zone (central 80%)
-await fromMark(512, 'icon-512-maskable.png', 0.5)
+// Favicons — match favicon.svg (gradient tile + white bars) for browser tabs.
+await fromSvg(faviconSvg, 48, 'favicon-48.png')
+await fromSvg(faviconSvg, 32, 'favicon-32.png')
 
-// Apple touch — full SVG with rounded rect (dark tile + gradient bars)
-await fromFullSvg(180, 'apple-touch-icon.png')
-
-// Favicons — match favicon.svg (gradient tile + white bars) for browser tabs
-await fromFaviconSvg(48, 'favicon-48.png')
-await fromFaviconSvg(32, 'favicon-32.png')
-
-// Web Push badge — simplified mark on dark (monochrome-ish for small badge)
-await fromMark(192, 'notification-icon.png', 0.62)
+// Web Push badge — white bars silhouette on transparent.
+await notificationMark(192, 'notification-icon.png')

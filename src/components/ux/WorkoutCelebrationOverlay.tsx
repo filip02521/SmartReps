@@ -3,6 +3,7 @@ import { CheckCircle2, Flame, Trophy, Share2 } from 'lucide-react'
 import { pl } from '@/i18n/pl'
 import { cn } from '@/lib/utils'
 import { ConfettiCanvas } from '@/components/ux/ConfettiCanvas'
+import { StreakFlame, streakFlameColor, streakFlameTier } from '@/components/dashboard/StreakFlame'
 import { TrophyShape, type TrophyTier, type TrophyShapeKind } from '@/components/achievements/TrophyShape'
 import { trophyFullLabel } from '@/lib/achievements/copy'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
@@ -15,14 +16,6 @@ type StatItem = {
   label: string
   /** Animated count-up from 0 to value. */
   animate?: boolean
-}
-
-/** Streak badge tiers for visual intensity. */
-function streakBadgeTier(weeks: number): 'none' | 'warm' | 'hot' | 'legendary' {
-  if (weeks >= 26) return 'legendary'
-  if (weeks >= 12) return 'hot'
-  if (weeks >= 4) return 'warm'
-  return 'none'
 }
 
 /**
@@ -283,36 +276,32 @@ export function WorkoutCelebrationOverlay({
                 : undefined
             }
           >
-            {/* Streak badge — flame with count-up weeks */}
+            {/* Streak badge — flame with count-up weeks; heat tier drives
+                the shared flame color/glow so it matches the dashboard. */}
             {streakIncreased && streakWeeks > 0 && (
               <div
                 className={cn(
                   'flex items-center gap-2 rounded-full px-4 py-2',
-                  streakMilestoneReached
-                    ? 'bg-[color-mix(in_srgb,var(--sr-warning)_20%,transparent)] ring-2 ring-[color-mix(in_srgb,var(--sr-warning)_40%,transparent)]'
-                    : streakBadgeTier(streakWeeks) === 'legendary'
-                      ? 'bg-[color-mix(in_srgb,var(--sr-warning)_18%,transparent)]'
-                      : streakBadgeTier(streakWeeks) === 'hot'
-                        ? 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_18%,transparent)]'
-                        : 'bg-[color-mix(in_srgb,var(--sr-brand-primary)_12%,transparent)]',
+                  streakMilestoneReached &&
+                    'ring-2 ring-[color-mix(in_srgb,var(--sr-warning)_40%,transparent)]',
                 )}
+                style={{
+                  backgroundColor: streakMilestoneReached
+                    ? 'color-mix(in srgb, var(--sr-warning) 20%, transparent)'
+                    : `color-mix(in srgb, ${streakFlameColor(streakWeeks)} ${streakFlameTier(streakWeeks) >= 5 ? 18 : 12}%, transparent)`,
+                  color: streakMilestoneReached
+                    ? 'var(--sr-warning)'
+                    : streakFlameColor(streakWeeks),
+                }}
               >
-                <Flame
+                <StreakFlame
+                  streak={streakWeeks}
                   size={18}
-                  className={cn(
-                    streakMilestoneReached || streakBadgeTier(streakWeeks) === 'legendary'
-                      ? 'text-[var(--sr-warning)] sr-flame-pulse'
-                      : 'text-[var(--sr-brand-primary)]',
-                  )}
+                  burst
+                  embers={!!streakMilestoneReached}
+                  sparkle={!!streakMilestoneReached}
                 />
-                <span
-                  className={cn(
-                    'sr-text-body-sm font-semibold tabular-nums',
-                    streakMilestoneReached || streakBadgeTier(streakWeeks) === 'legendary'
-                      ? 'text-[var(--sr-warning)]'
-                      : 'text-[var(--sr-brand-primary)]',
-                  )}
-                >
+                <span className="sr-text-body-sm font-semibold tabular-nums">
                   {streakMilestoneReached
                     ? pl.celebrationStreakMilestone(streakWeeks)
                     : pl.celebrationStreakBadge(streakWeeks)}

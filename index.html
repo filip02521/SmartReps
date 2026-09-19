@@ -117,10 +117,13 @@
         html:not([data-theme]) #sr-boot-splash { background: #fafafa; }
       }
       html[data-theme='light'] #sr-boot-splash { background: #fafafa; }
+      /* Boot splash mirrors the React SplashScreen exactly (mark 88px +
+         wordmark 22px, same spacing) so the handoff is invisible — the React
+         layer only fades in the tagline + loader below. */
       #sr-boot-splash {
         position: fixed; inset: 0; z-index: 9999;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        gap: 12px;
+        gap: 24px;
         background: #09090b;
         transition: opacity 0.3s ease;
       }
@@ -129,7 +132,7 @@
         animation: sr-boot-breathe 2.4s ease-in-out infinite;
       }
       #sr-boot-splash .wordmark {
-        font: 700 18px 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        font: 400 22px 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
         letter-spacing: -0.02em;
         color: #fafafa;
       }
@@ -138,6 +141,7 @@
         html:not([data-theme]) #sr-boot-splash .wordmark { color: #18181b; }
       }
       #sr-boot-splash .wordmark .accent {
+        font-weight: 700;
         background: linear-gradient(135deg, #6366f1, #22d3ee);
         -webkit-background-clip: text; background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -146,11 +150,14 @@
         0%, 100% { transform: scale(1); opacity: 1; }
         50% { transform: scale(1.03); opacity: 0.95; }
       }
+      @media (prefers-reduced-motion: reduce) {
+        #sr-boot-splash .mark { animation: none; }
+      }
     </style>
   </head>
   <body>
     <div id="sr-boot-splash" aria-hidden="true">
-      <svg class="mark" width="56" height="56" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg class="mark" width="88" height="88" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="boot-grad" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
             <stop stop-color="#6366F1"/>
