@@ -72,7 +72,7 @@ export function ProfileHero({
 
   return (
     <div
-      className="relative overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] p-4"
+      className="relative overflow-hidden rounded-[var(--sr-radius-lg)] border border-[var(--sr-border-subtle)] px-4 pb-4 pt-6"
       style={{
         backgroundImage: `linear-gradient(
           135deg,
@@ -82,10 +82,27 @@ export function ProfileHero({
         )`,
       }}
     >
-      <div className="flex items-start gap-3.5">
+      {/* Settings — gear floats in the card corner so the identity block
+          can stay centered. px-10 on the stack below keeps long names
+          clear of the 48px hit target. */}
+      <button
+        type="button"
+        onClick={onOpenSettings}
+        className={cn(
+          FOCUS_RING,
+          'absolute right-2 top-2 flex min-h-12 min-w-12 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
+        )}
+        aria-label={pl.profileHeroSettings}
+      >
+        <Settings size={20} />
+      </button>
+
+      {/* Identity — centered stack: avatar → name+plan → title chip →
+          email → status line. Reads as a profile, not a settings row. */}
+      <div className="flex flex-col items-center px-8 text-center">
         {/* Avatar — gradient circle with initials */}
         <div
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-[var(--sr-avatar-text)]"
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-2xl font-bold text-[var(--sr-avatar-text)]"
           style={{
             background: 'var(--sr-brand-gradient)',
             boxShadow: 'var(--sr-shadow-glow)',
@@ -95,96 +112,82 @@ export function ProfileHero({
           {initials}
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h1 className="min-w-0 break-words text-lg font-bold leading-tight text-[var(--sr-text-primary)]">
-              {title}
-            </h1>
-            <UserPlanBadge />
-          </div>
-          {/* Title chip — the same public-facing label followers see; tap
-              opens the picker. Ghost CTA when nothing is selected yet. */}
-          {profileTitle ? (
-            <button
-              type="button"
-              onClick={onEditTitle}
-              aria-label={pl.profileTitleChangeAria(profileTitle)}
-              className={cn(
-                FOCUS_RING,
-                'group/title mt-1 inline-flex items-center gap-1 rounded-[var(--sr-radius-sm)] px-1 py-0.5 -mx-1 transition-colors hover:bg-[var(--sr-bg-surface)]',
-              )}
-            >
-              <ProfileTitleChip achievementId={profileTitleId} />
-              <Pencil
-                size={10}
-                aria-hidden
-                className="shrink-0 text-[var(--sr-text-muted)] opacity-60 transition-opacity group-hover/title:opacity-100 group-focus-visible/title:opacity-100"
-              />
-            </button>
-          ) : canPickTitle ? (
-            <button
-              type="button"
-              onClick={onEditTitle}
-              className={cn(
-                FOCUS_RING,
-                'mt-1.5 inline-flex min-h-8 items-center gap-1.5 rounded-full border border-dashed border-[var(--sr-border-subtle)] px-2.5 py-0.5 sr-text-caption font-medium text-[var(--sr-text-muted)] transition-colors hover:border-[var(--sr-brand-primary)] hover:text-[var(--sr-brand-primary)]',
-              )}
-            >
-              <Crown size={11} aria-hidden className="shrink-0" />
-              {pl.profileTitleSetCta}
-            </button>
-          ) : null}
-          {email && displayName && (
-            <p className="mt-0.5 break-words text-sm text-[var(--sr-text-secondary)]">
-              {email}
-            </p>
-          )}
-          {/* Status line — one muted caption instead of stacked pill badges.
-              Priority: offline > local mode > public/private profile. The
-              connected state needs no marker — email + sync CTA show it. */}
-          {(!online || !connected || showFollowStats) && (
-            <p className="mt-1.5 flex items-center gap-1.5 sr-text-caption text-[var(--sr-text-muted)]">
-              {!online ? (
-                pl.offline
-              ) : !connected ? (
-                pl.profileHeroLocal
-              ) : showFollowStats ? (
-                <>
-                  {isPublic ? <Globe size={11} aria-hidden /> : <Lock size={11} aria-hidden />}
-                  {isPublic ? pl.profileHeroPublic : pl.profileHeroPrivate}
-                </>
-              ) : null}
-            </p>
-          )}
+        <div className="mt-2.5 flex max-w-full items-center justify-center gap-2">
+          <h1 className="min-w-0 break-words text-lg font-bold leading-tight text-[var(--sr-text-primary)]">
+            {title}
+          </h1>
+          <UserPlanBadge />
         </div>
-
-        {/* Settings — gear icon */}
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          className={cn(
-            FOCUS_RING,
-            'flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-[var(--sr-radius-md)] text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-surface)] hover:text-[var(--sr-text-primary)] active:scale-95',
-          )}
-          aria-label={pl.profileHeroSettings}
-        >
-          <Settings size={22} />
-        </button>
+        {/* Title chip — the same public-facing label followers see; tap
+            opens the picker. Ghost CTA when nothing is selected yet. */}
+        {profileTitle ? (
+          <button
+            type="button"
+            onClick={onEditTitle}
+            aria-label={pl.profileTitleChangeAria(profileTitle)}
+            className={cn(
+              FOCUS_RING,
+              'group/title mt-1.5 inline-flex items-center gap-1 rounded-[var(--sr-radius-sm)] px-1 py-0.5 transition-colors hover:bg-[var(--sr-bg-surface)]',
+            )}
+          >
+            <ProfileTitleChip achievementId={profileTitleId} />
+            <Pencil
+              size={10}
+              aria-hidden
+              className="shrink-0 text-[var(--sr-text-muted)] opacity-60 transition-opacity group-hover/title:opacity-100 group-focus-visible/title:opacity-100"
+            />
+          </button>
+        ) : canPickTitle ? (
+          <button
+            type="button"
+            onClick={onEditTitle}
+            className={cn(
+              FOCUS_RING,
+              'mt-2 inline-flex min-h-8 items-center gap-1.5 rounded-full border border-dashed border-[var(--sr-border-subtle)] px-2.5 py-0.5 sr-text-caption font-medium text-[var(--sr-text-muted)] transition-colors hover:border-[var(--sr-brand-primary)] hover:text-[var(--sr-brand-primary)]',
+            )}
+          >
+            <Crown size={11} aria-hidden className="shrink-0" />
+            {pl.profileTitleSetCta}
+          </button>
+        ) : null}
+        {email && displayName && (
+          <p className="mt-1 break-words text-sm text-[var(--sr-text-secondary)]">
+            {email}
+          </p>
+        )}
+        {/* Status line — one muted caption instead of stacked pill badges.
+            Priority: offline > local mode > public/private profile. The
+            connected state needs no marker — email + sync CTA show it. */}
+        {(!online || !connected || showFollowStats) && (
+          <p className="mt-1.5 flex items-center justify-center gap-1.5 sr-text-caption text-[var(--sr-text-muted)]">
+            {!online ? (
+              pl.offline
+            ) : !connected ? (
+              pl.profileHeroLocal
+            ) : showFollowStats ? (
+              <>
+                {isPublic ? <Globe size={11} aria-hidden /> : <Lock size={11} aria-hidden />}
+                {isPublic ? pl.profileHeroPublic : pl.profileHeroPrivate}
+              </>
+            ) : null}
+          </p>
+        )}
       </div>
 
-      {/* Bio — if set */}
+      {/* Bio — centered, constrained measure so long bios stay readable */}
       {showFollowStats && bio && (
-        <p className="mt-3 text-pretty text-sm leading-relaxed text-[var(--sr-text-secondary)]">
+        <p className="mx-auto mt-3 max-w-[34ch] text-pretty text-center text-sm leading-relaxed text-[var(--sr-text-secondary)]">
           {bio}
         </p>
       )}
 
-      {/* Follow stats — one compact inline row; each segment opens the
-          followers/following sheet. Replaces the former big stat pills. */}
+      {/* Follow stats — a segmented strip in the ProfileStats language:
+          one bordered box, two centered cells split by a hairline. Each
+          cell opens the followers/following sheet. */}
       {showFollowPills && (
-        <div className="mt-3 flex items-center gap-4">
+        <div className="mt-3 grid grid-cols-2 divide-x divide-[var(--sr-border-subtle)] overflow-hidden rounded-[var(--sr-radius-md)] border border-[var(--sr-border-subtle)] bg-[var(--sr-bg-surface)]">
           {followLoading ? (
-            <div className="h-4 w-44 rounded sr-skeleton-shimmer" aria-hidden />
+            <div className="col-span-2 h-11 sr-skeleton-shimmer" aria-hidden />
           ) : (
             <>
               <button
@@ -193,17 +196,17 @@ export function ProfileHero({
                 aria-label={pl.profileHeroFollowersAria(followCounts.followers)}
                 className={cn(
                   FOCUS_RING,
-                  'group flex min-h-9 items-center gap-1.5 rounded-[var(--sr-radius-sm)] sr-text-body-sm text-[var(--sr-text-secondary)] transition-colors hover:text-[var(--sr-brand-primary)]',
+                  'group flex min-h-11 items-center justify-center gap-1.5 px-2 sr-text-body-sm text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-elevated)] hover:text-[var(--sr-brand-primary)]',
                 )}
               >
-                <Users size={13} aria-hidden className="text-[var(--sr-text-muted)]" />
+                <Users size={13} aria-hidden className="shrink-0 text-[var(--sr-text-muted)]" />
                 <span className="tabular-nums font-semibold text-[var(--sr-text-primary)]">
                   {followCounts.followers}
                 </span>
-                {pl.profileHeroFollowers}
+                <span className="truncate">{pl.profileHeroFollowers}</span>
                 <ChevronRight
                   size={13}
-                  className="text-[var(--sr-text-muted)] transition-transform group-hover:translate-x-0.5"
+                  className="shrink-0 text-[var(--sr-text-muted)] transition-transform group-hover:translate-x-0.5"
                   aria-hidden
                 />
               </button>
@@ -213,17 +216,17 @@ export function ProfileHero({
                 aria-label={pl.profileHeroFollowingAria(followCounts.following)}
                 className={cn(
                   FOCUS_RING,
-                  'group flex min-h-9 items-center gap-1.5 rounded-[var(--sr-radius-sm)] sr-text-body-sm text-[var(--sr-text-secondary)] transition-colors hover:text-[var(--sr-brand-primary)]',
+                  'group flex min-h-11 items-center justify-center gap-1.5 px-2 sr-text-body-sm text-[var(--sr-text-secondary)] transition-colors hover:bg-[var(--sr-bg-elevated)] hover:text-[var(--sr-brand-primary)]',
                 )}
               >
-                <UserCheck size={13} aria-hidden className="text-[var(--sr-text-muted)]" />
+                <UserCheck size={13} aria-hidden className="shrink-0 text-[var(--sr-text-muted)]" />
                 <span className="tabular-nums font-semibold text-[var(--sr-text-primary)]">
                   {followCounts.following}
                 </span>
-                {pl.profileHeroFollowing}
+                <span className="truncate">{pl.profileHeroFollowing}</span>
                 <ChevronRight
                   size={13}
-                  className="text-[var(--sr-text-muted)] transition-transform group-hover:translate-x-0.5"
+                  className="shrink-0 text-[var(--sr-text-muted)] transition-transform group-hover:translate-x-0.5"
                   aria-hidden
                 />
               </button>
@@ -232,9 +235,9 @@ export function ProfileHero({
         </div>
       )}
 
-      {/* Private profile hint */}
+      {/* Private profile hint — centered under the strip */}
       {showFollowStats && !isPublic && (
-        <p className="mt-2 sr-text-caption text-[var(--sr-text-muted)]">
+        <p className="mt-2 text-center sr-text-caption text-[var(--sr-text-muted)]">
           {pl.profileHeroFollowHint}
         </p>
       )}

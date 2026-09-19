@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Trophy } from 'lucide-react'
 import { ProfileAchievementCase } from '@/components/achievements/ProfileAchievementCase'
 import { ShowcasePickerSheet } from '@/components/achievements/ShowcasePickerSheet'
 import { AchievementDetailSheet } from '@/components/achievements/AchievementDetailSheet'
@@ -39,7 +40,7 @@ export function ProfileAchievementsSection() {
   const detailUnlock = detailId ? unlocks.find((u) => u.id === detailId) : undefined
 
   return (
-    <PageSection title={pl.achievementsProfileTitle}>
+    <PageSection title={pl.achievementsProfileTitle} icon={Trophy}>
       <ProfileAchievementCase
         key={showcaseKey}
         unlocks={unlocks}

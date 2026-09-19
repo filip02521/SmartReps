@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client'
-import { handleAuthSession } from '@/lib/auth-sync'
+import { handleAuthSession, runAuthenticatedSync } from '@/lib/auth-sync'
+import { useAppStore } from '@/stores/app-store'
 import {
   notifyUnexpectedSessionLoss,
   setupAuthLifecycle,
@@ -60,6 +61,31 @@ export function AuthBridge() {
       subscription.unsubscribe()
     }
   }, [navigate])
+
+  // Auto-sync on reconnect + app foreground. Writes only enqueue into
+  // syncQueue — without this, a long-lived PWA session that went
+  // offline→online held unpushed data until the next cold start or a
+  // manual "Synchronizuj". Debounced on lastSyncedAt; silent, logged-out
+  // users no-op inside runAuthenticatedSync.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+    const MIN_INTERVAL_MS = 60_000
+    const maybeAutoSync = () => {
+      if (!navigator.onLine) return
+      const { lastSyncedAt } = useAppStore.getState()
+      if (lastSyncedAt && Date.now() - new Date(lastSyncedAt).getTime() < MIN_INTERVAL_MS) return
+      void runAuthenticatedSync({ silentOffline: true })
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') maybeAutoSync()
+    }
+    window.addEventListener('online', maybeAutoSync)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('online', maybeAutoSync)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
 
   return null
 }
